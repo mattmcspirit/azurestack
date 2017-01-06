@@ -1,5 +1,8 @@
 #!/bin/bash
 
+apt-get update
+apt-get upgrade -y
+
 # Validate input parameters
 if [[ !("$#" -eq 2) ]]; 
     then echo "Parameters missing for puppet enterprise configuration." >&2
