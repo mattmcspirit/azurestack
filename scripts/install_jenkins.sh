@@ -14,19 +14,14 @@ Jenkins_fqdn=$1
 sudo hostname ${Jenkins_fqdn}
 
 # Install Jenkins Dependencies
-add-apt-repository ppa:openjdk-r/ppa
-apt-get update
-apt-get install openjdk-7-jdk -y
-apt-get install openjdk-7-jre -y
-apt-get install wget -y
-
-# Set Java environment variables
-export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
-export PATH=$PATH:/usr/lib/jvm/java-7-openjdk-amd64/bin
+sudo add-apt-repository ppa:openjdk-r/ppa --yes
+sudo apt-get update --yes
+sudo apt-get install openjdk-8-jre openjdk-8-jre-headless openjdk-8-jdk --yes
+sudo apt-get install wget --yes
 
 # Install and Start Jenkins
 wget -q -O - https://pkg.jenkins.io/debian/jenkins-ci.org.key | sudo apt-key add -
 sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
-apt-get update
-apt-get install jenkins -y
-systemctl start jenkins
+sudo apt-get update
+sudo apt-get install jenkins --yes
+sudo service jenkins restart
