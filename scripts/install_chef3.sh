@@ -1,3 +1,7 @@
+#!/bin/bash
+
+# SHow Arguments Passed from Template
+
 echo "${$1}"
 echo "${$2}"
 echo "${$3}"
