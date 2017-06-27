@@ -35,8 +35,8 @@ sudo mkdir /home/chefkeys
 sudo chef-server-ctl user-create "${chef_admin}" "${chef_firstname}" "${chef_lastname}" "${chef_email}" "${chef_password}" --filename /home/chefkeys/"${chef_admin}".pem
 
 # Remove any whitespace from organization name and create lower case variable
-chef_orgConcat="$(echo -e '${chef_org}' | tr -d '[:space:]')"
-chef_orgLower="$(echo -e '${chef_orgConcat}' | tr '[:upper:]' '[:lower:]')"
+chef_orgConcat="$(echo -e "${chef_org}" | tr -d '[:space:]')"
+chef_orgLower="$(echo -e "${chef_orgConcat}" | tr '[:upper:]' '[:lower:]')"
 
 # Create Organization
 sudo chef-server-ctl org-create "${chef_orgLower}" "${chef_org}" --association_user "${chef_admin}" --filename /home/chefkeys/"${chef_orgLower}"-validator.pem
