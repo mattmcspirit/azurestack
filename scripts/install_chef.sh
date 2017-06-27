@@ -7,8 +7,8 @@ if [[ !("$#" -eq 8) ]];
 fi
 
 # Get parameters
-chef_vmadmin=$1
-chef_fqdn=$2
+chef_fqdn=$1
+chef_vmadmin=$2
 chef_admin=$3
 chef_firstname=$4
 chef_lastname=$5
