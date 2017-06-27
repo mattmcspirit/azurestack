@@ -1,15 +1,19 @@
 #!/bin/bash
 
 # Validate input parameters
-if [[ !("$#" -eq 3) ]]; 
+if [[ !("$#" -eq 7) ]]; 
     then echo "Parameters missing for Chef Server 12 configuration." >&2
     exit 1
 fi
 
 # Get parameters
 chef_fqdn=$1
-chef_user=$2
-chef_password=$3
+chef_admin=$2
+chef_firstname=$3
+chef_lastname=$4
+chef_email=$5
+chef_password=$6
+chef_org=$7
 
 sudo hostname ${chef_fqdn}
 
@@ -25,10 +29,13 @@ sudo chef-server-ctl reconfigure
 sleep 5
 
 # Create user
-sudo chef-server-ctl user-create ${chef_user} ${chef_user} LabUser ${chef_user}@partsunlimited.local ${chef_password} --filename /home/${chef_user}/${chef_user}.pem
+sudo chef-server-ctl user-create ${chef_admin} ${chef_firstname} ${chef_lastname} ${chef_email} ${chef_password} --filename /home/${chef_admin}/${chef_admin}.pem
 
-# Create organization
-sudo chef-server-ctl org-create partsunlimited 'Parts Unlimited, Inc.' --association_user ${chef_user} --filename /home/${chef_user}/partsunlimited-validator.pem
+# Remove any whitespace from Company name
+chef_orgConcat="$(echo -e "${chef_org}" | tr -d '[:space:]')"
+
+# Create Organization
+sudo chef-server-ctl org-create ${chef_org} "${chef_org}" --association_user ${chef_admin} --filename /home/${chef_admin}/${chef_orgConcat}-validator.pem
 
 # Add the management GUI
 sudo chef-server-ctl install chef-manage
