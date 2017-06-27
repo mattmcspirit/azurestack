@@ -1,19 +1,20 @@
 #!/bin/bash
 
-# Get parameters
-chef_fqdn=$1
-chef_admin=$2
-chef_firstname=$3
-chef_lastname=$4
-chef_email=$5
-chef_password=$6
-chef_org=$7
-
 # Validate input parameters
-if [[ !("$#" -eq 7) ]]; 
+if [[ !("$#" -eq 8) ]]; 
     then echo "Parameters missing for Chef Server 12 configuration." >&2
     exit 1
 fi
+
+# Get parameters
+chef_vmadmin=$1
+chef_fqdn=$2
+chef_admin=$3
+chef_firstname=$4
+chef_lastname=$5
+chef_email=$6
+chef_password=$7
+chef_org=$8
 
 sudo hostname ${chef_fqdn}
 
@@ -29,13 +30,13 @@ sudo chef-server-ctl reconfigure
 sleep 5
 
 # Create user
-sudo chef-server-ctl user-create ${chef_admin} ${chef_firstname} ${chef_lastname} ${chef_email} ${chef_password} --filename /home/${chef_admin}/${chef_admin}.pem
+sudo chef-server-ctl user-create ${chef_admin} ${chef_firstname} ${chef_lastname} ${chef_email} ${chef_password} --filename /home/${chef_vmadmin}/${chef_admin}.pem
 
 # Remove any whitespace from Company name
 chef_orgConcat="$(echo -e "${chef_org}" | tr -d '[:space:]')"
 
 # Create Organization
-sudo chef-server-ctl org-create ${chef_org} "${chef_org}" --association_user ${chef_admin} --filename /home/${chef_admin}/${chef_orgConcat}-validator.pem
+sudo chef-server-ctl org-create ${chef_org} "${chef_org}" --association_user ${chef_admin} --filename /home/${chef_vmadmin}/${chef_orgConcat}-validator.pem
 
 # Add the management GUI
 sudo chef-server-ctl install chef-manage
