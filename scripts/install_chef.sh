@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Validate input parameters
-if [[ !("$#" -eq 7) ]]; 
+if [[ !("$#" -eq 8) ]]; 
     then echo "Parameters missing for Chef Server 12 configuration." >&2
     exit 1
 fi
