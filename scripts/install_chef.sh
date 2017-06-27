@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Validate input parameters
-if [[ !("$#" -eq 8) ]]; 
-    then echo "Parameters missing for Chef Server 12 configuration." >&2
-    exit 1
-fi
-
 # Get parameters
 chef_fqdn=$1
 chef_admin=$2
@@ -14,6 +8,12 @@ chef_lastname=$4
 chef_email=$5
 chef_password=$6
 chef_org=$7
+
+# Validate input parameters
+if [[ !("$#" -eq 7) ]]; 
+    then echo "Parameters missing for Chef Server 12 configuration." >&2
+    exit 1
+fi
 
 sudo hostname ${chef_fqdn}
 
