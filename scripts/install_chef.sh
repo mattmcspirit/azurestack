@@ -31,7 +31,7 @@ sudo hostname ${chef_fqdn}
 
 # Download & Install Chef Server 12
 cd ~
-wget https://packages.chef.io/files/stable/chef-server/12.15.7/ubuntu/16.04/chef-server-core_12.15.7-1_amd64.deb
+wget https://packages.chef.io/files/stable/chef-server/12.15.8/ubuntu/16.04/chef-server-core_12.15.8-1_amd64.deb
 sudo dpkg -i chef-server-core_*.deb
 
 # Start Configuration
