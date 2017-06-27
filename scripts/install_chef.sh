@@ -16,6 +16,17 @@ chef_email=$6
 chef_password=$7
 chef_org=$8
 
+echo "${chef_fqdn}"
+echo "${chef_vmadmin}"
+echo "${chef_admin}"
+echo "${chef_firstname}"
+echo "${chef_lastname}"
+echo "${chef_email}"
+echo "${chef_password}"
+echo "${chef_org}"
+
+sleep 30
+
 sudo hostname ${chef_fqdn}
 
 # Download & Install Chef Server 12
@@ -30,13 +41,14 @@ sudo chef-server-ctl reconfigure
 sleep 5
 
 # Create user
-sudo chef-server-ctl user-create ${chef_admin} ${chef_firstname} ${chef_lastname} ${chef_email} ${chef_password} --filename /home/${chef_vmadmin}/${chef_admin}.pem
+sudo chef-server-ctl user-create ${chef_admin} ${chef_firstname} ${chef_lastname} ${chef_email} ${chef_password} --filename "${chef_admin}".pem
 
-# Remove any whitespace from Company name
+# Remove any whitespace from Company name and create lower case version
 chef_orgConcat="$(echo -e "${chef_org}" | tr -d '[:space:]')"
+chef_orgLower="$(echo -e "${chef_orgConcat}" | tr '[:upper:]' '[:lower:]')"
 
 # Create Organization
-sudo chef-server-ctl org-create ${chef_org} "${chef_org}" --association_user ${chef_admin} --filename /home/${chef_vmadmin}/${chef_orgConcat}-validator.pem
+sudo chef-server-ctl org-create "${chef_orgLower}" "${chef_org}" --association_user ${chef_admin} --filename "${chef_orgLower}"-validator.pem
 
 # Add the management GUI
 sudo chef-server-ctl install chef-manage
