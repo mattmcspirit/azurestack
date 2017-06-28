@@ -7,10 +7,10 @@ if [[ !("$#" -eq 1) ]];
 fi
 
 # Get parameters and assign variables
-chef_fqdn=$1
+salt_fqdn=$1
 
 # Change the hostname to reflect external Azure Stack server name
-sudo hostname "${chef_fqdn}"
+sudo hostname "${salt_fqdn}"
 
 # Get latest updates and install wget
 apt-get update
