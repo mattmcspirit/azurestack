@@ -300,7 +300,10 @@ else
                         $UbuntuServerVHD = Get-ChildItem -Path "$UpdatedFilePath" -Filter *.vhd | Rename-Item -NewName UbuntuServer20170516.vhd -PassThru -Force -ErrorAction Stop
                     }
                 # Upload the image to the Azure Stack Platform Image Repository
-                Add-AzsVMImage -publisher $publisher -offer $offer -sku $sku -version $version -osType Linux -osDiskLocalPath "$UbuntuServerVHD" -createGalleryItem:$false -ErrorAction Stop
+                Write-Host "Beginning upload of Ubuntu Server 16.04-LTS VHD to the Azure Stack Platform Image Repository"
+                Write-Host "This may take some time...please wait`n"
+                Start-Sleep -Seconds 5
+                Add-AzsVMImage -publisher Canonical -offer UbuntuServer -sku 16.04-LTS -version 1.0.0 -osType Linux -osDiskLocalPath "$UbuntuServerVHD" -createGalleryItem:$false -ErrorAction Stop
                 Write-Host "Ubuntu Server image successfully uploaded to the Platform Image Repository."
                 Write-Host "Now ready to begin uploading packages to the Azure Stack Marketplace"
                 Start-Sleep -Seconds 5
@@ -353,7 +356,7 @@ if (!$UpdatedFilePath) {
                     {
                         # Create the DevOps Hydration folder.
                         Write-Host "DevOps Hydration folder doesn't exist, creating it"
-                        mkdir "$SetFilePath\DevOpsHydration" -Force 
+                        New-Item -ItemType Directory "$SetFilePath\DevOpsHydration" -Force 
                         $UpdatedFilePath = "$SetFilePath\DevOpsHydration"
                     }
                     elseif (test-path "$SetFilePath\DevOpsHydration")
