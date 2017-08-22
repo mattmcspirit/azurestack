@@ -187,7 +187,7 @@ Start-Sleep -Seconds 3
 Write-Host "Checking to see if an Ubuntu Server 16.04-LTS VM Image is present in your Azure Stack Platform Image Repository"
 Start-Sleep -Seconds 5
 
-$platformImage = Get-AzureRmVMImage -Location "local" -PublisherName Canonical -Offer UbuntuServer -Skus "16.05-LTS" -ErrorAction SilentlyContinue
+$platformImage = Get-AzureRmVMImage -Location "local" -PublisherName Canonical -Offer UbuntuServer -Skus "16.04-LTS" -ErrorAction SilentlyContinue
 $platformImageTable = $platformImage | Sort-Object Version
 $platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
 
@@ -239,7 +239,7 @@ else
         }
         elseif ($downloadChoice -eq 2) {
             Write-Host "You have chosen to allow the DevOps Hydration Toolkit to download an Ubuntu Server image for you"
-            Write-Host "Downloading Ubuntu Server 16.04-LTS with Azure Agent 2.2.9 - Select a Download Folder"
+            Write-Host "Downloading Ubuntu Server 16.04-LTS - Select a Download Folder"
             Start-Sleep -Seconds 3
         
             # Execute the Find-Folders function to obtain a desired storage location from the user
@@ -279,29 +279,41 @@ else
                     # Check if VHD exists that matches previously extracted VHD in the DevOps Hydration folder.
                     Write-Host "Checking to see if the Ubuntu Server VHD already exists in DevOps Hydration folder"
                     Start-Sleep -Seconds 5
-                    if (Test-Path "$UpdatedFilePath\UbuntuServer20170516.vhd")
+                    if (Test-Path "$UpdatedFilePath\UbuntuServer.vhd")
                     {
                         # If VHD exists, update the $UbuntuServerVHD variable with the correct name and path.
                         Write-Host "Located Ubuntu Server VHD in this folder. No need to download again..."
                         Start-Sleep -Seconds 3
-                        $UbuntuServerVHD = Get-ChildItem -Path "$UpdatedFilePath\UbuntuServer20170516.vhd"
+                        $UbuntuServerVHD = Get-ChildItem -Path "$UpdatedFilePath\UbuntuServer.vhd"
                         Start-Sleep -Seconds 3
                         Write-Host "Ubuntu Server VHD located at $UbuntuServerVHD"
                     }
+                    elseif (Test-Path "$UpdatedFilePath\UbuntuServer.zip")
+                    {
+                        # If VHD exists, update the $UbuntuServerVHD variable with the correct name and path.
+                        Write-Host "Cannot find a previously extracted Ubuntu Server VHD with name UbuntuServer.vhd"
+                        Write-Host "Checking to see if the Ubuntu Server ZIP already exists in DevOps Hydration folder"
+                        Start-Sleep -Seconds 3
+                        $UbuntuServerZIP = Get-ChildItem -Path "$UpdatedFilePath\UbuntuServer.zip"
+                        Start-Sleep -Seconds 3
+                        Write-Host "Ubuntu Server ZIP located at $UbuntuServerZIP"
+                        Expand-Archive -Path "$UpdatedFilePath\UbuntuServer.zip" -DestinationPath $UpdatedFilePath -Force -ErrorAction Stop
+                        $UbuntuServerVHD = Get-ChildItem -Path "$UpdatedFilePath" -Filter *.vhd | Rename-Item -NewName UbuntuServer.vhd -PassThru -Force -ErrorAction Stop
+                    }
                     else
                     {
-                        # No existing Ubuntu Server VHD exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
+                        # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
                         # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
-                        Write-Host "Cannot find a previously extracted Ubuntu Server VHD with name UbuntuServer20170516.vhd"
-                        Write-Host "Begin download of correct Ubuntu Server VHD"
+                        Write-Host "Cannot find a previously extracted Ubuntu Server download"
+                        Write-Host "Begin download of correct Ubuntu Server ZIP and extraction of VHD"
                         Start-Sleep -Seconds 5
-                        Invoke-Webrequest https://partner-images.canonical.com/azure/releases/xenial/azure-20170516-vhd.zip -OutFile "$UpdatedFilePath\UbuntuServer.zip" -ErrorAction Stop
+                        Invoke-Webrequest http://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip -OutFile "$UpdatedFilePath\UbuntuServer.zip" -ErrorAction Stop
                         Expand-Archive -Path "$UpdatedFilePath\UbuntuServer.zip" -DestinationPath $UpdatedFilePath -Force -ErrorAction Stop
-                        $UbuntuServerVHD = Get-ChildItem -Path "$UpdatedFilePath" -Filter *.vhd | Rename-Item -NewName UbuntuServer20170516.vhd -PassThru -Force -ErrorAction Stop
+                        $UbuntuServerVHD = Get-ChildItem -Path "$UpdatedFilePath" -Filter *.vhd | Rename-Item -NewName UbuntuServer.vhd -PassThru -Force -ErrorAction Stop
                     }
                 # Upload the image to the Azure Stack Platform Image Repository
-                Write-Host "Beginning upload of Ubuntu Server 16.04-LTS VHD to the Azure Stack Platform Image Repository"
-                Write-Host "This may take some time...please wait`n"
+
+                Write-Host "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
                 Start-Sleep -Seconds 5
                 Add-AzsVMImage -publisher Canonical -offer UbuntuServer -sku 16.04-LTS -version 1.0.0 -osType Linux -osDiskLocalPath "$UbuntuServerVHD" -createGalleryItem:$false -ErrorAction Stop
                 Write-Host "Ubuntu Server image successfully uploaded to the Platform Image Repository."
