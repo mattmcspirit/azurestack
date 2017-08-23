@@ -1,0 +1,318 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUsername": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30,
+            "metadata": {
+                "description": "User name for the Jenkins Master virtual machine. Only alphanumeric characters are allowed, and the value must be 1-30 characters long."
+            },
+            "defaultValue": ""
+        },
+        "adminPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Admin password for the Jenkins Master virtual machine. These credentials will be used to SSH to the VM."
+            }
+        },
+        "vmName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30,
+            "metadata": {
+                "description": "Virtual machine name.  This will also be the Public DNS name for the Jenkins Master virtual machine, in the format vmname.local.cloudapp.azurestack.external"
+            }
+        },
+        "vmSize": {
+            "type": "string",
+            "allowedValues": [
+                "Basic_A2",
+                "Basic_A3",
+                "Basic_A4",
+                "Standard_A2",
+                "Standard_A3",
+                "Standard_A4",
+                "Standard_A5",
+                "Standard_A6",
+                "Standard_A7",
+                "Standard_D2",
+                "Standard_D3",
+                "Standard_D4",
+                "Standard_D2_V2",
+                "Standard_D3_V2",
+                "Standard_D4_V2",
+                "Standard_DS2",
+                "Standard_DS3",
+                "Standard_DS4",
+                "Standard_DS2_V2",
+                "Standard_DS3_V2",
+                "Standard_DS4_V2"                
+            ],
+            "metadata": {
+                "description": "Virtual machine size. For details on sizing, refer to the <a href='https://docs.microsoft.com/en-us/azure/virtual-machines/linux/sizes-general' target='_blank'>VM sizing documentation</a>"
+            },
+            "defaultValue": "Standard_A3"
+        }
+    },
+    "variables": {
+        "imagePublisher": "Canonical",
+        "imageOffer": "UbuntuServer",
+        "imageSku": "16.04-LTS",
+        "oSDiskName": "[toLower(concat(parameters('vmName'), '_osdisk'))]",
+        "nicName": "[toLower(concat(parameters('vmName'), '_nic'))]",
+        "addressPrefix": "10.0.0.0/16",
+        "subnetName": "Subnet",
+        "subnetPrefix": "10.0.1.0/24",
+        "storageName": "[concat('vhdstorage', uniqueString(resourceGroup().id))]",
+        "storageType": "Standard_LRS",
+        "publicIPAddressName": "[toLower(concat(variables('dnsName'), '_pip'))]",
+        "publicIPAddressType": "Dynamic",
+        "vhdStorageContainerName": "vhds",
+        "nsgName": "[toLower(concat(parameters('vmName'), '_nsg'))]",
+        "dnsName": "[toLower(parameters('vmName'))]",
+        "virtualNetworkName": "[toLower(concat(parameters('vmName'), '_vnet'))]",
+        "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
+        "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[toLower(variables('storageName'))]",
+            "apiVersion": "2015-05-01-preview",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "StorageAccount"
+            },
+            "properties": {
+                "accountType": "[variables('storageType')]"
+            }
+        },
+         {
+            "apiVersion": "2015-05-01-preview",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[variables('nsgName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "NSG"
+            },
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "SSH",
+                        "properties": {
+                            "description": "SSH port",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 1000,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+
+                        "name": "Jenkins",
+                        "properties": {
+                            "description": "Jenkins port",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "8080",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 1100,
+                            "direction": "Inbound"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2015-05-01-preview",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[variables('publicIPAddressName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PublicIPAddress"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
+                "dnsSettings": {
+                    "domainNameLabel": "[variables('dnsName')]"
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-05-01-preview",
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "[variables('virtualNetworkName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "VirtualNetwork"
+            },
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[variables('addressPrefix')]"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "[variables('subnetName')]",
+                        "properties": {
+                            "addressPrefix": "[variables('subnetPrefix')]"
+                        }
+                    }
+                ]
+            }
+        },
+       
+        {
+            "apiVersion": "2015-05-01-preview",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[variables('nicName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "NIC"
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
+                "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
+                "[concat('Microsoft.Network/networkSecurityGroups/', variables('nsgName'))]"
+            ],
+            "properties": {
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+                },
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]"
+                            },
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('vmName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "VM"
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Storage/storageAccounts/', variables('storageName'))]",
+                "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('vmSize')]"
+                },
+                "osProfile": {
+                    "computerName": "[parameters('vmName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "[variables('imagePublisher')]",
+                        "offer": "[variables('imageOffer')]",
+                        "sku": "[variables('imageSku')]",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "osdisk",
+                        "vhd": {
+                            "uri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('storageName')), '2015-06-15').primaryEndpoints.blob, variables('vhdStorageContainerName'),'/',variables('OSDiskName'),'.vhd')]"
+                        },
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": "true",
+                        "storageUri": "[reference(concat('Microsoft.Storage/storageAccounts/', variables('storageName')), '2015-06-15').primaryEndpoints.blob]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('vmName'),'/CustomScriptForLinux')]",
+            "apiVersion": "2015-06-15",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.OSTCExtensions",
+                "type": "CustomScriptForLinux",
+                "typeHandlerVersion": "1.5",
+                "autoUpgradeMinorVersion": "true",
+                "settings": {
+                    "fileUris": [
+                        "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/install_jenkins.sh"
+                    ]
+                },
+                "protectedSettings": {
+                    "commandToExecute": "[concat('bash install_jenkins.sh ', concat(variables('dnsName'),'.',resourceGroup().location,'.cloudapp.azurestack.external'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('vmName'),'/LinuxVMAccessExtension')]",
+            "apiVersion": "2015-06-15",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'),'/extensions/CustomScriptForLinux')]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.OSTCExtensions",
+                "type": "VMAccessForLinux",
+                "typeHandlerVersion": "1.4",
+                "autoUpgradeMinorVersion": "true",
+                "settings": {},
+                "protectedSettings": {
+                    "username": "[parameters('adminUsername')]",
+                    "password": "[parameters('adminPassword')]"
+                }
+            }
+        }
+    ],
+        "outputs": {
+            "adminUsername": {
+                "type": "string",
+                "value": "[parameters('adminUsername')]"
+        },
+            "JenkinsMasterFQDN": {
+                "type": "string",
+			    "value": "[concat('http://',reference(resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))).dnsSettings.fqdn, ':8080')]"
+        },
+            "NextSteps": {
+            "type": "string",
+            "value": "[concat('SSH to ',reference(resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))).dnsSettings.fqdn, ' and run sudo cat /var/lib/jenkins/secrets/initialAdminPassword to finish setup in your web browser')]"
+    }
+}
+
+}
