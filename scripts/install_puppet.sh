@@ -1,5 +1,3 @@
-
-
 %#!/bin/bash
 
 # Add the Puppet Repo with latest bits
