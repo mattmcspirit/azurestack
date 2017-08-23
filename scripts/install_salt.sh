@@ -1,7 +1,9 @@
+
 #!/bin/bash
 
 # Get latest updates
 apt-get update
+apt-get dist-upgrade
 
 # Install Salt with Bootstrap
 curl -L https://bootstrap.saltstack.com -o install_salt.sh
