@@ -1,4 +1,6 @@
-#!/bin/bash
+
+
+%#!/bin/bash
 
 # Add the Puppet Repo with latest bits
 wget https://apt.puppetlabs.com/puppet-release-xenial.deb
@@ -20,6 +22,9 @@ systemctl start puppetserver
 
 # Re-Check Puppet Server Status
 systemctl status puppetserver --no-pager
+
+# Update the executable location path for Puppet
+echo 'export PATH=/opt/puppetlabs/bin:$PATH' >> ~/.profile
 
 # Update Firewall iptables rules
 iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT
