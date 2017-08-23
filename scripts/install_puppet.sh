@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Add the Puppet Repo with latest bits
 wget https://apt.puppetlabs.com/puppet-release-xenial.deb
 ls -ltrh puppet-release-xenial.deb 
@@ -12,13 +13,13 @@ sudo apt-cache show puppetserver
 sudo apt-get install puppetserver -y
 
 # Check Puppet Server Status
-systemctl status puppetserver
+systemctl status puppetserver --no-pager
 
 # Start Puppet Server Service
 systemctl start puppetserver
 
 # Re-Check Puppet Server Status
-systemctl status puppetserver
+systemctl status puppetserver --no-pager
 
 # Update Firewall iptables rules
 iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT
