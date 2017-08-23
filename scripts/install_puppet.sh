@@ -24,5 +24,8 @@ systemctl status puppetserver --no-pager
 # Update Firewall iptables rules
 iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT
 
-#Sync with Puppet Agent
-puppet agent -t
+# Enable the Puppet Agent on the Puppet Master
+sudo /opt/puppetlabs/bin/puppet resource service puppet ensure=running enable=true
+
+# Sync Puppet Agent and Master
+sudo /opt/puppetlabs/bin/puppet agent --test
