@@ -1,63 +1,20 @@
 #!/bin/bash
 
-# Validate input parameters
-if [[ !("$#" -eq 1) ]]; 
-    then echo "Parameters missing for Salt Master configuration." >&2
-    exit 1
-fi
-hostnam,e 
-# Get parameters and assign variables
-salt_fqdn=$1
-
-# Change the hostname to reflect external Azure Stack server name
-sudo hostname "${salt_fqdn}"
-
-# Get latest updates and install wget
+# Get latest updates
 apt-get update
 
-# Import the SaltStack Repo Key
-wget -O - https://repo.saltstack.com/apt/ubuntu/16.04/amd64/latest/SALTSTACK-GPG-KEY.pub | sudo apt-key add -
-
-# Save the file
-echo "deb http://repo.saltstack.com/apt/ubuntu/16.04/amd64/latest xenial main" > /etc/apt/sources.list.d/saltstack.list
-
-# Get latest updates & install the Salt Master and Minion
-apt-get update
-apt-get install salt-master salt-minion -y
+# Install Salt with Bootstrap
+curl -L https://bootstrap.saltstack.com -o install_salt.sh
+sudo sh install_salt.sh -P -M
 
 # Open Firewall
 sudo ufw allow 4505:4506/tcp
 
-# Create Configuration Management Directory Structure
-sudo mkdir -p /srv/{salt,formulas,pillar}
-
-# Edit Salt Master Configuration File 
-cat << EOF > /etc/salt/master
-file_ignore_regex:
-  - '/\.svn($|/)'
-  - '/\.git($|/)'
-
-hash_type: sha512
-
-file_roots:
-  base:
-    - /srv/salt
-    - /srv/formulas
-    
-pillar_roots:
-  base:
-    - /srv/pillar
-EOF
-
 # Edit Salt Minion Configuration File
-cat << EOF > /etc/salt/minion
-master: $(hostname)
-hash_type: sha512
-master_finger: $(salt-key -F | grep master.pub | awk '{print $2}')
-EOF
+sudo sed -i "s/#master: salt/master: $(hostname)/g" /etc/salt/minion
+sudo sed -i "s/#master_finger: ''/master_finger: $(salt-key -F | grep master.pub | awk '{print $2}')/g" /etc/salt/minion
 
-# Restart Salt Services
-sudo service salt-master restart
+# Restart Salt Minion Services
 sudo service salt-minion restart
 
 # Sleep for 10 seconds
