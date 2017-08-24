@@ -1,9 +1,8 @@
 %#!/bin/bash
-export DEBIAN_FRONTEND="noninteractive"
 
 # Add the Puppet Repo with latest bits
 wget https://apt.puppetlabs.com/puppet-release-xenial.deb
-ls -ltrh puppet-release-xenial.deb 
+# ls -ltrh puppet-release-xenial.deb 
 sudo dpkg -i puppet-release-xenial.deb 
 
 # Get latest updates
@@ -11,7 +10,7 @@ sudo apt-get update
 
 # View cache & install Puppet Server
 sudo apt-cache show puppetserver
-sudo apt-get install puppetserver -y
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install puppetserver -y
 
 # Check Puppet Server Status
 systemctl status puppetserver --no-pager
