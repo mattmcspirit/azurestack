@@ -21,15 +21,27 @@ systemctl start puppetserver
 # Re-Check Puppet Server Status
 systemctl status puppetserver --no-pager
 
-# Update the executable location path for Puppet for future reboots
-echo 'export PATH=/opt/puppetlabs/bin:$PATH' >> ~/.profile
-export PATH=/opt/puppetlabs/bin:$PATH
-
 # Update Firewall iptables rules
 iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT
 
 # Enable the Puppet Agent on the Puppet Master
 sudo /opt/puppetlabs/bin/puppet resource service puppet ensure=running enable=true
+
+# Update the executable location path for Puppet for future reboots
+echo 'export PATH=/opt/puppetlabs/bin:$PATH' >> ~/.profile
+export PATH=/opt/puppetlabs/bin:$PATH
+
+# Update the hostname for the agent
+puppet config set server=$(hostname) --section agent
+
+# Update certificates for agents
+rm /etc/puppetlabs/puppet/ssl/private_keys/$(hostname -f).pem
+rm /etc/puppetlabs/puppet/ssl/ca/signed/$(hostname -f).pem
+rm /etc/puppetlabs/puppet/ssl/certs/$(hostname -f).pem
+puppet cert generate $(hostname -f) --dns_alt_names=$(hostname -f),$(hostname)
+
+# Restart Puppet Master
+service puppetserver restart
 
 #Wait for the service to start and initial config to sync
 sleep 30
