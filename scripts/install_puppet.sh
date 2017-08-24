@@ -29,10 +29,11 @@ sudo /opt/puppetlabs/bin/puppet resource service puppet ensure=running enable=tr
 
 # Update the executable location path for Puppet for future reboots
 echo 'export PATH=/opt/puppetlabs/bin:$PATH' >> ~/.profile
+echo 'export PATH=/opt/puppetlabs/bin:$PATH' >> ~/.bashrc
 export PATH=/opt/puppetlabs/bin:$PATH
 
 # Update the hostname for the agent
-sudo /opt/puppetlabs/bin/puppet config set --section AGENT server $(hostname)
+sudo /opt/puppetlabs/bin/puppet config set --section agent server $(hostname)
 
 # Update certificates for agents
 rm /etc/puppetlabs/puppet/ssl/private_keys/$(hostname -f).pem
