@@ -20,6 +20,7 @@ sudo systemctl status puppetserver --no-pager
 /opt/puppetlabs/bin/puppet config set --section main server $(hostname -f)
 /opt/puppetlabs/bin/puppet config set --section main environment production
 /opt/puppetlabs/bin/puppet config set --section main runinterval 1h
+/opt/puppetlabs/bin/puppet config set --section agent server $(hostname -f)
 
 # Start puppetmaster service
 sudo systemctl start puppetserver
