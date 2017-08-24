@@ -33,7 +33,7 @@ iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT
 sudo /opt/puppetlabs/bin/puppet resource service puppet ensure=running enable=true
 
 #Wait for the service to start and initial config to sync
-Sleep 30
+sleep 30
 
 # Sync Puppet Agent and Master
 # sudo /opt/puppetlabs/bin/puppet agent --test
