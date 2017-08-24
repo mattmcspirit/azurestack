@@ -10,7 +10,7 @@ sudo apt-get update
 
 # View cache & install Puppet Server
 sudo apt-cache show puppetserver
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get install puppetserver -y
+DEBIAN_FRONTEND=noninteractive && apt-get install puppetserver -y
 
 # Check Puppet Server Status
 systemctl status puppetserver --no-pager
