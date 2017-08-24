@@ -1,5 +1,5 @@
 %#!/bin/bash
-export DEBIAN_FRONTEND=noninteractive
+export DEBIAN_FRONTEND="noninteractive"
 
 # Add the Puppet Repo with latest bits
 wget https://apt.puppetlabs.com/puppet-release-xenial.deb
