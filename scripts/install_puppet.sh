@@ -36,16 +36,16 @@ export PATH=/opt/puppetlabs/bin:$PATH
 sudo /opt/puppetlabs/bin/puppet config set --section agent server $(hostname)
 
 # Update certificates for agents
-rm /etc/puppetlabs/puppet/ssl/private_keys/$(hostname -f).pem
-rm /etc/puppetlabs/puppet/ssl/ca/signed/$(hostname -f).pem
-rm /etc/puppetlabs/puppet/ssl/certs/$(hostname -f).pem
-sudo /opt/puppetlabs/bin/puppet cert generate $(hostname -f) --dns_alt_names=$(hostname -f),$(hostname)
+# rm /etc/puppetlabs/puppet/ssl/private_keys/$(hostname -f).pem
+# rm /etc/puppetlabs/puppet/ssl/ca/signed/$(hostname -f).pem
+# rm /etc/puppetlabs/puppet/ssl/certs/$(hostname -f).pem
+# sudo /opt/puppetlabs/bin/puppet cert generate $(hostname -f) --dns_alt_names=$(hostname -f),$(hostname)
 
 # Restart Puppet Master
-service puppetserver restart
+# service puppetserver restart
 
 #Wait for the service to start and initial config to sync
-sleep 30
+# sleep 30
 
 # Sync Puppet Agent and Master
 # sudo /opt/puppetlabs/bin/puppet agent --test
