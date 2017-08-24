@@ -6,10 +6,13 @@ ls -ltrh puppet-release-xenial.deb
 sudo dpkg -i puppet-release-xenial.deb 
 
 # Get latest updates
+export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update
 
 # View cache & install Puppet Server
+export DEBIAN_FRONTEND=noninteractive
 sudo apt-cache show puppetserver
+export DEBIAN_FRONTEND=noninteractive
 sudo apt-get install puppetserver -y
 
 # Check Puppet Server Status
