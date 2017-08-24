@@ -39,7 +39,7 @@ sudo /opt/puppetlabs/bin/puppet config set --section agent server $(hostname)
 rm /etc/puppetlabs/puppet/ssl/private_keys/$(hostname -f).pem
 rm /etc/puppetlabs/puppet/ssl/ca/signed/$(hostname -f).pem
 rm /etc/puppetlabs/puppet/ssl/certs/$(hostname -f).pem
-puppet cert generate $(hostname -f) --dns_alt_names=$(hostname -f),$(hostname)
+sudo /opt/puppetlabs/bin/puppet cert generate $(hostname -f) --dns_alt_names=$(hostname -f),$(hostname)
 
 # Restart Puppet Master
 service puppetserver restart
