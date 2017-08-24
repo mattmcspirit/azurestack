@@ -32,7 +32,7 @@ echo 'export PATH=/opt/puppetlabs/bin:$PATH' >> ~/.profile
 export PATH=/opt/puppetlabs/bin:$PATH
 
 # Update the hostname for the agent
-puppet config set server=$(hostname) --section agent
+sudo /opt/puppetlabs/bin/puppet config set --section AGENT server $(hostname)
 
 # Update certificates for agents
 rm /etc/puppetlabs/puppet/ssl/private_keys/$(hostname -f).pem
