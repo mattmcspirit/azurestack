@@ -1,7 +1,7 @@
 %#!/bin/bash
 
 # Validate input parameters
-if [[ !("$#" -eq 8) ]]; 
+if [[ !("$#" -eq 1) ]]; 
     then echo "Parameters missing for Puppet Server configuration." >&2
     exit 1
 fi
