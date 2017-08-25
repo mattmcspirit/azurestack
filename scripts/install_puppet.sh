@@ -1,5 +1,14 @@
 %#!/bin/bash
 
+# Validate input parameters
+if [[ !("$#" -eq 8) ]]; 
+    then echo "Parameters missing for Puppet Server configuration." >&2
+    exit 1
+fi
+
+# Get parameters and assign variables
+puppet_extfqdn=$1
+
 # Add the Puppet Repo with latest bits
 wget https://apt.puppetlabs.com/puppet-release-xenial.deb
 sudo dpkg -i puppet-release-xenial.deb 
@@ -15,7 +24,7 @@ DEBIAN_FRONTEND=noninteractive && apt-get install puppetserver -y
 sudo systemctl status puppetserver --no-pager
 
 # Update puppet.conf file to reflect hostname
-/opt/puppetlabs/bin/puppet config set --section master dns_alt_names $(hostname -f),$(hostname)
+/opt/puppetlabs/bin/puppet config set --section master dns_alt_names $(hostname -f),$(hostname),$1
 /opt/puppetlabs/bin/puppet config set --section main certname $(hostname -f)
 /opt/puppetlabs/bin/puppet config set --section main server $(hostname -f)
 /opt/puppetlabs/bin/puppet config set --section main environment production
