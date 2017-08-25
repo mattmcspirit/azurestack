@@ -24,7 +24,7 @@ DEBIAN_FRONTEND=noninteractive && apt-get install puppetserver -y
 sudo systemctl status puppetserver --no-pager
 
 # Update puppet.conf file to reflect hostname
-/opt/puppetlabs/bin/puppet config set --section master dns_alt_names $(hostname -f),$(hostname),$1
+/opt/puppetlabs/bin/puppet config set --section master dns_alt_names $(hostname -f),$(hostname),$puppet_extfqdn
 /opt/puppetlabs/bin/puppet config set --section main certname $(hostname -f)
 /opt/puppetlabs/bin/puppet config set --section main server $(hostname -f)
 /opt/puppetlabs/bin/puppet config set --section main environment production
