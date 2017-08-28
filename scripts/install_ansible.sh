@@ -1,4 +1,4 @@
- -y%#!/bin/bash
+%#!/bin/bash
 
 # Add the Ansible PPA Repo
 sudo apt-get update
@@ -10,7 +10,3 @@ sudo apt-get update
 
 # Install Ansible
 sudo apt-get install ansible -y
-
-# Update profiles to reflect Terraform PATH and source it
-echo 'export PATH=$PATH:~/terraform/' >> ~/.bashrc
-echo 'export PATH=$PATH:~/terraform/' >> /home/${adminUsername}/.profile
