@@ -2,25 +2,27 @@
 
 # Validate input parameters
 if [[ !("$#" -eq 1) ]]; 
-    then echo "Parameters missing for Terraform configuration." >&2
+    then echo "Parameters missing for Puppet Server configuration." >&2
     exit 1
 fi
-
 # Get parameters and assign variables
-terraform_admin=$1
+adminUsername=$1
 
 # Get latest updates
 sudo apt-get update
 
-# Download the 0.10.2 version of x64 Terraform
-wget https://releases.hashicorp.com/terraform/0.10.2/terraform_0.10.2_linux_amd64.zip
+# Install jq and unzip
+sudo apt-get install jq unzip -y
 
-# Make new directory for Terraform files
-mkdir -p ~/opt/terraform
+# Create directories to house Terraform files
+mkdir -p /opt/terraform && cd $_
 
-# Unzio files
-unzip terraform_0.1.1_darwin_amd64.zip -d ~/opt/terraform
+# Download the latest version of x64 Terraform and unzip
+terraform_url=$(curl https://releases.hashicorp.com/index.json | jq '{terraform}' | egrep "linux.amd64" | sort --version-sort -r | head -1 | awk -F[\"] '{print $4}')
+curl -o terraform.zip $terraform_url
+unzip -o terraform.zip
 
-# Update Root Path to reflect Terraform
-# sed -i -e '/secure_path/ s|"|:~/opt/terraform/bin"|2' /etc/sudoers
-
+# Update profiles to reflect Terraform PATH and source it
+echo 'export PATH=$PATH:~/opt/terraform/' >> ~/.bashrc
+echo 'export PATH=$PATH:~/opt/terraform/' >> /home/${adminUsername}/.profile
+source ~/.bashrc
