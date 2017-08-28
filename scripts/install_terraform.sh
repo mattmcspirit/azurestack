@@ -2,7 +2,7 @@
 
 # Validate input parameters
 if [[ !("$#" -eq 1) ]]; 
-    then echo "Parameters missing for Puppet Server configuration." >&2
+    then echo "Parameters missing for Terraform configuration." >&2
     exit 1
 fi
 # Get parameters and assign variables
