@@ -5,6 +5,7 @@ if [[ !("$#" -eq 1) ]];
     then echo "Parameters missing for Terraform configuration." >&2
     exit 1
 fi
+
 # Get parameters and assign variables
 adminUsername=$1
 
