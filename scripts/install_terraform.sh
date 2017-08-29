@@ -25,5 +25,7 @@ unzip terraform.zip
 
 # Update profiles to reflect Terraform PATH and source it
 echo 'export PATH=$PATH:/opt/terraform/' >> ~/.bashrc
-echo 'export PATH=$PATH:/opt/terraform/' >> /home/${adminUsername}/.profile
 source ~/.bashrc
+echo 'export PATH=$PATH:/opt/terraform/' >> /home/${adminUsername}/.profile
+echo 'export PATH=$PATH:/opt/terraform/' >> ~/.profile
+sed -i -e '/secure_path/ s|"|:/opt/terraform"|2' /etc/sudoers
