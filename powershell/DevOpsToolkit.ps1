@@ -2,12 +2,12 @@
 
 .SYNOPSIS
 
-This script can be used to hydrate a number of key open source DevOps tools into an Azure Stack environment, to enable you to deploy, test and learn about key DevOps tools,
+This script can be used to setup a number of key open source DevOps tools into an Azure Stack environment, to enable you to deploy, test and learn about key DevOps tools,
 and offer them to your tenants for their own consumption.
 
 .DESCRIPTION
 
-DevOpsHydration runs locally on the Azure Stack host, to download and hydrate key assets into your Azure Stack environment. It can be modfied as necessary to meet your specific goals.
+DevOpsHydration runs locally on the Azure Stack host, to download and setup key assets into your Azure Stack environment. It can be modfied as necessary to meet your specific goals.
 
 The script will follow four steps:
 - Login to Azure Stack with your provided credentials.
@@ -79,32 +79,23 @@ Clear-Host
 
 ### DISPLAY INTRO TEXT AND DELAY ###
 
-Write-Host "`n`nWELCOME TO THE DEVOPS HYDRATION TOOLKIT`nVersion: 1.0.0" -ForegroundColor Green
+Write-Host "`n`nWELCOME TO THE DEVOPS TOOLKIT`nVersion: 1.0.0" -ForegroundColor Green
 Write-Host "`nThis toolkit can be used to quickly setup a Proof of Concept (POC) environment containing an
-Ubuntu Server 16.04-LTS VM image, along with a selection of Open Source DevOps tools, including Chef, Puppet, Jenkins, Ansible and more.
-This DevOps Hydration Toolkit will perform the following tasks:`n"
+Ubuntu Server 16.04-LTS VM image, along with a selection of Open Source DevOps tools, including Ansible, Chef, Jenkins, Puppet, Salt and Terraform.
+This DevOps Toolkit will perform the following tasks:`n"
 Write-Host "1) Download the appropriate Azure Stack Tools and PowerShell Modules for Administration
 2) Securely login to your Azure Stack environment, through either ADFS or Azure AD credentials
 3) Check your existing Azure Stack Platform Image Repository for a suitable Ubuntu Server 16.04-LTS VM Image and upload one if required
-4) Download the latest Open Source DevOps Azure Stack Marketplace Packages from Github and upload into your Azure Stack Marketplace
+4) Download the latest Open Source DevOps Azure Stack Custom Marketplace Gallery Packages from Github and upload into your Azure Stack Marketplace
 `n" -ForegroundColor White
-Write-Host "The DevOps Hydration Toolkit will start shortly...`n" -ForegroundColor Yellow
-Start-Sleep -Seconds 35
-Write-Host "Starting in 5...."
-Start-Sleep -Seconds 1
-Write-Host "Starting in 4...."
-Start-Sleep -Seconds 1
-Write-Host "Starting in 3...."
-Start-Sleep -Seconds 1
-Write-Host "Starting in 2...."
-Start-Sleep -Seconds 1
-Write-Host "Starting in 1...."
-Start-Sleep -Seconds 1
-Write-Host "LET'S GO!"
-Start-Sleep -Seconds 3
+
+Pause
 
 ### CLEAR SCREEN ###
 Clear-Host
+
+### GET START TIME ###
+$Time1 = Get-Date -format HH:mm:ss
 
 ### SET LOCATION ###
 $ScriptLocation = Get-Location
@@ -140,6 +131,7 @@ Write-Host "Azure Stack Connect module imported successfully"
 
 ### CONNECT TO AZURE STACK ###
 # Register an AzureRM environment that targets your administrative Azure Stack instance
+
 Write-Host "You will now be prompted to log in to your Azure Stack environment"
 Start-Sleep -Seconds 3
 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "https://adminmanagement.local.azurestack.external" -ErrorAction Stop
@@ -174,6 +166,7 @@ else
 
 ###  PIR IMAGE VERIFCATION & UPLOAD ###
 # Import the Azure Stack Compute Modules
+
 Write-Host "Importing Azure Stack Compute Module"
 Start-Sleep -Seconds 5
 Set-Location C:\AzureStack-Tools-master
@@ -349,6 +342,7 @@ else
 ### DOWNLOAD THE PACKAGES FROM GITHUB ###
 # If the variable $UpdatedFilePath hasn't been defined (which it won't unless the DevOps Hydration Toolkit was used to download the image from Canonical)
 # then we will ask for the folder here, and use it for storing the packages going forward.
+
 if (!$UpdatedFilePath) {
     $SetFilePath = Select-Folder
             if (!$SetFilePath) {
@@ -362,30 +356,30 @@ if (!$UpdatedFilePath) {
             }
             else {
                     # Check if DevOps Hydration folder needs creating or not
-                    Write-Host "Checking to see if the DevOps Hydration folder exists"
+                    Write-Host "Checking to see if the DevOps Toolkit folder exists"
                     Start-Sleep -Seconds 5
                     if (-not (test-path "$SetFilePath\DevOpsHydration"))
                     {
-                        # Create the DevOps Hydration folder.
-                        Write-Host "DevOps Hydration folder doesn't exist, creating it"
-                        New-Item -ItemType Directory "$SetFilePath\DevOpsHydration" -Force 
-                        $UpdatedFilePath = "$SetFilePath\DevOpsHydration"
+                        # Create the DevOps Toolkit folder.
+                        Write-Host "DevOps Toolkit folder doesn't exist, creating it"
+                        New-Item -ItemType Directory "$SetFilePath\DevOpsToolkit" -Force | Out-Null
+                        $UpdatedFilePath = "$SetFilePath\DevOpsToolkit"
                     }
-                    elseif (test-path "$SetFilePath\DevOpsHydration")
+                    elseif (test-path "$SetFilePath\DevOpsToolkit")
                     {
-                        # No need to create the DevOps Hydration folder as it already exists. Set $UpdatedFilePath to the new location.
-                        Write-Host "DevOps Hydration folder exists, no need to create it"
+                        # No need to create the DevOps Toolkit folder as it already exists. Set $UpdatedFilePath to the new location.
+                        Write-Host "DevOps Toolkit folder exists, no need to create it"
                         Start-Sleep -Seconds 1
-                        Write-Host "DevOps Hydration folder is within $SetFilePath"
+                        Write-Host "DevOps Toolkit folder is within $SetFilePath"
                         Start-Sleep -Seconds 1
-                        $UpdatedFilePath = Set-Location -Path "$SetFilePath\DevOpsHydration" -PassThru
-                        Write-Host "DevOps Hydration folder full path is $UpdatedFilePath"
+                        $UpdatedFilePath = Set-Location -Path "$SetFilePath\DevOpsToolkit" -PassThru
+                        Write-Host "DevOps Toolkit folder full path is $UpdatedFilePath"
                     }
             }
 }
 
-Write-Host "Checking DevOps Hydration folder for existing DevOpsTools.zip file from previous download"
-Start-Sleep -Seconds 5
+Write-Host "Checking for existing DevOpsTools.zip file from previous download"
+Start-Sleep -Seconds 3
 if (Test-Path "$UpdatedFilePath\DevOpsTools.zip")
     {
         # If zip exists, remove it, and re-download to ensure you have the latest version.
@@ -398,7 +392,8 @@ if (Test-Path "$UpdatedFilePath\DevOpsTools.zip")
     }
 else
     {
-        Write-Host "No DevOpsTools.zip file exists in the DevOps Hydration - downloading now..."
+        #If zip doesn't exist, download it now and update the file path.
+        Write-Host "No DevOpsTools.zip file exists in the DevOps Toolkit - downloading now..."
         Remove-Item -Path "$UpdatedFilePath\azurestack-master" -Recurse -ErrorAction SilentlyContinue
         Remove-Item -Path "$UpdatedFilePath\DevOpsTools" -Recurse -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 3
@@ -409,9 +404,132 @@ Expand-Archive -Path "$UpdatedFilePath\DevOpsTools.zip" -DestinationPath $Update
 Rename-Item -Path "$UpdatedFilePath\azurestack-master" -NewName DevOpsTools -Force
 Write-Host "DevOps Tools are now extracted.  Cleaning up the zip file..."
 Remove-Item -Path "$UpdatedFilePath\DevOpsTools.zip" -Force
-Start-Sleep -Seconds 3
-Write-Host "Cleaned up.  Searching for Packages..."
-Start-Sleep -Seconds 3
-Write-Host "Returning user to original folder that the script was executed from"
-Start-Sleep -Seconds 3
+$UpdatedFilePath = "$UpdatedFilePath\DevOpsTools"
+Start-Sleep -Seconds 1
+Write-Host "Completed."
+
+### CHECK FOR EXISTING RESOURCE GROUP AND STORAGE ACCOUNT, CLEAN UP, AND RECREATE ###
+# If a matching RG exists, it could be from a failed previous run, as the script should have cleaned up the RG if successful.
+# We'll therefore remove the RG to ensure we're adding from a clean start point.
+
+Write-Host "Checking for an existing DevOps Toolkit Resource Group and Storage Account within your Azure Stack"
+Start-Sleep 2
+if ((Get-AzureRmResourceGroup -Name devopstoolkit -ErrorAction SilentlyContinue) -ne $null)
+    {
+        Write-Host "Found the following DevOps Toolkit Resource Group within your Azure Stack:"
+        Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "devopstoolkit"} | Format-Table ResourceGroupName, Location, ProvisioningState, ResourceId
+        Start-Sleep 2
+        Write-Host "Please wait - cleaning up existing DevOps Toolkit Resource Group and Storage Account. This may take a few moments."
+        Start-Sleep 2
+        Remove-AzureRmResourceGroup -ResourceGroupName "devopstoolkit" -Force -Confirm:$false
+        Write-Host "Completed cleaning."
+        Start-Sleep 2
+        Write-Host "Proceeding to create new temporary DevOps Toolkit Resource Group and Storage Account for uploading packages."
+    }
+else {
+    Write-Host "No existing DevOps Toolkit Resource Group or Storage Account within your Azure Stack."
+    Start-Sleep 2
+    Write-Host "Proceeding to create new temporary DevOps Toolkit Resource Group and Storage Account for uploading packages."
+}
+
+$RG = New-AzureRmResourceGroup -Name devopstoolkit -Location local
+$StorageAccount = $RG | New-AzureRmStorageAccount -Name devopstoolkit -Type Standard_LRS
+$GalleryContainer = New-AzureStorageContainer -Name devopstoolkit -Permission Blob -Context $StorageAccount.Context
+Write-Host "Creation successful:"
+Get-AzureRmResourceGroup -Name devopstoolkit| Format-Table ResourceGroupName, Location, ProvisioningState, ResourceId
+
+### CLEAN UP ANY EXISTING PACKAGES IN AZURE STACK
+# We'll first check the Azure Stack Gallery for old packages, and where there is a match, they will be removed
+
+Write-Host "Checking for existing DevOps Toolkit packages in Azure Stack Gallery"
+Start-Sleep 3
+if (Get-AzsGalleryItem | Where-Object {$_.Name -like "DevOpsToolkit*"})
+    {
+        Write-Host "Found the following DevOps Toolkit packages in the Azure Stack Gallery:"
+        $PackageList = Get-AzsGalleryItem | Where-Object {$_.Name -like "DevOpsToolkit*"}
+        $PackageList | Format-Table Name -HideTableHeaders
+        Start-Sleep 3
+        Write-Host "Removing the packages from the Azure Stack Gallery"
+        foreach ($Package in $PackageList)
+            {
+                $Name = $Package.Name
+                Remove-AzsGalleryItem -Name $Name | Out-Null
+                Write-Host "Removing $Name"
+                Start-Sleep 1
+            }
+        Write-Host "All existing DevOps Toolkit packages successfully removed from the Azure Stack Gallery"
+        Start-Sleep 1
+        Write-Host "Proceeding to add new DevOps Toolkit packages"
+}
+else
+    {
+        Write-Host "No existing DevOps Toolkit packages found in the Azure Stack Gallery."
+        Start-Sleep 1
+        Write-Host "Proceeding to add new DevOps Toolkit packages"
+}
+
+### ADD AZPKG FILES TO THE AZURE STACK GALLERY ###
+# We'll first scan the previously downloaded folder for all of the .azpkg files, then upload them, one by one, to the
+# previously created RG and Storage Account
+
+Write-Host "Scanning $UpdatedFilePath for packages..."
+Start-Sleep 3
+$azpkgs = Get-ChildItem $UpdatedFilePath -Include *.azpkg -Recurse | Select-Object Name, FullName
+Write-Host "Found the following packages that will be uploaded to your Azure Stack Marketplace:"
+$azpkgs | Format-Table Name, @{L='Path';E={$_.FullName}}
+foreach ($pkg in $azpkgs)
+    {
+        $pkgName = $pkg.Name
+        $pkgPath = $pkg.FullName
+        Write-Host "Uploading $pkgName"
+        $StorageAccount = Get-AzureRmStorageAccount -ResourceGroupName devopstoolkit -Name devopstoolkit
+        $GalleryContainer = Get-AzureStorageContainer -Name devopstoolkit -Context $StorageAccount.Context
+        $GalleryContainer | Set-AzureStorageBlobContent -File $pkgPath -Force | Out-Null
+        $GalleryItemURI = (Get-AzureStorageBlob -Context $StorageAccount.Context -Blob $pkgName -Container 'devopstoolkit').ICloudBlob.uri.AbsoluteUri
+        Add-AzsGalleryItem -GalleryItemUri $GalleryItemURI | Out-Null
+        Write-Host "Successfully added $pkgName to your Azure Stack Marketplace"
+        Start-Sleep 1
+}
+Write-Host "Upload complete."
+
+### CLEAN UP PHASE - RESOURCE GROUP AND STORAGE ACCOUNT ###
+# With the packages successfully uploaded, there is no need to keep the Resource Group or Storage Account, so these can be deleted
+
+Write-Host "Please wait - cleaning up existing DevOps Toolkit Resource Group and Storage Account. This may take a few moments."
+if (Get-AzureRmResourceGroup -Name devopstoolkit)
+    {
+        Remove-AzureRmResourceGroup -ResourceGroupName "devopstoolkit" -Force -Confirm:$false
+        Write-Host "Completed cleaning."
+        Start-Sleep 2
+}
+else 
+    {
+        Write-Host "Cannot locate an existing DevOps Toolkit Resource Group or Storage Account within your Azure Stack."
+        Start-Sleep 2
+}
+
+### FINAL STEPS ###
+# With a successful completion, this section will finish off any loose ends and launch the Azure Stack portal.
+Remove-Variable -Name UpdatedFilePath
+
+# Calculate completion time
+$Time2 = Get-Date -format HH:mm:ss
+$TimeDiff = New-TimeSpan $Time1 $Time2
+if ($TimeDiff.Seconds -lt 0) {
+	$Hrs = ($TimeDiff.Hours) + 23
+	$Mins = ($TimeDiff.Minutes) + 59
+	$Secs = ($TimeDiff.Seconds) + 59 }
+else {
+	$Hrs = $TimeDiff.Hours
+	$Mins = $TimeDiff.Minutes
+	$Secs = $TimeDiff.Seconds }
+$Difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs,$Mins,$Secs
+Start-Sleep -Seconds 2
+Write-Host "DevOps Toolkit setup completed successfully, taking $Difference"
+Start-Sleep -Seconds 2
+
+# Launch Azure Stack Portal
+Write-Host "Opening the Azure Stack Administration Portal and returning you to the original script execution location"
+Start-Process 'https://adminportal.local.azurestack.external'
+# Return user to orginal execution location
 Set-Location $ScriptLocation
