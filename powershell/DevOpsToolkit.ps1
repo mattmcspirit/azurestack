@@ -74,6 +74,14 @@ $ErrorActionPreference = 'Stop'
 ##############################################################################################################################################################
 ##############################################################################################################################################################
 
+# Clean any remnent variables present after unsuccessful/aborted runs
+Remove-Variable -Name UpdatedFilePath -ErrorAction SilentlyContinue
+Remove-Variable -Name azpkgs -ErrorAction SilentlyContinue
+Remove-Variable -Name PackageList -ErrorAction SilentlyContinue
+Remove-Variable -Name pkg -ErrorAction SilentlyContinue
+Remove-Variable -Name pkgPath -ErrorAction SilentlyContinue
+Remove-Variable -Name pkgName -ErrorAction SilentlyContinue
+
 ### CLEAR SCREEN ###
 Clear-Host
 
@@ -358,7 +366,7 @@ if (!$UpdatedFilePath) {
                     # Check if DevOps Hydration folder needs creating or not
                     Write-Host "Checking to see if the DevOps Toolkit folder exists"
                     Start-Sleep -Seconds 5
-                    if (-not (test-path "$SetFilePath\DevOpsHydration"))
+                    if (-not (test-path "$SetFilePath\DevOpsToolkit"))
                     {
                         # Create the DevOps Toolkit folder.
                         Write-Host "DevOps Toolkit folder doesn't exist, creating it"
@@ -441,76 +449,95 @@ Get-AzureRmResourceGroup -Name devopstoolkit| Format-Table ResourceGroupName, Lo
 ### CLEAN UP ANY EXISTING PACKAGES IN AZURE STACK
 # We'll first check the Azure Stack Gallery for old packages, and where there is a match, they will be removed
 
-Write-Host "Checking for existing DevOps Toolkit packages in Azure Stack Gallery"
+Write-Host "Checking for existing DevOps Toolkit packages in Azure Stack Gallery..."
 Start-Sleep 3
 if (Get-AzsGalleryItem | Where-Object {$_.Name -like "DevOpsToolkit*"})
     {
-        Write-Host "Found the following DevOps Toolkit packages in the Azure Stack Gallery:"
+        Write-Host "`r`nFound the following DevOps Toolkit packages in the Azure Stack Gallery:"
         $PackageList = Get-AzsGalleryItem | Where-Object {$_.Name -like "DevOpsToolkit*"}
         $PackageList | Format-Table Name -HideTableHeaders
-        Start-Sleep 3
-        Write-Host "Removing the packages from the Azure Stack Gallery"
+        Start-Sleep 5
+        Write-Host "Removing the packages from the Azure Stack Gallery:`r`n"
         foreach ($Package in $PackageList)
             {
-                $Name = $Package.Name
-                Remove-AzsGalleryItem -Name $Name | Out-Null
-                Write-Host "Removing $Name"
-                Start-Sleep 1
+                $PackageName = $Package.Name
+                Remove-AzsGalleryItem -Name $PackageName | Out-Null
+                Write-Host "Removing $PackageName"
+                Start-Sleep 3
             }
-        Write-Host "All existing DevOps Toolkit packages successfully removed from the Azure Stack Gallery"
-        Start-Sleep 1
-        Write-Host "Proceeding to add new DevOps Toolkit packages"
+        Write-Host "`r`nAll existing DevOps Toolkit packages successfully removed from the Azure Stack Gallery."
+        Write-Host "Proceeding to add new DevOps Toolkit packages."
 }
 else
     {
-        Write-Host "No existing DevOps Toolkit packages found in the Azure Stack Gallery."
-        Start-Sleep 1
-        Write-Host "Proceeding to add new DevOps Toolkit packages"
+        Write-Host "`r`nNo existing DevOps Toolkit packages found in the Azure Stack Gallery."
+        Start-Sleep 5
+        Write-Host "`r`nProceeding to add new DevOps Toolkit packages"
 }
 
 ### ADD AZPKG FILES TO THE AZURE STACK GALLERY ###
 # We'll first scan the previously downloaded folder for all of the .azpkg files, then upload them, one by one, to the
 # previously created RG and Storage Account
 
-Write-Host "Scanning $UpdatedFilePath for packages..."
+Write-Host "`r`nScanning $UpdatedFilePath for packages..."
 Start-Sleep 3
-$azpkgs = Get-ChildItem $UpdatedFilePath -Include *.azpkg -Recurse | Select-Object Name, FullName
+$azpkgs = Get-ChildItem $UpdatedFilePath -Include *.azpkg -Recurse | Select-Object Name, BaseName, FullName
 Write-Host "Found the following packages that will be uploaded to your Azure Stack Marketplace:"
-$azpkgs | Format-Table Name, @{L='Path';E={$_.FullName}}
+$azpkgs | Format-Table BaseName, @{L='Path';E={$_.FullName}}
+Start-Sleep 5
 foreach ($pkg in $azpkgs)
     {
-        $pkgName = $pkg.Name
+        $pkgName = $pkg.BaseName
         $pkgPath = $pkg.FullName
-        Write-Host "Uploading $pkgName"
+        $pkgExtension = $pkg.Name
+        Write-Host "`r`nUploading $pkgName"
         $StorageAccount = Get-AzureRmStorageAccount -ResourceGroupName devopstoolkit -Name devopstoolkit
         $GalleryContainer = Get-AzureStorageContainer -Name devopstoolkit -Context $StorageAccount.Context
         $GalleryContainer | Set-AzureStorageBlobContent -File $pkgPath -Force | Out-Null
-        $GalleryItemURI = (Get-AzureStorageBlob -Context $StorageAccount.Context -Blob $pkgName -Container 'devopstoolkit').ICloudBlob.uri.AbsoluteUri
-        Add-AzsGalleryItem -GalleryItemUri $GalleryItemURI | Out-Null
-        Write-Host "Successfully added $pkgName to your Azure Stack Marketplace"
-        Start-Sleep 1
+        $GalleryItemURI = (Get-AzureStorageBlob -Context $StorageAccount.Context -Blob $pkgExtension -Container 'devopstoolkit').ICloudBlob.uri.AbsoluteUri
+        $Upload = Add-AzsGalleryItem -GalleryItemUri $GalleryItemURI
+        Start-Sleep 5
+        $Retries = 0
+        # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+        While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+            Write-Host "$pkgName wasn't added to the gallery successfully. Retry Attempt #$Retries" -ForegroundColor Yellow
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $GalleryItemURI
+            Start-Sleep 5
+        }
+        
+        Write-Host "Successfully added $PkgName to the Azure Stack Marketplace Gallery" -ForegroundColor Green
 }
+
+Write-Host "`r`nSuccessfully added the following DevOps Toolkit packages in the Azure Stack Marketplace Gallery:"
+$UploadedList = Get-AzsGalleryItem | Where-Object {$_.Name -like "DevOpsToolkit*"}
+$UploadedList | Format-Table Name -HideTableHeaders
 Write-Host "Upload complete."
 
 ### CLEAN UP PHASE - RESOURCE GROUP AND STORAGE ACCOUNT ###
 # With the packages successfully uploaded, there is no need to keep the Resource Group or Storage Account, so these can be deleted
 
-Write-Host "Please wait - cleaning up existing DevOps Toolkit Resource Group and Storage Account. This may take a few moments."
+Write-Host "`r`nPlease wait - cleaning up existing DevOps Toolkit Resource Group and Storage Account. This may take a few moments."
 if (Get-AzureRmResourceGroup -Name devopstoolkit)
     {
         Remove-AzureRmResourceGroup -ResourceGroupName "devopstoolkit" -Force -Confirm:$false
-        Write-Host "Completed cleaning."
+        Write-Host "`r`nCompleted cleaning."
         Start-Sleep 2
 }
 else 
     {
-        Write-Host "Cannot locate an existing DevOps Toolkit Resource Group or Storage Account within your Azure Stack."
+        Write-Host "`r`nCannot locate an existing DevOps Toolkit Resource Group or Storage Account within your Azure Stack."
         Start-Sleep 2
 }
 
 ### FINAL STEPS ###
 # With a successful completion, this section will finish off any loose ends and launch the Azure Stack portal.
+
 Remove-Variable -Name UpdatedFilePath
+Remove-Variable -Name azpkgs
+Remove-Variable -Name PackageList
+Remove-Variable -Name pkg
+Remove-Variable -Name pkgPath
+Remove-Variable -Name pkgName
 
 # Calculate completion time
 $Time2 = Get-Date -format HH:mm:ss
@@ -525,11 +552,11 @@ else {
 	$Secs = $TimeDiff.Seconds }
 $Difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs,$Mins,$Secs
 Start-Sleep -Seconds 2
-Write-Host "DevOps Toolkit setup completed successfully, taking $Difference"
+Write-Host "`r`nDevOps Toolkit setup completed successfully, taking $Difference."
 Start-Sleep -Seconds 2
 
 # Launch Azure Stack Portal
-Write-Host "Opening the Azure Stack Administration Portal and returning you to the original script execution location"
+Write-Host "`r`nOpening the Azure Stack Administration Portal and returning you to the original script execution location."
 Start-Process 'https://adminportal.local.azurestack.external'
 # Return user to orginal execution location
 Set-Location $ScriptLocation
