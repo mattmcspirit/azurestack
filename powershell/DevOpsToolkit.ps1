@@ -556,7 +556,7 @@ Write-Host "`r`nDevOps Toolkit setup completed successfully, taking $Difference.
 Start-Sleep -Seconds 2
 
 # Launch Azure Stack Portal
-Write-Host "`r`nOpening the Azure Stack Administration Portal and returning you to the original script execution location."
+Write-Host "`r`nOpening the Azure Stack Administration Portal and returning you to the original script execution location.`r`n"
 Start-Process 'https://adminportal.local.azurestack.external'
 # Return user to orginal execution location
 Set-Location $ScriptLocation
