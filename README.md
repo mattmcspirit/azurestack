@@ -13,4 +13,9 @@ You can learn more about Azure Stack on the dedicated [Azure Stack website](http
 It's also a great platform to learn about DevOps, and what better way to learn about DevOps, than through utilizing the DevOps Toolkit.
 
 ## What is the DevOps Toolkit?
-The DevOps Toolkit is a PowerShell script that automates the deployment of a number of pre-packaged, open-source DevOps tools, including Ansible, Chef, Jenkins, Puppet, Salt and Terraform, into your Azure Stack environment, to enable consumption by your tenants. These open-source offerings consist of a .azpkg file, which contains an ARM template, and a variety of other files, along with links to additional deployment scripts [hosted on GitHub](/scripts)
+The DevOps Toolkit is a PowerShell script that automates the deployment of a number of pre-packaged, open-source DevOps tools, including Ansible, Chef, Jenkins, Puppet, Salt and Terraform, into your Azure Stack environment, to enable consumption by your tenants. These open-source offerings consist of a .azpkg file, which contains an ARM template, and a variety of other files, along with links to additional deployment scripts [hosted on GitHub](/scripts).
+
+Once you've successfully run the DevOpsToolkit.ps1 script, you'll be presented with a dedicated section of the navigation for the DevOps Toolkit, and inside, you'll find a selection of open-source DevOps tools, ready for deployment.
+
+![DevOps Toolkit Deployed](</media/DevOpsToolkitPortal.PNG>)
+
