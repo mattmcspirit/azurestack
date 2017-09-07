@@ -113,7 +113,7 @@ $ScriptLocation = Get-Location
 Set-Location C:\
 
 # Download the tools archive
-Write-Host "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
+Write-Host "Downloading Azure Stack Tools to ensure you have the latest versions.`nThis may take a few minutes, depending on your connection speed."
 Start-Sleep -Seconds 5
 invoke-webrequest https://github.com/Azure/AzureStack-Tools/archive/master.zip -OutFile master.zip -ErrorAction Stop
 
