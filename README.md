@@ -5,6 +5,8 @@
 - [DevOps Toolkit Process](#devops-toolkit-process)
 - [DevOps Toolkit Prerequisites](#devops-toolkit-prerequisites)
 - [Running the DevOps Toolkit Script](#running-the-devops-toolkit-script)
+- [Troubleshooting & Improvements](#troubleshooting-improvements)
+- [Changelog](#changelog)
 
 ## What is Azure Stack?
 
@@ -45,7 +47,7 @@ The script will then pull down the necessary packages from GitHub, and begin the
 
 ### DevOps Toolkit Prerequisites
 
-Before you begin, you must have the following:
+Before you begin, you **must** have the following:
 
 - Access to your Azure Stack host, in order to execute the DevOpsToolkit.ps1 script
 - Installed Azure Stack compatible Azure PowerShell modules [as per these instructions](https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install)
@@ -88,3 +90,6 @@ So, for instance, a completed example may look like:
 This script, and the packages have been developed, and tested, to the best of my abaility.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
 
 Likewise, if you are awesome at PowerShell, or Linux scripting, or would like to have additional tools included within the packages, let me know, and we can collaborate to improve the overall project!
+
+## Changelog
+To view version history, and see changes made for new versions, check out the [changelog](changelog.md)
