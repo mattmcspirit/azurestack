@@ -86,6 +86,21 @@ So, for instance, a completed example may look like:
     .\DevOpsToolkit.ps1 -azureDirectoryTenantName contosoazurestack.com -authenticationType AzureAD
 ```
 
+## Post-Deployment Walkthough
+When the deployment has completed, you should see a new category within your **New** menu, entitled **DevOps Tooling**, and within this folder, you'll find the respective marketplace offerings you can deploy.
+
+If we use **Jenkins** as an example, by clicking on Jenkins, you'll be asked to enter a number of **parameters**, including an administrator username, password, a name of the VM (which will also form the public DNS name of the Jenkins VM) and finally, you can select a size for the VM.  **Standard A3** is the default, and will deploy a VM with 7GB RAM, and 4 cores.  Click **OK** to confirm your parameters.
+
+If you wish, you can edit the template and make modifications, however for most POC environments, the current configuration should be adequate.
+
+With the parameters entered, give the **resource group** a name and you're ready to click **Create**
+
+![Jenkins Deployment](</media/DevOpsJenkins.PNG>)
+
+Your deployment will begin, and depending on your hardware, will take a few minutes.
+
+Once completed, 
+
 ## Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
 
