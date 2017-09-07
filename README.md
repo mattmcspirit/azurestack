@@ -101,6 +101,16 @@ Your deployment will begin, and depending on your hardware, will take a few minu
 
 Once completed, you should receive a notification, and in the **Deployment blade**, you should see information about the success (or failure!) of the deployment, including the FQDN to access the Jenkins virtual machine.
 
+![Jenkins Deployment Completed](</media/DevOpsJenkinsFinished.PNG>)
+
+With that completed, in the case of Jenkins, you can go to the Jenkins Master FQDN, which in my case, is http://jenkins1.local.cloudapp.azurestack.external:8080, and I'll need to access this from within my Azure Stack environment.
+
+![Jenkins Deployment Completed](</media/UnlockJenkins.PNG>)
+
+Now in the case of Jenkins, you'll also need to SSH into the VM itself, using a tool such as Putty, in order to retrieve the initial admin password, and once done, paste into the browser, and you're pretty much there to a Jenkins deployment, perfect for kicking the tires, testing, learning and more.
+
+If you want to automate the deployment, instead of deploying through the portal, I've provided PowerShell scripts within each of the individual package folders, which can be found within the main [Packages folder](packages)
+
 ## Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
 
