@@ -12,4 +12,4 @@ You can learn more about Azure Stack on the dedicated [Azure Stack website](http
 
 It's also a great platform to learn about DevOps, and what better way to learn about DevOps, than through utilizing the DevOps Toolkit.
 
-# What is the DevOps Toolkit?
+## What is the DevOps Toolkit?
