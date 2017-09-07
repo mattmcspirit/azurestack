@@ -2,6 +2,9 @@
 - [What is Azure Stack?](#what-is-azure-stack)
 - [Deliver Azure services to your datacenter](#deliver-azure-services-to-your-datacenter)
 - [What is the DevOps Toolkit?](#what-is-the-devops-toolkit)
+- [DevOps Toolkit Process](#devops-toolkit-process)
+- [DevOps Toolkit Prerequisites](#devops-toolkit-prerequisites)
+- [Running the DevOps Toolkit Script](#running-the-devops-toolkit-script)
 
 ## What is Azure Stack?
 
@@ -18,7 +21,7 @@ You can learn more about Azure Stack on the dedicated [Azure Stack website](http
 It's also a great platform to learn about DevOps, and what better way to learn about DevOps, than through utilizing the DevOps Toolkit.
 
 ## What is the DevOps Toolkit?
-The DevOps Toolkit is a PowerShell script that automates the deployment of a number of pre-packaged, open-source DevOps tools, including Ansible, Chef, Jenkins, Puppet, Salt and Terraform, into your Azure Stack environment, specifically into the Azure Stack marketplace, to enable consumption by your tenants. These open-source offerings consist of a .azpkg file, which contains an ARM template for deployment, and a variety of other files, along with links to additional deployment scripts [hosted on GitHub](/scripts).
+The DevOps Toolkit is a PowerShell script that automates the deployment of a number of pre-packaged, open-source DevOps tools, including Ansible, Chef, Jenkins, Puppet, Salt and Terraform, into your Azure Stack environment, specifically into the Azure Stack marketplace, to enable consumption by your tenants. These open-source offerings consist of an .azpkg file, which contains an ARM template for deployment, and a variety of other files, along with links to additional deployment scripts [hosted on GitHub](/scripts).
 
 Once you've successfully run the DevOpsToolkit.ps1 script, you'll be presented with a dedicated section of the navigation for the DevOps Toolkit, and inside, you'll find a selection of open-source DevOps tools, ready for deployment.
 
@@ -30,3 +33,58 @@ Upon deployment, the PowerShell script will walk through a series of steps to au
 
 ![DevOps Toolkit Process Flow](</media/DevOpsToolkitFlow.png>)
 
+At a high level, when you kick off the process, the DevOpsToolkit.ps1 script will first download the required tools to interact correctly with Azure Stack.  Once downloaded, and extracted, you'll be prompted to log in to either Azure AD, or ADFS, to connect with your Azure Stack.  You'll use which one you selected at Azure Stack deployment time.  Once logged in successfully, the script will check for the existence of an Ubuntu Server 16.04 LTS image.  If it finds one with the correct characteristics, it will use that, however if it doesn't find one, the script will prompt you to download an image, and add it to your Azure Stack Platform Image Repository (PIR), using one of three methods:
+
+- Manual Download - the script will open a webpage with the instructions on where to download an Ubuntu Server 16.04 LTS image, and how to manually add it to Azure Stack.  Once you've done this, you'll rerun the script from the beginning.
+- Syndicated Download - Syndication is a feature that has to be enabled for your Azure Stack, and once enabled, you'll be able to 'Add from Azure', specific images, to your Azure Stack.  If you select this option, the script will open a webpage with instructions on how to perform the necessary tasks. You'll then rerun the script from the beginning.
+- Automated Download - the script will automatically download a suitable Ubuntu Server 16.04 LTS image from Ubuntu's repository, and upload it into your Azure Stack.  This will take around 20 minutes, depending on your hardware.
+
+Once completed, you'll have an image within your PIR, and the script can continue.
+
+The script will then pull down the necessary packages from GitHub, and begin the upload into your Azure Stack marketplace.  This will first involve cleaning up any remnant packages that may already be present, and then, creating a temporary resource group and storage account to hold the necessary files, before uploading them into the Azure Stack Marketplace.  Once completed, the script will clean up this temporary resource group, and storage account, and the process will be complete.
+
+### DevOps Toolkit Prerequisites
+
+Before you begin, you must have the following:
+
+- Access to your Azure Stack host, in order to execute the DevOpsToolkit.ps1 script
+- Installed Azure Stack compatible Azure PowerShell modules [as per these instructions](https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install)
+- Run PowerShell as administrator.
+- It is highly recommended to use the regular PowerShell console, and not the PowerShell ISE
+
+### Running the DevOps Toolkit Script
+
+In order to download the script, you'll want to run the following from your administrative PowerShell console:
+
+    ```powershell
+    # Variables
+    $Uri = 'https://raw.githubusercontent.com/mattmcspirit/azurestack/master/powershell/DevOpsToolkit.ps1'
+    $LocalPath = 'c:\DevOpsToolkit'
+
+    # Create folder
+    New-Item $LocalPath -Type directory
+
+    # Download file
+    Invoke-WebRequest $uri -OutFile ($LocalPath + '\' + 'DevOpsToolkit.ps1')
+    Set-Location $LocalPath
+    ```
+
+Once downloaded, in order to execute the script, you will simply run the following, substituting your values where appropriate:
+
+    ``` PowerShell
+    .\DevOpsToolkit.ps1 -azureDirectoryTenantName <yourdirectoryname> -authenticationType <yourauthenticationtype>
+    ```
+
+- For -azureDirectoryTenantName, you would use either **yourDirectoryTenantName.onmicrosoft.com**, or, if you're using a custom domain name, you'd use that, such as **contoso.com**. You **don't** need to specify a user@domain at this time.
+- For -authenticationType, specify **either AzureAD or ADFS**
+
+So, for instance, a completed example may look like:
+
+    ``` PowerShell
+    .\DevOpsToolkit.ps1 -azureDirectoryTenantName contosoazurestack.com -authenticationType AzureAD
+    ```
+
+## Troubleshooting & Improvements
+This script, and the packages have been developed, and tested, to the best of my abaility.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](/issues) and I'll do my best to resolve them.
+
+Likewise, if you are awesome at PowerShell, or Linux scripting, or would like to have additional tools included within the packages, let me know, and we can collaborate to improve the overall project!
