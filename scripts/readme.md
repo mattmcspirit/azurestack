@@ -1,4 +1,4 @@
-# Azure Stack Scripts
+# Azure Stack - Open Source Tool Configuration Scripts
 In this folder, you'll find each of the respective scripts that are executed when an ARM template is deployed within Azure Stack.  The scripts are called automatically from their respective ARM templates.
 
 ## Troubleshooting & Improvements
