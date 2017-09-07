@@ -99,7 +99,7 @@ With the parameters entered, give the **resource group** a name and you're ready
 
 Your deployment will begin, and depending on your hardware, will take a few minutes.
 
-Once completed, 
+Once completed, you should receive a notification, and in the **Deployment blade**, you should see information about the success (or failure!) of the deployment, including the FQDN to access the Jenkins virtual machine.
 
 ## Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
