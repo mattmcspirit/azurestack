@@ -89,12 +89,12 @@ Clear-Host
 
 Write-Host "`n`nWELCOME TO THE DEVOPS TOOLKIT`nVersion: 1.0.0" -ForegroundColor Green
 Write-Host "`nThis toolkit can be used to quickly setup a Proof of Concept (POC) environment containing an
-Ubuntu Server 16.04-LTS VM image, along with a selection of Open Source DevOps tools, including Ansible, Chef, Jenkins, Puppet, Salt and Terraform.
+Ubuntu Server 16.04-LTS VM image, along with a selection of Open Source DevOps tools, including Ansible, Chef, Jenkins, Puppet, Salt and Terraform.`r`n
 This DevOps Toolkit will perform the following tasks:`n"
 Write-Host "1) Download the appropriate Azure Stack Tools and PowerShell Modules for Administration
 2) Securely login to your Azure Stack environment, through either ADFS or Azure AD credentials
 3) Check your existing Azure Stack Platform Image Repository for a suitable Ubuntu Server 16.04-LTS VM Image and upload one if required
-4) Download the latest Open Source DevOps Azure Stack Custom Marketplace Gallery Packages from Github and upload into your Azure Stack Marketplace
+4) Download the latest Open Source DevOps Azure Stack Custom Marketplace Gallery Packages from GitHub and upload into your Azure Stack Marketplace
 `n" -ForegroundColor White
 
 Pause
