@@ -31,7 +31,7 @@ In this example, you run a script to deploy a virtual machine to Azure Stack Dev
            -adminFirstName <first name> `
            -adminLastName <first name> `
            -adminEmailAddress <email address> `
-           -organizationName <organization name> `
+           -organizationName <organization name>
    ```
 3. Open the Azure Stack portal, click **Browse**, click **Virtual machines**, and look for your new virtual machine (*chefDeployment001*).
 
