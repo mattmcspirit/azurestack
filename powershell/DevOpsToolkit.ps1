@@ -532,12 +532,12 @@ else
 ### FINAL STEPS ###
 # With a successful completion, this section will finish off any loose ends and launch the Azure Stack portal.
 
-Remove-Variable -Name UpdatedFilePath
-Remove-Variable -Name azpkgs
-Remove-Variable -Name PackageList
-Remove-Variable -Name pkg
-Remove-Variable -Name pkgPath
-Remove-Variable -Name pkgName
+Remove-Variable -Name UpdatedFilePath -ErrorAction SilentlyContinue
+Remove-Variable -Name azpkgs -ErrorAction SilentlyContinue
+Remove-Variable -Name PackageList -ErrorAction SilentlyContinue
+Remove-Variable -Name pkg -ErrorAction SilentlyContinue
+Remove-Variable -Name pkgPath -ErrorAction SilentlyContinue
+Remove-Variable -Name pkgName -ErrorAction SilentlyContinue
 
 # Calculate completion time
 $Time2 = Get-Date -format HH:mm:ss
