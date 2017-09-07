@@ -35,9 +35,9 @@ Upon deployment, the PowerShell script will walk through a series of steps to au
 
 At a high level, when you kick off the process, the DevOpsToolkit.ps1 script will first download the required tools to interact correctly with Azure Stack.  Once downloaded, and extracted, you'll be prompted to log in to either Azure AD, or ADFS, to connect with your Azure Stack.  You'll use which one you selected at Azure Stack deployment time.  Once logged in successfully, the script will check for the existence of an Ubuntu Server 16.04 LTS image.  If it finds one with the correct characteristics, it will use that, however if it doesn't find one, the script will prompt you to download an image, and add it to your Azure Stack Platform Image Repository (PIR), using one of three methods:
 
-- Manual Download - the script will open a webpage with the instructions on where to download an Ubuntu Server 16.04 LTS image, and how to manually add it to Azure Stack.  Once you've done this, you'll rerun the script from the beginning.
-- Syndicated Download - Syndication is a feature that has to be enabled for your Azure Stack, and once enabled, you'll be able to 'Add from Azure', specific images, to your Azure Stack.  If you select this option, the script will open a webpage with instructions on how to perform the necessary tasks. You'll then rerun the script from the beginning.
-- Automated Download - the script will automatically download a suitable Ubuntu Server 16.04 LTS image from Ubuntu's repository, and upload it into your Azure Stack.  This will take around 20 minutes, depending on your hardware.
+- **Manual Download** - the script will open a webpage with the instructions on where to download an Ubuntu Server 16.04 LTS image, and how to manually add it to Azure Stack.  Once you've done this, you'll rerun the script from the beginning.
+- **Syndicated Download** - Syndication is a feature that has to be enabled for your Azure Stack, and once enabled, you'll be able to 'Add from Azure', specific images, to your Azure Stack.  If you select this option, the script will open a webpage with instructions on how to perform the necessary tasks. You'll then rerun the script from the beginning.
+- **Automated Download** - the script will automatically download a suitable Ubuntu Server 16.04 LTS image from Ubuntu's repository, and upload it into your Azure Stack.  This will take around 20 minutes, depending on your hardware.
 
 Once completed, you'll have an image within your PIR, and the script can continue.
 
@@ -56,7 +56,7 @@ Before you begin, you must have the following:
 
 In order to download the script, you'll want to run the following from your administrative PowerShell console:
 
-    ```powershell
+```powershell
     # Variables
     $Uri = 'https://raw.githubusercontent.com/mattmcspirit/azurestack/master/powershell/DevOpsToolkit.ps1'
     $LocalPath = 'c:\DevOpsToolkit'
@@ -67,20 +67,20 @@ In order to download the script, you'll want to run the following from your admi
     # Download file
     Invoke-WebRequest $uri -OutFile ($LocalPath + '\' + 'DevOpsToolkit.ps1')
     Set-Location $LocalPath
-    ```
+```
 
 Once downloaded, in order to execute the script, you will simply run the following, substituting your values where appropriate:
 
-    ``` PowerShell
+```powershell
     .\DevOpsToolkit.ps1 -azureDirectoryTenantName <yourdirectoryname> -authenticationType <yourauthenticationtype>
-    ```
+```
 
 - For -azureDirectoryTenantName, you would use either **yourDirectoryTenantName.onmicrosoft.com**, or, if you're using a custom domain name, you'd use that, such as **contoso.com**. You **don't** need to specify a user@domain at this time.
 - For -authenticationType, specify **either AzureAD or ADFS**
 
 So, for instance, a completed example may look like:
 
-    ``` PowerShell
+    ```powershell
     .\DevOpsToolkit.ps1 -azureDirectoryTenantName contosoazurestack.com -authenticationType AzureAD
     ```
 
