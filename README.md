@@ -1,6 +1,8 @@
 # Table of Contents
 [What is Azure Stack?](#what-is-azure-stack)
+
 [Deliver Azure services to your datacenter](deliver-azure-services-to-your-datacenter)
+
 [What is the DevOps Toolkit?](what-is-the-devops-toolkit)
 
 ## What is Azure Stack?
