@@ -36,4 +36,4 @@ This script, and the packages have been developed, and tested, to the best of my
 Likewise, if you are awesome at PowerShell, or Linux scripting, or would like to have additional tools included within the packages, let me know, and we can collaborate to improve the overall project!
 
 ## Changelog
-To view version history, and see changes made for new versions, check out the [changelog](<../../changelog.md>)
+To view version history, and see changes made for new versions, check out the [changelog](<../changelog.md>)
