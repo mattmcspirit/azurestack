@@ -5,7 +5,7 @@
 - [DevOps Toolkit Process](#devops-toolkit-process)
 - [DevOps Toolkit Prerequisites](#devops-toolkit-prerequisites)
 - [Running the DevOps Toolkit Script](#running-the-devops-toolkit-script)
-- [Troubleshooting & Improvements](#troubleshooting-improvements)
+- [Troubleshooting & Improvements](#troubleshooting--improvements)
 - [Changelog](#changelog)
 
 ## What is Azure Stack?
