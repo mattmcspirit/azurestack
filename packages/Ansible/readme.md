@@ -5,7 +5,7 @@ Instead of using the Azure Stack Portal, you can use PowerShell to deploy the De
 ## Run AzureRM PowerShell cmdlets
 In this example, you run a script to deploy a virtual machine to Azure Stack Development Kit using a Resource Manager template.  Before proceeding, ensure you have [configured PowerShell](https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-configure-admin)  
 
-1. Go to the [Ansible template folder](</DevOpsToolkit.Ansible/DeploymentTemplates>) and grab the mainTemplate.json, saving it to the following location: c:\\templates\\ansibleTemplate.json.
+1. Go to the [Ansible template folder](<DevOpsToolkit.Ansible/DeploymentTemplates>) and grab the mainTemplate.json, saving it to the following location: c:\\templates\\ansibleTemplate.json.
 2. In PowerShell, run the following deployment script. Replace *username* and *password* with your username and password. On subsequent uses, increment the value for the *$myNum* parameter to prevent overwriting your deployment.
    
    ```PowerShell
