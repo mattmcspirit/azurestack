@@ -5,4 +5,4 @@ respective 'raw' files and folders are also accessible to you, to modify, custom
 
 If you do wish to modify the raw files, you'll need to recreate the package, for which you can [find guidance here](https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-create-and-publish-marketplace-item).
 
-In each folder, you'll also find a maintemplate.parameters.json file, which, if you're choosing to automate some of the deployments of the tools once the DevOps Toolkit has been installed, you should find those files useful.
+In each folder, you'll also find a readme.md file, which, if you're choosing to automate some of the deployments of the tools once the DevOps Toolkit has been installed, you should find the scripts useful.
