@@ -85,6 +85,6 @@ So, for instance, a completed example may look like:
 ```
 
 ## Troubleshooting & Improvements
-This script, and the packages have been developed, and tested, to the best of my abaility.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../issues>) and I'll do my best to resolve them.
+This script, and the packages have been developed, and tested, to the best of my abaility.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](issues) and I'll do my best to resolve them.
 
 Likewise, if you are awesome at PowerShell, or Linux scripting, or would like to have additional tools included within the packages, let me know, and we can collaborate to improve the overall project!
