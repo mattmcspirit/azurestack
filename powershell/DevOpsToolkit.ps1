@@ -7,7 +7,7 @@ and offer them to your tenants for their own consumption.
 
 .DESCRIPTION
 
-DevOpsHydration runs locally on the Azure Stack host, to download and setup key assets into your Azure Stack environment. It can be modfied as necessary to meet your specific goals.
+The DevOpsToolkit.ps1 runs locally on the Azure Stack host, to download and setup key assets into your Azure Stack environment. It can be modfied as necessary to meet your specific goals.
 
 The script will follow four steps:
 - Login to Azure Stack with your provided credentials.
@@ -26,8 +26,8 @@ Either AzureAd or ADFS - which one that is entered will determine which ARM endp
 
 .EXAMPLE
 
-This script must be run from the Host machine of the POC.
-.\DevOpsHydration.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType "AzureAd"
+This script must be run from the Host machine of the POC.  Example:
+.\DevOpsToolkit.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType "AzureAd"
 
 #>
 
@@ -194,14 +194,14 @@ $platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
 
 if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK")
     {
-        Write-Host "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository `nwhich we will use for the DevOps Hydration Toolkit. Here are the details:" -ForegroundColor Green
+        Write-Host "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository `nwhich we will use for the DevOps Toolkit. Here are the details:" -ForegroundColor Green
         Start-Sleep -Seconds 1
         Write-Output $platformImageTable | Format-Table location, Offer, PublisherName, Skus, Version
         Start-Sleep -Seconds 1
-        Write-Host "The DevOps Hydration Toolkit will automatically use the latest Ubuntu Server 16.04-LTS version from this list, which will be:"
+        Write-Host "The DevOps Toolkit will automatically use the latest Ubuntu Server 16.04-LTS version from this list, which will be:"
         Write-Output $platformImageTableTop1 | Format-Table location, Offer, PublisherName, Skus, Version
         Start-Sleep -Seconds 1
-        Write-Host "The DevOps Hydration Toolkit is now ready to begin uploading packages for DevOps tools to the Azure Stack Marketplace"
+        Write-Host "The DevOps Toolkit is now ready to begin uploading packages for DevOps tools to the Azure Stack Marketplace"
         Start-Sleep -Seconds 5
         Write-Host "Select a folder to store your Azure Stack Marketplace packages"
         Start-Sleep -Seconds 5
@@ -221,7 +221,7 @@ else
         [int]$downloadChoice = 0
         while ( $downloadChoice -lt 1 -or $downloadChoice -gt 3 ){
         Write-Host "1. Download manually from Canonical and upload into Azure Stack using the Azure Stack documentation" -ForegroundColor Yellow
-        Write-Host "2. Allow the DevOps Hydration Toolkit to automatically download a suitable image from Canonical and upload into your Azure Stack" -ForegroundColor Yellow
+        Write-Host "2. Allow the DevOps Toolkit to automatically download a suitable image from Canonical and upload into your Azure Stack" -ForegroundColor Yellow
         Write-Host "3. Enable Azure Marketplace Syndication and download through the Syndication service`n" -ForegroundColor Yellow
         [Int]$downloadChoice = Read-Host "Please select an option: 1, 2 or 3"
         }
@@ -239,7 +239,7 @@ else
             return
         }
         elseif ($downloadChoice -eq 2) {
-            Write-Host "You have chosen to allow the DevOps Hydration Toolkit to download an Ubuntu Server image for you"
+            Write-Host "You have chosen to allow the DevOps Toolkit to download an Ubuntu Server image for you"
             Write-Host "Downloading Ubuntu Server 16.04-LTS - Select a Download Folder"
             Start-Sleep -Seconds 3
         
@@ -257,28 +257,28 @@ else
             }
             else
                 {
-                    # Check if DevOps Hydration folder needs creating or not
-                    Write-Host "Checking to see if the DevOps Hydration folder exists"
+                    # Check if DevOps Toolkit folder needs creating or not
+                    Write-Host "Checking to see if the DevOps Toolkit folder exists"
                     Start-Sleep -Seconds 5
-                    if (-not (test-path "$SetFilePath\DevOpsHydration"))
+                    if (-not (test-path "$SetFilePath\DevOpsToolkit"))
                     {
-                        # Create the DevOps Hydration folder.
-                        Write-Host "DevOps Hydration folder doesn't exist, creating it"
-                        mkdir "$SetFilePath\DevOpsHydration" -Force 
-                        $UpdatedFilePath = "$SetFilePath\DevOpsHydration"
+                        # Create the DevOps Toolkit folder.
+                        Write-Host "DevOps Toolkit folder doesn't exist, creating it"
+                        mkdir "$SetFilePath\DevOpsToolkit" -Force 
+                        $UpdatedFilePath = "$SetFilePath\DevOpsToolkit"
                     }
-                    elseif (test-path "$SetFilePath\DevOpsHydration")
+                    elseif (test-path "$SetFilePath\DevOpsToolkit")
                     {
-                        # No need to create the DevOps Hydration folder as it already exists. Set $UpdatedFilePath to the new location.
-                        Write-Host "DevOps Hydration folder exists, no need to create it"
+                        # No need to create the DevOps Toolkit folder as it already exists. Set $UpdatedFilePath to the new location.
+                        Write-Host "DevOps Toolkit folder exists, no need to create it"
                         Start-Sleep -Seconds 1
-                        Write-Host "DevOps Hydration folder is within $SetFilePath"
+                        Write-Host "DevOps Toolkit folder is within $SetFilePath"
                         Start-Sleep -Seconds 1
-                        $UpdatedFilePath = Set-Location -Path "$SetFilePath\DevOpsHydration" -PassThru
-                        Write-Host "DevOps Hydration folder full path is $UpdatedFilePath"
+                        $UpdatedFilePath = Set-Location -Path "$SetFilePath\DevOpsToolkit" -PassThru
+                        Write-Host "DevOps Toolkit folder full path is $UpdatedFilePath"
                     }
-                    # Check if VHD exists that matches previously extracted VHD in the DevOps Hydration folder.
-                    Write-Host "Checking to see if the Ubuntu Server VHD already exists in DevOps Hydration folder"
+                    # Check if VHD exists that matches previously extracted VHD in the DevOps Toolkit folder.
+                    Write-Host "Checking to see if the Ubuntu Server VHD already exists in DevOps Toolkit folder"
                     Start-Sleep -Seconds 5
                     if (Test-Path "$UpdatedFilePath\UbuntuServer.vhd")
                     {
@@ -293,7 +293,7 @@ else
                     {
                         # If VHD exists, update the $UbuntuServerVHD variable with the correct name and path.
                         Write-Host "Cannot find a previously extracted Ubuntu Server VHD with name UbuntuServer.vhd"
-                        Write-Host "Checking to see if the Ubuntu Server ZIP already exists in DevOps Hydration folder"
+                        Write-Host "Checking to see if the Ubuntu Server ZIP already exists in DevOps Toolkit folder"
                         Start-Sleep -Seconds 3
                         $UbuntuServerZIP = Get-ChildItem -Path "$UpdatedFilePath\UbuntuServer.zip"
                         Start-Sleep -Seconds 3
@@ -348,7 +348,7 @@ else
     }
 
 ### DOWNLOAD THE PACKAGES FROM GITHUB ###
-# If the variable $UpdatedFilePath hasn't been defined (which it won't unless the DevOps Hydration Toolkit was used to download the image from Canonical)
+# If the variable $UpdatedFilePath hasn't been defined (which it won't unless the DevOps Toolkit was used to download the image from Canonical)
 # then we will ask for the folder here, and use it for storing the packages going forward.
 
 if (!$UpdatedFilePath) {
@@ -363,7 +363,7 @@ if (!$UpdatedFilePath) {
                         }
             }
             else {
-                    # Check if DevOps Hydration folder needs creating or not
+                    # Check if DevOps Toolkit folder needs creating or not
                     Write-Host "Checking to see if the DevOps Toolkit folder exists"
                     Start-Sleep -Seconds 5
                     if (-not (test-path "$SetFilePath\DevOpsToolkit"))
