@@ -87,7 +87,7 @@ So, for instance, a completed example may look like:
     .\DevOpsToolkit.ps1 -azureDirectoryTenantName contosoazurestack.com -authenticationType AzureAD
 ```
 
-## Post-Deployment Walkthough
+## Post-Deployment Walkthough - Example: Jenkins
 When the deployment has completed, you should see a new category within your **New** menu, entitled **DevOps Tooling**, and within this folder, you'll find the respective marketplace offerings you can deploy.
 
 If we use **Jenkins** as an example, by clicking on Jenkins, you'll be asked to enter a number of **parameters**, including an administrator username, password, a name of the VM (which will also form the public DNS name of the Jenkins VM) and finally, you can select a size for the VM.  **Standard A3** is the default, and will deploy a VM with 7GB RAM, and 4 cores.  Click **OK** to confirm your parameters.
