@@ -80,9 +80,9 @@ Once downloaded, in order to execute the script, you will simply run the followi
 
 So, for instance, a completed example may look like:
 
-    ```powershell
+```powershell
     .\DevOpsToolkit.ps1 -azureDirectoryTenantName contosoazurestack.com -authenticationType AzureAD
-    ```
+```
 
 ## Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my abaility.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](/issues) and I'll do my best to resolve them.
