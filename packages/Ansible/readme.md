@@ -27,6 +27,6 @@ In this example, you run a script to deploy a virtual machine to Azure Stack Dev
            -adminUsername <username> `
            -adminPassword ("<password>" | ConvertTo-SecureString -AsPlainText -Force)
    ```
-3. Open the Azure Stack portal, click **Browse**, click **Virtual machines**, and look for your new virtual machine (*myDeployment001*).
+3. Open the Azure Stack portal, click **Browse**, click **Virtual machines**, and look for your new virtual machine (*ansibleDeployment001*).
 
 Feel free to modify the above information to suit your needs!
