@@ -11,18 +11,18 @@ In this example, you run a script to deploy a virtual machine to Azure Stack Dev
    ```PowerShell
        # Set Deployment Variables
        $myNum = "001" #Modify this per deployment
-       $RGName = "myRG$myNum"
+       $RGName = "ansibleRG$myNum"
        $myLocation = "local"
    
        # Create Resource Group for Template Deployment
        New-AzureRmResourceGroup -Name $RGName -Location $myLocation
    
-       # Deploy Simple IaaS Template
+       # Deploy Ansible Template
        New-AzureRmResourceGroupDeployment `
-           -Name myDeployment$myNum `
+           -Name ansibleDeployment$myNum `
            -ResourceGroupName $RGName `
            -TemplateFile c:\templates\ansibleTemplate.json `
-           -vmName myVM$myNum `
+           -vmName ansibleVM$myNum `
            -vmSize "Standard_A3" `
            -adminUsername <username> `
            -adminPassword ("<password>" | ConvertTo-SecureString -AsPlainText -Force)
