@@ -14,7 +14,7 @@ MySQLPassword=$1
 apt-get update && apt-get upgrade -y
 
 # Enable Ubuntu Firewall and allow SSH & MySQL Ports
-ufw enable
+ufw --force enable
 ufw allow 22
 ufw allow 3306
 
@@ -25,4 +25,4 @@ apt-get -y install mysql-server-5.7 mysql-client
 
 # Reset MySQL Password & grant remote connectivity permissions
 mysql -u root -proot -e "use mysql; UPDATE user SET authentication_string=PASSWORD('$1') WHERE User='root'; flush privileges;"
-mysql -u root -proot -e "use mysql; GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$1'; flush privileges;"
+mysql -u root -p$1 -e "use mysql; CREATE USER 'root'@'%' IDENTIFIED BY '$1'; GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$1'; flush privileges;"

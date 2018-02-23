@@ -2,197 +2,289 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "vmName": {
+        "mySQLVmName": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 30,
+            "defaultValue": "mysql",
             "metadata": {
-                "description": "Virtual machine name.  This will also be the Public DNS name for the MySQL virtual machine, in the format vmname.<region>.cloudapp.<domain>. This should have no spaces and consist of alphanumeric characters only, between 1-30 characters long."
-            },
-            "defaultValue": "mysql"
+                "description": "VM Name"
+            }
         },
         "vmSize": {
             "type": "string",
-            "allowedValues": [
-                "Basic_A2",
-                "Basic_A3",
-                "Basic_A4",
-                "Standard_A2",
-                "Standard_A3",
-                "Standard_A4",
-                "Standard_A5",
-                "Standard_A6",
-                "Standard_A7",
-                "Standard_D2",
-                "Standard_D3",
-                "Standard_D4",
-                "Standard_D2_V2",
-                "Standard_D3_V2",
-                "Standard_D4_V2",
-                "Standard_DS2",
-                "Standard_DS3",
-                "Standard_DS4",
-                "Standard_DS2_V2",
-                "Standard_DS3_V2",
-                "Standard_DS4_V2"                
-            ],
+            "defaultValue": "Standard_D3_v2",
             "metadata": {
-                "description": "Virtual machine size. For details on sizing, refer to the <a href='https://docs.microsoft.com/en-us/azure/virtual-machines/linux/sizes-general' target='_blank'>VM sizing documentation</a>"
-            },
-            "defaultValue": "Standard_A3"
+                "description": "VM Size"
+            }
         },
         "adminUsername": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 30,
+            "defaultValue": "mysqladmin",
             "metadata": {
-                "description": "User name for the administrator account on the virtual machine. This should have no spaces and consist of alphanumeric characters only, between 1-30 characters long."
-            },
-            "defaultValue": ""
+                "description": "Admin user name"
+            }
+        },
+        "authenticationType": {
+            "type": "string",
+            "defaultValue": "password",
+            "metadata": {
+                "description": "Authentication Type [password|sshPublicKey]"
+            }
         },
         "adminPassword": {
             "type": "securestring",
+            "defaultValue": "",
             "metadata": {
-                "description": "Password for the administrator account on the virtual machine. These credentials will be used to SSH to the VM."
+                "description": "Admin password"
             }
         },
         "mySQLPassword": {
             "type": "securestring",
+            "defaultValue": "",
             "metadata": {
-                "description": "Password for the MySQL root account inside the virtual machine. These credentials will be used to connect to the MySQL database as the root user."
+                "description": "MySQL Database password"
             }
+        },
+        "sshPublicKey": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "SSH key"
+            }
+        },
+        "virtualNetworkNewOrExisting": {
+            "type": "string",
+            "defaultValue": "new",
+            "metadata": {
+                "description": "Virtual Network New Or Existing"
+            }
+        },
+        "virtualNetworkName": {
+            "type": "string",
+            "defaultValue": "mysql_vnet",
+            "metadata": {
+                "description": "Virtual Network Name"
+            }
+        },
+        "virtualNetworkAddressPrefix": {
+            "type": "string",
+            "defaultValue": "10.0.0.0/16",
+            "metadata": {
+                "description": "Virtual Network Address Prefix"
+            }
+        },
+        "virtualNetworkSubnetName": {
+            "type": "string",
+            "defaultValue": "mysql_subnet",
+            "metadata": {
+                "description": "Virtual Network subnet name"
+            }
+        },
+        "virtualNetworkSubnetAddressPrefix": {
+            "type": "string",
+            "defaultValue": "10.0.0.0/24",
+            "metadata": {
+                "description": "Virtual Network subnet address prefix"
+            }
+        },
+        "virtualNetworkResourceGroup": {
+            "type": "string",
+            "metadata": {
+                "description": "Resouce Group of the virtual network"
+            },
+            "defaultValue": ""
+        },
+        "publicIPAddressNewOrExisting": {
+            "type": "string",
+            "defaultValue": "new",
+            "metadata": {
+                "description": "Public IP Address New or Existing"
+            }
+        },
+        "publicIPAddressName": {
+            "type": "string",
+            "defaultValue": "mysql_ip",
+            "metadata": {
+                "description": "Public IP Address Name"
+            }
+        },
+        "publicIPAddressDomainNameLabel": {
+            "type": "string",
+            "defaultValue": "mysql",
+            "metadata": {
+                "description": "Public IP domain name prefix"
+            }
+        },
+        "publicIPAddressResourceGroup": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Public IP Adresseses Resource Group"
+            },
+            "defaultValue": ""
+        },
+        "resourceGroupName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the resource group into which everything will be deployed"
+            }
+        },
+        "storageAccountNewOrExisting": {
+            "type": "string",
+            "defaultValue": "new",
+            "metadata": {
+                "description": "Storage Acccount New or Existing"
+            }
+        },
+        "storageAccountName": {
+            "type": "string",
+            "defaultValue": "mysqlstor",
+            "metadata": {
+                "description": "Storage Acccount Name"
+            }
+        },
+        "storageAccountType": {
+            "type": "string",
+            "defaultValue": "Standard_LRS",
+            "metadata": {
+                "description": "Storage Acccount Type"
+            }
+        },
+        "storageAccountResourceGroup": {
+            "type": "string",
+            "metadata": {
+                "description": "Resouce Group of the storage account to use for Virtual Machine disks"
+            },
+            "defaultValue": ""
+        },
+        "nicName": {
+            "type": "string",
+            "defaultValue": "mysql_nic",
+            "metadata": {
+                "description": "NIC name"
+            }
+        },
+        "templateBaseUrl": {
+            "type": "string",
+            "metadata": {
+                "artifactsBaseUrl": "",
+                "description": "Specify the URL of where the additional MySQL JSON template files can be found"
+            },
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates"
         }
     },
     "variables": {
-        "imagePublisher": "Canonical",
-        "imageOffer": "UbuntuServer",
-        "imageSku": "16.04-LTS",
-        "oSDiskName": "[toLower(concat(parameters('vmName'), '_osdisk'))]",
-        "nicName": "[toLower(concat(parameters('vmName'), '_nic'))]",
-        "addressPrefix": "10.0.0.0/16",
-        "subnetName": "Subnet",
-        "subnetPrefix": "10.0.4.0/24",
-        "storageName": "[concat('vhdstorage', uniqueString(resourceGroup().id))]",
-        "storageType": "Standard_LRS",
-        "publicIPAddressName": "[toLower(concat(variables('dnsName'), '_pip'))]",
-        "publicIPAddressType": "Dynamic",
-        "vhdStorageContainerName": "vhds",
-        "nsgName": "[toLower(concat(parameters('vmName'), '_nsg'))]",
-        "dnsName": "[toLower(parameters('vmName'))]",
-        "virtualNetworkName": "[toLower(concat(parameters('vmName'), '_vnet'))]",
-        "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
-        "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]"
+        "storageAccountSetupUrl": "[concat(parameters('templateBaseUrl'),'/storage-',parameters('storageAccountNewOrExisting'),'.json')]",
+        "publicIpAddressSetupUrl": "[concat(parameters('templateBaseUrl'),'/publicip-',parameters('publicIPAddressNewOrExisting'),'.json')]",
+        "vnetSetupUrl": "[concat(parameters('templateBaseUrl'),'/vnet-',parameters('virtualNetworkNewOrExisting'),'.json')]",
+        "vmSetupUrl": "[concat(parameters('templateBaseUrl'),'/compute-',parameters('authenticationType'),'.json')]",
+        "networkSecurityGroupSetupUrl": "[concat(parameters('templateBaseUrl'),'/networkSecurityGroup.json')]"
     },
     "resources": [
         {
-            "type": "Microsoft.Storage/storageAccounts",
-            "name": "[toLower(variables('storageName'))]",
-            "apiVersion": "2015-06-15",
-            "location": "[resourceGroup().location]",
-            "tags": {
-                "displayName": "StorageAccount"
-            },
+            "name": "SettingUpStorageAccount",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
             "properties": {
-                "accountType": "[variables('storageType')]"
-            }
-        },
-         {
-            "apiVersion": "2015-06-15",
-            "type": "Microsoft.Network/networkSecurityGroups",
-            "name": "[variables('nsgName')]",
-            "location": "[resourceGroup().location]",
-            "tags": {
-                "displayName": "NSG"
-            },
-            "properties": {
-                "securityRules": [
-                    {
-                        "name": "SSH",
-                        "properties": {
-                            "description": "SSH port",
-                            "protocol": "Tcp",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "22",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "*",
-                            "access": "Allow",
-                            "priority": 1000,
-                            "direction": "Inbound"
-                        }
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('storageAccountSetupUrl')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "storageAccountType": {
+                        "value": "[parameters('storageAccountType')]"
                     },
-                    {
-                        "name": "MySQL",
-                        "properties": {
-                            "description": "MySQL port",
-                            "protocol": "Tcp",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "3306",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "*",
-                            "access": "Allow",
-                            "priority": 1100,
-                            "direction": "Inbound"
-                        }
+                    "storageAccountResourceGroup": {
+                        "value": "[parameters('storageAccountResourceGroup')]"
+                    },
+                    "storageAccountName": {
+                        "value": "[parameters('storageAccountName')]"
                     }
-                ]
+                }
             }
         },
         {
-            "apiVersion": "2015-06-15",
-            "type": "Microsoft.Network/publicIPAddresses",
-            "name": "[variables('publicIPAddressName')]",
-            "location": "[resourceGroup().location]",
-            "tags": {
-                "displayName": "PublicIPAddress"
-            },
+            "name": "SettingUpNetworkSecurityGroup",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [],
             "properties": {
-                "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
-                "dnsSettings": {
-                    "domainNameLabel": "[variables('dnsName')]"
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('networkSecurityGroupSetupUrl')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {}
+            }
+        },
+        {
+            "name": "SettingUpVirtualNetwork",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/SettingUpNetworkSecurityGroup"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('vnetSetupUrl')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualNetworkName": {
+                        "value": "[parameters('virtualNetworkName')]"
+                    },
+                    "virtualNetworkResourceGroup": {
+                        "value": "[parameters('virtualNetworkResourceGroup')]"
+                    },
+                    "virtualNetworkAddressPrefix": {
+                        "value": "[parameters('virtualNetworkAddressPrefix')]"
+                    },
+                    "virtualNetworkSubnetName": {
+                        "value": "[parameters('virtualNetworkSubnetName')]"
+                    },
+                    "virtualNetworkSubnetAddressPrefix": {
+                        "value": "[parameters('virtualNetworkSubnetAddressPrefix')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "SettingUpPublicIPs",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('publicIpAddressSetupUrl')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "publicIPAddressName": {
+                        "value": "[parameters('publicIPAddressName')]"
+                    },
+                    "publicIPAddressResourceGroup": {
+                        "value": "[parameters('publicIPAddressResourceGroup')]"
+                    },
+                    "publicIPAddressDomainNameLabel": {
+                        "value": "[parameters('publicIPAddressDomainNameLabel')]"
+                    }
                 }
             }
         },
         {
             "apiVersion": "2015-06-15",
-            "type": "Microsoft.Network/virtualNetworks",
-            "name": "[variables('virtualNetworkName')]",
-            "location": "[resourceGroup().location]",
-            "tags": {
-                "displayName": "VirtualNetwork"
-            },
-            "properties": {
-                "addressSpace": {
-                    "addressPrefixes": [
-                        "[variables('addressPrefix')]"
-                    ]
-                },
-                "subnets": [
-                    {
-                        "name": "[variables('subnetName')]",
-                        "properties": {
-                            "addressPrefix": "[variables('subnetPrefix')]"
-                        }
-                    }
-                ]
-            }
-        },
-       
-        {
-            "apiVersion": "2015-06-15",
             "type": "Microsoft.Network/networkInterfaces",
-            "name": "[variables('nicName')]",
+            "name": "[parameters('nicName')]",
             "location": "[resourceGroup().location]",
-            "tags": {
-                "displayName": "NIC"
-            },
             "dependsOn": [
-                "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
-                "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
-                "[concat('Microsoft.Network/networkSecurityGroups/', variables('nsgName'))]"
+                "Microsoft.Resources/deployments/SettingUpPublicIPs",
+                "Microsoft.Resources/deployments/SettingUpVirtualNetwork",
+                "Microsoft.Resources/deployments/SettingUpNetworkSecurityGroup"
             ],
             "properties": {
                 "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups','mysql_nsg')]"
                 },
                 "ipConfigurations": [
                     {
@@ -200,10 +292,10 @@
                         "properties": {
                             "privateIPAllocationMethod": "Dynamic",
                             "publicIPAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]"
+                                "id": "[reference('SettingUpPublicIPs').outputs.publicIpId.value]"
                             },
                             "subnet": {
-                                "id": "[variables('subnetRef')]"
+                                "id": "[reference('SettingUpVirtualNetwork').outputs.subnetRef.value]"
                             }
                         }
                     }
@@ -211,109 +303,65 @@
             }
         },
         {
-            "apiVersion": "2015-06-15",
-            "type": "Microsoft.Compute/virtualMachines",
-            "name": "[parameters('vmName')]",
-            "location": "[resourceGroup().location]",
-            "tags": {
-                "displayName": "VM"
-            },
+            "name": "ProvisioningMySQL",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
             "dependsOn": [
-                "[concat('Microsoft.Storage/storageAccounts/', variables('storageName'))]",
-                "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+                "[concat('Microsoft.Network/networkInterfaces/', parameters('nicName'))]"
             ],
             "properties": {
-                "hardwareProfile": {
-                    "vmSize": "[parameters('vmSize')]"
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('vmSetupUrl')]",
+                    "contentVersion": "1.0.0.0"
                 },
-                "osProfile": {
-                    "computerName": "[parameters('vmName')]",
-                    "adminUsername": "[parameters('adminUsername')]",
-                    "adminPassword": "[parameters('adminPassword')]"
-                },
-                "storageProfile": {
-                    "imageReference": {
-                        "publisher": "[variables('imagePublisher')]",
-                        "offer": "[variables('imageOffer')]",
-                        "sku": "[variables('imageSku')]",
-                        "version": "latest"
+                "parameters": {
+                    "mySQLVmName": {
+                        "value": "[parameters('mySQLVmName')]"
                     },
-                    "osDisk": {
-                        "name": "osdisk",
-                        "vhd": {
-                            "uri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('storageName')), '2015-06-15').primaryEndpoints.blob, variables('vhdStorageContainerName'),'/',variables('OSDiskName'),'.vhd')]"
-                        },
-                        "caching": "ReadWrite",
-                        "createOption": "FromImage"
+                    "vmSize": {
+                        "value": "[parameters('vmSize')]"
+                    },
+                    "adminUserName": {
+                        "value": "[parameters('adminUserName')]"
+                    },
+                    "adminPassword": {
+                        "value": "[parameters('adminPassword')]"
+                    },
+                    "mySQLPassword": {
+                        "value": "[parameters('mySQLPassword')]"
+                    },
+                    "sshPublicKey": {
+                        "value": "[parameters('sshPublicKey')]"
+                    },
+                    "storageAccountName": {
+                        "value": "[parameters('storageAccountName')]"
+                    },
+                    "storageAccountResourceGroup": {
+                        "value": "[parameters('storageAccountResourceGroup')]"
+                    },
+                    "fqdn": {
+                        "value": "[reference('SettingUpPublicIPs').outputs.fqdn.value]"
+                    },
+                    "nicName": {
+                        "value": "[parameters('nicName')]"
                     }
-                },
-                "networkProfile": {
-                    "networkInterfaces": [
-                        {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
-                        }
-                    ]
-                },
-                "diagnosticsProfile": {
-                    "bootDiagnostics": {
-                        "enabled": "true",
-                        "storageUri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('storageName')), '2015-06-15').primaryEndpoints.blob)]"
-                    }
-                }
-            }
-        },
-        {
-            "type": "Microsoft.Compute/virtualMachines/extensions",
-            "name": "[concat(parameters('vmName'),'/CustomScriptForLinux')]",
-            "apiVersion": "2015-06-15",
-            "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
-            ],
-            "properties": {
-                "publisher": "Microsoft.OSTCExtensions",
-                "type": "CustomScriptForLinux",
-                "typeHandlerVersion": "1.5",
-                "autoUpgradeMinorVersion": "true",
-                "settings": {
-                    "fileUris": [
-                        "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/install_MySQL.sh"
-                    ]
-                },
-                "protectedSettings": {
-                    "commandToExecute": "[concat('bash install_MySQL.sh ', variables('dnsName'),'.',resourceGroup().location,'.cloudapp.azurestack.external')]"
-                }
-            }
-        },
-        {
-            "type": "Microsoft.Compute/virtualMachines/extensions",
-            "name": "[concat(parameters('vmName'),'/LinuxVMAccessExtension')]",
-            "apiVersion": "2015-06-15",
-            "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'),'/extensions/CustomScriptForLinux')]"
-            ],
-            "properties": {
-                "publisher": "Microsoft.OSTCExtensions",
-                "type": "VMAccessForLinux",
-                "typeHandlerVersion": "1.4",
-                "autoUpgradeMinorVersion": "true",
-                "settings": {},
-                "protectedSettings": {
-                    "username": "[parameters('adminUsername')]",
-                    "password": "[parameters('adminPassword')]"
                 }
             }
         }
     ],
-        "outputs": {
-            "adminUsername": {
-                "type": "string",
-                "value": "[parameters('adminUsername')]"
+    "outputs": {
+        "MySQLVMFQDN:": {
+            "value": "[concat('https://',reference('SettingUpPublicIPs').outputs.fqdn.value)]",
+            "type": "string"
         },
-            "MySQLFQDN": {
-                "type": "string",
-			    "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))).dnsSettings.fqdn]"
+        "MySQLAdminUsername ": {
+            "type": "string",
+            "value": "[parameters('adminUsername')]"
+        },
+        "MySQLDatabaseUsername ": {
+            "type": "string",
+            "value": "root"
         }
     }
 }

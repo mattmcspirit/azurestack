@@ -1,4 +1,5 @@
-{   "$schema": "https://gallery.azure.com/schemas/2015-10-01/manifest.json#",
+{
+    "$schema": "https://gallery.azure.com/schemas/2015-10-01/manifest.json#",
     "name": "MySQL",
     "publisher": "DevOpsToolkit",
     "version": "1.0.0",
@@ -21,42 +22,48 @@
         }
     ],
     "categories": [
-      "DevOps Tooling"
+        "DevOps Tooling"
     ],
     "links": [
-        { "displayName": "ms-resource:documentationLink", "uri": "https://www.oracle.com/mysql/index.html" },
-        { "displayName": "ms-resource:documentationLink2", "uri": "https://dev.mysql.com/doc/" }
+        {
+            "displayName": "ms-resource:documentationLink",
+            "uri": "https://www.oracle.com/mysql/index.html"
+        },
+        {
+            "displayName": "ms-resource:documentationLink2",
+            "uri": "https://dev.mysql.com/doc/"
+        }
     ],
     "images": [
-    {
-            "context": "ibiza",
-            "items": [
-                {
-                    "id": "small",
-                    "path": "Images\\Small.png",
-                    "type": "icon"
-                },
-                {
-                    "id": "medium",
-                    "path": "Images\\Medium.png",
-                    "type": "icon"
-                },
-                {
-                    "id": "large",
-                    "path": "Images\\Large.png",
-                    "type": "icon"
-                },
-                {
-                    "id": "wide",
-                    "path": "Images\\Wide.png",
-                    "type": "icon"
-                },
-                {
-                    "id": "screenshot0",
-                    "path": "Images\\Screenshot.png",
-                    "type": "screenshot"
-                }
-            ]
+        {
+            "context": "ibiza",
+            "items": [
+                {
+                    "id": "small",
+                    "path": "icons\\Small.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "medium",
+                    "path": "icons\\Medium.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "large",
+                    "path": "icons\\Large.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "wide",
+                    "path": "icons\\Wide.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "screenShot0",
+                    "path": "screenshots\\Screenshot1.png",
+                    "type": "screenshot"
+                }
+            ]
         }
     ]
 }
