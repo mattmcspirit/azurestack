@@ -281,9 +281,9 @@
             }
         },
         {
-            "apiVersion": "2015-06-15",
+            "name": "SettingUpVMNic",
             "type": "Microsoft.Network/networkInterfaces",
-            "name": "[parameters('nicName')]",
+            "apiVersion": "2015-06-15",
             "location": "[resourceGroup().location]",
             "dependsOn": [
                 "Microsoft.Resources/deployments/SettingUpPublicIPs",
