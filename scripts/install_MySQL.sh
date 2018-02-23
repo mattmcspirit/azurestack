@@ -11,7 +11,7 @@ fi
 MySQLPassword=$1
 
 # Download and Install the Latest Updates for the OS
-apt-get update && apt-get upgrade -y
+sudo apt-get update -y
 
 # Enable Ubuntu Firewall and allow SSH & MySQL Ports
 ufw --force enable
