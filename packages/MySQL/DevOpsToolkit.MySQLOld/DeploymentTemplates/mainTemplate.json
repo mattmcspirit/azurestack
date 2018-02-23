@@ -277,11 +277,11 @@
                 "autoUpgradeMinorVersion": "true",
                 "settings": {
                     "fileUris": [
-                        "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/install_MySQL.sh"
+                        "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/scripts/install_MySQL.sh"
                     ]
                 },
                 "protectedSettings": {
-                    "commandToExecute": "[concat('bash install_MySQL.sh ', variables('dnsName'),'.',resourceGroup().location,'.cloudapp.azurestack.external')]"
+                    "commandToExecute": "[concat('bash install_MySQL.sh ', parameters('mySQLPassword'))]"
                 }
             }
         },
