@@ -169,6 +169,14 @@
                 "description": "Specify the URL of where the additional MySQL JSON template files can be found"
             },
             "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates"
+        },
+        "scriptUrl": {
+            "type": "string",
+            "metadata": {
+                "artifactsBaseUrl": "",
+                "description": "Specify the URL of where the MySQL install script can be found"
+            },
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/install_MySQL.sh"
         }
     },
     "variables": {
@@ -345,6 +353,9 @@
                     },
                     "nicName": {
                         "value": "[parameters('nicName')]"
+                    },
+                    "scriptUrl": {
+                        "value": "[parameters('scriptUrl')]"
                     }
                 }
             }

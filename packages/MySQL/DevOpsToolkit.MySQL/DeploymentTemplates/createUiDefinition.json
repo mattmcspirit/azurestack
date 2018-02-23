@@ -24,6 +24,17 @@
                     "required": true,
                     "validationMessage": "Please use a correctly formatted URL."
                 }
+            },
+            {
+                    "name": "scriptUrl",
+                    "type": "Microsoft.Common.TextBox",
+                    "label": "MySQL Install Script URL",
+                    "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/install_MySQL.sh",
+                    "toolTip": "Specify the URL of where the MySQL install script can be found",
+                    "constraints": {
+                        "required": true,
+                        "validationMessage": "Please use a correctly formatted URL."
+                    }
             }
         ],
         "steps": [
@@ -221,6 +232,7 @@
         "outputs": {
             "mySQLVmName": "[steps('basicsStep').mySQLVmName]",
             "templateBaseUrl": "[steps('basicsStep').templateBaseUrl]",
+            "scriptUrl": "[steps('basicsStep').scriptUrl]",
             "vmSize": "[steps('settings').Compute.vmSize]",
             "adminUsername": "[steps('settings').Compute.adminUsername]",
             "adminPassword": "[steps('settings').Compute.adminPassword.password]",
