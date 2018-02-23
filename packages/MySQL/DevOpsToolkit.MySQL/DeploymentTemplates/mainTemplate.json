@@ -281,7 +281,7 @@
             }
         },
         {
-            "name": "SettingUpVMNic",
+            "name": "[parameters('nicName')]",
             "type": "Microsoft.Network/networkInterfaces",
             "apiVersion": "2015-06-15",
             "location": "[resourceGroup().location]",
