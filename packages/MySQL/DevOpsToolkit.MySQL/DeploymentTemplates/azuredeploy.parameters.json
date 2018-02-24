@@ -68,8 +68,8 @@
     "nicName": {
       "value": "mysql_nic"
     },
-    "scriptUrl": {
-      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/install_MySQL.sh"
+    "scriptBaseUrl": {
+      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/"
     },
     "templateBaseUrl": {
       "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates"

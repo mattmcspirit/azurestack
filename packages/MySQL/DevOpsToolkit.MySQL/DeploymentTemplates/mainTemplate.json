@@ -170,13 +170,13 @@
             },
             "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates"
         },
-        "scriptUrl": {
+        "scriptBaseUrl": {
             "type": "string",
             "metadata": {
                 "artifactsBaseUrl": "",
                 "description": "Specify the URL of where the MySQL install script can be found"
             },
-            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/install_MySQL.sh"
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/"
         }
     },
     "variables": {
@@ -188,7 +188,7 @@
     },
     "resources": [
         {
-            "name": "SettingUpStorageAccount",
+            "name": "ProvisioningStorageAccount",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "properties": {
@@ -211,7 +211,7 @@
             }
         },
         {
-            "name": "SettingUpNetworkSecurityGroup",
+            "name": "ProvisioningNetworkSecurityGroup",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "dependsOn": [],
@@ -225,11 +225,11 @@
             }
         },
         {
-            "name": "SettingUpVirtualNetwork",
+            "name": "ProvisioningVirtualNetwork",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "dependsOn": [
-                "Microsoft.Resources/deployments/SettingUpNetworkSecurityGroup"
+                "Microsoft.Resources/deployments/ProvisioningNetworkSecurityGroup"
             ],
             "properties": {
                 "mode": "Incremental",
@@ -257,7 +257,7 @@
             }
         },
         {
-            "name": "SettingUpPublicIPs",
+            "name": "ProvisioningPublicIPs",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "dependsOn": [],
@@ -286,9 +286,9 @@
             "apiVersion": "2015-06-15",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "Microsoft.Resources/deployments/SettingUpPublicIPs",
-                "Microsoft.Resources/deployments/SettingUpVirtualNetwork",
-                "Microsoft.Resources/deployments/SettingUpNetworkSecurityGroup"
+                "Microsoft.Resources/deployments/ProvisioningPublicIPs",
+                "Microsoft.Resources/deployments/ProvisioningVirtualNetwork",
+                "Microsoft.Resources/deployments/ProvisioningNetworkSecurityGroup"
             ],
             "properties": {
                 "networkSecurityGroup": {
@@ -300,10 +300,10 @@
                         "properties": {
                             "privateIPAllocationMethod": "Dynamic",
                             "publicIPAddress": {
-                                "id": "[reference('SettingUpPublicIPs').outputs.publicIpId.value]"
+                                "id": "[reference('ProvisioningPublicIPs').outputs.publicIpId.value]"
                             },
                             "subnet": {
-                                "id": "[reference('SettingUpVirtualNetwork').outputs.subnetRef.value]"
+                                "id": "[reference('ProvisioningVirtualNetwork').outputs.subnetRef.value]"
                             }
                         }
                     }
@@ -311,7 +311,7 @@
             }
         },
         {
-            "name": "ProvisioningMySQL",
+            "name": "ProvisioningVM",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "dependsOn": [
@@ -349,13 +349,13 @@
                         "value": "[parameters('storageAccountResourceGroup')]"
                     },
                     "fqdn": {
-                        "value": "[reference('SettingUpPublicIPs').outputs.fqdn.value]"
+                        "value": "[reference('ProvisioningPublicIPs').outputs.fqdn.value]"
                     },
                     "nicName": {
                         "value": "[parameters('nicName')]"
                     },
-                    "scriptUrl": {
-                        "value": "[parameters('scriptUrl')]"
+                    "scriptBaseUrl": {
+                        "value": "[parameters('scriptBaseUrl')]"
                     }
                 }
             }
@@ -363,7 +363,7 @@
     ],
     "outputs": {
         "MySQLVMFQDN:": {
-            "value": "[concat('https://',reference('SettingUpPublicIPs').outputs.fqdn.value)]",
+            "value": "[concat('https://',reference('ProvisioningPublicIPs').outputs.fqdn.value)]",
             "type": "string"
         },
         "MySQLAdminUsername ": {
