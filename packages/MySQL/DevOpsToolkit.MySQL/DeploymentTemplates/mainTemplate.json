@@ -363,7 +363,7 @@
     ],
     "outputs": {
         "MySQLVMFQDN:": {
-            "value": "[concat('https://',reference('ProvisioningPublicIPs').outputs.fqdn.value)]",
+            "value": "[reference('ProvisioningPublicIPs').outputs.fqdn.value]",
             "type": "string"
         },
         "MySQLAdminUsername ": {
