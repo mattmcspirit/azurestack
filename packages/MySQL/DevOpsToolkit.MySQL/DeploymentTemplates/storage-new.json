@@ -45,6 +45,10 @@
             "value": "[resourceId('Microsoft.Storage/StorageAccounts',parameters('storageAccountName'))]",
             "type": "string"
         },
+        "blobEndpoint": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('apiVersions').storageAccounts).primaryEndpoints['blob']]"
+        },
         "storageAccountResourceGroup": {
             "type": "string",
             "value": "[resourceGroup().name]"
