@@ -4,7 +4,7 @@
     "parameters": {
         "basics": [
             {
-                "name": "vmName",
+                "name": "mySQLVmName",
                 "type": "Microsoft.Common.TextBox",
                 "label": "MySQL VM Name",
                 "defaultValue": "mysql",
@@ -257,7 +257,7 @@
             }
         ],
         "outputs": {
-            "vmName": "[steps('basicsStep').vmName]",
+            "mySQLVmName": "[steps('basicsStep').mySQLVmName]",
             "templateBaseUrl": "[steps('basicsStep').templateBaseUrl]",
             "scriptBaseUrl": "[steps('basicsStep').scriptBaseUrl]",
             "vmSize": "[steps('settings').Compute.vmSize]",

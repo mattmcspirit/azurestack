@@ -2,7 +2,7 @@
   "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "mySQLVmName": {
+    "vmName": {
       "value": "mysql"
     },
     "vmSize": {
@@ -63,6 +63,18 @@
       "value": "new"
     },
     "storageAccountResourceGroup": {
+      "value": ""
+    },
+    "diagnosticStorageAccountName": {
+      "value": "mysqldiagstor"
+    },
+    "diagnosticStorageAccountNewOrExisting": {
+      "value": "new"
+    },
+    "diagnosticStorageAccountType": {
+      "value": "Standard_LRS"
+    },
+    "diagnosticStorageAccountResourceGroup": {
       "value": ""
     },
     "nicName": {
