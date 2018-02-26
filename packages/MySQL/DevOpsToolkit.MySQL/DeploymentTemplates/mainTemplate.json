@@ -131,21 +131,21 @@
             "type": "string",
             "defaultValue": "new",
             "metadata": {
-                "description": "Storage Acccount New or Existing"
+                "description": "Storage Account New or Existing"
             }
         },
         "storageAccountName": {
             "type": "string",
             "defaultValue": "mysqlstor",
             "metadata": {
-                "description": "Storage Acccount Name"
+                "description": "Storage Account Name"
             }
         },
         "storageAccountType": {
             "type": "string",
             "defaultValue": "Standard_LRS",
             "metadata": {
-                "description": "Storage Acccount Type"
+                "description": "Storage Account Type"
             }
         },
         "storageAccountResourceGroup": {
@@ -196,7 +196,7 @@
                 "artifactsBaseUrl": "",
                 "description": "Specify the URL of where the additional MySQL JSON template files can be found"
             },
-            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates"
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates/"
         },
         "scriptBaseUrl": {
             "type": "string",
@@ -204,12 +204,12 @@
                 "artifactsBaseUrl": "",
                 "description": "Specify the URL of where the MySQL install script can be found"
             },
-            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/"
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/scripts/"
         }
     },
     "variables": {
         "apiVersions": {
-            "deployments": "2016-06-01",
+            "deployments": "2015-01-01",
             "networkInterfaces": "2015-06-15",
             "networkSecurityGroups": "2015-06-15",
             "publicIPAddresses": "2015-06-15",
@@ -251,17 +251,15 @@
         "osProfile": "[variables(concat('osProfile', parameters('authenticationType')))]",
         "nsgName": "[concat(parameters('vmName'), 'nsg')]",
         "storageAccountSetupUrl": "[concat(parameters('templateBaseUrl'),'/storage-',parameters('storageAccountNewOrExisting'),'.json')]",
-        "diagnosticStorageAccount": "[concat(parameters('templateBaseUrl'), '/storage-', parameters('diagnosticStorageAccountNewOrExisting'), '.json')]",
+        "diagnosticStorageAccountSetupUrl": "[concat(parameters('templateBaseUrl'), '/storage-', parameters('diagnosticStorageAccountNewOrExisting'), '.json')]",
         "publicIpAddressSetupUrl": "[concat(parameters('templateBaseUrl'),'/publicip-',parameters('publicIPAddressNewOrExisting'),'.json')]",
-        "vnetSetupUrl": "[concat(parameters('templateBaseUrl'),'/vnet-',parameters('virtualNetworkNewOrExisting'),'.json')]",
-        "vmSetupUrl": "[concat(parameters('templateBaseUrl'),'/compute-',parameters('authenticationType'),'.json')]",
-        "networkSecurityGroupSetupUrl": "[concat(parameters('templateBaseUrl'),'/networkSecurityGroup.json')]"
+        "vnetSetupUrl": "[concat(parameters('templateBaseUrl'),'/vnet-',parameters('virtualNetworkNewOrExisting'),'.json')]"
     },
     "resources": [
         {
             "name": "ProvisioningStorageAccount",
             "type": "Microsoft.Resources/deployments",
-            "apiVersion": "variables('apiVersions').deployments",
+            "apiVersion": "[variables('apiVersions').deployments]",
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
@@ -276,7 +274,7 @@
                         "value": "[parameters('storageAccountType')]"
                     },
                     "storageAccountResourceGroup": {
-                        "value": "[parameters('storageAccountResourceGroup')]"
+                        "value": "[variables('storageAccountResourceGroup')]"
                     },
                     "storageAccountName": {
                         "value": "[parameters('storageAccountName')]"
@@ -287,19 +285,22 @@
         {
             "name": "ProvisioningDiagnosticStorageAccount",
             "type": "Microsoft.Resources/deployments",
-            "apiVersion": "variables('apiVersions').deployments",
+            "apiVersion": "[variables('apiVersions').deployments]",
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
-                    "uri": "[variables('storageAccountSetupUrl')]",
+                    "uri": "[variables('diagnosticStorageAccountSetupUrl')]",
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
+                    "apiVersions": {
+                        "value": "[variables('apiVersions')]"
+                    },
                     "storageAccountType": {
                         "value": "[parameters('diagnosticStorageAccountType')]"
                     },
                     "storageAccountResourceGroup": {
-                        "value": "[parameters('diagnosticStorageAccountResourceGroup')]"
+                        "value": "[variables('diagnosticStorageAccountResourceGroup')]"
                     },
                     "storageAccountName": {
                         "value": "[parameters('diagnosticStorageAccountName')]"
@@ -310,7 +311,7 @@
         {
             "name": "[variables('nsgName')]",
             "type": "Microsoft.Network/networkSecurityGroups",
-            "apiVersion": "variables('apiVersions').networkSecurityGroups",
+            "apiVersion": "[variables('apiVersions').networkSecurityGroups]",
             "dependsOn": [],
             "location": "[resourceGroup().location]",
             "properties": {
@@ -442,9 +443,9 @@
             "type": "Microsoft.Compute/virtualMachines",
             "apiVersion": "[variables('apiVersions').virtualMachines]",
             "dependsOn": [
-                "Microsoft.Resources/deployments/StorageAccountSetup",
-                "Microsoft.Resources/deployments/DiagnosticStorageAccountSetup",
-                "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+                "Microsoft.Resources/deployments/ProvisioningStorageAccount",
+                "Microsoft.Resources/deployments/ProvisioningDiagnosticStorageAccount",
+                "[concat('Microsoft.Network/networkInterfaces/', parameters('nicName'))]"
             ],
             "location": "[resourceGroup().location]",
             "properties": {
@@ -455,14 +456,14 @@
                 "storageProfile": {
                     "imageReference": {
                         "publisher": "[variables('imagePublisher')]",
-                        "offer": "[parameters('imageOffer')]",
-                        "sku": "[parameters('imageSKU')]",
-                        "version": "[parameters('imageVersion')]"
+                        "offer": "[variables('imageOffer')]",
+                        "sku": "[variables('imageSKU')]",
+                        "version": "[variables('imageVersion')]"
                     },
                     "osDisk": {
                         "name": "[parameters('vmName')]",
                         "vhd": {
-                            "uri": "[concat(reference(resourceId(parameters('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), parameters('apiVersions').storageAccounts).primaryEndpoints.blob, 'vhds/', parameters('vmName'), uniquestring(Deployment().Name), '.vhd')]"
+                            "uri": "[concat(reference(resourceId(parameters('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), variables('apiVersions').storageAccounts).primaryEndpoints.blob, 'vhds/', parameters('vmName'), uniquestring(Deployment().Name), '.vhd')]"
                         },
                         "caching": "ReadWrite",
                         "createOption": "FromImage"
@@ -471,14 +472,14 @@
                 "networkProfile": {
                     "networkInterfaces": [
                         {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('nicName'))]"
                         }
                     ]
                 },
                 "diagnosticsProfile": {
                     "bootDiagnostics": {
                         "enabled": "true",
-                        "storageUri": "[reference('DiagnosticStorageAccountSetup').outputs.blobEndpoint.value]"
+                        "storageUri": "[reference('ProvisioningDiagnosticStorageAccount').outputs.blobEndpoint.value]"
                     }
                 }
             }

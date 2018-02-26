@@ -270,7 +270,6 @@
             "publicIPAddressResourceGroup": "[steps('settings').Network.ipAddress.resourceGroup]",
             "publicIPAddressDomainNameLabel": "[steps('settings').Network.ipAddress.domainNameLabel]",
             "publicIPAddressNewOrExisting": "[steps('settings').Network.ipAddress.newOrExistingOrNone]",
-            "resourceGroupName": "[steps('settings').Storage.storageAccount.resourceGroup]",
             "virtualNetworkAddressPrefix": "[steps('settings').Network.virtualNetwork.addressPrefix]",
             "virtualNetworkName": "[steps('settings').Network.virtualNetwork.name]",
             "virtualNetworkNewOrExisting": "[steps('settings').Network.virtualNetwork.newOrExisting]",
