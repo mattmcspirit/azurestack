@@ -479,7 +479,7 @@
                 "diagnosticsProfile": {
                     "bootDiagnostics": {
                         "enabled": "true",
-                        "storageUri": "[reference('ProvisioningDiagnosticStorageAccount').outputs.]"
+                        "storageUri": "[reference('ProvisioningDiagnosticStorageAccount').outputs.blobEndpoint.value]"
                     }
                 }
             }
