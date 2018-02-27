@@ -7,6 +7,12 @@
         },
         "publicIPAddressDomainNameLabel": {
             "type": "string"
+        },
+        "publicIPAddressResourceGroup": {
+            "type": "string",
+            "metadata": {
+                "description": "The Public IP Addresses Resource Group"
+            }
         }
     },
     "resources": [
