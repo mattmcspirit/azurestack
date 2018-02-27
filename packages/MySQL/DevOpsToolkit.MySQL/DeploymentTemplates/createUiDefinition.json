@@ -267,7 +267,6 @@
             "sshPublicKey": "[steps('settings').Compute.adminPassword.sshPublicKey]",
             "authenticationType": "[steps('settings').Compute.adminPassword.authenticationType]",
             "publicIPAddressName": "[steps('settings').Network.ipAddress.name]",
-            "publicIPAddressResourceGroup": "[steps('settings').Network.ipAddress.resourceGroup]",
             "publicIPAddressDomainNameLabel": "[steps('settings').Network.ipAddress.domainNameLabel]",
             "publicIPAddressNewOrExisting": "[steps('settings').Network.ipAddress.newOrExistingOrNone]",
             "virtualNetworkAddressPrefix": "[steps('settings').Network.virtualNetwork.addressPrefix]",
@@ -275,15 +274,12 @@
             "virtualNetworkNewOrExisting": "[steps('settings').Network.virtualNetwork.newOrExisting]",
             "virtualNetworkSubnetName": "[steps('settings').Network.virtualNetwork.subnets.subnet1.name]",
             "virtualNetworkSubnetAddressPrefix": "[steps('settings').Network.virtualNetwork.subnets.subnet1.addressPrefix]",
-            "virtualNetworkResourceGroup": "[steps('settings').Network.virtualNetwork.resourceGroup]",
-            "storageAccountResourceGroup": "[steps('settings').Storage.storageAccount.resourceGroup]",
             "storageAccountName": "[steps('settings').Storage.storageAccount.name]",
             "storageAccountType": "[steps('settings').Storage.storageAccount.type]",
             "storageAccountNewOrExisting": "[steps('settings').Storage.storageAccount.newOrExisting]",
             "diagnosticStorageAccountName": "[steps('settings').diagnosticStorageAccount.name]",
             "diagnosticStorageAccountNewOrExisting": "[steps('settings').diagnosticStorageAccount.newOrExisting]",
-            "diagnosticStorageAccountType": "[steps('settings').diagnosticStorageAccount.type]",
-            "diagnosticStorageAccountResourceGroup": "[steps('VirtualMachineConfig').diagnosticStorageAccount.resourceGroup]"
+            "diagnosticStorageAccountType": "[steps('settings').diagnosticStorageAccount.type]"
         }
     }
 }
