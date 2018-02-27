@@ -6,7 +6,7 @@ Instead of using the Azure Stack Portal, you can use PowerShell to deploy the De
 In this example, you run a script to deploy a virtual machine to Azure Stack Development Kit using a Resource Manager template.  Before proceeding, ensure you have [configured PowerShell](https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-configure-admin)  
 
 1. Go to the [MySQL template folder](<DevOpsToolkit.MySQL/DeploymentTemplates>) and grab the mainTemplate.json, saving it to the following location: c:\\templates\\mySQLTemplate.json.
-2. In PowerShell, run the following deployment script. Replace *username* and *password* with your username and password. On subsequent uses, increment the value for the *$myNum* parameter to prevent overwriting your deployment.
+2. In PowerShell, run the following deployment script. Replace *username*, *password* and *mySQlPassword* with your username and password. On subsequent uses, increment the value for the *$myNum* parameter to prevent overwriting your deployment.
    
    ```PowerShell
        # Set Deployment Variables
@@ -24,9 +24,23 @@ In this example, you run a script to deploy a virtual machine to Azure Stack Dev
            -TemplateFile c:\templates\mySQLTemplate.json `
            -vmName mySQLVM$myNum `
            -vmSize "Standard_A3" `
+           -storageAccountNewOrExisting new `
+           -storageAccountName mysqlstor$myNum `
+           -storageAccountType standard_lrs `
            -adminUsername <username> `
-           -adminPassword ("<password>" | ConvertTo-SecureString -AsPlainText -Force)
-           -mySQLPassword ("<password>" | ConvertTo-SecureString -AsPlainText -Force)
+           -adminPassword ("<password>" | ConvertTo-SecureString -AsPlainText -Force) `
+           -mySQLPassword ("<password>" | ConvertTo-SecureString -AsPlainText -Force) `
+           -authenticationType password `
+           -virtualNetworkName mysql_vnet$myNum `
+           -virtualNetworkAddressPrefix 10.0.0.0/16 `
+           -virtualNetworkNewOrExisting new `
+           -virtualNetworkSubnetName mysql_subnet$myNum `
+           -virtualNetworkSubnetAddressPrefix 10.0.0.0/24 `
+           -publicIPAddressName mysql_ip$myNum `
+           -publicIPAddressDomainNameLabel mysql$myNum `
+           -publicIPAddressNewOrExisting new `
+           -scriptBaseUrl "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/scripts/" `
+           -templateBaseUrl "https://raw.githubusercontent.com/mattmcspirit/AzureStack-1/master/Puppet.PuppetEnterprise.2017.2.1/DeploymentTemplates/"
    ```
 3. Open the Azure Stack portal, click **Browse**, click **Virtual machines**, and look for your new virtual machine (*mySQLDeployment001*).
 
