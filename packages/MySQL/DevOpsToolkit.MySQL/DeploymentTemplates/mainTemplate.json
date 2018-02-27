@@ -218,9 +218,6 @@
                     "storageAccountType": {
                         "value": "[parameters('storageAccountType')]"
                     },
-                    "storageAccountResourceGroup": {
-                        "value": "[variables('storageAccountResourceGroup')]"
-                    },
                     "storageAccountName": {
                         "value": "[parameters('storageAccountName')]"
                     }
@@ -240,9 +237,6 @@
                 "parameters": {
                     "storageAccountType": {
                         "value": "[parameters('diagnosticStorageAccountType')]"
-                    },
-                    "storageAccountResourceGroup": {
-                        "value": "[variables('diagnosticStorageAccountResourceGroup')]"
                     },
                     "storageAccountName": {
                         "value": "[parameters('diagnosticStorageAccountName')]"
@@ -377,9 +371,7 @@
             "apiVersion": "2015-06-15",
             "dependsOn": [
                 "Microsoft.Resources/deployments/ProvisioningStorageAccount",
-                "[resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]",
                 "Microsoft.Resources/deployments/ProvisioningDiagnosticStorageAccount",
-                "[resourceId(variables('diagnosticStorageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('diagnosticStorageAccountName'))]",
                 "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
             ],
             "location": "[resourceGroup().location]",
