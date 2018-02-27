@@ -2,22 +2,10 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "apiVersions": {
-            "type": "object",
-            "metadata": {
-                "description": "ARM resource API versions"
-            }
-        },
         "storageAccountName": {
             "type": "string",
             "metadata": {
                 "Description": "The name of the new storage account created to store the VMs disks"
-            }
-        },
-        "storageAccountType": {
-            "type": "string",
-            "metadata": {
-                "Description": "The type of the Storage Account created"
             }
         },
         "storageAccountResourceGroup": {
@@ -30,12 +18,12 @@
     "resources": [],
     "outputs": {
         "storageAccountId": {
-            "value": "[reference(resourceId(parameters('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('apiVersions').storageAccounts)]",
+            "value": "[reference(resourceId(parameters('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01')]",
             "type": "string"
         },
         "blobEndpoint": {
             "type": "string",
-            "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('apiVersions').storageAccounts).primaryEndpoints['blob']]"
+            "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').primaryEndpoints['blob']]"
         },
         "storageAccountResourceGroup": {
             "type": "string",

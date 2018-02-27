@@ -2,12 +2,6 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "apiVersions": {
-            "type": "object",
-            "metadata": {
-                "description": "ARM resource API versions"
-            }
-        },
         "storageAccountName": {
             "type": "string",
             "metadata": {
@@ -31,7 +25,7 @@
         {
             "type": "Microsoft.Storage/storageAccounts",
             "name": "[parameters('storageAccountName')]",
-            "apiVersion": "[parameters('apiVersions').storageAccounts]",
+            "apiVersion": "2016-01-01",
             "location": "[resourceGroup().location]",
             "sku": {
                 "name": "[parameters('storageAccountType')]"
@@ -47,7 +41,7 @@
         },
         "blobEndpoint": {
             "type": "string",
-            "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('apiVersions').storageAccounts).primaryEndpoints['blob']]"
+            "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').primaryEndpoints['blob']]"
         },
         "storageAccountResourceGroup": {
             "type": "string",

@@ -208,16 +208,6 @@
         }
     },
     "variables": {
-        "apiVersions": {
-            "deployments": "2015-01-01",
-            "networkInterfaces": "2015-06-15",
-            "networkSecurityGroups": "2015-06-15",
-            "publicIPAddresses": "2015-06-15",
-            "storageAccounts": "2016-01-01",
-            "virtualMachineExtensions": "2016-03-30",
-            "virtualMachines": "2016-03-30",
-            "virtualNetworks": "2015-06-15"
-        },
         "imagePublisher": "Canonical",
         "imageOffer": "UbuntuServer",
         "imageSku": "16.04-LTS",
@@ -253,7 +243,7 @@
         {
             "name": "ProvisioningStorageAccount",
             "type": "Microsoft.Resources/deployments",
-            "apiVersion": "[variables('apiVersions').deployments]",
+            "apiVersion": "2015-01-01",
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
@@ -261,9 +251,6 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
-                    "apiVersions": {
-                        "value": "[variables('apiVersions')]"
-                    },
                     "storageAccountType": {
                         "value": "[parameters('storageAccountType')]"
                     },
@@ -279,7 +266,7 @@
         {
             "name": "ProvisioningDiagnosticStorageAccount",
             "type": "Microsoft.Resources/deployments",
-            "apiVersion": "[variables('apiVersions').deployments]",
+            "apiVersion": "2015-01-01",
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
@@ -287,9 +274,6 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
-                    "apiVersions": {
-                        "value": "[variables('apiVersions')]"
-                    },
                     "storageAccountType": {
                         "value": "[parameters('diagnosticStorageAccountType')]"
                     },
@@ -305,7 +289,7 @@
         {
             "name": "[variables('nsgName')]",
             "type": "Microsoft.Network/networkSecurityGroups",
-            "apiVersion": "[variables('apiVersions').networkSecurityGroups]",
+            "apiVersion": "2015-06-15",
             "dependsOn": [],
             "location": "[resourceGroup().location]",
             "properties": {
@@ -342,7 +326,7 @@
         {
             "name": "ProvisioningVirtualNetwork",
             "type": "Microsoft.Resources/deployments",
-            "apiVersion": "[variables('apiVersions').deployments]",
+            "apiVersion": "2015-01-01",
             "dependsOn": [],
             "properties": {
                 "mode": "Incremental",
@@ -351,9 +335,6 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
-                    "apiVersions": {
-                        "value": "[variables('apiVersions')]"
-                    },
                     "virtualNetworkName": {
                         "value": "[parameters('virtualNetworkName')]"
                     },
@@ -375,7 +356,7 @@
         {
             "name": "ProvisioningPublicIPs",
             "type": "Microsoft.Resources/deployments",
-            "apiVersion": "[variables('apiVersions').deployments]",
+            "apiVersion": "2015-01-01",
             "dependsOn": [],
             "properties": {
                 "mode": "Incremental",
@@ -384,9 +365,6 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
-                    "apiVersions": {
-                        "value": "[variables('apiVersions')]"
-                    },
                     "publicIPAddressType": {
                         "value": "Dynamic"
                     },
@@ -405,7 +383,7 @@
         {
             "name": "[parameters('nicName')]",
             "type": "Microsoft.Network/networkInterfaces",
-            "apiVersion": "[variables('apiVersions').networkInterfaces]",
+            "apiVersion": "2015-06-15",
             "location": "[resourceGroup().location]",
             "dependsOn": [
                 "Microsoft.Resources/deployments/ProvisioningPublicIPs",
@@ -435,7 +413,7 @@
         {
             "name": "[parameters('vmName')]",
             "type": "Microsoft.Compute/virtualMachines",
-            "apiVersion": "[variables('apiVersions').virtualMachines]",
+            "apiVersion": "2015-06-15",
             "dependsOn": [
                 "[concat('Microsoft.Network/networkInterfaces/', parameters('nicName'))]"
             ],
@@ -455,7 +433,7 @@
                     "osDisk": {
                         "name": "[parameters('vmName')]",
                         "vhd": {
-                            "uri": "[concat(reference(resourceId(parameters('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), variables('apiVersions').storageAccounts).primaryEndpoints.blob, 'vhds/', parameters('vmName'), uniquestring(Deployment().Name), '.vhd')]"
+                            "uri": "[concat(reference(resourceId(parameters('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2015-01-01').primaryEndpoints.blob, 'vhds/', parameters('vmName'), uniquestring(Deployment().Name), '.vhd')]"
                         },
                         "caching": "ReadWrite",
                         "createOption": "FromImage"
@@ -479,7 +457,7 @@
         {
             "type": "Microsoft.Compute/virtualMachines/extensions",
             "name": "[concat(parameters('vmName'),'/CustomScriptExtension')]",
-            "apiVersion": "[variables('apiVersions').virtualMachineExtensions]",
+            "apiVersion": "2016-03-30",
             "dependsOn": [
                 "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
             ],

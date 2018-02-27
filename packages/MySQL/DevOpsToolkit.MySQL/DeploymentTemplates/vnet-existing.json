@@ -2,22 +2,10 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "apiVersions": {
-            "type": "object",
-            "metadata": {
-                "description": "ARM resource API versions"
-            }
-        },
         "virtualNetworkName": {
             "type": "string"
         },
-        "virtualNetworkAddressPrefix": {
-            "type": "string"
-        },
         "virtualNetworkSubnetName": {
-            "type": "string"
-        },
-        "virtualNetworkSubnetAddressPrefix": {
             "type": "string"
         },
         "virtualNetworkResourceGroup": {
