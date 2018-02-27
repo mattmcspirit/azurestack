@@ -377,9 +377,9 @@
             "apiVersion": "2015-06-15",
             "dependsOn": [
                 "Microsoft.Resources/deployments/ProvisioningStorageAccount",
-                "[concat(reference(resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))))]",
+                "[resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]",
                 "Microsoft.Resources/deployments/ProvisioningDiagnosticStorageAccount",
-                "[concat(reference(resourceId(variables('diagnosticStorageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('diagnosticStorageAccountName'))))]",
+                "[resourceId(variables('diagnosticStorageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('diagnosticStorageAccountName'))]",
                 "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
             ],
             "location": "[resourceGroup().location]",

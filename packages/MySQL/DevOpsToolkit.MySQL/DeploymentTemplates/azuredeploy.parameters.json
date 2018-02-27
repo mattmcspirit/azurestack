@@ -38,9 +38,6 @@
     "virtualNetworkSubnetAddressPrefix": {
       "value": "10.0.0.0/24"
     },
-    "virtualNetworkResourceGroup": {
-      "value": ""
-    },
     "publicIPAddressName": {
       "value": "mysql_ip"
     },
@@ -49,9 +46,6 @@
     },
     "publicIPAddressNewOrExisting": {
       "value": "new"
-    },
-    "publicIPAddressResourceGroup": {
-      "value": ""
     },
     "storageAccountName": {
       "value": "mysqlstor"
@@ -62,9 +56,6 @@
     "storageAccountNewOrExisting": {
       "value": "new"
     },
-    "storageAccountResourceGroup": {
-      "value": ""
-    },
     "diagnosticStorageAccountName": {
       "value": "mysqldiagstor"
     },
@@ -73,9 +64,6 @@
     },
     "diagnosticStorageAccountType": {
       "value": "Standard_LRS"
-    },
-    "diagnosticStorageAccountResourceGroup": {
-      "value": ""
     },
     "nicName": {
       "value": "mysql_nic"
