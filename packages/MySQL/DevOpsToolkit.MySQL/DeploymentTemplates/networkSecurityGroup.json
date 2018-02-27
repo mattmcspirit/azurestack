@@ -1,17 +1,21 @@
 {
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
-    "parameters": {},
+    "parameters": {
+        "nsgName": {
+            "type": "string"
+        }
+    },
     "resources": [
         {
             "apiVersion": "2015-06-15",
             "type": "Microsoft.Network/networkSecurityGroups",
-            "name": "mysql_nsg",
+            "name": "[parameters('nsgName')]",
             "location": "[resourceGroup().location]",
             "properties": {
                 "securityRules": [
                     {
-                        "name": "mysql",
+                        "name": "mySQL",
                         "properties": {
                             "protocol": "Tcp",
                             "sourcePortRange": "*",
@@ -27,7 +31,7 @@
                         "name": "ssh",
                         "properties": {
                             "description": "Allow SSH",
-                            "protocol": "tcp",
+                            "protocol": "Tcp",
                             "sourcePortRange": "*",
                             "destinationPortRange": "22",
                             "sourceAddressPrefix": "*",
@@ -43,7 +47,7 @@
     ],
     "outputs": {
         "networkSecurityGroupId": {
-            "value": "[resourceId('Microsoft.Network/networkSecurityGroups','mysql_nsg')]",
+            "value": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsgName'))]",
             "type": "string"
         }
     }

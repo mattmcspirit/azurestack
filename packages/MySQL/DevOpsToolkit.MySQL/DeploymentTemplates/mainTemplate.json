@@ -41,7 +41,7 @@
             "type": "securestring",
             "defaultValue": "",
             "metadata": {
-                "description": "MySQL Database password"
+                "description": "Password fro MySQL Database Server"
             }
         },
         "sshPublicKey": {
@@ -107,6 +107,12 @@
                 "description": "Public IP domain name prefix"
             }
         },
+        "resourceGroupName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the resource group into which everything will be deployed"
+            }
+        },
         "storageAccountNewOrExisting": {
             "type": "string",
             "defaultValue": "new",
@@ -128,27 +134,6 @@
                 "description": "Storage Account Type"
             }
         },
-        "diagnosticStorageAccountName": {
-            "type": "string",
-            "defaultValue": "mysqldiagstor",
-            "metadata": {
-                "description": "Name of the storage account to use for diagnostics"
-            }
-        },
-        "diagnosticStorageAccountNewOrExisting": {
-            "type": "string",
-            "defaultValue": "new",
-            "metadata": {
-                "description": "State whether to create or use an existing storage account"
-            }
-        },
-        "diagnosticStorageAccountType": {
-            "type": "string",
-            "defaultValue": "Standard_LRS",
-            "metadata": {
-                "description": "Type of storage account to create for diagnostics"
-            }
-        },
         "templateBaseUrl": {
             "type": "string",
             "metadata": {
@@ -167,41 +152,20 @@
         }
     },
     "variables": {
+        "storageAccountResourceGroup": "[resourceGroup().name]",
+        "virtualNetworkResourceGroup": "[resourceGroup().name]",
+        "publicIPAddressResourceGroup": "[resourceGroup().name]",
+        "nsgName": "[toLower(concat(parameters('vmName'), '_nsg'))]",
+        "nicName": "[toLower(concat(parameters('vmName'), '_nic'))]",
         "imagePublisher": "Canonical",
         "imageOffer": "UbuntuServer",
         "imageSku": "16.04-LTS",
         "imageVersion": "latest",
-        "osProfilepassword": {
-            "computerName": "[parameters('vmName')]",
-            "adminUsername": "[parameters('adminUsername')]",
-            "adminPassword": "[parameters('adminPassword')]"
-        },
-        "osProfilesshPublicKey": {
-            "computerName": "[parameters('vmName')]",
-            "adminUsername": "[parameters('adminUsername')]",
-            "linuxConfiguration": {
-                "disablePasswordAuthentication": true,
-                "ssh": {
-                    "publicKeys": [
-                        {
-                            "keyData": "[parameters('sshPublicKey')]",
-                            "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]"
-                        }
-                    ]
-                }
-            }
-        },
-        "virtualNetworkResourceGroup": "[resourceGroup().name]",
-        "publicIPAddressResourceGroup": "[resourceGroup().name]",
-        "storageAccountResourceGroupVar": "[resourceGroup().name]",
-        "diagnosticStorageAccountResourceGroupVar": "[resourceGroup().name]",
-        "osProfile": "[variables(concat('osProfile', parameters('authenticationType')))]",
-        "nsgName": "[concat(parameters('vmName'), '_nsg')]",
-        "nicName": "[concat(parameters('vmName'), '_nic')]",
         "storageAccountSetupUrl": "[concat(parameters('templateBaseUrl'),'/storage-',parameters('storageAccountNewOrExisting'),'.json')]",
-        "diagnosticStorageAccountSetupUrl": "[concat(parameters('templateBaseUrl'), '/storage-', parameters('diagnosticStorageAccountNewOrExisting'), '.json')]",
         "publicIpAddressSetupUrl": "[concat(parameters('templateBaseUrl'),'/publicip-',parameters('publicIPAddressNewOrExisting'),'.json')]",
-        "vnetSetupUrl": "[concat(parameters('templateBaseUrl'),'/vnet-',parameters('virtualNetworkNewOrExisting'),'.json')]"
+        "vnetSetupUrl": "[concat(parameters('templateBaseUrl'),'/vnet-',parameters('virtualNetworkNewOrExisting'),'.json')]",
+        "vmSetupUrl": "[concat(parameters('templateBaseUrl'),'/compute-',parameters('authenticationType'),'.json')]",
+        "networkSecurityGroupSetupUrl": "[concat(parameters('templateBaseUrl'),'/networkSecurityGroup.json')]"
     },
     "resources": [
         {
@@ -218,6 +182,9 @@
                     "storageAccountType": {
                         "value": "[parameters('storageAccountType')]"
                     },
+                    "storageAccountResourceGroup": {
+                        "value": "[variables('storageAccountResourceGroup')]"
+                    },
                     "storageAccountName": {
                         "value": "[parameters('storageAccountName')]"
                     }
@@ -225,70 +192,30 @@
             }
         },
         {
-            "name": "ProvisioningDiagnosticStorageAccount",
+            "name": "ProvisioningNetworkSecurityGroup",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
-            "dependsOn": [
-                "Microsoft.Resources/deployments/ProvisioningStorageAccount"
-            ],
+            "dependsOn": [],
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
-                    "uri": "[variables('diagnosticStorageAccountSetupUrl')]",
+                    "uri": "[variables('networkSecurityGroupSetupUrl')]",
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
-                    "storageAccountType": {
-                        "value": "[parameters('diagnosticStorageAccountType')]"
-                    },
-                    "storageAccountName": {
-                        "value": "[parameters('diagnosticStorageAccountName')]"
+                    "nsgName": {
+                        "value": "[variables('nsgName')]"
                     }
                 }
-            }
-        },
-        {
-            "name": "[variables('nsgName')]",
-            "type": "Microsoft.Network/networkSecurityGroups",
-            "apiVersion": "2015-06-15",
-            "dependsOn": [],
-            "location": "[resourceGroup().location]",
-            "properties": {
-                "securityRules": [
-                    {
-                        "name": "ssh",
-                        "properties": {
-                            "priority": 1010,
-                            "sourceAddressPrefix": "*",
-                            "protocol": "TCP",
-                            "destinationPortRange": "22",
-                            "access": "Allow",
-                            "direction": "Inbound",
-                            "sourcePortRange": "*",
-                            "destinationAddressPrefix": "*"
-                        }
-                    },
-                    {
-                        "name": "MySQL",
-                        "properties": {
-                            "priority": 1020,
-                            "sourceAddressPrefix": "*",
-                            "protocol": "TCP",
-                            "destinationPortRange": "3306",
-                            "access": "Allow",
-                            "direction": "Inbound",
-                            "sourcePortRange": "*",
-                            "destinationAddressPrefix": "*"
-                        }
-                    }
-                ]
             }
         },
         {
             "name": "ProvisioningVirtualNetwork",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
-            "dependsOn": [],
+            "dependsOn": [
+                "Microsoft.Resources/deployments/ProvisioningNetworkSecurityGroup"
+            ],
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
@@ -310,6 +237,9 @@
                     },
                     "virtualNetworkSubnetAddressPrefix": {
                         "value": "[parameters('virtualNetworkSubnetAddressPrefix')]"
+                    },
+                    "nsgName": {
+                        "value": "[variables('nsgName')]"
                     }
                 }
             }
@@ -339,14 +269,14 @@
             }
         },
         {
-            "name": "[variables('nicName')]",
-            "type": "Microsoft.Network/networkInterfaces",
             "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[variables('nicName')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
                 "Microsoft.Resources/deployments/ProvisioningPublicIPs",
                 "Microsoft.Resources/deployments/ProvisioningVirtualNetwork",
-                "[concat('Microsoft.Network/networkSecurityGroups/', variables('nsgName'))]"
+                "Microsoft.Resources/deployments/ProvisioningNetworkSecurityGroup"
             ],
             "properties": {
                 "networkSecurityGroup": {
@@ -369,71 +299,62 @@
             }
         },
         {
-            "name": "[parameters('vmName')]",
-            "type": "Microsoft.Compute/virtualMachines",
-            "apiVersion": "2015-06-15",
+            "name": "ProvisioningVirtualMachine",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
             "dependsOn": [
                 "Microsoft.Resources/deployments/ProvisioningStorageAccount",
-                "Microsoft.Resources/deployments/ProvisioningDiagnosticStorageAccount",
                 "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
             ],
-            "location": "[resourceGroup().location]",
             "properties": {
-                "hardwareProfile": {
-                    "vmSize": "[parameters('vmSize')]"
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('vmSetupUrl')]",
+                    "contentVersion": "1.0.0.0"
                 },
-                "osProfile": "[variables('osProfile')]",
-                "storageProfile": {
-                    "imageReference": {
-                        "publisher": "[variables('imagePublisher')]",
-                        "offer": "[variables('imageOffer')]",
-                        "sku": "[variables('imageSKU')]",
-                        "version": "[variables('imageVersion')]"
+                "parameters": {
+                    "vmName": {
+                        "value": "[parameters('vmName')]"
                     },
-                    "osDisk": {
-                        "name": "[parameters('vmName')]",
-                        "vhd": {
-                            "uri": "[concat(reference(resourceId(variables('storageAccountResourceGroupVar'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2015-01-01').primaryEndpoints.blob, 'vhds/', parameters('vmName'), uniquestring(Deployment().Name), '.vhd')]"
-                        },
-                        "caching": "ReadWrite",
-                        "createOption": "FromImage"
+                    "vmSize": {
+                        "value": "[parameters('vmSize')]"
+                    },
+                    "imagePublisher": {
+                        "value": "[variables('imagePublisher')]"
+                    },
+                    "imageOffer": {
+                        "value": "[variables('imageOffer')]"
+                    },
+                    "imageSku": {
+                        "value": "[variables('imageSku')]"
+                    },
+                    "imageVersion": {
+                        "value": "[variables('imageVersion')]"
+                    },
+                    "adminUserName": {
+                        "value": "[parameters('adminUserName')]"
+                    },
+                    "adminPassword": {
+                        "value": "[parameters('adminPassword')]"
+                    },
+                    "mySQLPassword": {
+                        "value": "[parameters('mySQLPassword')]"
+                    },
+                    "sshPublicKey": {
+                        "value": "[parameters('sshPublicKey')]"
+                    },
+                    "storageAccountName": {
+                        "value": "[parameters('storageAccountName')]"
+                    },
+                    "storageAccountResourceGroup": {
+                        "value": "[variables('storageAccountResourceGroup')]"
+                    },
+                    "nicName": {
+                        "value": "[variables('nicName')]"
+                    },
+                    "scriptBaseUrl": {
+                        "value": "[parameters('scriptBaseUrl')]"
                     }
-                },
-                "networkProfile": {
-                    "networkInterfaces": [
-                        {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
-                        }
-                    ]
-                },
-                "diagnosticsProfile": {
-                    "bootDiagnostics": {
-                        "enabled": "true",
-                        "storageUri": "[concat(reference(resourceId(variables('diagnosticstorageAccountResourceGroupVar'), 'Microsoft.Storage/storageAccounts/', parameters('diagnosticStorageAccountName')), '2015-01-01').primaryEndpoints.blob)]"
-                    }
-                }
-            }
-        },
-        {
-            "type": "Microsoft.Compute/virtualMachines/extensions",
-            "name": "[concat(parameters('vmName'),'/CustomScriptExtension')]",
-            "apiVersion": "2016-03-30",
-            "dependsOn": [
-                "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
-            ],
-            "location": "[resourceGroup().location]",
-            "properties": {
-                "publisher": "Microsoft.Azure.Extensions",
-                "type": "CustomScript",
-                "typeHandlerVersion": "2.0",
-                "autoUpgradeMinorVersion": true,
-                "settings": {
-                    "fileUris": [
-                        "[concat(parameters('scriptBaseUrl'), 'install_MySQL.sh')]"
-                    ]
-                },
-                "protectedSettings": {
-                    "commandToExecute": "[concat('sh install_MySQL.sh ', parameters('mySQLPassword'))]"
                 }
             }
         }

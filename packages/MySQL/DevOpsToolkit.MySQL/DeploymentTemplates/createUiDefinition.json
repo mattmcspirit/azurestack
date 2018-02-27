@@ -6,7 +6,7 @@
             {
                 "name": "vmName",
                 "type": "Microsoft.Common.TextBox",
-                "label": "MySQL VM Name",
+                "label": "MySQL Virtual Machine Name",
                 "defaultValue": "mysql",
                 "constraints": {
                     "required": true,
@@ -18,23 +18,23 @@
                 "name": "templateBaseUrl",
                 "type": "Microsoft.Common.TextBox",
                 "label": "Template Files URL",
-                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates",
+                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates/",
                 "toolTip": "Specify the URL of where the additional MySQL JSON template files can be found",
                 "constraints": {
                     "required": true,
-                    "validationMessage": "Please use a correctly formatted URL."
+                    "validationMessage": "Please use a correctly formatted URL, ending with the containing folder."
                 }
             },
             {
-                    "name": "scriptBaseUrl",
-                    "type": "Microsoft.Common.TextBox",
-                    "label": "MySQL Install Script URL",
-                    "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/",
-                    "toolTip": "Specify the URL of where the MySQL install script can be found",
-                    "constraints": {
-                        "required": true,
-                        "validationMessage": "Please use a correctly formatted URL."
-                    }
+                "name": "scriptBaseUrl",
+                "type": "Microsoft.Common.TextBox",
+                "label": "Script URL",
+                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/scripts/",
+                "toolTip": "Specify the URL of where the MySQL Custom Script can be found",
+                "constraints": {
+                    "required": true,
+                    "validationMessage": "Please use a correctly formatted URL, ending with the containing folder."
+                }
             }
         ],
         "steps": [
@@ -57,7 +57,7 @@
                                 "type": "Microsoft.Compute.UserNameTextBox",
                                 "label": "Username",
                                 "defaultValue": "mysqladmin",
-                                "toolTip": "Admin username for the MySQL Virtual Machine",
+                                "toolTip": "Admin username for the MySQL virtual machine",
                                 "osPlatform": "Linux",
                                 "constraints": {
                                     "required": true
@@ -144,8 +144,8 @@
                                     "domainNameLabel": "DNS label"
                                 },
                                 "toolTip": {
-                                    "publicIpAddress": "Public IP address for MySQL Virtual Machine",
-                                    "domainNameLabel": "DNS label for MySQL Virtual Machine"
+                                    "publicIpAddress": "Public IP address for the MySQL virtual machine",
+                                    "domainNameLabel": "DNS label for the MySQL virtual machine"
                                 },
                                 "defaultValue": {
                                     "publicIpAddressName": "mysql_ip",
@@ -170,7 +170,7 @@
                                 },
                                 "toolTip": {
                                     "virtualNetwork": "Virtual Network Name",
-                                    "subnets": "Subnets requied for MySQL Virtual Machine"
+                                    "subnets": "Subnets requied for the MySQL virtual machine"
                                 },
                                 "defaultValue": {
                                     "name": "mysql_vnet",
@@ -213,35 +213,8 @@
                                 },
                                 "constraints": {
                                     "allowedTypes": [
-                                        "Standard_LRS"
-                                    ],
-                                    "excludedTypes": []
-                                },
-                                "options": {
-                                    "hideExisting": false
-                                },
-                                "visible": true
-                            }
-                        ],
-                        "visible": true
-                    },
-                    {
-                        "name": "Storage",
-                        "type": "Microsoft.Common.Section",
-                        "label": "Storage",
-                        "elements": [
-                            {
-                                "name": "diagnosticStorageAccount",
-                                "type": "Microsoft.Storage.StorageAccountSelector",
-                                "label": "Diagnostic storage account",
-                                "toolTip": "Storage account for the Virtual Machine diagnostics",
-                                "defaultValue": {
-                                    "name": "[concat('mysqldiagstor',substring(guid(),0,4))]",
-                                    "type": "Standard_LRS"
-                                },
-                                "constraints": {
-                                    "allowedTypes": [
-                                        "Standard_LRS"
+                                        "Standard_LRS",
+                                        "Premium_LRS"
                                     ],
                                     "excludedTypes": []
                                 },
@@ -276,10 +249,7 @@
             "virtualNetworkSubnetAddressPrefix": "[steps('settings').Network.virtualNetwork.subnets.subnet1.addressPrefix]",
             "storageAccountName": "[steps('settings').Storage.storageAccount.name]",
             "storageAccountType": "[steps('settings').Storage.storageAccount.type]",
-            "storageAccountNewOrExisting": "[steps('settings').Storage.storageAccount.newOrExisting]",
-            "diagnosticStorageAccountName": "[steps('settings').diagnosticStorageAccount.name]",
-            "diagnosticStorageAccountNewOrExisting": "[steps('settings').diagnosticStorageAccount.newOrExisting]",
-            "diagnosticStorageAccountType": "[steps('settings').diagnosticStorageAccount.type]"
+            "storageAccountNewOrExisting": "[steps('settings').Storage.storageAccount.newOrExisting]"
         }
     }
 }

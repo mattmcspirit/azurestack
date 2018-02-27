@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "vmName": {
-      "value": "mysql"
+      "value": "mysqlvm"
     },
     "vmSize": {
       "value": "Standard_D3_v2"
@@ -56,23 +56,14 @@
     "storageAccountNewOrExisting": {
       "value": "new"
     },
-    "diagnosticStorageAccountName": {
-      "value": "mysqldiagstor"
-    },
-    "diagnosticStorageAccountNewOrExisting": {
-      "value": "new"
-    },
-    "diagnosticStorageAccountType": {
-      "value": "Standard_LRS"
-    },
-    "nicName": {
-      "value": "mysql_nic"
-    },
-    "scriptBaseUrl": {
-      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/"
+    "resourceGroupName": {
+      "value": ""
     },
     "templateBaseUrl": {
-      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates"
+      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates/"
+    },
+    "scriptBaseUrl": {
+      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/scripts/"
     }
   }
 }

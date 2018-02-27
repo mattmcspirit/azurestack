@@ -5,22 +5,25 @@
         "storageAccountName": {
             "type": "string",
             "metadata": {
-                "Description": "The name of the existing storage account created to store the VMs disks"
+                "Description": "The name of the new storage account created to store the VMs disks"
+            }
+        },
+        "storageAccountResourceGroup": {
+            "type": "string",
+            "metadata": {
+                "Description": "The Resource Group for the new storage account"
             }
         }
-    },
-    "variables": {
-        "storageAccountResourceGroupVar": "[resourceGroup().name]"
     },
     "resources": [],
     "outputs": {
         "storageAccountId": {
-            "value": "[reference(resourceId(variables('storageAccountResourceGroupVar'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01')]",
+            "value": "[reference(resourceId(parameters('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2015-06-15')]",
             "type": "string"
         },
-        "storageAccountResourceGroupOutput": {
+        "storageAccountResourceGroup": {
             "type": "string",
-            "value": "[variables('storageAccountResourceGroupVar')]"
+            "value": "[parameters('storageAccountResourceGroup')]"
         }
     }
 }
