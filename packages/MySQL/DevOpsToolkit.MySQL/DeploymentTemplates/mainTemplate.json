@@ -392,6 +392,8 @@
             "type": "Microsoft.Compute/virtualMachines",
             "apiVersion": "2015-06-15",
             "dependsOn": [
+                "Microsoft.Resources/deployments/ProvisioningStorageAccount",
+                "Microsoft.Resources/deployments/ProvisioningDiagnosticStorageAccount",
                 "[concat('Microsoft.Network/networkInterfaces/', parameters('nicName'))]"
             ],
             "location": "[resourceGroup().location]",
