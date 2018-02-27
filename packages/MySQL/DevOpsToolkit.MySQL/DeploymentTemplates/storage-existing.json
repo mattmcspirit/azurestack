@@ -18,7 +18,7 @@
             "value": "[reference(resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01')]",
             "type": "string"
         },
-        "storageAccountResourceGroup": {
+        "storageAccountResourceGroupBlah": {
             "type": "string",
             "value": "[variables('storageAccountResourceGroup')]"
         }
