@@ -33,7 +33,7 @@
             "value": "[resourceId('Microsoft.Storage/StorageAccounts',parameters('storageAccountName'))]",
             "type": "string"
         },
-        "storageAccountResourceGroupBlah": {
+        "storageAccountResourceGroupOutput": {
             "type": "string",
             "value": "[resourceGroup().name]"
         }

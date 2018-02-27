@@ -193,8 +193,8 @@
         },
         "virtualNetworkResourceGroup": "[resourceGroup().name]",
         "publicIPAddressResourceGroup": "[resourceGroup().name]",
-        "storageAccountResourceGroup": "[resourceGroup().name]",
-        "diagnosticStorageAccountResourceGroup": "[resourceGroup().name]",
+        "storageAccountResourceGroupVar": "[resourceGroup().name]",
+        "diagnosticStorageAccountResourceGroupVar": "[resourceGroup().name]",
         "osProfile": "[variables(concat('osProfile', parameters('authenticationType')))]",
         "nsgName": "[concat(parameters('vmName'), '_nsg')]",
         "nicName": "[concat(parameters('vmName'), '_nic')]",
@@ -390,7 +390,7 @@
                     "osDisk": {
                         "name": "[parameters('vmName')]",
                         "vhd": {
-                            "uri": "[concat(reference(resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2015-01-01').primaryEndpoints.blob, 'vhds/', parameters('vmName'), uniquestring(Deployment().Name), '.vhd')]"
+                            "uri": "[concat(reference(resourceId(variables('storageAccountResourceGroupVar'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2015-01-01').primaryEndpoints.blob, 'vhds/', parameters('vmName'), uniquestring(Deployment().Name), '.vhd')]"
                         },
                         "caching": "ReadWrite",
                         "createOption": "FromImage"
@@ -406,7 +406,7 @@
                 "diagnosticsProfile": {
                     "bootDiagnostics": {
                         "enabled": "true",
-                        "storageUri": "[concat(reference(resourceId(variables('diagnosticStorageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('diagnosticStorageAccountName')), '2015-01-01').primaryEndpoints.blob)]"
+                        "storageUri": "[concat(reference(resourceId(variables('diagnosticstorageAccountResourceGroupVar'), 'Microsoft.Storage/storageAccounts/', parameters('diagnosticStorageAccountName')), '2015-01-01').primaryEndpoints.blob)]"
                     }
                 }
             }

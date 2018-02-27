@@ -10,17 +10,17 @@
         }
     },
     "variables": {
-        "storageAccountResourceGroup": "[resourceGroup().name]"
+        "storageAccountResourceGroupVar": "[resourceGroup().name]"
     },
     "resources": [],
     "outputs": {
         "storageAccountId": {
-            "value": "[reference(resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01')]",
+            "value": "[reference(resourceId(variables('storageAccountResourceGroupVar'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01')]",
             "type": "string"
         },
-        "storageAccountResourceGroupBlah": {
+        "storageAccountResourceGroupOutput": {
             "type": "string",
-            "value": "[variables('storageAccountResourceGroup')]"
+            "value": "[variables('storageAccountResourceGroupVar')]"
         }
     }
 }
