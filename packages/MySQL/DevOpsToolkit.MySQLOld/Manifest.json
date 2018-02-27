@@ -1,0 +1,62 @@
+{   "$schema": "https://gallery.azure.com/schemas/2015-10-01/manifest.json#",
+    "name": "MySQL",
+    "publisher": "DevOpsToolkit",
+    "version": "1.0.0",
+    "displayName": "ms-resource:displayName",
+    "publisherDisplayName": "ms-resource:publisherDisplayName",
+    "publisherLegalName": "ms-resource:publisherDisplayName",
+    "summary": "ms-resource:summary",
+    "longSummary": "ms-resource:longSummary",
+    "description": "ms-resource:description",
+    "longDescription": "ms-resource:description",
+    "uiDefinition": {
+        "path": "UIDefinition.json"
+    },
+    "artifacts": [
+        {
+            "name": "AzureStackDeploy",
+            "type": "Template",
+            "path": "DeploymentTemplates\\mainTemplate.json",
+            "isDefault": true
+        }
+    ],
+    "categories": [
+      "DevOps Tooling"
+    ],
+    "links": [
+        { "displayName": "ms-resource:documentationLink", "uri": "https://www.oracle.com/mysql/index.html" },
+        { "displayName": "ms-resource:documentationLink2", "uri": "https://dev.mysql.com/doc/" }
+    ],
+    "images": [
+    {
+            "context": "ibiza",
+            "items": [
+                {
+                    "id": "small",
+                    "path": "Images\\Small.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "medium",
+                    "path": "Images\\Medium.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "large",
+                    "path": "Images\\Large.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "wide",
+                    "path": "Images\\Wide.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "screenshot0",
+                    "path": "Images\\Screenshot.png",
+                    "type": "screenshot"
+                }
+            ]
+        }
+    ]
+}

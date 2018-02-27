@@ -1,0 +1,26 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "parameters": {},
+  "resources": [
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "CustomScriptExtension",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [],
+      "location": "[resourceGroup().location]",
+      "properties": {
+          "publisher": "Microsoft.Azure.Extensions",
+          "type": "CustomScript",
+          "typeHandlerVersion": "2.0",
+          "autoUpgradeMinorVersion": true,
+          "settings": {
+              "fileUris": [
+                  "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/scripts/install_MySQL.sh"
+              ],
+              "commandToExecute": "[concat('./install_MySQL.sh ', parameters('mySQLPassword'))]"
+          }
+      }
+  }
+  ]
+}
