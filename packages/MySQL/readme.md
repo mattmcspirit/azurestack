@@ -17,7 +17,7 @@ In this example, you run a script to deploy a virtual machine to Azure Stack Dev
        # Create Resource Group for Template Deployment
        New-AzureRmResourceGroup -Name $RGName -Location $myLocation
    
-       # Deploy Puppet Template
+       # Deploy MySQL Template
        New-AzureRmResourceGroupDeployment `
            -Name mySQLDeployment$myNum `
            -ResourceGroupName $RGName `
@@ -39,8 +39,8 @@ In this example, you run a script to deploy a virtual machine to Azure Stack Dev
            -publicIPAddressName mysql_ip$myNum `
            -publicIPAddressDomainNameLabel mysql$myNum `
            -publicIPAddressNewOrExisting new `
-           -scriptBaseUrl "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/scripts/" `
-           -templateBaseUrl "https://raw.githubusercontent.com/mattmcspirit/AzureStack-1/master/Puppet.PuppetEnterprise.2017.2.1/DeploymentTemplates/"
+           -scriptBaseUrl "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/" `
+           -templateBaseUrl "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates/"
    ```
 3. Open the Azure Stack portal, click **Browse**, click **Virtual machines**, and look for your new virtual machine (*mySQLDeployment001*).
 
