@@ -412,7 +412,7 @@
                 "diagnosticsProfile": {
                     "bootDiagnostics": {
                         "enabled": "true",
-                        "storageUri": "[reference('ProvisioningDiagnosticStorageAccount').outputs.blobEndpoint.value]"
+                        "storageUri": "[concat(reference(resourceId(variables('diagnosticStorageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('diagnosticStorageAccountName')), '2015-01-01').primaryEndpoints.blob)]"
                     }
                 }
             }

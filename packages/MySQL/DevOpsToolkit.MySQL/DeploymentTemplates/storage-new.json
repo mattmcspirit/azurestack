@@ -13,12 +13,6 @@
             "metadata": {
                 "Description": "The type of the Storage Account created"
             }
-        },
-        "storageAccountResourceGroup": {
-            "type": "string",
-            "metadata": {
-                "Description": "The Resource Group for the new storage account"
-            }
         }
     },
     "resources": [
@@ -38,10 +32,6 @@
         "storageAccountId": {
             "value": "[resourceId('Microsoft.Storage/StorageAccounts',parameters('storageAccountName'))]",
             "type": "string"
-        },
-        "blobEndpoint": {
-            "type": "string",
-            "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').primaryEndpoints['blob']]"
         },
         "storageAccountResourceGroup": {
             "type": "string",

@@ -21,10 +21,6 @@
             "value": "[reference(resourceId(parameters('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01')]",
             "type": "string"
         },
-        "blobEndpoint": {
-            "type": "string",
-            "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').primaryEndpoints['blob']]"
-        },
         "storageAccountResourceGroup": {
             "type": "string",
             "value": "[parameters('storageAccountResourceGroup')]"
