@@ -228,6 +228,9 @@
             "name": "ProvisioningDiagnosticStorageAccount",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/ProvisioningStorageAccount"
+            ],
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {

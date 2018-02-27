@@ -29,8 +29,8 @@
         }
     ],
     "outputs": {
-        "storageAccountId": {
-            "value": "[resourceId('Microsoft.Storage/StorageAccounts',parameters('storageAccountName'))]",
+        "storageAccountCreated": {
+            "value": "Completed",
             "type": "string"
         },
         "storageAccountResourceGroupOutput": {
