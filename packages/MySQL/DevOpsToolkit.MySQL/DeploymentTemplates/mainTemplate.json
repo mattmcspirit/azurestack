@@ -114,13 +114,6 @@
                 "description": "Public IP domain name prefix"
             }
         },
-        "publicIPAddressResourceGroup": {
-            "type": "string",
-            "metadata": {
-                "description": "Name of the Public IP Adresseses Resource Group"
-            },
-            "defaultValue": ""
-        },
         "storageAccountNewOrExisting": {
             "type": "string",
             "defaultValue": "new",
@@ -142,13 +135,6 @@
                 "description": "Storage Account Type"
             }
         },
-        "storageAccountResourceGroup": {
-            "type": "string",
-            "metadata": {
-                "description": "Resouce Group of the storage account to use for Virtual Machine disks"
-            },
-            "defaultValue": ""
-        },
         "diagnosticStorageAccountName": {
             "type": "string",
             "defaultValue": "mysqldiagstor",
@@ -168,13 +154,6 @@
             "defaultValue": "Standard_LRS",
             "metadata": {
                 "description": "Type of storage account to create for diagnostics"
-            }
-        },
-        "diagnosticStorageAccountResourceGroup": {
-            "type": "string",
-            "defaultValue": "",
-            "metadata": {
-                "description": "Resouce Group of the storage account to use for diagnostics"
             }
         },
         "nicName": {
@@ -226,6 +205,10 @@
                 }
             }
         },
+        "virtualNetworkResourceGroup": "[resourceGroup().name]",
+        "publicIPAddressResourceGroup": "[resourceGroup().name]",
+        "storageAccountResourceGroup": "[resourceGroup().name]",
+        "diagnosticStorageAccountResourceGroup": "[resourceGroup().name]",
         "osProfile": "[variables(concat('osProfile', parameters('authenticationType')))]",
         "nsgName": "[concat(parameters('vmName'), 'nsg')]",
         "storageAccountSetupUrl": "[concat(parameters('templateBaseUrl'),'/storage-',parameters('storageAccountNewOrExisting'),'.json')]",
@@ -249,7 +232,7 @@
                         "value": "[parameters('storageAccountType')]"
                     },
                     "storageAccountResourceGroup": {
-                        "value": "[parameters('storageAccountResourceGroup')]"
+                        "value": "[variables('storageAccountResourceGroup')]"
                     },
                     "storageAccountName": {
                         "value": "[parameters('storageAccountName')]"
@@ -272,7 +255,7 @@
                         "value": "[parameters('diagnosticStorageAccountType')]"
                     },
                     "storageAccountResourceGroup": {
-                        "value": "[parameters('diagnosticStorageAccountResourceGroup')]"
+                        "value": "[variables('diagnosticStorageAccountResourceGroup')]"
                     },
                     "storageAccountName": {
                         "value": "[parameters('diagnosticStorageAccountName')]"
@@ -366,7 +349,7 @@
                         "value": "[parameters('publicIPAddressName')]"
                     },
                     "publicIPAddressResourceGroup": {
-                        "value": "[parameters('publicIPAddressResourceGroup')]"
+                        "value": "[variables('publicIPAddressResourceGroup')]"
                     },
                     "publicIPAddressDomainNameLabel": {
                         "value": "[parameters('publicIPAddressDomainNameLabel')]"
@@ -427,7 +410,7 @@
                     "osDisk": {
                         "name": "[parameters('vmName')]",
                         "vhd": {
-                            "uri": "[concat(reference(resourceId(parameters('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2015-01-01').primaryEndpoints.blob, 'vhds/', parameters('vmName'), uniquestring(Deployment().Name), '.vhd')]"
+                            "uri": "[concat(reference(resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2015-01-01').primaryEndpoints.blob, 'vhds/', parameters('vmName'), uniquestring(Deployment().Name), '.vhd')]"
                         },
                         "caching": "ReadWrite",
                         "createOption": "FromImage"
