@@ -13,12 +13,6 @@
             "metadata": {
                 "Description": "The type of the Storage Account created"
             }
-        },
-        "storageAccountResourceGroup": {
-            "type": "string",
-            "metadata": {
-                "Description": "The Resource Group for the new storage account"
-            }
         }
     },
     "resources": [

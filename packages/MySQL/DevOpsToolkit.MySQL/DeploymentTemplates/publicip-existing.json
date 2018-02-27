@@ -2,12 +2,6 @@
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "publicIPAddressType": {
-      "type": "string",
-      "metadata": {
-        "description": "Type of public ip address"
-      }
-    },
     "publicIPAddressName": {
       "type": "string"
     },
@@ -16,9 +10,6 @@
       "metadata": {
         "description": "The Public IP Addresses Resource Group"
       }
-    },
-    "publicIPAddressDomainNameLabel": {
-      "type": "string"
     }
   },
   "variables": {},

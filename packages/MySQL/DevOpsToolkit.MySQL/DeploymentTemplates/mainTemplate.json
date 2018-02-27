@@ -329,9 +329,6 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
-                    "publicIPAddressType": {
-                        "value": "Dynamic"
-                    },
                     "publicIPAddressName": {
                         "value": "[parameters('publicIPAddressName')]"
                     },
