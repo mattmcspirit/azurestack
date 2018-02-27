@@ -86,13 +86,6 @@
                 "description": "Virtual Network subnet address prefix"
             }
         },
-        "virtualNetworkResourceGroup": {
-            "type": "string",
-            "metadata": {
-                "description": "Resouce Group of the virtual network"
-            },
-            "defaultValue": ""
-        },
         "publicIPAddressNewOrExisting": {
             "type": "string",
             "defaultValue": "new",
@@ -156,13 +149,6 @@
                 "description": "Type of storage account to create for diagnostics"
             }
         },
-        "nicName": {
-            "type": "string",
-            "defaultValue": "mysql_nic",
-            "metadata": {
-                "description": "NIC name"
-            }
-        },
         "templateBaseUrl": {
             "type": "string",
             "metadata": {
@@ -210,7 +196,8 @@
         "storageAccountResourceGroup": "[resourceGroup().name]",
         "diagnosticStorageAccountResourceGroup": "[resourceGroup().name]",
         "osProfile": "[variables(concat('osProfile', parameters('authenticationType')))]",
-        "nsgName": "[concat(parameters('vmName'), 'nsg')]",
+        "nsgName": "[concat(parameters('vmName'), '_nsg')]",
+        "nicName": "[concat(parameters('vmName'), '_nic')]",
         "storageAccountSetupUrl": "[concat(parameters('templateBaseUrl'),'/storage-',parameters('storageAccountNewOrExisting'),'.json')]",
         "diagnosticStorageAccountSetupUrl": "[concat(parameters('templateBaseUrl'), '/storage-', parameters('diagnosticStorageAccountNewOrExisting'), '.json')]",
         "publicIpAddressSetupUrl": "[concat(parameters('templateBaseUrl'),'/publicip-',parameters('publicIPAddressNewOrExisting'),'.json')]",
@@ -316,7 +303,7 @@
                         "value": "[parameters('virtualNetworkName')]"
                     },
                     "virtualNetworkResourceGroup": {
-                        "value": "[parameters('virtualNetworkResourceGroup')]"
+                        "value": "[variables('virtualNetworkResourceGroup')]"
                     },
                     "virtualNetworkAddressPrefix": {
                         "value": "[parameters('virtualNetworkAddressPrefix')]"
@@ -358,7 +345,7 @@
             }
         },
         {
-            "name": "[parameters('nicName')]",
+            "name": "[variables('nicName')]",
             "type": "Microsoft.Network/networkInterfaces",
             "apiVersion": "2015-06-15",
             "location": "[resourceGroup().location]",
@@ -394,7 +381,7 @@
             "dependsOn": [
                 "Microsoft.Resources/deployments/ProvisioningStorageAccount",
                 "Microsoft.Resources/deployments/ProvisioningDiagnosticStorageAccount",
-                "[concat('Microsoft.Network/networkInterfaces/', parameters('nicName'))]"
+                "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
             ],
             "location": "[resourceGroup().location]",
             "properties": {
@@ -421,7 +408,7 @@
                 "networkProfile": {
                     "networkInterfaces": [
                         {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('nicName'))]"
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
                         }
                     ]
                 },
