@@ -60,10 +60,10 @@
       "value": ""
     },
     "templateBaseUrl": {
-      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates/"
+      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates/"
     },
     "scriptBaseUrl": {
-      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/MySQL/scripts/"
+      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/"
     }
   }
 }
