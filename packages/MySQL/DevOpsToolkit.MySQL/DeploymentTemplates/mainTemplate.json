@@ -213,7 +213,7 @@
             "networkInterfaces": "2015-06-15",
             "networkSecurityGroups": "2015-06-15",
             "publicIPAddresses": "2015-06-15",
-            "storageAccounts": "2015-06-15",
+            "storageAccounts": "2016-01-01",
             "virtualMachineExtensions": "2016-03-30",
             "virtualMachines": "2016-03-30",
             "virtualNetworks": "2015-06-15"
@@ -222,12 +222,6 @@
         "imageOffer": "UbuntuServer",
         "imageSku": "16.04-LTS",
         "imageVersion": "latest",
-        "diagnosticStorageAccountResourceGroupnew": "[resourceGroup().name]",
-        "diagnosticStorageAccountResourceGroupexisting": "[parameters('diagnosticStorageAccountResourceGroup')]",
-        "diagnosticStorageAccountResourceGroup": "[variables(concat('diagnosticStorageAccountResourceGroup', parameters('diagnosticStorageAccountNewOrExisting')))]",
-        "storageAccountResourceGroupnew": "[resourceGroup().name]",
-        "storageAccountResourceGroupexisting": "[parameters('storageAccountResourceGroup')]",
-        "storageAccountResourceGroup": "[variables(concat('storageAccountResourceGroup', parameters('storageAccountNewOrExisting')))]",
         "osProfilepassword": {
             "computerName": "[parameters('vmName')]",
             "adminUsername": "[parameters('adminUsername')]",
@@ -274,7 +268,7 @@
                         "value": "[parameters('storageAccountType')]"
                     },
                     "storageAccountResourceGroup": {
-                        "value": "[variables('storageAccountResourceGroup')]"
+                        "value": "[parameters('storageAccountResourceGroup')]"
                     },
                     "storageAccountName": {
                         "value": "[parameters('storageAccountName')]"
@@ -300,7 +294,7 @@
                         "value": "[parameters('diagnosticStorageAccountType')]"
                     },
                     "storageAccountResourceGroup": {
-                        "value": "[variables('diagnosticStorageAccountResourceGroup')]"
+                        "value": "[parameters('diagnosticStorageAccountResourceGroup')]"
                     },
                     "storageAccountName": {
                         "value": "[parameters('diagnosticStorageAccountName')]"
@@ -443,8 +437,6 @@
             "type": "Microsoft.Compute/virtualMachines",
             "apiVersion": "[variables('apiVersions').virtualMachines]",
             "dependsOn": [
-                "Microsoft.Resources/deployments/ProvisioningStorageAccount",
-                "Microsoft.Resources/deployments/ProvisioningDiagnosticStorageAccount",
                 "[concat('Microsoft.Network/networkInterfaces/', parameters('nicName'))]"
             ],
             "location": "[resourceGroup().location]",
@@ -500,8 +492,10 @@
                 "settings": {
                     "fileUris": [
                         "[concat(parameters('scriptBaseUrl'), 'install_MySQL.sh')]"
-                    ],
-                    "commandToExecute": "[concat('./install_MySQL.sh ', parameters('mySQLPassword'))]"
+                    ]
+                },
+                "protectedSettings": {
+                    "commandToExecute": "[concat('sh install_MySQL.sh ', parameters('mySQLPassword'))]"
                 }
             }
         }
