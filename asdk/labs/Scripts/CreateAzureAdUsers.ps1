@@ -3,7 +3,7 @@ Connect-AzureAD
 
 # Set password profile
 $PasswordProfile = New-Object -TypeName Microsoft.Open.AzureAD.Model.PasswordProfile
-$PasswordProfile.Password = "Pa55w.rd"
+$PasswordProfile.Password = "M@sL@b01!"
 
 # How many users to create?
 $CreateUsers = 10
