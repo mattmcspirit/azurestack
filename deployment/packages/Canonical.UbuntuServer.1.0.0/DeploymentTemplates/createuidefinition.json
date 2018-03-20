@@ -1,0 +1,32 @@
+{
+  "handler": "Microsoft.Compute.SingleVm",
+  "version": "0.0.1-preview",
+  "parameters": {
+    "osPlatform": "Linux",
+    "recommendedSizes": [
+      "Standard_D2s_v3",
+      "Standard_D4s_v3",
+      "Standard_E2s_v3",
+      "Standard_DS1_v2",
+      "Standard_DS2_v2",
+      "Standard_DS11_v2",
+      "Standard_DS1",
+      "Standard_DS2",
+      "Standard_DS11",
+      "Standard_D1_v2",
+      "Standard_D1",
+      "Standard_A1"
+    ],
+    "imageReference": {
+      "publisher": "Canonical",
+      "offer": "UbuntuServer",
+      "sku": "16.04-LTS"
+    },
+    "diskType": "Standard",
+    "dataDisks": [],
+    "supportsSriov": true,
+    "supportsBackup": true,
+    "freeTierEligible": true,
+    "defaultImageSizeGB": 30
+  }
+}
