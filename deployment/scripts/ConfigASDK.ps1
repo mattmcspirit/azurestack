@@ -1,5 +1,4 @@
-﻿
-<#
+﻿<#
 
 .SYNOPSYS
 
@@ -77,97 +76,332 @@ Param (
     [ValidateSet("AzureAd", "ADFS")]
     [String] $authenticationType,
 
-    # Provide Local Administrator password for App Service, MySQL and SQL VMs.
-    #[parameter(Mandatory = $true)]
-    #[Security.SecureString]$rppassword,
+    # Path to store downlaoded files
+    [parameter(Mandatory = $true)]
+    [String]$downloadPath,
 
     # Path to Windows Server 2016 Datacenter evaluation iso
     [parameter(Mandatory = $true)]
-    [string]$ISOPath
+    [String]$ISOPath,
 
+    # Password used for deployment of the ASDK.
+    [parameter(Mandatory = $false)]
+    [String]$ASDKpwd,
+
+    # Provide Local Administrator password for App Service, MySQL and SQL VMs.
+    [parameter(Mandatory = $false)]
+    [String]$VMpwd,
+
+    # Username for Azure AD Login - username@<directoryname>.onmicrosoft.com
+    [parameter(Mandatory = $false)]
+    [string]$serviceAdminUsername,
+
+    # Password for Azure AD login
+    [parameter(Mandatory = $false)]
+    [string]$serviceAdminPwd
 )
-
-function Select-Folder {
-    [Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
-    [System.Windows.Forms.Application]::EnableVisualStyles()
-    $browse = New-Object System.Windows.Forms.FolderBrowserDialog
-    $browse.SelectedPath = "C:\"
-    $browse.ShowNewFolderButton = $True
-    $browse.Description = "Select a directory to store your downloads - You must have administrative permission to store files in this location"
-
-    $loop = $true
-    while ($loop) {
-        if ($browse.ShowDialog() -eq "OK") {
-            $loop = $false
-        }
-        else {
-            $res = [System.Windows.Forms.MessageBox]::Show("You clicked Cancel. Would you like to try again or exit?", "Select a location", [System.Windows.Forms.MessageBoxButtons]::RetryCancel)
-            if ($res -eq "Cancel") {
-                return
-            }
-        }
-    }
-    $browse.SelectedPath
-    $browse.Dispose()
-}
 
 $VerbosePreference = "SilentlyContinue"
 $ErrorActionPreference = 'Stop'
 
-##############################################################################################################################################################
-##############################################################################################################################################################
-
-### DISPLAY INTRO TEXT AND DELAY ###
-
-Write-Host "`n`nWELCOME TO THE AZURE STACK ASDK CONFIGURATOR`nVersion: 3.0.0" -ForegroundColor Green
-Write-Host "`nThis script can be used to automate (mostly) the setup a Proof of Concept (POC) environment containing an
-SQL Server, MySQL Server and the core PaaS Services, such as the Azure App Service and Azure Functions on Azure Stack.`r`n
-This Configurator will perform the following tasks:`n"
-Write-Host "1) Download the appropriate Azure Stack Tools and PowerShell Modules for Administration
-2) Securely login to your Azure Stack environment, through either ADFS or Azure AD credentials
-3) TBC
-4) TBC
-`n" -ForegroundColor White
-
-Pause
-
-### CLEAR SCREEN ###
-Clear-Host
-
 ### GET START TIME ###
-$Time1 = Get-Date -format HH:mm:ss
+$startTime = Get-Date -format HH:mm:ss
 
 ### SET LOCATION ###
 $ScriptLocation = Get-Location
 
-### DOWNLOAD & EXTRACT TOOLS ###
-# Change directory to the root directory 
-Set-Location C:\
+### SET ERCS IP Address - same for all default ASDKs ###
+$ERCSip = "192.168.200.225"
 
-### Gather Credentials ###
-Write-Host "You will now be asked to supply a number of credentials, used throughout the deployment"
-Start-Sleep -Seconds 3
-$vmLocalAdminPass = Read-Host "Provide a password for the SQL Server, MySQL Server and App Service Virtual Machines" -AsSecureString
-$DeploymentUsername = "AzureStack\AzureStackAdmin"
-$DeploymentPassword = Read-Host "Provide the password for the AzureStack\AzureStackAdmin account, used when you deployed the Azure Stack Development Kit" -AsSecureString
-$DeploymentCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $DeploymentUsername,$DeploymentPassword 
+
+
+### PARAMATER VALIDATION #####################################################################################################################################
+##############################################################################################################################################################
+
+### Validate Download Path ###
+
+Clear-Host
+Write-Host "Checking to see if the Download Path exists"
+Start-Sleep -Seconds 1
+
+$validDownloadPath = [System.IO.Directory]::Exists($downloadPath)
+If ($validDownloadPath -eq $true) {
+    Write-Host "Download path exists and is valid" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    Write-Host "Files will be stored at $downloadPath" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    $downloadPath = Set-Location -Path "$downloadPath" -PassThru
+}
+elseif ($validDownloadPath -eq $false) {
+    $downloadPath = Read-Host "Download path is invalid - please enter a valid path to store your downloads"
+    Start-Sleep -Seconds 1
+    $validDownloadPath = [System.IO.Directory]::Exists($downloadPath)
+    if ($validDownloadPath -eq $false) {
+        Write-Host "No valid folder path was entered again. Exiting process..." -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+    elseif ($validDownloadPath -eq $true) {
+        Write-Host "Download path exists and is valid" -ForegroundColor Green
+        Start-Sleep -Seconds 1
+        Write-Host "Files will be stored at $downloadPath" -ForegroundColor Green
+        Start-Sleep -Seconds 1
+        $downloadPath = Set-Location -Path "$downloadPath" -PassThru
+    }
+}
+
+### Validate path to ISO File ###
+
+Write-Host "Checking to see if the path to the ISO exists"
+Start-Sleep -Seconds 1
+
+$validISOPath = [System.IO.File]::Exists($ISOPath)
+If ($validISOPath -eq $true) {
+    Write-Host "Found Windows Server 2016 Eval ISO" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
+    Write-Host "The Windows Server 2016 Eval found at $ISOPath will be used" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+}
+elseif ($validISOPath -eq $false) {
+    $ISOPath = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2016 ISO"
+    Start-Sleep -Seconds 1
+    $validISOPath = [System.IO.File]::Exists($ISOPath)
+    if ($validISOPath -eq $false) {
+        Write-Host "No valid path to a Windows Server 2016 ISO was entered again. Exiting process..." -ErrorAction Stop
+        Start-Sleep -Seconds 1
+        Set-Location $ScriptLocation
+        return
+    }
+    elseif ($validISOPath -eq $true) {
+        Write-Host "Found Windows Server 2016 Eval ISO" -ForegroundColor Green
+        Start-Sleep -Seconds 1
+        $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
+        Write-Host "The Windows Server 2016 Eval found at $ISOPath will be used" -ForegroundColor Green
+        Start-Sleep -Seconds 1
+    }
+}
+
+# Define Regex for Password Complexity - needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character
+$regex = @"
+^.*(?=.{8,})(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&£*\-_+=[\]{}|\\:',?/`~"();!]).*$
+"@
+
+### Validate Virtual Machine (To be created) Password ###
+
+if ([string]::IsNullOrEmpty($VMpwd)) {
+    Write-Host "You didn't enter a password for the virtual machines that the ASDK configurator will create." -ForegroundColor Red
+    $secureVMpwd = Read-Host "Please enter a password for the virtual machines that will be created during this process" -AsSecureString -ErrorAction Stop
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureVMpwd)            
+    $VMpwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+}
+
+Write-Host "Checking to see if Virtual Machine password is strong..."
+Start-Sleep -Seconds 1
+
+if ($VMpwd -cmatch $regex -eq $true) {
+    Write-Host "Virtual Machine password meets desired complexity level" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    # Convert plain text password to a secure string
+    $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
+}
+
+elseif ($VMpwd -cmatch $regex -eq $false) {
+    Write-Host "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character " -ForegroundColor Red
+    Start-Sleep -Seconds 1
+    # Obtain new password and store as a secure string
+    $secureVMpwd = Read-Host -AsSecureString "Enter VM password again"
+    # Convert to plain text to test regex complexity
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureVMpwd)            
+    $VMpwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+    if ($VMpwd -cmatch $regex -eq $true) {
+        Write-Host "Virtual Machine password matches desired complexity" -ForegroundColor Green
+        # Convert plain text password to a secure string
+        $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
+        # Clean up unused variable
+        Remove-Variable -Name VMpwd -ErrorAction SilentlyContinue
+    }
+    else {
+        Write-Host "No valid password was entered again. Exiting process..." -ErrorAction Stop -ForegroundColor Red
+        Set-Location $ScriptLocation
+        return
+    }
+}
+
+### Validate Azure Stack Development Kit Deployment Credentials ###
+
+if ([string]::IsNullOrEmpty($ASDKpwd)) {
+    Write-Host "You didn't enter the Azure Stack Development Kit Deployment password." -ForegroundColor Red
+    $secureASDKpwd = Read-Host "Please enter the password used for the Azure Stack Development Kit Deployment, for account AzureStack\AzureStackAdmin" -AsSecureString -ErrorAction Stop
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureASDKpwd)            
+    $ASDKpwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+}
+
+Write-Host "Checking to see Azure Stack Admin password is strong..."
+Start-Sleep -Seconds 1
+
+$deploymentUsername = "AzureStack\AzureStackAdmin"
+if ($ASDKpwd -cmatch $regex -eq $true) {
+    Write-Host "Azure Stack Development Kit Deployment password for AzureStack\AzureStackAdmin, meets desired complexity level" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    # Convert plain text password to a secure string
+    $secureASDKpwd = ConvertTo-SecureString -AsPlainText $ASDKpwd -Force
+    $deploymentCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $deploymentUsername, $secureASDKpwd -ErrorAction Stop
+}
+
+elseif ($ASDKpwd -cmatch $regex -eq $false) {
+    Write-Host "Azure Stack Development Kit Deployment password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character " -ForegroundColor Red
+    Start-Sleep -Seconds 1
+    # Obtain new password and store as a secure string
+    $secureASDKpwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Deployment password again"
+    # Convert to plain text to test regex complexity
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureASDKpwd)            
+    $ASDKpwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+    if ($ASDKpwd -cmatch $regex -eq $true) {
+        Write-Host "Azure Stack Development Kit Deployment password for AzureStack\AzureStackAdmin, meets desired complexity level" -ForegroundColor Green
+        Start-Sleep -Seconds 1
+        # Convert plain text password to a secure string
+        $secureASDKpwd = ConvertTo-SecureString -AsPlainText $ASDKpwd -Force
+        # Clean up unused variable
+        Remove-Variable -Name ASDKpwd -ErrorAction SilentlyContinue
+        $deploymentCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $deploymentUsername, $secureASDKpwd -ErrorAction Stop
+    }
+    else {
+        Write-Host "No Azure Stack Development Kit Deployment password was entered again. Exiting process..." -ErrorAction Stop -ForegroundColor Red
+        Start-Sleep -Seconds 1
+        Set-Location $ScriptLocation
+        return
+    }
+}
+
+### Validate Azure Stack Development Kit Service Administrator Credentials (AZURE AD ONLY) ###
 
 if ($authenticationType.ToString() -like "AzureAd") {
-    $ServiceAdminUsername = Read-Host "Provide the Azure Stack Service Administrator username, in the form username@<mydirectorytenant>.onmicrosoft.com"
-    $ServiceAdminPassword = Read-Host "Provide the password for the Azure Stack Service Administrator account" -AsSecureString
-    $AzureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ServiceAdminUsername,$ServiceAdminPassword 
+
+    ### Validate Azure Stack Development Kit Service Administrator Username ###
+
+    if ([string]::IsNullOrEmpty($serviceAdminUsername)) {
+    Write-Host "You didn't enter a username for the Azure Ad login." -ForegroundColor Red
+    $serviceAdminUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
 }
+
+    Write-Host "Checking to see if Azure Stack Development Kit Service Administrator username is correctly formatted..."
+    Start-Sleep -Seconds 1
+
+    $emailRegex = @"
+(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])
+"@
+
+    if ($serviceAdminUsername -cmatch $emailRegex -eq $true) {
+        Write-Host "Azure Stack Development Kit Service Administrator username is correctly formatted." -ForegroundColor Green
+        Start-Sleep -Seconds 1
+        Write-Host "$serviceAdminUsername will be used to connect to Azure." -ForegroundColor Green
+        Start-Sleep -Seconds 1
+    }
+
+    elseif ($serviceAdminUsername -cmatch $emailRegex -eq $false) {
+        Write-Host "Azure Stack Development Kit Service Administrator username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ForegroundColor Red
+        # Obtain new username
+        $serviceAdminUsername = Read-Host "Enter Azure Stack Development Kit Service Administrator username again"
+        if ($serviceAdminUsername -cmatch $emailRegex -eq $true) {
+            Write-Host "Azure Stack Development Kit Service Administrator username is correctly formatted." -ForegroundColor Green
+            Start-Sleep -Seconds 1
+            Write-Host "$serviceAdminUsername will be used to connect to Azure." -ForegroundColor Green
+            Start-Sleep -Seconds 1
+        }
+        else {
+            Write-Host "No valid Azure Stack Development Kit Service Administrator username was entered again. Exiting process..." -ErrorAction Stop -ForegroundColor Red
+            Start-Sleep -Seconds 1
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+
+    ### Validate Azure Stack Development Kit Service Administrator Password ###
+
+    if ([string]::IsNullOrEmpty($serviceAdminPwd)) {
+        Write-Host "You didn't enter the Azure Stack Development Kit Service Administrator password." -ForegroundColor Red
+        $secureServiceAdminPwd = Read-Host "Please enter the Azure Stack Development Kit Service Administrator password. It should be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -AsSecureString -ErrorAction Stop
+        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureServiceAdminPwd)            
+        $serviceAdminPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+    }
+
+    Write-Host "Checking to see if Azure Stack Development Kit Service Administrator password is strong..."
+    Start-Sleep -Seconds 1
+
+    if ($serviceAdminPwd -cmatch $regex -eq $true) {
+        Write-Host "Azure Stack Development Kit Service Administrator password meets desired complexity level" -ForegroundColor Green
+        Start-Sleep -Seconds 1
+        # Convert plain text password to a secure string
+        $secureServiceAdminPwd = ConvertTo-SecureString -AsPlainText $serviceAdminPwd -Force
+        $AzureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($serviceAdminUsername, $secureServiceAdminPwd) -ErrorAction Stop
+    }
+
+    elseif ($serviceAdminPwd -cmatch $regex -eq $false) {
+        Write-Host "Azure Stack Development Kit Service Administrator password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -ForegroundColor Red
+        Start-Sleep -Seconds 1
+        # Obtain new password and store as a secure string
+        $secureServiceAdminPwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Service Administrator password again"
+        # Convert to plain text to test regex complexity
+        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureServiceAdminPwd)            
+        $serviceAdminPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+        if ($serviceAdminPwd -cmatch $regex -eq $true) {
+            Write-Host "Azure Stack Development Kit Service Administrator meets desired complexity level" -ForegroundColor Green
+            Start-Sleep -Seconds 1
+            # Convert plain text password to a secure string
+            $secureServiceAdminPwd = ConvertTo-SecureString -AsPlainText $serviceAdminPwd -Force
+            # Clean up unused variable
+            Remove-Variable -Name plainserviceAdminPwd -ErrorAction SilentlyContinue
+            $AzureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($ServiceAdminUsername, $secureServiceAdminPwd) -ErrorAction Stop
+        }
+        else {
+            Write-Host "No valid Azure Stack Development Kit Service Administrator password was entered again. Exiting process..." -ErrorAction Stop -ForegroundColor Red
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+}
+
+PAUSE
+
+### DOWNLOAD TOOLS #####################################################################################################################################
+########################################################################################################################################################
+
+### CREATE ASDK FOLDER ###
+
+$ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
+If ($ASDKpath -eq $true) {
+    Write-Host "ASDK folder exists at $downloadPath - no need to create it." -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    Write-Host "Download files will be placed in $downloadPath\ASDK" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    $ASDKpath = Set-Location -Path "$downloadPath\ASDK" -PassThru
+    Write-Host "ASDK folder full path is $ASDKpath"
+    Start-Sleep -Seconds 1
+}
+elseif ($ASDKpath -eq $false) {
+    # Create the ASDK folder.
+    Write-Host "ASDK folder doesn't exist within $downloadPath, creating it"
+    mkdir "$downloadPath\ASDK" -Force | Out-Null
+    Start-Sleep -Seconds 1
+    $ASDKpath = "$downloadPath\ASDK"
+    Write-Host "ASDK folder full path is $ASDKpath" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+}
+
+### DOWNLOAD & EXTRACT TOOLS ###
 
 # Download the tools archive
 Write-Host "Downloading Azure Stack Tools to ensure you have the latest versions.`nThis may take a few minutes, depending on your connection speed."
-Start-Sleep -Seconds 5
+Write-Host "The download will be stored in $ASDKpath."
+Start-Sleep -Seconds 3
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 
-invoke-webrequest https://github.com/Azure/AzureStack-Tools/archive/master.zip -OutFile master.zip -ErrorAction Stop
+invoke-webrequest https://github.com/Azure/AzureStack-Tools/archive/master.zip -OutFile "$ASDKpath\master.zip" -ErrorAction Stop
 
 # Expand the downloaded files
 Write-Host "Expanding Archive"
 Start-Sleep -Seconds 3
-expand-archive master.zip -DestinationPath . -Force
+expand-archive "$ASDKpath\master.zip" -DestinationPath "C:\" -Force
 Write-Host "Archive expanded. Cleaning up."
 Remove-Item master.zip -ErrorAction Stop
 Start-Sleep -Seconds 3
@@ -180,12 +414,10 @@ Set-Location C:\AzureStack-Tools-master
 Import-Module .\Connect\AzureStack.Connect.psm1
 Import-Module .\ComputeAdmin\AzureStack.ComputeAdmin.psm1
 Disable-AzureRmDataCollection -WarningAction SilentlyContinue
-Write-Host "Azure Stack Connect and Compute modules imported successfully"
+Write-Host "Azure Stack Connect and Compute modules imported successfully" -ForegroundColor Green
 
-# Variables that should not be changed (for ASDK)
-$ERCSip = "192.168.200.225"
-
-### CONFIGURE THE AZURE STACK HOST & INFRA VIRTUAL MACHINES ###
+### CONFIGURE THE AZURE STACK HOST & INFRA VIRTUAL MACHINES ############################################################################################
+########################################################################################################################################################
 
 # Set password expiration to 180 days
 Write-host "Configuring password expiration policy"
@@ -217,7 +449,7 @@ $scriptblock = {
     Get-Service -Name wuauserv | Format-List StartType, Status
 }
 foreach ($vm in $AZSvms) {
-    Invoke-Command -VMName $vm.name -ScriptBlock $scriptblock -Credential $DeploymentCreds
+    Invoke-Command -VMName $vm.name -ScriptBlock $scriptblock -Credential $deploymentCreds
 }
 sc.exe config wuauserv start=disabled
 
@@ -229,11 +461,10 @@ Set-Service -Name DNS -startuptype disabled -Confirm:$false
 Write-Host "Host configuration is now complete. Starting Services configuration"
 Start-Sleep -Seconds 3
 
-### CONNECT TO AZURE STACK ###
-# Register an AzureRM environment that targets your administrative Azure Stack instance
+### ONNECT TO AZURE STACK ##############################################################################################################################
+########################################################################################################################################################
 
-Write-Host "You will now be prompted to log in to your Azure Stack environment"
-Start-Sleep -Seconds 3
+# Register an AzureRM environment that targets your administrative Azure Stack instance
 $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
 
@@ -263,10 +494,8 @@ else {
     Write-Host ("No valid authentication types specified - please use AzureAd or ADFS") -ForegroundColor Red -ErrorAction Stop
 }
 
+### ADD PLATFORM IMAGES ######################################################################################################################################
 ##############################################################################################################################################################
-##############################################################################################################################################################
-
-### HOST CONFIGURATION COMPLETED ###
 
 # Query existing Platform Image Repository for Compatible Ubuntu Server 16.04 LTS Image
 # If existing image is in place, use the existing image, otherwise, download from Ubuntu and upload into the Platform Image Repository
