@@ -370,7 +370,7 @@ else {
 
         Write-Host "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
         Start-Sleep -Seconds 5
-        Add-AzsVMImage -publisher Canonical -offer UbuntuServer -sku 16.04-LTS -version 1.0.0 -osType Linux -osDiskLocalPath "$UbuntuServerVHD" -ErrorAction Stop
+        Add-AzsVMImage -publisher Canonical -offer UbuntuServer -sku 16.04-LTS -version 1.0.0 -osType Linux -osDiskLocalPath "$UbuntuServerVHD" -CreateGalleryItem $False -ErrorAction Stop
         $platformImage = Get-AzureRmVMImage -Location "local" -PublisherName Canonical -Offer UbuntuServer -Skus "16.04-LTS" -ErrorAction SilentlyContinue
         if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
             Write-Host "Ubuntu Server image successfully uploaded to the Platform Image Repository."
