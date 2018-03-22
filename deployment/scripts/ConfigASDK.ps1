@@ -103,6 +103,7 @@ Param (
 
 $VerbosePreference = "SilentlyContinue"
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 
 ### GET START TIME ###
 $startTime = Get-Date -format HH:mm:ss
@@ -112,8 +113,6 @@ $ScriptLocation = Get-Location
 
 ### SET ERCS IP Address - same for all default ASDKs ###
 $ERCSip = "192.168.200.225"
-
-
 
 ### PARAMATER VALIDATION #####################################################################################################################################
 ##############################################################################################################################################################
@@ -156,25 +155,28 @@ Write-Host "Checking to see if the path to the ISO exists"
 Start-Sleep -Seconds 1
 
 $validISOPath = [System.IO.File]::Exists($ISOPath)
-If ($validISOPath -eq $true) {
-    Write-Host "Found Windows Server 2016 Eval ISO" -ForegroundColor Green
+$validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
+
+If ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
+    Write-Host "Found path to valid ISO file" -ForegroundColor Green
     Start-Sleep -Seconds 1
     $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
     Write-Host "The Windows Server 2016 Eval found at $ISOPath will be used" -ForegroundColor Green
     Start-Sleep -Seconds 1
 }
-elseif ($validISOPath -eq $false) {
+elseif ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
     $ISOPath = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2016 ISO"
     Start-Sleep -Seconds 1
     $validISOPath = [System.IO.File]::Exists($ISOPath)
-    if ($validISOPath -eq $false) {
+    $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
+    if ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
         Write-Host "No valid path to a Windows Server 2016 ISO was entered again. Exiting process..." -ErrorAction Stop
         Start-Sleep -Seconds 1
         Set-Location $ScriptLocation
         return
     }
-    elseif ($validISOPath -eq $true) {
-        Write-Host "Found Windows Server 2016 Eval ISO" -ForegroundColor Green
+    elseif ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
+        Write-Host "Found path to valid ISO file" -ForegroundColor Green
         Start-Sleep -Seconds 1
         $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
         Write-Host "The Windows Server 2016 Eval found at $ISOPath will be used" -ForegroundColor Green
@@ -281,9 +283,9 @@ if ($authenticationType.ToString() -like "AzureAd") {
     ### Validate Azure Stack Development Kit Service Administrator Username ###
 
     if ([string]::IsNullOrEmpty($serviceAdminUsername)) {
-    Write-Host "You didn't enter a username for the Azure Ad login." -ForegroundColor Red
-    $serviceAdminUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
-}
+        Write-Host "You didn't enter a username for the Azure Ad login." -ForegroundColor Red
+        $serviceAdminUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
+    }
 
     Write-Host "Checking to see if Azure Stack Development Kit Service Administrator username is correctly formatted..."
     Start-Sleep -Seconds 1
@@ -362,8 +364,6 @@ if ($authenticationType.ToString() -like "AzureAd") {
     }
 }
 
-PAUSE
-
 ### DOWNLOAD TOOLS #####################################################################################################################################
 ########################################################################################################################################################
 
@@ -391,19 +391,43 @@ elseif ($ASDKpath -eq $false) {
 
 ### DOWNLOAD & EXTRACT TOOLS ###
 
-# Download the tools archive
+# Download the tools archive using a function incase the download fails or is interrupted.
+$toolsURI = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
+$toolsDownloadLocation = "$ASDKpath\master.zip"
+function DownloadWithRetry([string] $toolsURI, [string] $toolsDownloadLocation, [int] $retries) {
+    while ($true) {
+        try {
+            Invoke-WebRequest $toolsURI -OutFile "$toolsDownloadLocation"
+            break
+        }
+        catch {
+            $exceptionMessage = $_.Exception.Message
+            Write-Host "Failed to download '$toolsURI': $exceptionMessage"
+            if ($retries -gt 0) {
+                $retries--
+                Write-Host "Waiting 10 seconds before retrying. Retries left: $retries"
+                Start-Sleep -Seconds 10
+ 
+            }
+            else {
+                $exception = $_.Exception
+                throw $exception
+            }
+        }
+    }
+}
+
 Write-Host "Downloading Azure Stack Tools to ensure you have the latest versions.`nThis may take a few minutes, depending on your connection speed."
 Write-Host "The download will be stored in $ASDKpath."
-Start-Sleep -Seconds 3
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 
-invoke-webrequest https://github.com/Azure/AzureStack-Tools/archive/master.zip -OutFile "$ASDKpath\master.zip" -ErrorAction Stop
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+DownloadWithRetry -toolsURI "$toolsURI" -toolsDownloadLocation "$toolsDownloadLocation" -retries 3
 
 # Expand the downloaded files
 Write-Host "Expanding Archive"
 Start-Sleep -Seconds 3
-expand-archive "$ASDKpath\master.zip" -DestinationPath "C:\" -Force
+expand-archive "$toolsDownloadLocation" -DestinationPath "C:\" -Force
 Write-Host "Archive expanded. Cleaning up."
-Remove-Item master.zip -ErrorAction Stop
+Remove-Item "$toolsDownloadLocation" -Force -ErrorAction Stop
 Start-Sleep -Seconds 3
 
 # Change to the tools directory
@@ -461,7 +485,7 @@ Set-Service -Name DNS -startuptype disabled -Confirm:$false
 Write-Host "Host configuration is now complete. Starting Services configuration"
 Start-Sleep -Seconds 3
 
-### ONNECT TO AZURE STACK ##############################################################################################################################
+### CONNECT TO AZURE STACK ##############################################################################################################################
 ########################################################################################################################################################
 
 # Register an AzureRM environment that targets your administrative Azure Stack instance
@@ -817,3 +841,21 @@ msiexec.exe /qb-! /i C:\AzureCli.msi
 
 Write-host "Setting Execution Policy back to RemoteSigned"
 Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
+
+# Calculate completion time
+$endTime = Get-Date -format HH:mm:ss
+$timeDiff = New-TimeSpan $startTime $endTime
+if ($timeDiff.Seconds -lt 0) {
+    $Hrs = ($timeDiff.Hours) + 23
+    $Mins = ($timeDiff.Minutes) + 59
+    $Secs = ($timeDiff.Seconds) + 59 
+}
+else {
+    $Hrs = $timeDiff.Hours
+    $Mins = $timeDiff.Minutes
+    $Secs = $timeDiff.Seconds 
+}
+$difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
+Start-Sleep -Seconds 2
+Write-Host "`r`nASDK Configurator setup completed successfully, taking $difference."
+Start-Sleep -Seconds 2
