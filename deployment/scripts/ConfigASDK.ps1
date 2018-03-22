@@ -94,11 +94,11 @@ Param (
 
     # Username for Azure AD Login - username@<directoryname>.onmicrosoft.com
     [parameter(Mandatory = $false)]
-    [string]$serviceAdminUsername,
+    [string]$azureAdUsername,
 
     # Password for Azure AD login
     [parameter(Mandatory = $false)]
-    [string]$serviceAdminPwd
+    [string]$azureAdPwd
 )
 
 $VerbosePreference = "SilentlyContinue"
@@ -282,9 +282,9 @@ if ($authenticationType.ToString() -like "AzureAd") {
 
     ### Validate Azure Stack Development Kit Service Administrator Username ###
 
-    if ([string]::IsNullOrEmpty($serviceAdminUsername)) {
+    if ([string]::IsNullOrEmpty($azureAdUsername)) {
         Write-Host "You didn't enter a username for the Azure Ad login." -ForegroundColor Red
-        $serviceAdminUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
+        $azureAdUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
     }
 
     Write-Host "Checking to see if Azure Stack Development Kit Service Administrator username is correctly formatted..."
@@ -294,21 +294,21 @@ if ($authenticationType.ToString() -like "AzureAd") {
 (?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])
 "@
 
-    if ($serviceAdminUsername -cmatch $emailRegex -eq $true) {
+    if ($azureAdUsername -cmatch $emailRegex -eq $true) {
         Write-Host "Azure Stack Development Kit Service Administrator username is correctly formatted." -ForegroundColor Green
         Start-Sleep -Seconds 1
-        Write-Host "$serviceAdminUsername will be used to connect to Azure." -ForegroundColor Green
+        Write-Host "$azureAdUsername will be used to connect to Azure." -ForegroundColor Green
         Start-Sleep -Seconds 1
     }
 
-    elseif ($serviceAdminUsername -cmatch $emailRegex -eq $false) {
+    elseif ($azureAdUsername -cmatch $emailRegex -eq $false) {
         Write-Host "Azure Stack Development Kit Service Administrator username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ForegroundColor Red
         # Obtain new username
-        $serviceAdminUsername = Read-Host "Enter Azure Stack Development Kit Service Administrator username again"
-        if ($serviceAdminUsername -cmatch $emailRegex -eq $true) {
+        $azureAdUsername = Read-Host "Enter Azure Stack Development Kit Service Administrator username again"
+        if ($azureAdUsername -cmatch $emailRegex -eq $true) {
             Write-Host "Azure Stack Development Kit Service Administrator username is correctly formatted." -ForegroundColor Green
             Start-Sleep -Seconds 1
-            Write-Host "$serviceAdminUsername will be used to connect to Azure." -ForegroundColor Green
+            Write-Host "$azureAdUsername will be used to connect to Azure." -ForegroundColor Green
             Start-Sleep -Seconds 1
         }
         else {
@@ -321,40 +321,40 @@ if ($authenticationType.ToString() -like "AzureAd") {
 
     ### Validate Azure Stack Development Kit Service Administrator Password ###
 
-    if ([string]::IsNullOrEmpty($serviceAdminPwd)) {
+    if ([string]::IsNullOrEmpty($azureAdPwd)) {
         Write-Host "You didn't enter the Azure Stack Development Kit Service Administrator password." -ForegroundColor Red
-        $secureServiceAdminPwd = Read-Host "Please enter the Azure Stack Development Kit Service Administrator password. It should be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -AsSecureString -ErrorAction Stop
-        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureServiceAdminPwd)            
-        $serviceAdminPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+        $secureAzureAdPwd = Read-Host "Please enter the Azure Stack Development Kit Service Administrator password. It should be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -AsSecureString -ErrorAction Stop
+        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureAdPwd)            
+        $azureAdPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
     }
 
     Write-Host "Checking to see if Azure Stack Development Kit Service Administrator password is strong..."
     Start-Sleep -Seconds 1
 
-    if ($serviceAdminPwd -cmatch $regex -eq $true) {
+    if ($azureAdPwd -cmatch $regex -eq $true) {
         Write-Host "Azure Stack Development Kit Service Administrator password meets desired complexity level" -ForegroundColor Green
         Start-Sleep -Seconds 1
         # Convert plain text password to a secure string
-        $secureServiceAdminPwd = ConvertTo-SecureString -AsPlainText $serviceAdminPwd -Force
-        $AzureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($serviceAdminUsername, $secureServiceAdminPwd) -ErrorAction Stop
+        $secureAzureAdPwd = ConvertTo-SecureString -AsPlainText $azureAdPwd -Force
+        $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
     }
 
-    elseif ($serviceAdminPwd -cmatch $regex -eq $false) {
+    elseif ($azureAdPwd -cmatch $regex -eq $false) {
         Write-Host "Azure Stack Development Kit Service Administrator password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -ForegroundColor Red
         Start-Sleep -Seconds 1
         # Obtain new password and store as a secure string
-        $secureServiceAdminPwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Service Administrator password again"
+        $secureAzureAdPwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Service Administrator password again"
         # Convert to plain text to test regex complexity
-        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureServiceAdminPwd)            
-        $serviceAdminPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
-        if ($serviceAdminPwd -cmatch $regex -eq $true) {
+        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureAdPwd)            
+        $azureAdPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+        if ($azureAdPwd -cmatch $regex -eq $true) {
             Write-Host "Azure Stack Development Kit Service Administrator meets desired complexity level" -ForegroundColor Green
             Start-Sleep -Seconds 1
             # Convert plain text password to a secure string
-            $secureServiceAdminPwd = ConvertTo-SecureString -AsPlainText $serviceAdminPwd -Force
+            $secureAzureAdPwd = ConvertTo-SecureString -AsPlainText $azureAdPwd -Force
             # Clean up unused variable
-            Remove-Variable -Name plainserviceAdminPwd -ErrorAction SilentlyContinue
-            $AzureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($ServiceAdminUsername, $secureServiceAdminPwd) -ErrorAction Stop
+            Remove-Variable -Name plainazureAdPwd -ErrorAction SilentlyContinue
+            $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
         }
         else {
             Write-Host "No valid Azure Stack Development Kit Service Administrator password was entered again. Exiting process..." -ErrorAction Stop -ForegroundColor Red
@@ -501,7 +501,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
     $TenantID = Get-AzsDirectoryTenantId -AADTenantName $azureDirectoryTenantName -EnvironmentName "AzureStackAdmin"
     Write-Host "Logging in with your Azure Stack Administrator Account used with Azure Active Directory"
     Start-Sleep -Seconds 3
-    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $AzureADCreds -ErrorAction Stop
+    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azureAdCreds -ErrorAction Stop
 }
 elseif ($authenticationType.ToString() -like "ADFS") {
     Write-Host ("Active Directory Federation Services selected by Administrator")
