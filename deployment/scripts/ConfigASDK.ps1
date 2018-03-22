@@ -86,7 +86,7 @@ Param (
 
     # Password used for deployment of the ASDK.
     [parameter(Mandatory = $false)]
-    [String]$ASDKpwd,
+    [String]$azureStackAdminPwd,
 
     # Provide Local Administrator password for App Service, MySQL and SQL VMs.
     [parameter(Mandatory = $false)]
@@ -98,7 +98,22 @@ Param (
 
     # Password for Azure AD login
     [parameter(Mandatory = $false)]
-    [string]$azureAdPwd
+    [string]$azureAdPwd,
+
+    # For ASDK deployment - this switch may be expanded in future for Multinode deployments
+    [switch]$useAzureCredsForRegistration,
+
+    # Username for Azure Subscription Login for Registering Azure Stack - username@<directoryname>.onmicrosoft.com
+    [parameter(Mandatory = $false)]
+    [string]$azureRegUsername,
+    
+    # Password for Azure Subscription Login for Registering Azure Stack
+    [parameter(Mandatory = $false)]
+    [string]$azureRegPwd,
+
+    # Password for Azure Subscription Login for Registering Azure Stack
+    [parameter(Mandatory = $false)]
+    [string]$azureRegSubId
 )
 
 $VerbosePreference = "SilentlyContinue"
@@ -114,12 +129,23 @@ $ScriptLocation = Get-Location
 ### SET ERCS IP Address - same for all default ASDKs ###
 $ERCSip = "192.168.200.225"
 
+# Define Regex for Password Complexity - needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character
+$regex = @"
+^.*(?=.{8,})(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&£*\-_+=[\]{}|\\:',?/`~"();!]).*$
+"@
+
+$emailRegex = @"
+(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])
+"@
+
 ### PARAMATER VALIDATION #####################################################################################################################################
 ##############################################################################################################################################################
 
 ### Validate Download Path ###
 
 Clear-Host
+Write-Host "Selected identity provider is $authenticationType" -ForegroundColor Green
+Start-Sleep -Seconds 1
 Write-Host "Checking to see if the Download Path exists"
 Start-Sleep -Seconds 1
 
@@ -184,11 +210,6 @@ elseif ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
     }
 }
 
-# Define Regex for Password Complexity - needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character
-$regex = @"
-^.*(?=.{8,})(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&£*\-_+=[\]{}|\\:',?/`~"();!]).*$
-"@
-
 ### Validate Virtual Machine (To be created) Password ###
 
 if ([string]::IsNullOrEmpty($VMpwd)) {
@@ -232,41 +253,41 @@ elseif ($VMpwd -cmatch $regex -eq $false) {
 
 ### Validate Azure Stack Development Kit Deployment Credentials ###
 
-if ([string]::IsNullOrEmpty($ASDKpwd)) {
+if ([string]::IsNullOrEmpty($azureStackAdminPwd)) {
     Write-Host "You didn't enter the Azure Stack Development Kit Deployment password." -ForegroundColor Red
-    $secureASDKpwd = Read-Host "Please enter the password used for the Azure Stack Development Kit Deployment, for account AzureStack\AzureStackAdmin" -AsSecureString -ErrorAction Stop
-    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureASDKpwd)            
-    $ASDKpwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+    $secureAzureStackAdminPwd = Read-Host "Please enter the password used for the Azure Stack Development Kit Deployment, for account AzureStack\AzureStackAdmin" -AsSecureString -ErrorAction Stop
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureStackAdminPwd)            
+    $azureStackAdminPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
 }
 
 Write-Host "Checking to see Azure Stack Admin password is strong..."
 Start-Sleep -Seconds 1
 
-$deploymentUsername = "AzureStack\AzureStackAdmin"
-if ($ASDKpwd -cmatch $regex -eq $true) {
+$azureStackAdminUsername = "AzureStack\AzureStackAdmin"
+if ($azureStackAdminPwd -cmatch $regex -eq $true) {
     Write-Host "Azure Stack Development Kit Deployment password for AzureStack\AzureStackAdmin, meets desired complexity level" -ForegroundColor Green
     Start-Sleep -Seconds 1
     # Convert plain text password to a secure string
-    $secureASDKpwd = ConvertTo-SecureString -AsPlainText $ASDKpwd -Force
-    $deploymentCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $deploymentUsername, $secureASDKpwd -ErrorAction Stop
+    $secureAzureStackAdminPwd = ConvertTo-SecureString -AsPlainText $azureStackAdminPwd -Force
+    $azureStackAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $azureStackAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
 }
 
-elseif ($ASDKpwd -cmatch $regex -eq $false) {
+elseif ($azureStackAdminPwd -cmatch $regex -eq $false) {
     Write-Host "Azure Stack Development Kit Deployment password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character " -ForegroundColor Red
     Start-Sleep -Seconds 1
     # Obtain new password and store as a secure string
-    $secureASDKpwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Deployment password again"
+    $secureAzureStackAdminPwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Deployment password again"
     # Convert to plain text to test regex complexity
-    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureASDKpwd)            
-    $ASDKpwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
-    if ($ASDKpwd -cmatch $regex -eq $true) {
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureStackAdminPwd)            
+    $azureStackAdminPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+    if ($azureStackAdminPwd -cmatch $regex -eq $true) {
         Write-Host "Azure Stack Development Kit Deployment password for AzureStack\AzureStackAdmin, meets desired complexity level" -ForegroundColor Green
         Start-Sleep -Seconds 1
         # Convert plain text password to a secure string
-        $secureASDKpwd = ConvertTo-SecureString -AsPlainText $ASDKpwd -Force
+        $secureAzureStackAdminPwd = ConvertTo-SecureString -AsPlainText $azureStackAdminPwd -Force
         # Clean up unused variable
-        Remove-Variable -Name ASDKpwd -ErrorAction SilentlyContinue
-        $deploymentCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $deploymentUsername, $secureASDKpwd -ErrorAction Stop
+        Remove-Variable -Name azureStackAdminPwd -ErrorAction SilentlyContinue
+        $azureStackAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $azureStackAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
     }
     else {
         Write-Host "No Azure Stack Development Kit Deployment password was entered again. Exiting process..." -ErrorAction Stop -ForegroundColor Red
@@ -283,16 +304,13 @@ if ($authenticationType.ToString() -like "AzureAd") {
     ### Validate Azure Stack Development Kit Service Administrator Username ###
 
     if ([string]::IsNullOrEmpty($azureAdUsername)) {
-        Write-Host "You didn't enter a username for the Azure Ad login." -ForegroundColor Red
+        Write-Host "You didn't enter a username for the Azure AD login." -ForegroundColor Red
+        Start-Sleep -Seconds 1
         $azureAdUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
     }
 
     Write-Host "Checking to see if Azure Stack Development Kit Service Administrator username is correctly formatted..."
     Start-Sleep -Seconds 1
-
-    $emailRegex = @"
-(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])
-"@
 
     if ($azureAdUsername -cmatch $emailRegex -eq $true) {
         Write-Host "Azure Stack Development Kit Service Administrator username is correctly formatted." -ForegroundColor Green
@@ -303,6 +321,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
 
     elseif ($azureAdUsername -cmatch $emailRegex -eq $false) {
         Write-Host "Azure Stack Development Kit Service Administrator username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ForegroundColor Red
+        Start-Sleep -Seconds 1
         # Obtain new username
         $azureAdUsername = Read-Host "Enter Azure Stack Development Kit Service Administrator username again"
         if ($azureAdUsername -cmatch $emailRegex -eq $true) {
@@ -323,6 +342,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
 
     if ([string]::IsNullOrEmpty($azureAdPwd)) {
         Write-Host "You didn't enter the Azure Stack Development Kit Service Administrator password." -ForegroundColor Red
+        Start-Sleep -Seconds 1
         $secureAzureAdPwd = Read-Host "Please enter the Azure Stack Development Kit Service Administrator password. It should be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -AsSecureString -ErrorAction Stop
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureAdPwd)            
         $azureAdPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
@@ -362,6 +382,224 @@ if ($authenticationType.ToString() -like "AzureAd") {
             return
         }
     }
+
+    if ($useAzureCredsForRegistration) {
+        $azureRegCreds = $azureAdCreds
+    }
+
+    elseif (!$useAzureCredsForRegistration) {
+        
+        if ([string]::IsNullOrEmpty($azureRegUsername)) {
+            Write-Host "You didn't enter a username for Azure account you'll use to register the Azure Stack to." -ForegroundColor Red
+            Start-Sleep -Seconds 1
+            $azureRegUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
+        }
+    
+        Write-Host "Checking to see if the Azure AD username is correctly formatted..."
+        Start-Sleep -Seconds 1
+    
+        if ($azureRegUsername -cmatch $emailRegex -eq $true) {
+            Write-Host "Azure AD username is correctly formatted." -ForegroundColor Green
+            Start-Sleep -Seconds 1
+            Write-Host "$azureRegUsername will be used to connect to Azure." -ForegroundColor Green
+            Start-Sleep -Seconds 1
+        }
+    
+        elseif ($azureRegUsername -cmatch $emailRegex -eq $false) {
+            Write-Host "Azure AD username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ForegroundColor Red
+            # Obtain new username
+            $azureRegUsername = Read-Host "Enter Azure AD username again"
+            if ($azureRegUsername -cmatch $emailRegex -eq $true) {
+                Write-Host "Azure AD username is correctly formatted." -ForegroundColor Green
+                Start-Sleep -Seconds 1
+                Write-Host "$azureRegUsername will be used to connect to Azure." -ForegroundColor Green
+                Start-Sleep -Seconds 1
+            }
+            else {
+                Write-Host "No valid Azure AD username was entered again. Exiting process..." -ErrorAction Stop -ForegroundColor Red
+                Start-Sleep -Seconds 1
+                Set-Location $ScriptLocation
+                return
+            }
+        }
+    
+        ### Validate Azure AD Registration Password ###
+    
+        if ([string]::IsNullOrEmpty($azureRegPwd)) {
+            Write-Host "You didn't enter the Azure AD password." -ForegroundColor Red
+            $secureAzureRegPwd = Read-Host "Please enter the Azure AD password. It should be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -AsSecureString -ErrorAction Stop
+            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
+            $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+        }
+    
+        Write-Host "Checking to see if Azure AD password is strong..."
+        Start-Sleep -Seconds 1
+    
+        if ($azureRegPwd -cmatch $regex -eq $true) {
+            Write-Host "Azure AD password meets desired complexity level" -ForegroundColor Green
+            Start-Sleep -Seconds 1
+            # Convert plain text password to a secure string
+            $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
+            $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
+        }
+    
+        elseif ($azureRegPwd -cmatch $regex -eq $false) {
+            Write-Host "Azure AD password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -ForegroundColor Red
+            Start-Sleep -Seconds 1
+            # Obtain new password and store as a secure string
+            $secureAzureRegPwd = Read-Host -AsSecureString "Enter Azure AD password again"
+            # Convert to plain text to test regex complexity
+            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
+            $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+            if ($azureRegPwd -cmatch $regex -eq $true) {
+                Write-Host "Azure AD password meets desired complexity level" -ForegroundColor Green
+                Start-Sleep -Seconds 1
+                # Convert plain text password to a secure string
+                $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
+                # Clean up unused variable
+                Remove-Variable -Name azureRegPwd -ErrorAction SilentlyContinue
+                $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
+            }
+            else {
+                Write-Host "No valid Azure AD password was entered again. Exiting process..." -ErrorAction Stop -ForegroundColor Red
+                Set-Location $ScriptLocation
+                return
+            }
+        }
+    }
+}
+
+if ($authenticationType.ToString() -like "ADFS") {
+
+    Remove-Variable -Name azureAdPwd -Force -ErrorAction SilentlyContinue
+    Remove-Variable -Name azureAdUsername -Force -ErrorAction SilentlyContinue
+
+    Write-Host "Checking for an Azure AD username - this account will be used to register the ADFS-based ASDK to Azure..."
+    Start-Sleep -Seconds 1
+            
+    if ([string]::IsNullOrEmpty($azureRegUsername)) {
+        Write-Host "You didn't enter a username for Azure account you'll use to register the Azure Stack to." -ForegroundColor Red
+        $azureRegUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
+    }
+    else {
+        Write-Host "Found an Azure AD username that will be used for registering this ADFS-based Azure Stack to Azure" -ForegroundColor Green
+        Start-Sleep -Seconds 1
+        Write-Host "Account username is $azureRegUsername" -ForegroundColor Green
+        Start-Sleep -Seconds 1
+    }
+        
+    Write-Host "Checking to see if the Azure AD username, that will be used for Azure Stack registration to Azure, is correctly formatted..."
+    Start-Sleep -Seconds 1
+        
+    if ($azureRegUsername -cmatch $emailRegex -eq $true) {
+        Write-Host "Azure AD username is correctly formatted." -ForegroundColor Green
+        Start-Sleep -Seconds 1
+        Write-Host "$azureRegUsername will be used to register this ADFS-based Azure Stack to Azure." -ForegroundColor Green
+        Start-Sleep -Seconds 1
+    }
+        
+    elseif ($azureRegUsername -cmatch $emailRegex -eq $false) {
+        Write-Host "Azure AD username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ForegroundColor Red
+        # Obtain new username
+        $azureRegUsername = Read-Host "Enter Azure AD username again"
+        if ($azureRegUsername -cmatch $emailRegex -eq $true) {
+            Write-Host "Azure AD username is correctly formatted." -ForegroundColor Green
+            Start-Sleep -Seconds 1
+            Write-Host "$azureRegUsername will be used to register this ADFS-based Azure Stack to Azure." -ForegroundColor Green
+            Start-Sleep -Seconds 1
+        }
+        else {
+            Write-Host "No valid Azure AD username was entered again. Exiting process..." -ErrorAction Stop -ForegroundColor Red
+            Start-Sleep -Seconds 1
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+        
+    ### Validate Azure AD Registration Password ADFS-based Azure Stack ###
+
+    Write-Host "Checking for an Azure AD password - this account will be used to register the ADFS-based ASDK to Azure..."
+    Start-Sleep -Seconds 1
+        
+    if ([string]::IsNullOrEmpty($azureRegPwd)) {
+        Write-Host "You didn't enter the Azure AD password." -ForegroundColor Red
+        Start-Sleep -Seconds 1
+        $secureAzureRegPwd = Read-Host "Please enter the Azure AD password. It should be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -AsSecureString -ErrorAction Stop
+        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
+        $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+    }
+        
+    Write-Host "Checking to see if Azure AD password is strong..."
+    Start-Sleep -Seconds 1
+        
+    if ($azureRegPwd -cmatch $regex -eq $true) {
+        Write-Host "Azure AD password meets desired complexity level" -ForegroundColor Green
+        Start-Sleep -Seconds 1
+        # Convert plain text password to a secure string
+        $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
+        $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
+    }
+        
+    elseif ($azureRegPwd -cmatch $regex -eq $false) {
+        Write-Host "Azure AD password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -ForegroundColor Red
+        Start-Sleep -Seconds 1
+        # Obtain new password and store as a secure string
+        $secureAzureRegPwd = Read-Host -AsSecureString "Enter Azure AD password again"
+        # Convert to plain text to test regex complexity
+        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
+        $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+        if ($azureRegPwd -cmatch $regex -eq $true) {
+            Write-Host "Azure AD password meets desired complexity level" -ForegroundColor Green
+            Start-Sleep -Seconds 1
+            # Convert plain text password to a secure string
+            $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
+            # Clean up unused variable
+            Remove-Variable -Name azureRegPwd -ErrorAction SilentlyContinue
+            $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
+        }
+        else {
+            Write-Host "No valid Azure AD password was entered again. Exiting process..." -ErrorAction Stop -ForegroundColor Red
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+}
+
+Write-Host "Checking for a valid Azure subscription ID that will be used to register the Azure Stack to Azure"
+Start-Sleep -Seconds 1
+
+### Validate Azure Subscription ID for Registration ###
+    
+if ([string]::IsNullOrEmpty($azureRegSubId)) {
+    Write-Host "You didn't enter a subscription ID for registering your Azure Stack in Azure." -ForegroundColor Red
+    Start-Sleep -Seconds 1
+    $azureRegSubId = Read-Host "Please enter a valid Azure subscription ID" -ErrorAction Stop
+}
+            
+if ($azureRegSubId) {
+    Write-Host "Azure subscription ID has been provided." -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    Write-Host "$azureRegSubId will be used to register this Azure Stack with Azure." -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    Write-Host "Testing Azure Login..."
+    #Test Azure Login
+    try {
+        Login-AzureRmAccount -SubscriptionId $azureRegSubId -Credential $azureRegCreds
+        Write-Host "Azure Login Succeeded - this account will be used for registration of your Azure Stack:" -ForegroundColor Green
+        Get-AzureRmSubscription
+    }
+    catch {
+        Write-Host $_.Exception.Message -ForegroundColor Yellow -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+        
+elseif ([string]::IsNullOrEmpty($azureRegSubId)) {
+    Write-Host "No valid Azure subscription ID was entered again. Exiting process..." -ErrorAction Stop -ForegroundColor Red
+    Start-Sleep -Seconds 1
+    Set-Location $ScriptLocation
+    return    
 }
 
 ### DOWNLOAD TOOLS #####################################################################################################################################
@@ -473,7 +711,7 @@ $scriptblock = {
     Get-Service -Name wuauserv | Format-List StartType, Status
 }
 foreach ($vm in $AZSvms) {
-    Invoke-Command -VMName $vm.name -ScriptBlock $scriptblock -Credential $deploymentCreds
+    Invoke-Command -VMName $vm.name -ScriptBlock $scriptblock -Credential $azureStackAdminCreds
 }
 sc.exe config wuauserv start=disabled
 
@@ -505,14 +743,13 @@ if ($authenticationType.ToString() -like "AzureAd") {
 }
 elseif ($authenticationType.ToString() -like "ADFS") {
     Write-Host ("Active Directory Federation Services selected by Administrator")
-    $AZScredential = $AZDCredential
     Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
     Write-Host ("Setting GraphEndpointResourceId value for ADFS")
     Write-Host ("Getting Tenant ID for Login to Azure Stack")
     $TenantID = Get-AzsDirectoryTenantId -ADFS -EnvironmentName "AzureStackAdmin"
     Write-Host "Logging in with your Azure Stack Administrator Account used with ADFS"
     Start-Sleep -Seconds 3
-    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $DeploymentCreds -ErrorAction Stop
+    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azureStackAdminCreds -ErrorAction Stop
 }
 else {
     Write-Host ("No valid authentication types specified - please use AzureAd or ADFS") -ForegroundColor Red -ErrorAction Stop
@@ -525,114 +762,80 @@ else {
 # If existing image is in place, use the existing image, otherwise, download from Ubuntu and upload into the Platform Image Repository
 
 Write-Host "Checking to see if an Ubuntu Server 16.04-LTS VM Image is present in your Azure Stack Platform Image Repository"
-Start-Sleep -Seconds 5
+Start-Sleep -Seconds 1
 
 $platformImage = Get-AzureRmVMImage -Location "local" -PublisherName Canonical -Offer UbuntuServer -Skus "16.04-LTS" -ErrorAction SilentlyContinue
 $platformImageTable = $platformImage | Sort-Object Version
 $platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
 
 if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
-    Write-Host "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository `nwhich we will use for the DevOps Toolkit. Here are the details:" -ForegroundColor Green
+    Write-Host "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository `nwhich we will use for the ASDK Configurator. Here are the details:" -ForegroundColor Green
     Start-Sleep -Seconds 1
     Write-Output $platformImageTable | Format-Table location, Offer, PublisherName, Skus, Version
     Start-Sleep -Seconds 1
-    Write-Host "The DevOps Toolkit will automatically use the latest Ubuntu Server 16.04-LTS version from this list, which will be:"
+    Write-Host "The ASDK Configurator will automatically use the latest Ubuntu Server 16.04-LTS version from this list, which will be:"
     Write-Output $platformImageTableTop1 | Format-Table location, Offer, PublisherName, Skus, Version
     Start-Sleep -Seconds 1
-    Write-Host "The DevOps Toolkit is now ready to begin uploading packages for DevOps tools to the Azure Stack Marketplace"
-    Start-Sleep -Seconds 5
-    Write-Host "Select a folder to store your Azure Stack Marketplace packages"
-    Start-Sleep -Seconds 5
+    Write-Host "The ASDK Configurator is now ready to begin uploading packages to the Azure Stack Marketplace"
+    Start-Sleep -Seconds 1
 }
 else {
     Write-Host "No existing suitable Ubuntu Server 1604-LTS VM image exists." -ForegroundColor Red
-    Start-Sleep -Seconds 2
+    Start-Sleep -Seconds 1
     Write-Host "The Ubuntu Server VM Image in the Azure Stack Platform Image Repository must have the following properties:"
     Write-Host "Publisher Name = Canonical"
     Write-Host "Offer = UbuntuServer"
     Write-Host "SKU = 16.04-LTS"
-    Start-Sleep -Seconds 2
-    Write-Host "Unfortunately, no image was found with these properties. Beginning download of Ubuntu Server VHD Zip file`n"
-    Start-Sleep -Seconds 3
-    Write-Host "Downloading Ubuntu Server 16.04-LTS - Select a Download Folder. Note, the dialog bvox may appear behind the PowerShell console window."
-    Start-Sleep -Seconds 3
-        
-    # Execute the Find-Folders function to obtain a desired storage location from the user
-    $SetFilePath = Select-Folder
-    if (!$SetFilePath) {
-        Write-Host "No valid folder path was selected. Please select a valid folder to store the VHD"
-        $SetFilePath = Select-Folder
-        if (!$SetFilePath) {
-            Write-Host "No valid folder path was selected again. Exiting process..." -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
+    Start-Sleep -Seconds 1
+    Write-Host "Unfortunately, no image was found with these properties."
+    Start-Sleep -Seconds 1
+    Write-Host "Checking to see if the Ubuntu Server VHD already exists in ASDK Configurator folder"
+    Start-Sleep -Seconds 1
+
+    $validDownloadPathVHD = [System.IO.Directory]::Exists("$ASDKpath\UbuntuServer.vhd")
+    $validDownloadPathZIP = [System.IO.Directory]::Exists("$ASDKpath\UbuntuServer.zip")
+
+    if ($validDownloadPathVHD -eq $true) {
+        Write-Host "Located Ubuntu Server VHD in this folder. No need to download again..."
+        Start-Sleep -Seconds 1
+        $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath\UbuntuServer.vhd"
+        Start-Sleep -Seconds 1
+        Write-Host "Ubuntu Server VHD located at $UbuntuServerVHD"
+    }
+    elseif ($validDownloadPathZIP -eq $true) {
+        Write-Host "Cannot find a previously extracted Ubuntu Server VHD with name UbuntuServer.vhd"
+        Start-Sleep -Seconds 1
+        Write-Host "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
+        Start-Sleep -Seconds 1
+        $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\UbuntuServer.zip"
+        Start-Sleep -Seconds 1
+        Write-Host "Ubuntu Server ZIP located at $UbuntuServerZIP"
+        Expand-Archive -Path "$ASDKpath\UbuntuServer.zip" -DestinationPath $ASDKpath -Force -ErrorAction Stop
+        $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Rename-Item -NewName UbuntuServer.vhd -PassThru -Force -ErrorAction Stop
     }
     else {
-        # Check if ASDK Configurator folder needs creating or not
-        Write-Host "Checking to see if the ASDKconfig folder exists"
-        Start-Sleep -Seconds 5
-        if (-not (test-path "$SetFilePath\ASDKconfig")) {
-            # Create the ASDK Configurator folder.
-            Write-Host "ASDK Configurator folder doesn't exist, creating it"
-            mkdir "$SetFilePath\ASDKconfig" -Force 
-            $UpdatedFilePath = "$SetFilePath\ASDKconfig"
-        }
-        elseif (test-path "$SetFilePath\ASDKconfig") {
-            # No need to create the ASDK Configurator folder as it already exists. Set $UpdatedFilePath to the new location.
-            Write-Host "ASDK Configurator folder exists, no need to create it"
-            Start-Sleep -Seconds 1
-            Write-Host "ASDK Configurator folder is within $SetFilePath"
-            Start-Sleep -Seconds 1
-            $UpdatedFilePath = Set-Location -Path "$SetFilePath\ASDKconfig" -PassThru
-            Write-Host "ASDK Configurator folder full path is $UpdatedFilePath"
-        }
-        # Check if VHD exists that matches previously extracted VHD in the ASDK Configurator folder.
-        Write-Host "Checking to see if the Ubuntu Server VHD already exists in ASDK Configurator folder"
-        Start-Sleep -Seconds 5
-        if (Test-Path "$UpdatedFilePath\UbuntuServer.vhd") {
-            # If VHD exists, update the $UbuntuServerVHD variable with the correct name and path.
-            Write-Host "Located Ubuntu Server VHD in this folder. No need to download again..."
-            Start-Sleep -Seconds 3
-            $UbuntuServerVHD = Get-ChildItem -Path "$UpdatedFilePath\UbuntuServer.vhd"
-            Start-Sleep -Seconds 3
-            Write-Host "Ubuntu Server VHD located at $UbuntuServerVHD"
-        }
-        elseif (Test-Path "$UpdatedFilePath\UbuntuServer.zip") {
-            # If VHD exists, update the $UbuntuServerVHD variable with the correct name and path.
-            Write-Host "Cannot find a previously extracted Ubuntu Server VHD with name UbuntuServer.vhd"
-            Write-Host "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
-            Start-Sleep -Seconds 3
-            $UbuntuServerZIP = Get-ChildItem -Path "$UpdatedFilePath\UbuntuServer.zip"
-            Start-Sleep -Seconds 3
-            Write-Host "Ubuntu Server ZIP located at $UbuntuServerZIP"
-            Expand-Archive -Path "$UpdatedFilePath\UbuntuServer.zip" -DestinationPath $UpdatedFilePath -Force -ErrorAction Stop
-            $UbuntuServerVHD = Get-ChildItem -Path "$UpdatedFilePath" -Filter *.vhd | Rename-Item -NewName UbuntuServer.vhd -PassThru -Force -ErrorAction Stop
-        }
-        else {
-            # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
-            # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
-            Write-Host "Cannot find a previously extracted Ubuntu Server download"
-            Write-Host "Begin download of correct Ubuntu Server ZIP and extraction of VHD"
-            Start-Sleep -Seconds 5
-            Invoke-Webrequest http://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip -OutFile "$UpdatedFilePath\UbuntuServer.zip" -ErrorAction Stop
-            Expand-Archive -Path "$UpdatedFilePath\UbuntuServer.zip" -DestinationPath $UpdatedFilePath -Force -ErrorAction Stop
-            $UbuntuServerVHD = Get-ChildItem -Path "$UpdatedFilePath" -Filter *.vhd | Rename-Item -NewName UbuntuServer.vhd -PassThru -Force -ErrorAction Stop
-        }
-        # Upload the image to the Azure Stack Platform Image Repository
-
-        Write-Host "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
-        Start-Sleep -Seconds 5
-        Add-AzsVMImage -publisher Canonical -offer UbuntuServer -sku 16.04-LTS -version 1.0.0 -osType Linux -osDiskLocalPath "$UbuntuServerVHD" -CreateGalleryItem $False -ErrorAction Stop
-        $platformImage = Get-AzureRmVMImage -Location "local" -PublisherName Canonical -Offer UbuntuServer -Skus "16.04-LTS" -ErrorAction SilentlyContinue
-        if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
-            Write-Host "Ubuntu Server image successfully uploaded to the Platform Image Repository."
-            Write-Host "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP "
-            Remove-Item *.vhd -Force
-            Write-Host "Now ready to begin uploading packages to the Azure Stack Marketplace"
-        }
-        Start-Sleep -Seconds 5
+        # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
+        # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
+        Write-Host "Cannot find a previously extracted Ubuntu Server download or ZIP file"
+        Write-Host "Begin download of correct Ubuntu Server ZIP and extraction of VHD"
+        Start-Sleep -Seconds 1
+        Invoke-Webrequest http://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip -OutFile "$ASDKpath\UbuntuServer.zip" -ErrorAction Stop
+        Expand-Archive -Path "$ASDKpath\UbuntuServer.zip" -DestinationPath $ASDKpath -Force -ErrorAction Stop
+        $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Rename-Item -NewName UbuntuServer.vhd -PassThru -Force -ErrorAction Stop
     }
+    # Upload the image to the Azure Stack Platform Image Repository
+
+    Write-Host "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
+    Start-Sleep -Seconds 5
+    Add-AzsVMImage -publisher Canonical -offer UbuntuServer -sku 16.04-LTS -version 1.0.0 -osType Linux -osDiskLocalPath "$UbuntuServerVHD" -CreateGalleryItem $False -ErrorAction Stop
+    $platformImage = Get-AzureRmVMImage -Location "local" -PublisherName Canonical -Offer UbuntuServer -Skus "16.04-LTS" -ErrorAction SilentlyContinue
+    if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
+        Write-Host "Ubuntu Server image successfully uploaded to the Platform Image Repository."
+        Write-Host "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP "
+        Remove-Item *.vhd -Force
+        Write-Host "Now ready to begin uploading packages to the Azure Stack Marketplace"
+    }
+    Start-Sleep -Seconds 5
 }
 
 # Create Ubuntu Server Gallery Item
