@@ -645,7 +645,29 @@ Write-Verbose "Disabling DNS Server on ASDK Host"
 Stop-Service -Name DNS -Force -Confirm:$false
 Set-Service -Name DNS -startuptype disabled -Confirm:$false
 
-Write-Verbose "Host configuration is now complete. Starting Services configuration"
+Write-Verbose "Host configuration is now complete. Starting Azure Stack registration to Azure"
+
+### REGISTER AZURE STACK TO AZURE ############################################################################################################################
+##############################################################################################################################################################
+
+try {
+    # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
+    Add-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds
+    # Register the Azure Stack resource provider in your Azure subscription
+    Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
+    # Import the registration module that was downloaded with the GitHub tools
+    Import-Module $modulePath\Registration\RegisterWithAzure.psm1
+    #Register Azure Stack
+    $AzureContext = Get-AzureRmContext
+    $cloudAdminUsername = "AzureStack\CloudAdmin"
+    $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
+    Set-AzsRegistration -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ErrorAction Stop
+}
+catch {
+    Write-Verbose $_.Exception.Message -ErrorAction Stop
+    Set-Location $ScriptLocation
+    return
+}
 
 ### CONNECT TO AZURE STACK #############################################################################################################################
 ########################################################################################################################################################
@@ -677,28 +699,6 @@ else {
     Write-Verbose ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
 }
 
-### REGISTER AZURE STACK TO AZURE ############################################################################################################################
-##############################################################################################################################################################
-
-try {
-    # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
-    Add-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds
-    # Register the Azure Stack resource provider in your Azure subscription
-    Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
-    # Import the registration module that was downloaded with the GitHub tools
-    Import-Module $modulePath\Registration\RegisterWithAzure.psm1
-    #Register Azure Stack
-    $AzureContext = Get-AzureRmContext
-    $cloudAdminUsername = "AzureStack\CloudAdmin"
-    $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
-    Set-AzsRegistration -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ErrorAction Stop
-}
-catch {
-    Write-Verbose $_.Exception.Message -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
 ##############################################################################################################################################################
 
@@ -712,11 +712,8 @@ $platformImageTable = $platformImage | Sort-Object Version
 $platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
 
 if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
-    Write-Verbose "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository `nwhich we will use for the ASDK Configurator. Here are the details:" 
-    Write-Output $platformImageTable | Format-Table location, Offer, PublisherName, Skus, Version
-    Write-Verbose "The ASDK Configurator will automatically use the latest Ubuntu Server 16.04-LTS version from this list, which will be:"
+    Write-Verbose "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:" 
     Write-Output $platformImageTableTop1 | Format-Table location, Offer, PublisherName, Skus, Version
-    Write-Verbose "The ASDK Configurator is now ready to begin uploading packages to the Azure Stack Marketplace"
 }
 else {
     Write-Verbose "No existing suitable Ubuntu Server 1604-LTS VM image exists." 
@@ -757,8 +754,11 @@ else {
     Write-Verbose "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
     Add-AzsVMImage -publisher Canonical -offer UbuntuServer -sku 16.04-LTS -version 1.0.0 -osType Linux -osDiskLocalPath "$UbuntuServerVHD" -CreateGalleryItem $False -ErrorAction Stop
     $platformImage = Get-AzureRmVMImage -Location "local" -PublisherName Canonical -Offer UbuntuServer -Skus "16.04-LTS" -ErrorAction SilentlyContinue
+    $platformImageTable = $platformImage | Sort-Object Version
+    $platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
     if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
-        Write-Verbose "Ubuntu Server image successfully uploaded to the Platform Image Repository."
+        Write-Verbose "Ubuntu Server image successfully uploaded to the Platform Image Repository:"
+        Write-Output $platformImageTableTop1 | Format-Table location, Offer, PublisherName, Skus, Version
         Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP "
         Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Remove-Item -Force
     }
@@ -771,29 +771,51 @@ else {
 
 Write-Verbose "Checking to see if an Windows Server 2016 image is present in your Azure Stack Platform Image Repository"
 #Pre-validate that the Server Core VM Image is not already available
-$downloadCURequired = $false
-$serverCoreVMImageAlreadyAvailable = $false
+
+Remove-Variable -Name platformImage -Force
 $sku = "2016-Datacenter-Server-Core"
-if ($(Get-AzsVMImage -publisher "MicrosoftWindowsServer" -offer "WindowsServer" -sku $sku -version "1.0.0" -location "local" -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
+$platformImage = Get-AzureRmVMImage -Location "local" -PublisherName MicrosoftWindowsServer -Offer WindowsServer -Skus "$sku" -ErrorAction SilentlyContinue
+$platformImageTable = $platformImage | Sort-Object Version
+$platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
+$serverCoreVMImageAlreadyAvailable = $false
+
+if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
+    Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
+    Write-Output $platformImageTableTop1 | Format-Table location, Offer, PublisherName, Skus, Version
     $serverCoreVMImageAlreadyAvailable = $true
 }
 
+Remove-Variable -Name platformImage -Force
 $serverFullVMImageAlreadyAvailable = $false
 $sku = "2016-Datacenter"
-if ($(Get-AzsVMImage -publisher "MicrosoftWindowsServer" -offer "WindowsServer" -sku $sku -version "1.0.0" -location "local" -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
+$platformImage = Get-AzureRmVMImage -Location "local" -PublisherName MicrosoftWindowsServer -Offer WindowsServer -Skus "$sku" -ErrorAction SilentlyContinue
+$platformImageTable = $platformImage | Sort-Object Version
+$platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
+$serverFullVMImageAlreadyAvailable = $false
+
+if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
+    Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
+    Write-Output $platformImageTableTop1 | Format-Table location, Offer, PublisherName, Skus, Version
     $serverFullVMImageAlreadyAvailable = $true
 }
 
-if (($serverCoreVMImageAlreadyAvailable -eq $false) -or ($serverFullVMImageAlreadyAvailable -eq $false)) {
+if ($serverCoreVMImageAlreadyAvailable -eq $false) {
     $downloadCURequired = $true
+    Write-Verbose "You're missing the Windows Server 2016 Datacenter Server Core image in your Platform Image Repository."
+}
+
+if ($serverFullVMImageAlreadyAvailable -eq $false) {
+    $downloadCURequired = $true
+    Write-Verbose "You're missing the Windows Server 2016 Datacenter Full image in your Platform Image Repository."
 }
 
 if (($serverCoreVMImageAlreadyAvailable -eq $true) -and ($serverFullVMImageAlreadyAvailable -eq $true)) {
     $downloadCURequired = $false
-    Write-Verbose "Windows Server 2016 Full and Core Images already exist in your Platform Image Repository"
+    Write-Verbose "Windows Server 2016 Datacenter Full and Core Images already exist in your Platform Image Repository"
 }
 
 if ($downloadCURequired -eq $true) {
+    Write-Verbose "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
     # Define parameters
     $StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
     $Build = '14393'
@@ -857,50 +879,114 @@ if ($downloadCURequired -eq $true) {
 ### ADD GALLERY ITEMS ########################################################################################################################################
 ##############################################################################################################################################################
 
-# Create Ubuntu Server Gallery Item
-$UbuntuGalleryItemURI = 'https://mystorageaccount.blob.local.azurestack.external/cont1/Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.2.azpkg'
-$UbuntuUpload = Add-AzsGalleryItem -GalleryItemUri $UbuntuGalleryItemURI -Verbose
-Start-Sleep 5
-$Retries = 0
-# Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-While ($UbuntuUpload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-    Write-Verbose "Ubuntu Server 16.04 LTS wasn't added to the gallery successfully. Retry Attempt #$Retries"
-    $UbuntuUpload = Add-AzsGalleryItem -GalleryItemUri $UbuntuGalleryItemURI
-    Start-Sleep 5
+Import-Module C:\AzureStack-Tools-master\Syndication\AzureStack.MarketplaceSyndication.psm1
+Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $AzureADCreds -ErrorAction Stop | Out-Null
+$sub = Get-AzureRmSubscription
+$sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+$AzureContext = Get-AzureRmContext
+$subID = $AzureContext.Subscription.Id
+
+$azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $AzureAdCreds
+$azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
+$resources = Get-AzureRmResource
+$resource = $resources.resourcename
+$registrations = $resource|where-object {$_ -like "AzureStack*"}
+$registration = $registrations[0]
+
+# Retrieve the access token
+$tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
+$token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureAccount.Context.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1
+
+$packageArray = "*Canonical.UbuntuServer1604LTS*", "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*", `
+    "*Microsoft.Azure.Extensions.CustomScript*", "*Microsoft.CustomScriptExtension-arm*", "*Microsoft.OSTCExtensions.VMAccessForLinux*", "*Microsoft.Powershell.DSC*", `
+    "*Microsoft.SQLIaaSExtension*", "*microsoft.custom-script-linux-arm*", "*microsoft.docker-arm*"
+$azpkgArray = @()
+
+foreach ($package in $packageArray) {
+
+    $azpkg = @{
+        id        = ""            
+        azpkgPath = ""
+        name      = ""
+        type      = ""
+        zipPath   = ""
+    }
+
+    $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$($Registration.ToString())/products?api-version=2016-01-01"
+    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
+    $products = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -First 1
+    foreach ($product in $products) { 
+        $productid = $product.name.Split('/')[-1]
+    }
+
+    $azpkg.id = $product.name.Split('/')[-1]
+    $azpkg.type = $product.properties.productKind
+
+    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($productid)?api-version=2016-01-01"
+    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
+    $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
+    $azpkg.name = $productDetails.properties.galleryItemIdentity
+
+    # get download location for apzkg
+    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$productid/listDetails?api-version=2016-01-01"
+    $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
+    $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
+
+    #display Legal Terms
+    $legalTerms = $productDetails.properties.description
+    $legalDisplay = $legalTerms -replace '<.*?>', ''
+    Write-Host "$legalDisplay" -ForegroundColor Yellow
+
+    if ($azpkg.type -eq "VirtualMachineExtension") {
+        Write-Verbose "$($azpkg.name) is a $($azpkg.type)"
+        $azpkg.zipPath = $downloadDetails.properties.sourceBlob.uri
+    }
+    $azpkgArray += $azpkg
 }
-Write-Verbose "Successfully added Ubuntu Server 16.04 LTS to the Azure Stack Marketplace Gallery" 
 
-# Create Windows Server 2016 Images
-Write-Verbose "Installing Windows Server 2016 Datacenter full and Core images"
-$UpdateUri = 'http://download.windowsupdate.com/c/msdownload/update/software/secu/2018/03/windows10.0-kb4088787-x64_76e9d6684e0a004f51ea7373e4ea6217193c1b5e.msu'
-New-AzsServer2016VMImage -ISOPath $ISOPath -Version Both -CUUri $UpdateUri -Net35 $true -CreateGalleryItem $true
+# Log back into to Azure Stack #
 
-
-# Create Windows Server 2016 Full Gallery Item
-$WSGalleryItemURI = 'https://mystorageaccount.blob.local.azurestack.external/cont1/Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.2.azpkg'
-$WSUpload = Add-AzsGalleryItem -GalleryItemUri $WSGalleryItemURI -Verbose
-Start-Sleep 5
-$Retries = 0
-# Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-While ($WSUpload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-    Write-Verbose "Windows Server 2016 wasn't added to the gallery successfully. Retry Attempt #$Retries"
-    $WSUpload = Add-AzsGalleryItem -GalleryItemUri $WSGalleryItemURI
-    Start-Sleep 5
+if ($authenticationType.ToString() -like "AzureAd") {
+    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azureAdCreds -ErrorAction Stop | Out-Null
 }
-Write-Verbose "Successfully added Windows Server 2016 to the Azure Stack Marketplace Gallery" 
-
-# Create Windows Server 2016 Core Gallery Item
-$WSCoreGalleryItemURI = 'https://mystorageaccount.blob.local.azurestack.external/cont1/Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.2.azpkg'
-$WSCoreUpload = Add-AzsGalleryItem -GalleryItemUri $WSCoreGalleryItemURI -Verbose
-Start-Sleep 5
-$Retries = 0
-# Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-While ($WSCoreUpload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-    Write-Verbose "Windows Server 2016 Core wasn't added to the gallery successfully. Retry Attempt #$Retries"
-    $WSCoreUpload = Add-AzsGalleryItem -GalleryItemUri $WSCoreGalleryItemURI
-    Start-Sleep 5
+elseif ($authenticationType.ToString() -like "ADFS") {
+    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azureStackAdminCreds -ErrorAction Stop | Out-Null
 }
-Write-Verbose "Successfully added Windows Server 2016 Core to the Azure Stack Marketplace Gallery" 
+
+foreach ($azpkg in $azpkgArray) {
+    Write-Verbose "Checking for the following packages: $($azpkg.name)"
+    if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
+        Write-Verbose "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
+    }
+    else {
+        Write-Verbose "Didn't find this package: $($azpkg.name)"
+        Write-Verbose "Will need to side load it in to the gallery"
+        Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
+        $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
+        Start-Sleep -Seconds 5
+        $Retries = 0
+        # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+        While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+            Write-Host "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries" -ForegroundColor Yellow
+            Write-Verbose "Uploading $($azpkg.name) from $($azpkg.downloadSource)"
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.downloadSource)
+            Start-Sleep -Seconds 5
+        }
+    }
+    if ($azpkg.type -eq "VirtualMachineExtension") {
+        Write-Verbose "$($azpkg.name) is a $($azpkg.type)"
+        Write-Verbose "Should probably check here if the .zip file already exists for $($azpkg.name)"
+        $UploadZip = Write-Verbose "This is a placeholder for an upload from $($azpkg.zipPath)"
+        Start-Sleep -Seconds 5
+        $Retries = 0
+        #While ($UploadZip.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+        #Write-Host "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries" -ForegroundColor Yellow
+        #Write-Verbose "Uploading $($azpkg.name) from $($azpkg.downloadSource)"
+        #$Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.downloadSource)
+        #Start-Sleep -Seconds 5
+        #}
+    }
+}
 
 # Create VM Scale Set Marketplatce item
 Write-Verbose "Creating VM Scale Set Marketplace Item"
