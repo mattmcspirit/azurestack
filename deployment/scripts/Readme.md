@@ -1,4 +1,4 @@
-ConfigASDK.ps1 (updated for asdk build 20170928.3)
+ConfigASDK.ps1 (Updated for ASDK build 20180302.1)
 ==============
 Description
 -----------
