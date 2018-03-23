@@ -858,14 +858,12 @@ While ($WSCoreUpload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
 }
 Write-Verbose "Successfully added Windows Server 2016 Core to the Azure Stack Marketplace Gallery" 
 
-# Create VM Scale Set marketplatce item
+# Create VM Scale Set Marketplatce item
 Write-Verbose "Creating VM Scale Set Marketplace Item"
 Add-AzsVMSSGalleryItem -Location local
 
 ##############################################################################################################################################################
 ##############################################################################################################################################################
-
-### BASE VM IMAGES COMPLETED ###
 
 # Install MySQL Resource Provider
 Write-Verbose "Downloading and installing MySQL resource provider"
