@@ -597,7 +597,8 @@ Remove-Item "$toolsDownloadLocation" -Force -ErrorAction Stop
 
 # Change to the tools directory
 Write-Verbose "Changing Directory"
-Set-Location C:\AzureStack-Tools-master
+$modulePath = "C:\AzureStack-Tools-master"
+Set-Location $modulePath
 
 # Import the Azure Stack Connect and Compute Modules
 Import-Module .\Connect\AzureStack.Connect.psm1
@@ -798,7 +799,18 @@ ForEach ( $Url in $Urls ) {
 ### Add Windows Server 2016 Evaluation Images ###
 
 Write-Verbose "Creating Windows Server 2016 Evaluation images..."
-New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -CreateGalleryItem $false -Net35 $true -CUPath $target -VHDSizeInMB "40960"
+try {
+    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -CreateGalleryItem $false -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "local"
+    # Cleanup
+    $computeAdminPath = "$modulePath\ComputeAdmin"
+    Get-ChildItem -Path "$computeAdminPath" -Filter *.vhd | Remove-Item -Force
+    Get-ChildItem -Path "$ASDKpath\*" -Include *.msu, *.cab | Remove-Item -Force
+}
+Catch {
+    Write-Verbose $_.Exception.Message -ErrorAction Stop
+    Set-Location $ScriptLocation
+    return
+}
 
 ### ADD GALLERY ITEMS ########################################################################################################################################
 ##############################################################################################################################################################
@@ -820,9 +832,7 @@ Write-Verbose "Successfully added Ubuntu Server 16.04 LTS to the Azure Stack Mar
 Write-Verbose "Installing Windows Server 2016 Datacenter full and Core images"
 $UpdateUri = 'http://download.windowsupdate.com/c/msdownload/update/software/secu/2018/03/windows10.0-kb4088787-x64_76e9d6684e0a004f51ea7373e4ea6217193c1b5e.msu'
 New-AzsServer2016VMImage -ISOPath $ISOPath -Version Both -CUUri $UpdateUri -Net35 $true -CreateGalleryItem $true
-Remove-Item *.vhd -Force
-Remove-Item *.msu -Force
-Remove-Item *.cab -Force
+
 
 # Create Windows Server 2016 Full Gallery Item
 $WSGalleryItemURI = 'https://mystorageaccount.blob.local.azurestack.external/cont1/Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.2.azpkg'
