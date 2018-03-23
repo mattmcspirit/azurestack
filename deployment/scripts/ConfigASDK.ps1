@@ -787,16 +787,14 @@ ForEach ( $Url in $Urls ) {
     $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
     $target = "$((Get-Item $ASDKpath).FullName)\$filename"
     Write-Verbose "Windows Server 2016 Cumulative Update will be stored at $target"
-    Write-Verbose "Cumulative Updates are generally larger than 1GB, so may take a few minutes."
+    Write-Verbose "These are generally larger than 1GB, so may take a few minutes."
     If (!(Test-Path -Path $target)) {
         Invoke-WebRequest -Uri $Url -OutFile $target
     }
     Else {
-        Write-Verbose "This Cumulative Update already exists at $target. You don't need to download this again."
+        Write-Verbose "File exists: $target. Skipping download."
     }
 }
-
-### Add Windows Server 2016 Evaluation Images ###
 
 Write-Verbose "Creating Windows Server 2016 Evaluation images..."
 try {
