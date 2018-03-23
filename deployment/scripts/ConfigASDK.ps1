@@ -61,15 +61,8 @@
 # possibility of such damages                                                                       #
 #####################################################################################################
 
-
 [CmdletBinding()]
-
-$VerbosePreference = "Continue"
-$ErrorActionPreference = 'Stop'
-$ProgressPreference = 'SilentlyContinue'
-
-Param (
-
+param (
     # For ASDK deployment - this switch may be expanded in future for Multinode deployments
     [switch]$ASDK,
 
@@ -119,6 +112,10 @@ Param (
     [parameter(Mandatory = $false)]
     [string]$azureRegSubId
 )
+
+$VerbosePreference = "Continue"
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 
 ### GET START TIME ###
 $startTime = Get-Date -format HH:mm:ss
@@ -545,7 +542,7 @@ $ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
 If ($ASDKpath -eq $true) {
     Write-Verbose "ASDK folder exists at $downloadPath - no need to create it."
     Write-Verbose "Download files will be placed in $downloadPath\ASDK"
-    $ASDKpath = Set-Location -Path "$downloadPath\ASDK" -PassThru
+    $ASDKpath = "$downloadPath\ASDK"
     Write-Verbose "ASDK folder full path is $ASDKpath"
 }
 elseif ($ASDKpath -eq $false) {
@@ -584,7 +581,7 @@ function DownloadWithRetry([string] $toolsURI, [string] $toolsDownloadLocation, 
     }
 }
 
-Write-Verbose "Downloading Azure Stack Tools to ensure you have the latest versions.`nThis may take a few minutes, depending on your connection speed."
+Write-Verbose "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
 Write-Verbose "The download will be stored in $ASDKpath."
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 DownloadWithRetry -toolsURI "$toolsURI" -toolsDownloadLocation "$toolsDownloadLocation" -retries 3
@@ -650,7 +647,7 @@ Set-Service -Name DNS -startuptype disabled -Confirm:$false
 
 Write-Verbose "Host configuration is now complete. Starting Services configuration"
 
-### CONNECT TO AZURE STACK ##############################################################################################################################
+### CONNECT TO AZURE STACK #############################################################################################################################
 ########################################################################################################################################################
 
 # Register an AzureRM environment that targets your administrative Azure Stack instance
@@ -678,6 +675,28 @@ elseif ($authenticationType.ToString() -like "ADFS") {
 }
 else {
     Write-Verbose ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
+}
+
+### REGISTER AZURE STACK TO AZURE ############################################################################################################################
+##############################################################################################################################################################
+
+try {
+    # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
+    Add-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds
+    # Register the Azure Stack resource provider in your Azure subscription
+    Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
+    # Import the registration module that was downloaded with the GitHub tools
+    Import-Module $modulePath\Registration\RegisterWithAzure.psm1
+    #Register Azure Stack
+    $AzureContext = Get-AzureRmContext
+    $cloudAdminUsername = "AzureStack\CloudAdmin"
+    $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
+    Set-AzsRegistration -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ErrorAction Stop
+}
+catch {
+    Write-Verbose $_.Exception.Message -ErrorAction Stop
+    Set-Location $ScriptLocation
+    return
 }
 
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
@@ -750,64 +769,89 @@ else {
 
 ### Download the latest Cumulative Update for Windows Server 2016 - Existing Azure Stack Tools module doesn't work
 
-# Define parameters
-$StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
-$Build = '14393'
-$SearchString = 'Cumulative.*Server.*x64'
-
-# Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
-Write-Verbose "Downloading $StartKB to retrieve the list of updates."
-$kbID = (Invoke-WebRequest -Uri $StartKB).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $Build | Select-Object -First 1
-
-# Get Download Link for the corresponding Cumulative Update
-Write-Verbose "Found ID: KB$($kbID.articleID)"
-$kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($kbID.articleID)"
-$Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-$Available_kbIDs | Out-String | Write-Verbose
-$kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
-
-# If innerHTML is empty or does not exist, use outerHTML instead
-If ($kbIDs -eq $Null) {
-    $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+Write-Verbose "Checking to see if an Windows Server 2016 image is present in your Azure Stack Platform Image Repository"
+#Pre-validate that the Server Core VM Image is not already available
+$downloadCURequired = $false
+$serverCoreVMImageAlreadyAvailable = $false
+$sku = "2016-Datacenter-Server-Core"
+if ($(Get-AzsVMImage -publisher "MicrosoftWindowsServer" -offer "WindowsServer" -sku $sku -version "1.0.0" -location "local" -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
+    $serverCoreVMImageAlreadyAvailable = $true
 }
 
-$Urls = @()
-
-ForEach ( $kbID in $kbIDs ) {
-    Write-Verbose "KB ID: $kbID"
-    $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
-    $PostBody = @{ updateIDs = "[$Post]" } 
-    $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
+$serverFullVMImageAlreadyAvailable = $false
+$sku = "2016-Datacenter"
+if ($(Get-AzsVMImage -publisher "MicrosoftWindowsServer" -offer "WindowsServer" -sku $sku -version "1.0.0" -location "local" -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
+    $serverFullVMImageAlreadyAvailable = $true
 }
 
-$Urls
+if (($serverCoreVMImageAlreadyAvailable -eq $false) -or ($serverFullVMImageAlreadyAvailable -eq $false)) {
+    $downloadCURequired = $true
+}
 
-# Download the corresponding Windows Server 2016 (Build 14393) Cumulative Update
-ForEach ( $Url in $Urls ) {
-    $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
-    $target = "$((Get-Item $ASDKpath).FullName)\$filename"
-    Write-Verbose "Windows Server 2016 Cumulative Update will be stored at $target"
-    Write-Verbose "These are generally larger than 1GB, so may take a few minutes."
-    If (!(Test-Path -Path $target)) {
-        Invoke-WebRequest -Uri $Url -OutFile $target
+if (($serverCoreVMImageAlreadyAvailable -eq $true) -and ($serverFullVMImageAlreadyAvailable -eq $true)) {
+    $downloadCURequired = $false
+    Write-Verbose "Windows Server 2016 Full and Core Images already exist in your Platform Image Repository"
+}
+
+if ($downloadCURequired -eq $true) {
+    # Define parameters
+    $StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
+    $Build = '14393'
+    $SearchString = 'Cumulative.*Server.*x64'
+
+    # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
+    Write-Verbose "Downloading $StartKB to retrieve the list of updates."
+    $kbID = (Invoke-WebRequest -Uri $StartKB).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $Build | Select-Object -First 1
+
+    # Get Download Link for the corresponding Cumulative Update
+    Write-Verbose "Found ID: KB$($kbID.articleID)"
+    $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($kbID.articleID)"
+    $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+    $Available_kbIDs | Out-String | Write-Verbose
+    $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+
+    # If innerHTML is empty or does not exist, use outerHTML instead
+    If ($kbIDs -eq $Null) {
+        $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
     }
-    Else {
-        Write-Verbose "File exists: $target. Skipping download."
-    }
-}
 
-Write-Verbose "Creating Windows Server 2016 Evaluation images..."
-try {
-    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -CreateGalleryItem $false -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "local"
-    # Cleanup
-    $computeAdminPath = "$modulePath\ComputeAdmin"
-    Get-ChildItem -Path "$computeAdminPath" -Filter *.vhd | Remove-Item -Force
-    Get-ChildItem -Path "$ASDKpath\*" -Include *.msu, *.cab | Remove-Item -Force
-}
-Catch {
-    Write-Verbose $_.Exception.Message -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
+    $Urls = @()
+
+    ForEach ( $kbID in $kbIDs ) {
+        Write-Verbose "KB ID: $kbID"
+        $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
+        $PostBody = @{ updateIDs = "[$Post]" } 
+        $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
+    }
+
+    $Urls
+
+    # Download the corresponding Windows Server 2016 (Build 14393) Cumulative Update
+    ForEach ( $Url in $Urls ) {
+        $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
+        $target = "$((Get-Item $ASDKpath).FullName)\$filename"
+        Write-Verbose "Windows Server 2016 Cumulative Update will be stored at $target"
+        Write-Verbose "These are generally larger than 1GB, so may take a few minutes."
+        If (!(Test-Path -Path $target)) {
+            Invoke-WebRequest -Uri $Url -OutFile $target
+        }
+        Else {
+            Write-Verbose "File exists: $target. Skipping download."
+        }
+    }
+    Write-Verbose "Creating Windows Server 2016 Evaluation images..."
+    try {
+        New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -CreateGalleryItem $false -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "local"
+        # Cleanup
+        $computeAdminPath = "$modulePath\ComputeAdmin"
+        Get-ChildItem -Path "$computeAdminPath" -Filter *.vhd | Remove-Item -Force
+        Get-ChildItem -Path "$ASDKpath\*" -Include *.msu, *.cab | Remove-Item -Force
+    }
+    Catch {
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
 }
 
 ### ADD GALLERY ITEMS ########################################################################################################################################
