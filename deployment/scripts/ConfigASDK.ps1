@@ -900,9 +900,13 @@ $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectorySe
 $packageArray = "*Canonical.UbuntuServer1604LTS*", "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*", `
     "*Microsoft.Azure.Extensions.CustomScript*", "*Microsoft.CustomScriptExtension-arm*", "*Microsoft.OSTCExtensions.VMAccessForLinux*", "*Microsoft.Powershell.DSC*", `
     "*Microsoft.SQLIaaSExtension*", "*microsoft.custom-script-linux-arm*", "*microsoft.docker-arm*"
+
 $azpkgArray = @()
+$azpkgArray.Clear()
 
 foreach ($package in $packageArray) {
+
+    $azpkg = $null
 
     $azpkg = @{
         id        = ""            
@@ -941,7 +945,7 @@ foreach ($package in $packageArray) {
         Write-Verbose "$($azpkg.name) is a $($azpkg.type)"
         $azpkg.zipPath = $downloadDetails.properties.sourceBlob.uri
     }
-    $azpkgArray += $azpkg
+    $azpkgArray += , $azpkg
 }
 
 # Log back into to Azure Stack #
@@ -988,7 +992,7 @@ foreach ($azpkg in $azpkgArray) {
     }
 }
 
-# Create VM Scale Set Marketplatce item
+# Create VM Scale Set Marketplace item
 Write-Verbose "Creating VM Scale Set Marketplace Item"
 Add-AzsVMSSGalleryItem -Location local
 
