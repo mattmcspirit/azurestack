@@ -1142,6 +1142,10 @@ choco install winscp.install
 Write-Verbose "Installing Chrome with Chocolatey"
 choco install googlechrome
 
+# WinDirStat
+Write-Verbose "Installing WinDirStat with Chocolatey"
+choco install windirstat
+
 # Azure CLI
 Write-Verbose "Installing latest version of Azure CLI"
 invoke-webrequest https://aka.ms/InstallAzureCliWindows -OutFile C:\AzureCLI.msi
