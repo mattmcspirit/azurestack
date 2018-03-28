@@ -97,7 +97,10 @@ param (
     [parameter(Mandatory = $false)]
     [string]$azureAdPwd,
 
-    # For ASDK deployment - this switch may be expanded in future for Multinode deployments
+    # If you want the script to register the ASDK for you, use this flag
+    [switch]$registerASDK,
+
+    # If you want to use the same Azure AD creds that you used to deploy Azure Stack, to register it, set this flag
     [switch]$useAzureCredsForRegistration,
 
     # Username for Azure Subscription Login for registering Azure Stack - username@<directoryname>.onmicrosoft.com
@@ -345,11 +348,11 @@ if ($authenticationType.ToString() -like "AzureAd") {
         }
     }
 
-    if ($useAzureCredsForRegistration) {
+    if ($useAzureCredsForRegistration -and $registerASDK) {
         $azureRegCreds = $azureAdCreds
     }
 
-    elseif (!$useAzureCredsForRegistration) {
+    elseif (!$useAzureCredsForRegistration -and $registerASDK) {
         
         if ([string]::IsNullOrEmpty($azureRegUsername)) {
             Write-Verbose "You didn't enter a username for Azure account you'll use to register the Azure Stack to." 
@@ -650,23 +653,26 @@ Write-Verbose "Host configuration is now complete. Starting Azure Stack registra
 ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
 ##############################################################################################################################################################
 
-try {
-    # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
-    Add-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds
-    # Register the Azure Stack resource provider in your Azure subscription
-    Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
-    # Import the registration module that was downloaded with the GitHub tools
-    Import-Module $modulePath\Registration\RegisterWithAzure.psm1
-    #Register Azure Stack
-    $AzureContext = Get-AzureRmContext
-    $cloudAdminUsername = "AzureStack\CloudAdmin"
-    $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
-    Set-AzsRegistration -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ErrorAction Stop
-}
-catch {
-    Write-Verbose $_.Exception.Message -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
+if ($registerASDK) {
+
+    try {
+        # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
+        Add-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds
+        # Register the Azure Stack resource provider in your Azure subscription
+        Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
+        # Import the registration module that was downloaded with the GitHub tools
+        Import-Module $modulePath\Registration\RegisterWithAzure.psm1
+        #Register Azure Stack
+        $AzureContext = Get-AzureRmContext
+        $cloudAdminUsername = "AzureStack\CloudAdmin"
+        $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
+        Set-AzsRegistration -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ErrorAction Stop
+    }
+    catch {
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
 }
 
 ### CONNECT TO AZURE STACK #############################################################################################################################
@@ -702,74 +708,90 @@ else {
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
 ##############################################################################################################################################################
 
-### Login to Azure to get all the details about the syndicated Ubuntu Server 16.04 marketplace offering ###
-Import-Module C:\AzureStack-Tools-master\Syndication\AzureStack.MarketplaceSyndication.psm1
-Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $AzureADCreds -ErrorAction Stop | Out-Null
-$sub = Get-AzureRmSubscription
-$sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-$AzureContext = Get-AzureRmContext
-$subID = $AzureContext.Subscription.Id
+if ($registerASDK) {
 
-$azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $AzureAdCreds
-$azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
-$resources = Get-AzureRmResource
-$resource = $resources.resourcename
-$registrations = $resource|where-object {$_ -like "AzureStack*"}
-$registration = $registrations[0]
+    ### Login to Azure to get all the details about the syndicated Ubuntu Server 16.04 marketplace offering ###
+    Import-Module C:\AzureStack-Tools-master\Syndication\AzureStack.MarketplaceSyndication.psm1
+    Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $AzureADCreds -ErrorAction Stop | Out-Null
+    $sub = Get-AzureRmSubscription
+    $sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+    $AzureContext = Get-AzureRmContext
+    $subID = $AzureContext.Subscription.Id
 
-# Retrieve the access token
-$token = $null
-$tokens = $null
-$tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-$token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureAccount.Context.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+    $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $AzureAdCreds
+    $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
+    $resources = Get-AzureRmResource
+    $resource = $resources.resourcename
+    $registrations = $resource | Where-Object {$_ -like "AzureStack*"}
+    $registration = $registrations[0]
 
-# Define variables and create an array to store all information
-$package = "*Canonical.UbuntuServer1604LTS*"
-$azpkg = $null
-$azpkg = @{
-    id         = ""
-    publisher  = ""
-    sku        = ""
-    offer      = ""
-    azpkgPath  = ""
-    name       = ""
-    type       = ""
-    vhdPath    = ""
-    vhdVersion = ""
-    osVersion  = ""
+    # Retrieve the access token
+    $token = $null
+    $tokens = $null
+    $tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
+    $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureAccount.Context.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+
+    # Define variables and create an array to store all information
+    $package = "*Canonical.UbuntuServer1604LTS*"
+    $azpkg = $null
+    $azpkg = @{
+        id         = ""
+        publisher  = ""
+        sku        = ""
+        offer      = ""
+        azpkgPath  = ""
+        name       = ""
+        type       = ""
+        vhdPath    = ""
+        vhdVersion = ""
+        osVersion  = ""
+    }
+
+    ### Get the package information ###
+    $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$($Registration.ToString())/products?api-version=2016-01-01"
+    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
+    $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
+
+    $azpkg.id = $product.name.Split('/')[-1]
+    $azpkg.type = $product.properties.productKind
+    $azpkg.publisher = $product.properties.publisherDisplayName
+    $azpkg.sku = $product.properties.sku
+    $azpkg.offer = $product.properties.offer
+
+    # Get product info
+    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($productid)?api-version=2016-01-01"
+    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
+    $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
+    $azpkg.name = $productDetails.properties.galleryItemIdentity
+
+    # Get download location for Ubuntu Server 16.04 LTS AZPKG file
+    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$productid/listDetails?api-version=2016-01-01"
+    $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
+    $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
+
+    # Display Legal Terms
+    $legalTerms = $productDetails.properties.description
+    $legalDisplay = $legalTerms -replace '<.*?>', ''
+    Write-Host "$legalDisplay" -ForegroundColor Yellow
+
+    # Get download information for Ubuntu Server 16.04 LTS VHD file
+    $azpkg.vhdPath = $downloadDetails.properties.osDiskImage.sourceBlobSasUri
+    $azpkg.vhdVersion = $downloadDetails.properties.version
+    $azpkg.osVersion = $downloadDetails.properties.osDiskImage.operatingSystem
+
 }
 
-### Get the package information ###
-$uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$($Registration.ToString())/products?api-version=2016-01-01"
-$Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-$product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
-
-$azpkg.id = $product.name.Split('/')[-1]
-$azpkg.type = $product.properties.productKind
-$azpkg.publisher = $product.properties.publisherDisplayName
-$azpkg.sku = $product.properties.sku
-$azpkg.offer = $product.properties.offer
-
-# Get product info
-$uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($productid)?api-version=2016-01-01"
-$Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-$productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
-$azpkg.name = $productDetails.properties.galleryItemIdentity
-
-# Get download location for Ubuntu Server 16.04 LTS AZPKG file
-$uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$productid/listDetails?api-version=2016-01-01"
-$downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
-$azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
-
-# Display Legal Terms
-$legalTerms = $productDetails.properties.description
-$legalDisplay = $legalTerms -replace '<.*?>', ''
-Write-Host "$legalDisplay" -ForegroundColor Yellow
-
-# Get download information for Ubuntu Server 16.04 LTS VHD file
-$azpkg.vhdPath = $downloadDetails.properties.osDiskImage.sourceBlobSasUri
-$azpkg.vhdVersion = $downloadDetails.properties.version
-$azpkg.osVersion = $downloadDetails.properties.osDiskImage.operatingSystem
+elseif (!$registerASDK) {
+    $azpkg = $null
+    $azpkg = @{
+        publisher  = "Canonical"
+        sku        = "16.04-LTS"
+        offer      = "UbuntuServer"
+        vhdVersion = "1.0.0"
+        osVersion  = "Linux"
+        name = "Canonical.UbuntuServer16-04-LTS.1.0.0"
+    }
+}
 
 ### Log back into Azure Stack to check for existing images and push new ones if required ###
 if ($authenticationType.ToString() -like "AzureAd") {
@@ -782,7 +804,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
 Write-Verbose "Checking to see if an Ubuntu Server 16.04-LTS VM Image is present in your Azure Stack Platform Image Repository"
 if ($(Get-AzsVMImage -Location "local" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
     Write-Verbose "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
-    Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" already present.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
+    Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
 }
 
 else {
@@ -817,18 +839,38 @@ else {
         Write-Verbose "Cannot find a previously extracted Ubuntu Server download or ZIP file"
         Write-Verbose "Begin download of correct Ubuntu Server ZIP and extraction of VHD into $ASDKpath"
 
-        $ubuntuBuild = $azpkg.vhdVersion
-        $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
-        $ubuntuBuild = $ubuntuBuild.split('.')[2]
+        # If registerASDK is true, the script will grab the properties of the gallery item from the syndicated marketplace and construct a replica from this info
+
+        if ($registerASDK) {
+
+            $ubuntuBuild = $azpkg.vhdVersion
+            $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
+            $ubuntuBuild = $ubuntuBuild.split('.')[2]
+            Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop
+        }
+
+        # Otherwise, it will just use 1.0.0 as specified earlier
+
+        else {
+            $ubuntuBuild = $azpkg.vhdVersion
+            Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop
+        }
        
-        Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop
         Expand-Archive -Path "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -DestinationPath $ASDKpath -Force -ErrorAction Stop
         $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
     }
 
     # Upload the image to the Azure Stack Platform Image Repository
     Write-Verbose "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
-    Add-AzsVMImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -osType $azpkg.osVersion -osDiskLocalPath "$UbuntuServerVHD" -CreateGalleryItem $False -ErrorAction Stop
+
+    # If the user has chosen to register the ASDK, the script will NOT create a gallery item as part of the image upload
+
+    if ($registerASDK) {
+        Add-AzsVMImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -osType $azpkg.osVersion -osDiskLocalPath "$UbuntuServerVHD" -CreateGalleryItem $False -ErrorAction Stop
+    }
+    else {
+        Add-AzsVMImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -osType $azpkg.osVersion -osDiskLocalPath "$UbuntuServerVHD" -ErrorAction Stop
+    }
     if ($(Get-AzsVMImage -Location "local" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
         Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
         Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP "
@@ -836,24 +878,28 @@ else {
     }
 }
 
-# Upload AZPKG package
-Write-Verbose "Checking for the following packages: $($azpkg.name)"
-if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
-    Write-Verbose "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
-}
-else {
-    Write-Verbose "Didn't find this package: $($azpkg.name)"
-    Write-Verbose "Will need to side load it in to the gallery"
-    Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
-    $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
-    Start-Sleep -Seconds 5
-    $Retries = 0
-    # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-    While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-        Write-Verbose "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
-        Write-Verbose "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
+### If the user has chosen to register the ASDK as part of the process, the script will side load an AZPKG from the Azure Stack Marketplace ###
+
+if ($registerASDK) {
+    # Upload AZPKG package
+    Write-Verbose "Checking for the following packages: $($azpkg.name)"
+    if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
+        Write-Verbose "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
+    }
+    else {
+        Write-Verbose "Didn't find this package: $($azpkg.name)"
+        Write-Verbose "Will need to side load it in to the gallery"
+        Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
         $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
         Start-Sleep -Seconds 5
+        $Retries = 0
+        # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+        While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+            Write-Verbose "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
+            Write-Verbose "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
+            Start-Sleep -Seconds 5
+        }
     }
 }
 
