@@ -107,12 +107,6 @@
                 "description": "Public IP domain name prefix"
             }
         },
-        "resourceGroupName": {
-            "type": "string",
-            "metadata": {
-                "description": "Name of the resource group into which everything will be deployed"
-            }
-        },
         "storageAccountNewOrExisting": {
             "type": "string",
             "defaultValue": "new",
@@ -140,7 +134,7 @@
                 "artifactsBaseUrl": "",
                 "description": "Specify the URL of where the additional MySQL JSON template files can be found"
             },
-            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates/"
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/"
         },
         "scriptBaseUrl": {
             "type": "string",
@@ -148,7 +142,7 @@
                 "artifactsBaseUrl": "",
                 "description": "Specify the URL of where the MySQL install script can be found"
             },
-            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/"
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
         }
     },
     "variables": {

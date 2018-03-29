@@ -18,7 +18,7 @@
                 "name": "templateBaseUrl",
                 "type": "Microsoft.Common.TextBox",
                 "label": "Template Files URL",
-                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates/",
+                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/",
                 "toolTip": "Specify the URL of where the additional MySQL JSON template files can be found",
                 "constraints": {
                     "required": true,
@@ -29,7 +29,7 @@
                 "name": "scriptBaseUrl",
                 "type": "Microsoft.Common.TextBox",
                 "label": "Script URL",
-                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/",
+                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
                 "toolTip": "Specify the URL of where the MySQL Custom Script can be found",
                 "constraints": {
                     "required": true,
@@ -109,7 +109,7 @@
                                 "label": "Virtual Machine Size",
                                 "toolTip": "The size of virtual machine to provision.",
                                 "recommendedSizes": [
-                                    "Standard_D3_v2",
+                                    "Standard_D2_v2",
                                     "Standard_D3",
                                     "Standard_DS3"
                                 ],
@@ -149,7 +149,7 @@
                                 },
                                 "defaultValue": {
                                     "publicIpAddressName": "mysql_ip",
-                                    "domainNameLabel": "[concat('mysql',substring(guid(),0,4))]"
+                                    "domainNameLabel": "mysqlvm"
                                 },
                                 "options": {
                                     "hideNone": true,

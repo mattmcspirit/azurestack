@@ -93,7 +93,7 @@
     "imageOffer": "WindowsServer",
     "dnsNameForPublicIP": "[variables('vmName')]",
     "OSDiskName": "[concat('osdisk-', variables('vmName'))]",
-    "assetLocation": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQL/",
+    "assetLocation": "https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/MySQL/",
     "cseBlobNameScript": "MySql.Setup.CustomScriptExtension.ps1",
     "mySqlInstallationZipPath": {
       "5.7": "https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-5.7.17-winx64.zip",

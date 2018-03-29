@@ -1166,6 +1166,32 @@ elseif ($registerASDK) {
 Write-Verbose "Creating VM Scale Set Marketplace Item"
 Add-AzsVMSSGalleryItem -Location local
 
+### ADD MYSQL GALLERY ITEM ###################################################################################################################################
+##############################################################################################################################################################
+
+### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
+Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+$mySQLPackageName = ""
+Write-Verbose "Checking for the MySQL gallery item"
+if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$mySQLPackageName*"}) {
+    Write-Verbose "Found a suitable MySQL Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
+}
+else {
+    Write-Verbose "Didn't find this package: $($azpkg.name)"
+    Write-Verbose "Will need to side load it in to the gallery"
+    Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
+    $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
+    Start-Sleep -Seconds 5
+    $Retries = 0
+    # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+    While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+        Write-Verbose "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
+        Write-Verbose "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
+        $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
+        Start-Sleep -Seconds 5
+    }
+}
+
 #### INSTALL MYSQL RESOURCE PROVIDER #########################################################################################################################
 ##############################################################################################################################################################
 
@@ -1306,7 +1332,6 @@ $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -ArmLocation $Locatio
 New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -ArmLocation $Location
 
 # Install useful ASDK Host Apps via Chocolatey
-Set-ExecutionPolicy Unrestricted -Force
 Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
 # Enable Choco Global Confirmation
