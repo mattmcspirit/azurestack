@@ -7,11 +7,11 @@
       "metadata": {
         "description": "The name of the Virtual Machine. Limit 15 characters. (Reference: https://support.microsoft.com/en-us/kb/909264)"
       },
-      "defaultValue": "mysqlhost1"
+      "defaultValue": "mysqlhost"
     },
     "vmTimeZone": {
       "type": "string",
-	  "defaultValue": "Pacific Standard Time",
+      "defaultValue": "Pacific Standard Time",
       "metadata": {
         "description": "The time zone to be set for the Virtual Machine."
       }
@@ -74,39 +74,32 @@
     }
   },
   "variables": {
-
     "vhdStorageContainerName": "vhds",
     "vhdStorageName": "[tolower(concat(substring(padleft(replace(replace(parameters('vmName'), '-', ''),'_',''), 9, '0'),0, 9), 'st', uniqueString(resourceGroup().id)))]",
     "vhdStorageType": "Standard_LRS",
-
     "publicIPAddressName": "[concat(parameters('vmName'), '-PIP')]",
     "publicIPAddressType": "Static",
-
     "subnetSecurityGroupName": "[concat(parameters('vmName'), '-SSG')]",
     "subnetSecurityGroupId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('subnetSecurityGroupName'))]",
-
     "nicName": "[concat(parameters('vmName'), '-NIC')]",
     "addressPrefix": "10.0.0.0/16",
     "subnetName": "Subnet",
     "subnetPrefix": "10.0.0.0/24",
-
     "virtualNetworkName": "[concat(parameters('vmName'), '-VNET')]",
     "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
     "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]",
-
     "imagePublisher": "MicrosoftWindowsServer",
     "imageOffer": "WindowsServer",
     "dnsNameForPublicIP": "[parameters('vmName')]",
     "OSDiskName": "[concat('osdisk-', parameters('vmName'))]",
-	"assetLocation": "https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/MySQL/",
+    "assetLocation": "https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/MySQL/",
     "cseBlobNameScript": "MySql.Setup.CustomScriptExtension.ps1",
-	
-	"mySqlInstallationZipPath": {
-		"5.7": "https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-5.7.17-winx64.zip",
-		"5.6": "https://dev.mysql.com/get/Downloads/MySQL-5.6/mysql-5.6.35-winx64.zip",
-		"5.5": "https://dev.mysql.com/get/Downloads/MySQL-5.5/mysql-5.5.54-winx64.zip"
-	},
-	"mySqlInstallationZip": "[variables('mySqlInstallationZipPath')[parameters('mySqlVersion')]]"
+    "mySqlInstallationZipPath": {
+      "5.7": "https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-5.7.17-winx64.zip",
+      "5.6": "https://dev.mysql.com/get/Downloads/MySQL-5.6/mysql-5.6.35-winx64.zip",
+      "5.5": "https://dev.mysql.com/get/Downloads/MySQL-5.5/mysql-5.5.54-winx64.zip"
+    },
+    "mySqlInstallationZip": "[variables('mySqlInstallationZipPath')[parameters('mySqlVersion')]]"
   },
   "resources": [
     {
@@ -289,6 +282,5 @@
       }
     }
   ],
-  "outputs": {
-  }
+  "outputs": {}
 }

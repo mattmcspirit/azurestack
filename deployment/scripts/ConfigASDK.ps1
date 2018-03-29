@@ -1214,10 +1214,12 @@ foreach ($s in (Get-AzureRmSubscription)) {
 #### DEPLOY VMS TO HOST USER DATABASES #######################################################################################################################
 ##############################################################################################################################################################
 
+Write-Verbose "Creating a dedicated Resource Group for all database hosting assets"
+New-AzureRmResourceGroup -Name "DatabaseHosting" -Location local
+
 # Deploy a mysql VM for hosting tenant db
 Write-Verbose "Creating a dedicated MySQL host VM for database hosting"
-New-AzureRmResourceGroup -Name MySQL-Host -Location local
-New-AzureRmResourceGroupDeployment -Name MySQLHost -ResourceGroupName MySQL-Host -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/MySQL/azuredeploy.json -vmName "mysqlhost1" -adminUsername "cloudadmin" -adminPassword $vmlocaladminpass -vmSize Standard_A2 -windowsOSVersion '2016-Datacenter' -mode Incremental -Verbose
+New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "DatabaseHosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQL/azuredeploy.json -vmName "MYSQLHOST" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -vmSize Standard_A2 -windowsOSVersion '2016-Datacenter' -mode Incremental -Verbose
 
 # Create SKU and add host server to mysql RP - requires fix
 #Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
