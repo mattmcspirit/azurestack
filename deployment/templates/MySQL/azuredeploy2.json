@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
@@ -7,11 +7,11 @@
       "metadata": {
         "description": "The name of the Virtual Machine. Limit 15 characters. (Reference: https://support.microsoft.com/en-us/kb/909264)"
       },
-      "defaultValue": "mysqlhost"
+      "defaultValue": "mysqlhost1"
     },
     "vmTimeZone": {
       "type": "string",
-      "defaultValue": "Pacific Standard Time",
+	  "defaultValue": "Pacific Standard Time",
       "metadata": {
         "description": "The time zone to be set for the Virtual Machine."
       }
@@ -74,39 +74,45 @@
     }
   },
   "variables": {
-    "vmName": "[toLower(parameters('vmName'))]",
+
     "vhdStorageContainerName": "vhds",
-    "vhdStorageName": "[tolower(concat(substring(padleft(replace(replace(variables('vmName'), '-', ''),'_',''), 9, '0'),0, 9), 'st', uniqueString(resourceGroup().id)))]",
+    "vhdStorageName": "[tolower(concat(substring(padleft(replace(replace(parameters('vmName'), '-', ''),'_',''), 9, '0'),0, 9), 'st', uniqueString(resourceGroup().id)))]",
     "vhdStorageType": "Standard_LRS",
-    "publicIPAddressName": "[concat(variables('vmName'), '_pip')]",
+
+    "publicIPAddressName": "[concat(parameters('vmName'), '-PIP')]",
     "publicIPAddressType": "Static",
-    "subnetSecurityGroupName": "[concat(variables('vmName'), '_nsg')]",
+
+    "subnetSecurityGroupName": "[concat(parameters('vmName'), '-SSG')]",
     "subnetSecurityGroupId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('subnetSecurityGroupName'))]",
-    "nicName": "[concat(variables('vmName'), '_nic')]",
+
+    "nicName": "[concat(parameters('vmName'), '-NIC')]",
     "addressPrefix": "10.0.0.0/16",
     "subnetName": "Subnet",
     "subnetPrefix": "10.0.0.0/24",
-    "virtualNetworkName": "[concat(variables('vmName'), '_vnet')]",
+
+    "virtualNetworkName": "[concat(parameters('vmName'), '-VNET')]",
     "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
     "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]",
+
     "imagePublisher": "MicrosoftWindowsServer",
     "imageOffer": "WindowsServer",
-    "dnsNameForPublicIP": "[variables('vmName')]",
-    "OSDiskName": "[concat('osdisk-', variables('vmName'))]",
-    "assetLocation": "https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/MySQL/",
+    "dnsNameForPublicIP": "[parameters('vmName')]",
+    "OSDiskName": "[concat('osdisk-', parameters('vmName'))]",
+	"assetLocation": "https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/MySQL/",
     "cseBlobNameScript": "MySql.Setup.CustomScriptExtension.ps1",
-    "mySqlInstallationZipPath": {
-      "5.7": "https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-5.7.17-winx64.zip",
-      "5.6": "https://dev.mysql.com/get/Downloads/MySQL-5.6/mysql-5.6.35-winx64.zip",
-      "5.5": "https://dev.mysql.com/get/Downloads/MySQL-5.5/mysql-5.5.54-winx64.zip"
-    },
-    "mySqlInstallationZip": "[variables('mySqlInstallationZipPath')[parameters('mySqlVersion')]]"
+	
+	"mySqlInstallationZipPath": {
+		"5.7": "https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-5.7.17-winx64.zip",
+		"5.6": "https://dev.mysql.com/get/Downloads/MySQL-5.6/mysql-5.6.35-winx64.zip",
+		"5.5": "https://dev.mysql.com/get/Downloads/MySQL-5.5/mysql-5.5.54-winx64.zip"
+	},
+	"mySqlInstallationZip": "[variables('mySqlInstallationZipPath')[parameters('mySqlVersion')]]"
   },
   "resources": [
     {
       "type": "Microsoft.Storage/storageAccounts",
       "name": "[variables('vhdStorageName')]",
-      "apiVersion": "2016-01-01",
+      "apiVersion": "2015-05-01-preview",
       "location": "[resourceGroup().location]",
       "tags": {
         "displayName": "StorageAccount"
@@ -118,7 +124,7 @@
     {
       "type": "Microsoft.Network/publicIPAddresses",
       "name": "[variables('publicIPAddressName')]",
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2015-05-01-preview",
       "location": "[resourceGroup().location]",
       "tags": {
         "displayName": "PublicIPAddress"
@@ -133,7 +139,7 @@
     {
       "type": "Microsoft.Network/networkSecurityGroups",
       "name": "[variables('subnetSecurityGroupName')]",
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2015-05-01-preview",
       "location": "[resourceGroup().location]",
       "properties": {
         "securityRules": [
@@ -156,7 +162,7 @@
     {
       "type": "Microsoft.Network/virtualNetworks",
       "name": "[variables('virtualNetworkName')]",
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2015-05-01-preview",
       "location": "[resourceGroup().location]",
       "tags": {
         "displayName": "VirtualNetwork"
@@ -186,7 +192,7 @@
     {
       "type": "Microsoft.Network/networkInterfaces",
       "name": "[variables('nicName')]",
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2015-05-01-preview",
       "location": "[resourceGroup().location]",
       "tags": {
         "displayName": "NetworkInterface"
@@ -214,7 +220,7 @@
     },
     {
       "type": "Microsoft.Compute/virtualMachines",
-      "name": "[variables('vmName')]",
+      "name": "[parameters('vmName')]",
       "apiVersion": "2015-06-15",
       "location": "[resourceGroup().location]",
       "tags": {
@@ -229,7 +235,7 @@
           "vmSize": "[parameters('vmSize')]"
         },
         "osProfile": {
-          "computerName": "[variables('vmName')]",
+          "computerName": "[parameters('vmName')]",
           "adminUsername": "[parameters('adminUsername')]",
           "adminPassword": "[parameters('adminPassword')]",
           "windowsConfiguration": {
@@ -246,7 +252,7 @@
           "osDisk": {
             "name": "osdisk",
             "vhd": {
-              "uri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('vhdStorageName')), '2016-01-01').primaryEndpoints.blob, variables('vhdStorageContainerName'),'/',variables('OSDiskName'),'.vhd')]"
+              "uri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('vhdStorageName')),providers('Microsoft.Storage', 'storageAccounts').apiVersions[0]).primaryEndpoints.blob ,variables('vhdStorageContainerName'),'/', variables('OSDiskName'), '.vhd')]"
             },
             "caching": "ReadWrite",
             "createOption": "FromImage"
@@ -263,11 +269,11 @@
     },
     {
       "type": "Microsoft.Compute/virtualMachines/extensions",
-      "name": "[concat(variables('vmName'), '/', 'PowerShellExec')]",
+      "name": "[concat(parameters('vmName'), '/', 'PowerShellExec')]",
       "apiVersion": "2015-06-15",
       "location": "[resourceGroup().location]",
       "dependsOn": [
-        "[concat('Microsoft.Compute/virtualMachines/', variables('vmName'))]"
+        "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
       ],
       "properties": {
         "publisher": "Microsoft.Compute",
@@ -283,5 +289,6 @@
       }
     }
   ],
-  "outputs": {}
+  "outputs": {
+  }
 }
