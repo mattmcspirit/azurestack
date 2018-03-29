@@ -109,7 +109,7 @@
                                 "label": "Virtual Machine Size",
                                 "toolTip": "The size of virtual machine to provision.",
                                 "recommendedSizes": [
-                                    "Standard_D3_v2",
+                                    "Standard_D2_v2",
                                     "Standard_D3",
                                     "Standard_DS3"
                                 ],
@@ -149,7 +149,7 @@
                                 },
                                 "defaultValue": {
                                     "publicIpAddressName": "mysql_ip",
-                                    "domainNameLabel": "[concat('mysql',substring(guid(),0,4))]"
+                                    "domainNameLabel": "mysqlvm"
                                 },
                                 "options": {
                                     "hideNone": true,
