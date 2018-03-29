@@ -77,21 +77,21 @@
     "vhdStorageContainerName": "vhds",
     "vhdStorageName": "[tolower(concat(substring(padleft(replace(replace(parameters('vmName'), '-', ''),'_',''), 9, '0'),0, 9), 'st', uniqueString(resourceGroup().id)))]",
     "vhdStorageType": "Standard_LRS",
-    "publicIPAddressName": "[concat(parameters('vmName'), '-PIP')]",
+    "publicIPAddressName": "[tolower(concat(parameters('vmName'), '_pip'))]",
     "publicIPAddressType": "Static",
-    "subnetSecurityGroupName": "[concat(parameters('vmName'), '-SSG')]",
+    "subnetSecurityGroupName": "[tolower(concat(parameters('vmName'), '_nsg'))]",
     "subnetSecurityGroupId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('subnetSecurityGroupName'))]",
-    "nicName": "[concat(parameters('vmName'), '-NIC')]",
+    "nicName": "[tolower(concat(parameters('vmName'), '_nic'))]",
     "addressPrefix": "10.0.0.0/16",
     "subnetName": "Subnet",
     "subnetPrefix": "10.0.0.0/24",
-    "virtualNetworkName": "[concat(parameters('vmName'), '-VNET')]",
+    "virtualNetworkName": "[tolower(concat(parameters('vmName'), '_vnet'))]",
     "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
     "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]",
     "imagePublisher": "MicrosoftWindowsServer",
     "imageOffer": "WindowsServer",
-    "dnsNameForPublicIP": "[parameters('vmName')]",
-    "OSDiskName": "[concat('osdisk-', parameters('vmName'))]",
+    "dnsNameForPublicIP": "[tolower(parameters('vmName'))]",
+    "OSDiskName": "[tolower(concat('osdisk-', parameters('vmName')))]",
     "assetLocation": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQL/",
     "cseBlobNameScript": "MySql.Setup.CustomScriptExtension.ps1",
     "mySqlInstallationZipPath": {
@@ -245,7 +245,7 @@
           "osDisk": {
             "name": "osdisk",
             "vhd": {
-              "uri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('vhdStorageName')),providers('Microsoft.Storage', 'storageAccounts').apiVersions[0]).primaryEndpoints.blob ,variables('vhdStorageContainerName'),'/', variables('OSDiskName'), '.vhd')]"
+              "uri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('vhdStorageName')),providers('Microsoft.Storage', 'storageAccounts')),'2016-01-01'.primaryEndpoints.blob ,variables('vhdStorageContainerName'),'/', variables('OSDiskName'), '.vhd')]"
             },
             "caching": "ReadWrite",
             "createOption": "FromImage"
