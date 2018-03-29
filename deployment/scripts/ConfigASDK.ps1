@@ -1217,7 +1217,7 @@ foreach ($s in (Get-AzureRmSubscription)) {
 Write-Verbose "Creating a dedicated Resource Group for all database hosting assets"
 New-AzureRmResourceGroup -Name "DatabaseHosting" -Location local
 
-# Deploy a mysql VM for hosting tenant db
+# Deploy a MySQL VM for hosting tenant db
 Write-Verbose "Creating a dedicated MySQL host VM for database hosting"
 New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "DatabaseHosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQL/azuredeploy.json -vmName "MYSQLHOST" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -vmSize Standard_A2 -windowsOSVersion '2016-Datacenter' -mode Incremental -Verbose
 
