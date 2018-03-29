@@ -1335,7 +1335,6 @@ $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -ArmLocation $Locatio
 New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -ArmLocation $Location
 
 # Install useful ASDK Host Apps via Chocolatey
-Set-ExecutionPolicy Unrestricted -Force
 Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
 # Enable Choco Global Confirmation

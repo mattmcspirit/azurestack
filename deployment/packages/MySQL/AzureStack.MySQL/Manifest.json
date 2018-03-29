@@ -1,55 +1,40 @@
 {
     "$schema": "https://gallery.azure.com/schemas/2015-10-01/manifest.json#",
-    "name": "WindowsServer2016Datacenter",
-    "publisher": "Microsoft",
+    "name": "MySQL",
+    "publisher": "AzureStack",
     "version": "1.0.0",
     "displayName": "ms-resource:displayName",
     "publisherDisplayName": "ms-resource:publisherDisplayName",
-    "publisherLegalName": "ms-resource:publisherLegalName",
+    "publisherLegalName": "ms-resource:publisherDisplayName",
     "summary": "ms-resource:summary",
     "longSummary": "ms-resource:longSummary",
     "description": "ms-resource:description",
+    "longDescription": "ms-resource:description",
     "uiDefinition": {
         "path": "UIDefinition.json"
     },
     "artifacts": [
         {
-            "name": "DefaultTemplate",
+            "name": "AzureStackDeploy",
             "type": "Template",
-            "path": "DeploymentTemplates\\DefaultTemplate.json",
+            "path": "DeploymentTemplates\\mainTemplate.json",
             "isDefault": true
-        },
-        {
-            "name": "createuidefinition",
-            "type": "Custom",
-            "path": "DeploymentTemplates\\createuidefinition.json",
-            "isDefault": false
         }
     ],
-    "properties": [],
     "categories": [
-        "Compute"
+        "Compute",
+        "IaaS Databases"
     ],
     "links": [
         {
-            "displayName": "ms-resource:linkDisplayName0",
-            "uri": "https://docs.microsoft.com/azure/virtual-machines/windows/"
+            "displayName": "ms-resource:documentationLink",
+            "uri": "https://www.oracle.com/mysql/index.html"
         },
         {
-            "displayName": "ms-resource:linkDisplayName1",
-            "uri": "https://go.microsoft.com/fwlink/?linkid=828598"
-        },
-        {
-            "displayName": "ms-resource:linkDisplayName2",
-            "uri": "http://technet.microsoft.com/library/dn765472.aspx"
-        },
-        {
-            "displayName": "ms-resource:linkDisplayName3",
-            "uri": "http://www.microsoft.com/windowsserver"
+            "displayName": "ms-resource:documentationLink2",
+            "uri": "https://dev.mysql.com/doc/"
         }
     ],
-    "filters": [],
-    "products": [],
     "images": [
         {
             "context": "ibiza",
@@ -75,8 +60,8 @@
                     "type": "icon"
                 },
                 {
-                    "id": "hero",
-                    "path": "icons\\Hero.png",
+                    "id": "screenShot0",
+                    "path": "screenshots\\Screenshot1.png",
                     "type": "screenshot"
                 }
             ]
