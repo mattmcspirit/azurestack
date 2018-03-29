@@ -40,12 +40,12 @@
         "steps": [
             {
                 "name": "settings",
-                "label": "Settings",
+                "label": "Infrastructure Settings",
                 "subLabel": {
                     "preValidation": "Configure infrastructure settings",
                     "postValidation": "Done"
                 },
-                "bladeTitle": "Settings",
+                "bladeTitle": "Infrastructure Settings",
                 "elements": [
                     {
                         "name": "Compute",
@@ -87,22 +87,6 @@
                                 "osPlatform": "Linux",
                                 "visible": true
                             },
-                            {
-                                "name": "mySQLPassword",
-                                "type": "Microsoft.Common.PasswordBox",
-                                "label": {
-                                  "password": "Password for MySQL Database Server",
-                                  "confirmPassword": "Confirm password"
-                                },
-                                "toolTip": "Password for MySQL Database Server",
-                                "constraints": {
-                                  "required": true
-                                },
-                                "options": {
-                                  "hideConfirmation": false
-                                },
-                                "visible": true
-                              },
                             {
                                 "name": "vmSize",
                                 "type": "Microsoft.Compute.SizeSelector",
@@ -227,6 +211,33 @@
                         "visible": true
                     }
                 ]
+            },
+            {
+                "name": "mysqlsettings",
+                "label": "MySQL Settings",
+                "subLabel": {
+                    "preValidation": "Configure MySQL settings",
+                    "postValidation": "Done"
+                },
+                "bladeTitle": "MySQL Settings",
+                "elements": [
+                    {
+                        "name": "mySQLPassword",
+                        "type": "Microsoft.Common.PasswordBox",
+                        "label": {
+                          "password": "Password for MySQL Database Server",
+                          "confirmPassword": "Confirm password"
+                        },
+                        "toolTip": "Password for MySQL Database Server",
+                        "constraints": {
+                          "required": true
+                        },
+                        "options": {
+                          "hideConfirmation": false
+                        },
+                        "visible": true
+                      }
+                    ]
             }
         ],
         "outputs": {
@@ -236,7 +247,7 @@
             "vmSize": "[steps('settings').Compute.vmSize]",
             "adminUsername": "[steps('settings').Compute.adminUsername]",
             "adminPassword": "[steps('settings').Compute.adminPassword.password]",
-            "mySQLPassword": "[steps('settings').Compute.mySQLPassword.password]",
+            "mySQLPassword": "[steps('mysqlsettings').mySQLPassword.password]",
             "sshPublicKey": "[steps('settings').Compute.adminPassword.sshPublicKey]",
             "authenticationType": "[steps('settings').Compute.adminPassword.authenticationType]",
             "publicIPAddressName": "[steps('settings').Network.ipAddress.name]",
