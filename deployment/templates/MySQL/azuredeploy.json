@@ -74,24 +74,25 @@
     }
   },
   "variables": {
+    "vmName": "[toLower(parameters('vmName'))]",
     "vhdStorageContainerName": "vhds",
-    "vhdStorageName": "[tolower(concat(substring(padleft(replace(replace(parameters('vmName'), '-', ''),'_',''), 9, '0'),0, 9), 'st', uniqueString(resourceGroup().id)))]",
+    "vhdStorageName": "[tolower(concat(substring(padleft(replace(replace(variables('vmName'), '-', ''),'_',''), 9, '0'),0, 9), 'st', uniqueString(resourceGroup().id)))]",
     "vhdStorageType": "Standard_LRS",
-    "publicIPAddressName": "[tolower(concat(parameters('vmName'), '_pip'))]",
+    "publicIPAddressName": "[concat(variables('vmName'), '_pip')]",
     "publicIPAddressType": "Static",
-    "subnetSecurityGroupName": "[tolower(concat(parameters('vmName'), '_nsg'))]",
+    "subnetSecurityGroupName": "[concat(variables('vmName'), '_nsg')]",
     "subnetSecurityGroupId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('subnetSecurityGroupName'))]",
-    "nicName": "[tolower(concat(parameters('vmName'), '_nic'))]",
+    "nicName": "[concat(variables('vmName'), '_nic')]",
     "addressPrefix": "10.0.0.0/16",
     "subnetName": "Subnet",
     "subnetPrefix": "10.0.0.0/24",
-    "virtualNetworkName": "[tolower(concat(parameters('vmName'), '_vnet'))]",
+    "virtualNetworkName": "[concat(variables('vmName'), '_vnet')]",
     "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
     "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]",
     "imagePublisher": "MicrosoftWindowsServer",
     "imageOffer": "WindowsServer",
-    "dnsNameForPublicIP": "[tolower(parameters('vmName'))]",
-    "OSDiskName": "[tolower(concat('osdisk-', parameters('vmName')))]",
+    "dnsNameForPublicIP": "[variables('vmName')]",
+    "OSDiskName": "[concat('osdisk-', variables('vmName'))]",
     "assetLocation": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQL/",
     "cseBlobNameScript": "MySql.Setup.CustomScriptExtension.ps1",
     "mySqlInstallationZipPath": {
@@ -213,7 +214,7 @@
     },
     {
       "type": "Microsoft.Compute/virtualMachines",
-      "name": "[parameters('vmName')]",
+      "name": "[variables('vmName')]",
       "apiVersion": "2015-06-15",
       "location": "[resourceGroup().location]",
       "tags": {
@@ -228,7 +229,7 @@
           "vmSize": "[parameters('vmSize')]"
         },
         "osProfile": {
-          "computerName": "[parameters('vmName')]",
+          "computerName": "[variables('vmName')]",
           "adminUsername": "[parameters('adminUsername')]",
           "adminPassword": "[parameters('adminPassword')]",
           "windowsConfiguration": {
@@ -262,11 +263,11 @@
     },
     {
       "type": "Microsoft.Compute/virtualMachines/extensions",
-      "name": "[concat(parameters('vmName'), '/', 'PowerShellExec')]",
+      "name": "[concat(variables('vmName'), '/', 'PowerShellExec')]",
       "apiVersion": "2015-06-15",
       "location": "[resourceGroup().location]",
       "dependsOn": [
-        "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
+        "[concat('Microsoft.Compute/virtualMachines/', variables('vmName'))]"
       ],
       "properties": {
         "publisher": "Microsoft.Compute",

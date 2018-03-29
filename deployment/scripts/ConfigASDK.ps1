@@ -1170,7 +1170,7 @@ Add-AzsVMSSGalleryItem -Location local
 ##############################################################################################################################################################
 
 # Login to Azure Stack
-Write-Verbose "Downloading and installing MySQL resource provider"
+Write-Verbose "Downloading and installing MySQL Resource Provider"
 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
 # Download and Expand the MySQL RP files
@@ -1187,11 +1187,10 @@ $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysq
 ##############################################################################################################################################################
 
 # Login to Azure Stack
-Write-Verbose "Downloading and installing MySQL resource provider"
+Write-Verbose "Downloading and installing SQL Server Resource Provider"
 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
 # Download and Expand the SQL Server RP files
-Set-Location C:\Temp
 Invoke-WebRequest https://aka.ms/azurestacksqlrp -OutFile "$ASDKpath\SQL.zip" -ErrorAction Stop
 Set-Location $ASDKpath
 Expand-Archive "$ASDKpath\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
@@ -1215,11 +1214,11 @@ foreach ($s in (Get-AzureRmSubscription)) {
 ##############################################################################################################################################################
 
 Write-Verbose "Creating a dedicated Resource Group for all database hosting assets"
-New-AzureRmResourceGroup -Name "DatabaseHosting" -Location local
+New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location local
 
 # Deploy a MySQL VM for hosting tenant db
 Write-Verbose "Creating a dedicated MySQL host VM for database hosting"
-New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "DatabaseHosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQL/azuredeploy.json -vmName "MYSQLHOST" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -vmSize Standard_A2 -windowsOSVersion '2016-Datacenter' -mode Incremental -Verbose
+New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQL/azuredeploy.json -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -vmSize Standard_A2 -windowsOSVersion '2016-Datacenter' -mode Incremental -Verbose
 
 # Create SKU and add host server to mysql RP - requires fix
 #Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"

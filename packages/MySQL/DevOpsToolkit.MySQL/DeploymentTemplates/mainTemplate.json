@@ -41,7 +41,7 @@
             "type": "securestring",
             "defaultValue": "",
             "metadata": {
-                "description": "Password fro MySQL Database Server"
+                "description": "Password for MySQL Database Server"
             }
         },
         "sshPublicKey": {
