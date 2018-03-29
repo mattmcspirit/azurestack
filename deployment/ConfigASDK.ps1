@@ -1166,7 +1166,7 @@ elseif ($registerASDK) {
 Write-Verbose "Creating VM Scale Set Marketplace Item"
 Add-AzsVMSSGalleryItem -Location local
 
-### ADD MYSQL GALLERY ITEM ############################################################################################################################
+### ADD MYSQL GALLERY ITEM ###################################################################################################################################
 ##############################################################################################################################################################
 
     ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
