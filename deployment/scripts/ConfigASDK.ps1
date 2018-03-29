@@ -348,8 +348,10 @@ if ($authenticationType.ToString() -like "AzureAd") {
         }
     }
 
+    $asdkCreds = $azureAdCreds
+
     if ($useAzureCredsForRegistration -and $registerASDK) {
-        $azureRegCreds = $azureAdCreds
+        $azureRegCreds = $asdkCreds
     }
 
     elseif (!$useAzureCredsForRegistration -and $registerASDK) {
@@ -424,6 +426,10 @@ if ($authenticationType.ToString() -like "AzureAd") {
 }
 
 if ($authenticationType.ToString() -like "ADFS") {
+    $asdkCreds = $azureStackAdminCreds
+}
+
+if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
 
     Remove-Variable -Name azureAdPwd -Force -ErrorAction SilentlyContinue
     Remove-Variable -Name azureAdUsername -Force -ErrorAction SilentlyContinue
@@ -504,36 +510,39 @@ if ($authenticationType.ToString() -like "ADFS") {
     }
 }
 
-Write-Verbose "Checking for a valid Azure subscription ID that will be used to register the Azure Stack to Azure"
+if ($registerASDK) {
 
-### Validate Azure Subscription ID for Registration ###
+    Write-Verbose "Checking for a valid Azure subscription ID that will be used to register the Azure Stack to Azure"
+
+    ### Validate Azure Subscription ID for Registration ###
     
-if ([string]::IsNullOrEmpty($azureRegSubId)) {
-    Write-Verbose "You didn't enter a subscription ID for registering your Azure Stack in Azure."
-    $azureRegSubId = Read-Host "Please enter a valid Azure subscription ID" -ErrorAction Stop
-}
+    if ([string]::IsNullOrEmpty($azureRegSubId)) {
+        Write-Verbose "You didn't enter a subscription ID for registering your Azure Stack in Azure."
+        $azureRegSubId = Read-Host "Please enter a valid Azure subscription ID" -ErrorAction Stop
+    }
             
-if ($azureRegSubId) {
-    Write-Verbose "Azure subscription ID has been provided."
-    Write-Verbose "$azureRegSubId will be used to register this Azure Stack with Azure."
-    Write-Verbose "Testing Azure Login..."
-    #Test Azure Login
-    try {
-        Login-AzureRmAccount -SubscriptionId $azureRegSubId -Credential $azureRegCreds
-        Write-Verbose "Azure Login Succeeded - this account will be used for registration of your Azure Stack:" 
-        Get-AzureRmSubscription
+    if ($azureRegSubId) {
+        Write-Verbose "Azure subscription ID has been provided."
+        Write-Verbose "$azureRegSubId will be used to register this Azure Stack with Azure."
+        Write-Verbose "Testing Azure Login..."
+        #Test Azure Login
+        try {
+            Login-AzureRmAccount -SubscriptionId $azureRegSubId -Credential $azureRegCreds
+            Write-Verbose "Azure Login Succeeded - this account will be used for registration of your Azure Stack:" 
+            Get-AzureRmSubscription
+        }
+        catch {
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
     }
-    catch {
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
         
-elseif ([string]::IsNullOrEmpty($azureRegSubId)) {
-    Write-Verbose "No valid Azure subscription ID was entered again. Exiting process..." -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return    
+    elseif ([string]::IsNullOrEmpty($azureRegSubId)) {
+        Write-Verbose "No valid Azure subscription ID was entered again. Exiting process..." -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return    
+    }
 }
 
 ### DOWNLOAD TOOLS #####################################################################################################################################
@@ -690,7 +699,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
     Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
     $TenantID = Get-AzsDirectoryTenantId -AADTenantName $azureDirectoryTenantName -EnvironmentName "AzureStackAdmin"
     Write-Verbose "Logging in with your Azure Stack Administrator Account used with Azure Active Directory"
-    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azureAdCreds -ErrorAction Stop
+    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop
 }
 elseif ($authenticationType.ToString() -like "ADFS") {
     Write-Verbose ("Active Directory Federation Services selected by Administrator")
@@ -699,7 +708,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
     Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
     $TenantID = Get-AzsDirectoryTenantId -ADFS -EnvironmentName "AzureStackAdmin"
     Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
-    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azureStackAdminCreds -ErrorAction Stop
+    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop
 }
 else {
     Write-Verbose ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
@@ -759,13 +768,13 @@ if ($registerASDK) {
     $azpkg.offer = $product.properties.offer
 
     # Get product info
-    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($productid)?api-version=2016-01-01"
+    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
     $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
     $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
     $azpkg.name = $productDetails.properties.galleryItemIdentity
 
     # Get download location for Ubuntu Server 16.04 LTS AZPKG file
-    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$productid/listDetails?api-version=2016-01-01"
+    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
     $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
     $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
 
@@ -789,17 +798,12 @@ elseif (!$registerASDK) {
         offer      = "UbuntuServer"
         vhdVersion = "1.0.0"
         osVersion  = "Linux"
-        name = "Canonical.UbuntuServer16-04-LTS.1.0.0"
+        name       = "Canonical.UbuntuServer16-04-LTS.1.0.0"
     }
 }
 
 ### Log back into Azure Stack to check for existing images and push new ones if required ###
-if ($authenticationType.ToString() -like "AzureAd") {
-    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azureAdCreds -ErrorAction Stop | Out-Null
-}
-elseif ($authenticationType.ToString() -like "ADFS") {
-    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azureStackAdminCreds -ErrorAction Stop | Out-Null
-}
+Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
 Write-Verbose "Checking to see if an Ubuntu Server 16.04-LTS VM Image is present in your Azure Stack Platform Image Repository"
 if ($(Get-AzsVMImage -Location "local" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
@@ -903,102 +907,35 @@ if ($registerASDK) {
     }
 }
 
-<# Query existing Platform Image Repository for Compatible Ubuntu Server 16.04 LTS Image
-# If existing image is in place, use the existing image, otherwise, download from Ubuntu and upload into the Platform Image Repository
-
-Write-Verbose "Checking to see if an Ubuntu Server 16.04-LTS VM Image is present in your Azure Stack Platform Image Repository"
-
-$platformImage = Get-AzureRmVMImage -Location "local" -PublisherName Canonical -Offer UbuntuServer -Skus "16.04-LTS" -ErrorAction SilentlyContinue
-$platformImageTable = $platformImage | Sort-Object Version
-$platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
-
-if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
-    Write-Verbose "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:" 
-    Write-Output $platformImageTableTop1 | Format-Table location, Offer, PublisherName, Skus, Version
-}
-else {
-    Write-Verbose "No existing suitable Ubuntu Server 1604-LTS VM image exists." 
-    Write-Verbose "The Ubuntu Server VM Image in the Azure Stack Platform Image Repository must have the following properties:"
-    Write-Verbose "Publisher Name = Canonical"
-    Write-Verbose "Offer = UbuntuServer"
-    Write-Verbose "SKU = 16.04-LTS"
-    Write-Verbose "Unfortunately, no image was found with these properties."
-    Write-Verbose "Checking to see if the Ubuntu Server VHD already exists in ASDK Configurator folder"
-
-    $validDownloadPathVHD = [System.IO.Directory]::Exists("$ASDKpath\UbuntuServer.vhd")
-    $validDownloadPathZIP = [System.IO.Directory]::Exists("$ASDKpath\UbuntuServer.zip")
-
-    if ($validDownloadPathVHD -eq $true) {
-        Write-Verbose "Located Ubuntu Server VHD in this folder. No need to download again..."
-        $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath\UbuntuServer.vhd"
-        Write-Verbose "Ubuntu Server VHD located at $UbuntuServerVHD"
-    }
-    elseif ($validDownloadPathZIP -eq $true) {
-        Write-Verbose "Cannot find a previously extracted Ubuntu Server VHD with name UbuntuServer.vhd"
-        Write-Verbose "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
-        $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\UbuntuServer.zip"
-        Write-Verbose "Ubuntu Server ZIP located at $UbuntuServerZIP"
-        Expand-Archive -Path "$ASDKpath\UbuntuServer.zip" -DestinationPath $ASDKpath -Force -ErrorAction Stop
-        $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Rename-Item -NewName UbuntuServer.vhd -PassThru -Force -ErrorAction Stop
-    }
-    else {
-        # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
-        # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
-        Write-Verbose "Cannot find a previously extracted Ubuntu Server download or ZIP file"
-        Write-Verbose "Begin download of correct Ubuntu Server ZIP and extraction of VHD into $ASDKpath"
-        Invoke-Webrequest https://cloud-images.ubuntu.com/releases/16.04/release-20180222/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip -OutFile "$ASDKpath\UbuntuServer.zip" -ErrorAction Stop
-        Expand-Archive -Path "$ASDKpath\UbuntuServer.zip" -DestinationPath $ASDKpath -Force -ErrorAction Stop
-        $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Rename-Item -NewName UbuntuServer.vhd -PassThru -Force -ErrorAction Stop
-    }
-    # Upload the image to the Azure Stack Platform Image Repository
-
-    Write-Verbose "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
-    Add-AzsVMImage -publisher Canonical -offer UbuntuServer -sku 16.04-LTS -version 1.0.0 -osType Linux -osDiskLocalPath "$UbuntuServerVHD" -CreateGalleryItem $False -ErrorAction Stop
-    $platformImage = Get-AzureRmVMImage -Location "local" -PublisherName Canonical -Offer UbuntuServer -Skus "16.04-LTS" -ErrorAction SilentlyContinue
-    $platformImageTable = $platformImage | Sort-Object Version
-    $platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
-    if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
-        Write-Verbose "Ubuntu Server image successfully uploaded to the Platform Image Repository:"
-        Write-Output $platformImageTableTop1 | Format-Table location, Offer, PublisherName, Skus, Version
-        Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP "
-        Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Remove-Item -Force
-    }
-}
-
-#>
-
 ### ADD WINDOWS SERVER 2016 PLATFORM IMAGES ##################################################################################################################
 ##############################################################################################################################################################
 
-### Download the latest Cumulative Update for Windows Server 2016 - Existing Azure Stack Tools module doesn't work
+### Log back into Azure Stack to check for existing images and push new ones if required ###
+Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
-Write-Verbose "Checking to see if an Windows Server 2016 image is present in your Azure Stack Platform Image Repository"
-#Pre-validate that the Server Core VM Image is not already available
+Write-Verbose "Checking to see if a Windows Server 2016 image is present in your Azure Stack Platform Image Repository"
+# Pre-validate that the Windows Server 2016 Server Core VM Image is not already available
 
-Remove-Variable -Name platformImage -Force
+Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
 $sku = "2016-Datacenter-Server-Core"
-$platformImage = Get-AzureRmVMImage -Location "local" -PublisherName MicrosoftWindowsServer -Offer WindowsServer -Skus "$sku" -ErrorAction SilentlyContinue
-$platformImageTable = $platformImage | Sort-Object Version
-$platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
+$platformImageCore = Get-AzsVMImage -Location "local" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
 $serverCoreVMImageAlreadyAvailable = $false
 
-if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
+if ($platformImageCore -ne $null -and $platformImageCore.Properties.ProvisioningState -eq 'Succeeded') {
     Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
-    Write-Output $platformImageTableTop1 | Format-Table location, Offer, PublisherName, Skus, Version
+    Write-Output "Insert details here"
     $serverCoreVMImageAlreadyAvailable = $true
 }
 
-Remove-Variable -Name platformImage -Force
-$serverFullVMImageAlreadyAvailable = $false
+# Pre-validate that the Windows Server 2016 Full Image is not already available
+Remove-Variable -Name platformImageFull -Force -ErrorAction SilentlyContinue
 $sku = "2016-Datacenter"
-$platformImage = Get-AzureRmVMImage -Location "local" -PublisherName MicrosoftWindowsServer -Offer WindowsServer -Skus "$sku" -ErrorAction SilentlyContinue
-$platformImageTable = $platformImage | Sort-Object Version
-$platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
+$platformImageFull = Get-AzsVMImage -Location "local" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
 $serverFullVMImageAlreadyAvailable = $false
 
-if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK") {
+if ($platformImageFull -ne $null -and $platformImageFull.Properties.ProvisioningState -eq 'Succeeded') {
     Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
-    Write-Output $platformImageTableTop1 | Format-Table location, Offer, PublisherName, Skus, Version
+    Write-Output "Insert details here"
     $serverFullVMImageAlreadyAvailable = $true
 }
 
@@ -1016,6 +953,8 @@ if (($serverCoreVMImageAlreadyAvailable -eq $true) -and ($serverFullVMImageAlrea
     $downloadCURequired = $false
     Write-Verbose "Windows Server 2016 Datacenter Full and Core Images already exist in your Platform Image Repository"
 }
+
+### Download the latest Cumulative Update for Windows Server 2016 - Existing Azure Stack Tools module doesn't work ###
 
 if ($downloadCURequired -eq $true) {
     Write-Verbose "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
@@ -1049,8 +988,6 @@ if ($downloadCURequired -eq $true) {
         $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
     }
 
-    $Urls
-
     # Download the corresponding Windows Server 2016 (Build 14393) Cumulative Update
     ForEach ( $Url in $Urls ) {
         $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
@@ -1065,9 +1002,18 @@ if ($downloadCURequired -eq $true) {
         }
     }
     Write-Verbose "Creating Windows Server 2016 Evaluation images..."
+
+    # In this try/catch, if the user has chosen to register the ASDK as part of the script, the New-AzsServer2016VMImage will NOT create
+    # the gallery item, and instead, the azpkg files will be pulled from the marketplace later
+    # If the user chose not to register the ASDK, the New-AzsServer2016VMImage will create a default gallery item
     try {
-        New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -CreateGalleryItem $false -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "local"
-        # Cleanup
+        if ($registerASDK) {
+            New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -CreateGalleryItem $false -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "local"
+        }
+        elseif (!$registerASDK) {
+            New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "local"
+        }
+        # Cleanup the VHD, MSU and Cab files
         $computeAdminPath = "$modulePath\ComputeAdmin"
         Get-ChildItem -Path "$computeAdminPath" -Filter *.vhd | Remove-Item -Force
         Get-ChildItem -Path "$ASDKpath\*" -Include *.msu, *.cab | Remove-Item -Force
@@ -1079,157 +1025,194 @@ if ($downloadCURequired -eq $true) {
     }
 }
 
-### ADD GALLERY ITEMS ########################################################################################################################################
-##############################################################################################################################################################
+### Now check for and create (if required) AZPKG files for sideloading ###
+# If the user chose not to register the ASDK, the previous step should have created default gallery items, but this section of the script
+# ensures that if they are missing, they will be recreated
+if (!$registerASDK) {
 
-Import-Module C:\AzureStack-Tools-master\Syndication\AzureStack.MarketplaceSyndication.psm1
-Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $AzureADCreds -ErrorAction Stop | Out-Null
-$sub = Get-AzureRmSubscription
-$sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-$AzureContext = Get-AzureRmContext
-$subID = $AzureContext.Subscription.Id
+    $packageArray = @()
+    $packageArray.Clear()
+    $packageArray = "*WindowsServer2016-Datacenter.*", "*WindowsServer2016-Datacenter-Server-Core.*"
+    Write-Verbose "You chose not to register your Azure Stack to Azure. Your default AZPKG packages should have already been created when your Windows Server images were added to the PIR. Checking:"
 
-$azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $AzureAdCreds
-$azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
-$resources = Get-AzureRmResource
-$resource = $resources.resourcename
-$registrations = $resource|where-object {$_ -like "AzureStack*"}
-$registration = $registrations[0]
-
-# Retrieve the access token
-$tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-$token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureAccount.Context.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1
-
-$packageArray = "*Canonical.UbuntuServer1604LTS*", "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*", `
-    "*Microsoft.Azure.Extensions.CustomScript*", "*Microsoft.CustomScriptExtension-arm*", "*Microsoft.OSTCExtensions.VMAccessForLinux*", "*Microsoft.Powershell.DSC*", `
-    "*Microsoft.SQLIaaSExtension*", "*microsoft.custom-script-linux-arm*", "*microsoft.docker-arm*"
-
-$azpkgArray = @()
-$azpkgArray.Clear()
-
-foreach ($package in $packageArray) {
-
-    $azpkg = $null
-
-    $azpkg = @{
-        id        = ""            
-        azpkgPath = ""
-        name      = ""
-        type      = ""
-        zipPath   = ""
-    }
-
-    $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$($Registration.ToString())/products?api-version=2016-01-01"
-    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-    $products = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -First 1
-    foreach ($product in $products) { 
-        $productid = $product.name.Split('/')[-1]
-    }
-
-    $azpkg.id = $product.name.Split('/')[-1]
-    $azpkg.type = $product.properties.productKind
-
-    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($productid)?api-version=2016-01-01"
-    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-    $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
-    $azpkg.name = $productDetails.properties.galleryItemIdentity
-
-    # get download location for apzkg
-    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$productid/listDetails?api-version=2016-01-01"
-    $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
-    $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
-
-    #display Legal Terms
-    $legalTerms = $productDetails.properties.description
-    $legalDisplay = $legalTerms -replace '<.*?>', ''
-    Write-Host "$legalDisplay" -ForegroundColor Yellow
-
-    if ($azpkg.type -eq "VirtualMachineExtension") {
-        Write-Verbose "$($azpkg.name) is a $($azpkg.type)"
-        $azpkg.zipPath = $downloadDetails.properties.sourceBlob.uri
-    }
-    $azpkgArray += , $azpkg
-}
-
-# Log back into to Azure Stack #
-
-if ($authenticationType.ToString() -like "AzureAd") {
-    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azureAdCreds -ErrorAction Stop | Out-Null
-}
-elseif ($authenticationType.ToString() -like "ADFS") {
-    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azureStackAdminCreds -ErrorAction Stop | Out-Null
-}
-
-foreach ($azpkg in $azpkgArray) {
-    Write-Verbose "Checking for the following packages: $($azpkg.name)"
-    if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
-        Write-Verbose "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
-    }
-    else {
-        Write-Verbose "Didn't find this package: $($azpkg.name)"
-        Write-Verbose "Will need to side load it in to the gallery"
-        Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
-        $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
-        Start-Sleep -Seconds 5
-        $Retries = 0
-        # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-        While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-            Write-Host "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries" -ForegroundColor Yellow
-            Write-Verbose "Uploading $($azpkg.name) from $($azpkg.downloadSource)"
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.downloadSource)
-            Start-Sleep -Seconds 5
+    foreach ($package in $packageArray) {
+        $wsPackage = $null
+        $wsPackage = (Get-AzsGalleryItem | Where-Object {$_.name -like "$package"})
+        if ($wsPackage) {
+            Write-Verbose "Found the following existing package in your gallery: $($wsPackage.Name) - No need to upload a new one"
+        }
+        else {
+            $wsPackage = $package -replace '[*.]', ''
+            Write-Verbose "Didn't find this package: $wsPackage"
+            Write-Verbose "Will need to sideload it in to the gallery"
+            if ($wsPackage -eq "WindowsServer2016-Datacenter") {
+                New-AzsServer2016VMImage -Version Full -ISOPath $ISOpath -Location "local"
+            }
+            elseif ($wsPackage -eq "WindowsServer2016-Datacenter-Server-Core") {
+                New-AzsServer2016VMImage -Version Core -ISOPath $ISOpath -Location "local"
+            }
         }
     }
-    if ($azpkg.type -eq "VirtualMachineExtension") {
-        Write-Verbose "$($azpkg.name) is a $($azpkg.type)"
-        Write-Verbose "Should probably check here if the .zip file already exists for $($azpkg.name)"
-        $UploadZip = Write-Verbose "This is a placeholder for an upload from $($azpkg.zipPath)"
-        Start-Sleep -Seconds 5
-        $Retries = 0
-        #While ($UploadZip.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-        #Write-Host "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries" -ForegroundColor Yellow
-        #Write-Verbose "Uploading $($azpkg.name) from $($azpkg.downloadSource)"
-        #$Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.downloadSource)
-        #Start-Sleep -Seconds 5
-        #}
+}
+
+# If the user chose to register the ASDK as part of the script, this section will log into Azure, scrape the marketplace items and get the properties of
+# the gallery items, and the azpkg files, and side-load them into the Azure Stack marketplace.
+elseif ($registerASDK) {
+
+    ### Login to Azure to get all the details about the syndicated Windows Server 2016 marketplace offering ###
+    Import-Module C:\AzureStack-Tools-master\Syndication\AzureStack.MarketplaceSyndication.psm1
+    Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $AzureADCreds -ErrorAction Stop | Out-Null
+    $sub = Get-AzureRmSubscription
+    $sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+    $AzureContext = Get-AzureRmContext
+    $subID = $AzureContext.Subscription.Id
+
+    $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $AzureAdCreds
+    $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
+    $resources = Get-AzureRmResource
+    $resource = $resources.resourcename
+    $registrations = $resource | Where-Object {$_ -like "AzureStack*"}
+    $registration = $registrations[0]
+
+    # Retrieve the access token
+    $token = $null
+    $tokens = $null
+    $tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
+    $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureAccount.Context.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+
+    # Define variables and create arrays to store all information
+    $packageArray = @()
+    $packageArray.Clear()
+    $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*"
+    $azpkgArray = @()
+    $azpkgArray.Clear()
+
+    foreach ($package in $packageArray) {
+
+        $azpkg = $null
+        $azpkg = @{
+            id        = ""
+            publisher = ""
+            sku       = ""
+            offer     = ""
+            azpkgPath = ""
+            name      = ""
+            type      = ""
+        }
+
+        # Get the package information
+        $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$($Registration.ToString())/products?api-version=2016-01-01"
+        $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
+        $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
+
+        $azpkg.id = $product.name.Split('/')[-1]
+        $azpkg.type = $product.properties.productKind
+        $azpkg.publisher = $product.properties.publisherDisplayName
+        $azpkg.sku = $product.properties.sku
+        $azpkg.offer = $product.properties.offer
+
+        # Get product info
+        $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
+        $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
+        $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
+        $azpkg.name = $productDetails.properties.galleryItemIdentity
+
+        # Get download location for AZPKG file
+        $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
+        $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
+        $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
+
+        # Display Legal Terms
+        $legalTerms = $productDetails.properties.description
+        $legalDisplay = $legalTerms -replace '<.*?>', ''
+        Write-Host "$legalDisplay" -ForegroundColor Yellow
+
+        # Add to the array
+        $azpkgArray += , $azpkg
+
+    }
+
+    ### With all the information stored in the arrays, log back into Azure Stack to check for existing images and push new ones if required ###
+    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
+    foreach ($azpkg in $azpkgArray) {
+
+        Write-Verbose "Checking for the following packages: $($azpkg.name)"
+        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
+            Write-Verbose "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
+        }
+        else {
+            Write-Verbose "Didn't find this package: $($azpkg.name)"
+            Write-Verbose "Will need to side load it in to the gallery"
+            Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
+            Start-Sleep -Seconds 5
+            $Retries = 0
+            # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+            While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+                Write-Verbose "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                Write-Verbose "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
+                Start-Sleep -Seconds 5
+            }
+        }
     }
 }
+
+### ADD VM SCALE SET GALLERY ITEM ############################################################################################################################
+##############################################################################################################################################################
 
 # Create VM Scale Set Marketplace item
 Write-Verbose "Creating VM Scale Set Marketplace Item"
 Add-AzsVMSSGalleryItem -Location local
 
-##############################################################################################################################################################
+#### INSTALL MYSQL RESOURCE PROVIDER #########################################################################################################################
 ##############################################################################################################################################################
 
-# Install MySQL Resource Provider
+# Login to Azure Stack
 Write-Verbose "Downloading and installing MySQL resource provider"
-Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $Azscredential
-Invoke-WebRequest https://aka.ms/azurestackmysqlrp -OutFile "c:\temp\MySql.zip"
-Set-Location C:\Temp
-expand-archive c:\temp\MySql.zip -DestinationPath .\MySQL -Force
-Set-Location C:\Temp\MySQL
-$vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("cloudadmin", $vmLocalAdminPass)
-$PfxPass = ConvertTo-SecureString "$rppassword" -AsPlainText -Force
-.\DeployMySQLProvider.ps1 -AzCredential $Azscredential -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $AZDCredential -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $PfxPass -AcceptLicense
+Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
-# Install SQL Resource Provider
-Write-Verbose "downloading and installing SQL resource provider"
-Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $Azscredential
+# Download and Expand the MySQL RP files
+Invoke-WebRequest https://aka.ms/azurestackmysqlrp -OutFile "$ASDKpath\MySQL.zip" -ErrorAction Stop
+Set-Location $ASDKpath
+Expand-Archive "$ASDKpath\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
+Set-Location "$ASDKpath\MySQL"
+
+# Define the additional credentials for the local virtual machine username/password and certificates password
+$vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
+.\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
+
+#### INSTALL SQL SERVER RESOURCE PROVIDER ####################################################################################################################
+##############################################################################################################################################################
+
+# Login to Azure Stack
+Write-Verbose "Downloading and installing MySQL resource provider"
+Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
+# Download and Expand the SQL Server RP files
 Set-Location C:\Temp
-Invoke-WebRequest https://aka.ms/azurestacksqlrp -OutFile "c:\Temp\sql.zip"
-expand-archive c:\temp\Sql.zip -DestinationPath .\SQL -Force
-Set-Location C:\Temp\SQL
-$vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("cloudadmin", $vmLocalAdminPass)
-$PfxPass = ConvertTo-SecureString "$rppassword" -AsPlainText -Force
-.\DeploySQLProvider.ps1 -AzCredential $Azscredential -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $AZDCredential -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $PfxPass
+Invoke-WebRequest https://aka.ms/azurestacksqlrp -OutFile "$ASDKpath\SQL.zip" -ErrorAction Stop
+Set-Location $ASDKpath
+Expand-Archive "$ASDKpath\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
+Set-Location "$ASDKpath\SQL"
+
+# Define the additional credentials for the local virtual machine username/password and certificates password
+$vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
+.\DeploySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd
+
+#### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
+##############################################################################################################################################################
 
 # Register resources providers
 foreach ($s in (Get-AzureRmSubscription)) {
     Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
     Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
     Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
-} 
+}
+
+#### DEPLOY VMS TO HOST USER DATABASES #######################################################################################################################
+##############################################################################################################################################################
 
 # Deploy a mysql VM for hosting tenant db
 Write-Verbose "Creating a dedicated MySQL host VM for database hosting"
