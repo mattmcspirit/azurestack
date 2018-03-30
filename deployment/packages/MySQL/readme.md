@@ -5,7 +5,7 @@ Instead of using the Azure Stack Portal, you can use PowerShell to deploy the De
 ## Run AzureRM PowerShell cmdlets
 In this example, you run a script to deploy a virtual machine to Azure Stack Development Kit using a Resource Manager template.  Before proceeding, ensure you have [configured PowerShell](https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-configure-admin)  
 
-1. Go to the [MySQL template folder](<DevOpsToolkit.MySQL/DeploymentTemplates>) and grab the mainTemplate.json, saving it to the following location: c:\\templates\\mySQLTemplate.json.
+1. Go to the [MySQL template folder](<AzureStack.MySQL/DeploymentTemplates>) and grab the mainTemplate.json, saving it to the following location: c:\\templates\\mySQLTemplate.json.
 2. In PowerShell, run the following deployment script. Replace *username*, *password* and *mySQlPassword* with your username and password. On subsequent uses, increment the value for the *$myNum* parameter to prevent overwriting your deployment.
    
    ```PowerShell
@@ -39,8 +39,8 @@ In this example, you run a script to deploy a virtual machine to Azure Stack Dev
            -publicIPAddressName mysql_ip$myNum `
            -publicIPAddressDomainNameLabel mysql$myNum `
            -publicIPAddressNewOrExisting new `
-           -scriptBaseUrl "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/scripts/" `
-           -templateBaseUrl "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/packages/MySQL/DevOpsToolkit.MySQL/DeploymentTemplates/"
+           -scriptBaseUrl "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/" `
+           -templateBaseUrl "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/"
    ```
 3. Open the Azure Stack portal, click **Browse**, click **Virtual machines**, and look for your new virtual machine (*mySQLDeployment001*).
 
