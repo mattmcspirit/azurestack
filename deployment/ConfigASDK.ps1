@@ -1245,11 +1245,16 @@ New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location local
 
 # Deploy a MySQL VM for hosting tenant db
 Write-Verbose "Creating a dedicated MySQL host VM for database hosting"
-New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQL/azuredeploy.json -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -vmSize Standard_A2 -windowsOSVersion '2016-Datacenter' -mode Incremental -Verbose
+New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/mainTemplate.json `
+-vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A2 -mode Incremental -Verbose
+
+# Get the FQDN of the VM
+$mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
 
 # Create SKU and add host server to mysql RP - requires fix
-#Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
-#New-AzureRmResourceGroupDeployment -ResourceGroupName mysql-host -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/mysqladapter-add-hosting-server/azuredeploy.json -username "mysqlrpadmin" -password $vmLocalAdminPass -totalSpaceMB 10240 -skuName MySQL57 -Mode Incremental -Verbose
+Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
+New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
+-username "mysqlrpadmin" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName MySQL57 -Mode Incremental -Verbose
 
 # Deploy a SQL 2014 VM for hosting tenant db
 Write-Verbose "Creating a dedicated SQL 2014 host for database hosting"
