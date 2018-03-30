@@ -247,7 +247,7 @@
             "vmSize": "[steps('settings').Compute.vmSize]",
             "adminUsername": "[steps('settings').Compute.adminUsername]",
             "adminPassword": "[steps('settings').Compute.adminPassword.password]",
-            "mySQLPassword": "[steps('mysqlsettings').mySQLPassword.password]",
+            "mySQLPassword": "[steps('mysqlsettings').mySQLPassword]",
             "sshPublicKey": "[steps('settings').Compute.adminPassword.sshPublicKey]",
             "authenticationType": "[steps('settings').Compute.adminPassword.authenticationType]",
             "publicIPAddressName": "[steps('settings').Network.ipAddress.name]",
