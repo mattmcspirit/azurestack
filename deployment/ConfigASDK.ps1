@@ -1171,23 +1171,24 @@ Add-AzsVMSSGalleryItem -Location local
 
 ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-$mySQLPackageName = ""
+$mySQLPackageName = "AzureStack.MySQL.1.0.0"
+$mySQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/AzureStack.MySQL.1.0.0.azpkg"
 Write-Verbose "Checking for the MySQL gallery item"
 if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$mySQLPackageName*"}) {
     Write-Verbose "Found a suitable MySQL Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
 }
 else {
-    Write-Verbose "Didn't find this package: $($azpkg.name)"
+    Write-Verbose "Didn't find this package: $mySQLPackageName"
     Write-Verbose "Will need to side load it in to the gallery"
-    Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
-    $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
+    Write-Verbose "Uploading $mySQLPackageName"
+    $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL
     Start-Sleep -Seconds 5
     $Retries = 0
     # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
     While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-        Write-Verbose "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
-        Write-Verbose "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
-        $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
+        Write-Verbose "$mySQLPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
+        Write-Verbose "Uploading $mySQLPackageName from $mySQLPackageURL"
+        $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL
         Start-Sleep -Seconds 5
     }
 }
