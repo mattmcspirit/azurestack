@@ -29,7 +29,7 @@
         "adminPassword": {
             "type": "securestring"
         },
-        "mySQLPassword": {
+        "msSQLPassword": {
             "type": "securestring"
         },
         "sshPublicKey": {
@@ -119,11 +119,11 @@
                 "autoUpgradeMinorVersion": "true",
                 "settings": {
                     "fileUris": [
-                        "[concat(parameters('scriptBaseUrl'), 'install_MySQL.sh')]"
+                        "[concat(parameters('scriptBaseUrl'), 'install_MSSQL.sh')]"
                     ]
                 },
                 "protectedSettings": {
-                    "commandToExecute": "[concat('bash install_MySQL.sh ', parameters('mySQLPassword'))]"
+                    "commandToExecute": "[concat('bash install_MSSQL.sh ', parameters('msSQLPassword'))]"
                 }
             }
         }

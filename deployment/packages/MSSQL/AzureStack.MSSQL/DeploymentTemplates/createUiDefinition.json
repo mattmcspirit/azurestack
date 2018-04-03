@@ -6,8 +6,8 @@
             {
                 "name": "vmName",
                 "type": "Microsoft.Common.TextBox",
-                "label": "MySQL Virtual Machine Name",
-                "defaultValue": "mysql",
+                "label": "SQL Server Virtual Machine Name",
+                "defaultValue": "sql",
                 "constraints": {
                     "required": true,
                     "regex": "^[a-z0-9]{1,25}$",
@@ -18,8 +18,8 @@
                 "name": "templateBaseUrl",
                 "type": "Microsoft.Common.TextBox",
                 "label": "Template Files URL",
-                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/",
-                "toolTip": "Specify the URL of where the additional MySQL JSON template files can be found",
+                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/AzureStack.MSSQL/DeploymentTemplates/",
+                "toolTip": "Specify the URL of where the additional SQL Server 2017 on Ubuntu Server 16.04 LTS JSON template files can be found",
                 "constraints": {
                     "required": true,
                     "validationMessage": "Please use a correctly formatted URL, ending with the containing folder."
@@ -30,7 +30,7 @@
                 "type": "Microsoft.Common.TextBox",
                 "label": "Script URL",
                 "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
-                "toolTip": "Specify the URL of where the MySQL Custom Script can be found",
+                "toolTip": "Specify the URL of where the SQL Server 2017 on Ubuntu Server 16.04 LTS Custom Script can be found",
                 "constraints": {
                     "required": true,
                     "validationMessage": "Please use a correctly formatted URL, ending with the containing folder."
@@ -56,8 +56,8 @@
                                 "name": "adminUsername",
                                 "type": "Microsoft.Compute.UserNameTextBox",
                                 "label": "Username",
-                                "defaultValue": "mysqladmin",
-                                "toolTip": "Admin username for the MySQL virtual machine",
+                                "defaultValue": "sqladmin",
+                                "toolTip": "Admin username for the SQL Server virtual machine",
                                 "osPlatform": "Linux",
                                 "constraints": {
                                     "required": true
@@ -128,12 +128,12 @@
                                     "domainNameLabel": "DNS label"
                                 },
                                 "toolTip": {
-                                    "publicIpAddress": "Public IP address for the MySQL virtual machine",
-                                    "domainNameLabel": "DNS label for the MySQL virtual machine"
+                                    "publicIpAddress": "Public IP address for the SQL Server 2017 virtual machine",
+                                    "domainNameLabel": "DNS label for the SQL Server 2017 virtual machine"
                                 },
                                 "defaultValue": {
-                                    "publicIpAddressName": "mysql_ip",
-                                    "domainNameLabel": "mysqlvm"
+                                    "publicIpAddressName": "sql_ip",
+                                    "domainNameLabel": "sql"
                                 },
                                 "options": {
                                     "hideNone": true,
@@ -154,10 +154,10 @@
                                 },
                                 "toolTip": {
                                     "virtualNetwork": "Virtual Network Name",
-                                    "subnets": "Subnets requied for the MySQL virtual machine"
+                                    "subnets": "Subnets requied for the SQL Server 2017 virtual machine"
                                 },
                                 "defaultValue": {
-                                    "name": "mysql_vnet",
+                                    "name": "sql_vnet",
                                     "addressPrefixSize": "/24"
                                 },
                                 "constraints": {
@@ -165,9 +165,9 @@
                                 },
                                 "subnets": {
                                     "subnet1": {
-                                        "label": "MySQL subnet",
+                                        "label": "SQL Server subnet",
                                         "defaultValue": {
-                                            "name": "mysql_subnet",
+                                            "name": "sql_subnet",
                                             "addressPrefixSize": "/24"
                                         },
                                         "constraints": {
@@ -192,7 +192,7 @@
                                 "label": "Storage account",
                                 "toolTip": "Storage account for the Virtual Machine disks",
                                 "defaultValue": {
-                                    "name": "[concat('mysqlstor',substring(guid(),0,4))]",
+                                    "name": "[concat('sqlstor',substring(guid(),0,4))]",
                                     "type": "Standard_LRS"
                                 },
                                 "constraints": {
@@ -213,22 +213,22 @@
                 ]
             },
             {
-                "name": "mysqlsettings",
-                "label": "MySQL Settings",
+                "name": "sqlsettings",
+                "label": "SQL Server Settings",
                 "subLabel": {
-                    "preValidation": "Configure MySQL settings",
+                    "preValidation": "Configure SQL Server settings",
                     "postValidation": "Done"
                 },
-                "bladeTitle": "MySQL Settings",
+                "bladeTitle": "SQL Server Settings",
                 "elements": [
                     {
-                        "name": "mySQLPassword",
+                        "name": "msSQLPassword",
                         "type": "Microsoft.Common.PasswordBox",
                         "label": {
-                          "password": "Password for MySQL Database Server",
+                          "password": "Password for SQL Server 2017 Database Server",
                           "confirmPassword": "Confirm password"
                         },
-                        "toolTip": "Password for MySQL Database Server",
+                        "toolTip": "Password for SQL Server 2017 Database Server",
                         "constraints": {
                           "required": true
                         },
@@ -247,7 +247,7 @@
             "vmSize": "[steps('settings').Compute.vmSize]",
             "adminUsername": "[steps('settings').Compute.adminUsername]",
             "adminPassword": "[steps('settings').Compute.adminPassword.password]",
-            "mySQLPassword": "[steps('mysqlsettings').mySQLPassword]",
+            "msSQLPassword": "[steps('sqlsettings').msSQLPassword]",
             "sshPublicKey": "[steps('settings').Compute.adminPassword.sshPublicKey]",
             "authenticationType": "[steps('settings').Compute.adminPassword.authenticationType]",
             "publicIPAddressName": "[steps('settings').Network.ipAddress.name]",

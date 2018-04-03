@@ -4,7 +4,7 @@
     "parameters": {
         "vmName": {
             "type": "string",
-            "defaultValue": "mysql",
+            "defaultValue": "sql",
             "metadata": {
                 "description": "VM Name"
             }
@@ -18,7 +18,7 @@
         },
         "adminUsername": {
             "type": "string",
-            "defaultValue": "mysqladmin",
+            "defaultValue": "sqladmin",
             "metadata": {
                 "description": "Admin user name"
             }
@@ -37,11 +37,11 @@
                 "description": "Admin password"
             }
         },
-        "mySQLPassword": {
+        "msSQLPassword": {
             "type": "securestring",
             "defaultValue": "",
             "metadata": {
-                "description": "Password for MySQL Database Server"
+                "description": "Password for SQL Server 2017 Database Server"
             }
         },
         "sshPublicKey": {
@@ -60,7 +60,7 @@
         },
         "virtualNetworkName": {
             "type": "string",
-            "defaultValue": "mysql_vnet",
+            "defaultValue": "sql_vnet",
             "metadata": {
                 "description": "Virtual Network Name"
             }
@@ -74,7 +74,7 @@
         },
         "virtualNetworkSubnetName": {
             "type": "string",
-            "defaultValue": "mysql_subnet",
+            "defaultValue": "sql_subnet",
             "metadata": {
                 "description": "Virtual Network subnet name"
             }
@@ -95,14 +95,14 @@
         },
         "publicIPAddressName": {
             "type": "string",
-            "defaultValue": "mysql_ip",
+            "defaultValue": "sql_ip",
             "metadata": {
                 "description": "Public IP Address Name"
             }
         },
         "publicIPAddressDomainNameLabel": {
             "type": "string",
-            "defaultValue": "mysql",
+            "defaultValue": "sql",
             "metadata": {
                 "description": "Public IP domain name prefix"
             }
@@ -116,7 +116,7 @@
         },
         "storageAccountName": {
             "type": "string",
-            "defaultValue": "mysqlstor",
+            "defaultValue": "sqlstor",
             "metadata": {
                 "description": "Storage Account Name"
             }
@@ -132,15 +132,15 @@
             "type": "string",
             "metadata": {
                 "artifactsBaseUrl": "",
-                "description": "Specify the URL of where the additional MySQL JSON template files can be found"
+                "description": "Specify the URL of where the additional SQL Server 2017 on Ubuntu Server 16.04 LTS JSON template files can be found"
             },
-            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/"
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/AzureStack.MSSQL/DeploymentTemplates/"
         },
         "scriptBaseUrl": {
             "type": "string",
             "metadata": {
                 "artifactsBaseUrl": "",
-                "description": "Specify the URL of where the MySQL install script can be found"
+                "description": "Specify the URL of where the SQL Server 2017 install script can be found"
             },
             "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
         }
@@ -331,8 +331,8 @@
                     "adminPassword": {
                         "value": "[parameters('adminPassword')]"
                     },
-                    "mySQLPassword": {
-                        "value": "[parameters('mySQLPassword')]"
+                    "msSQLPassword": {
+                        "value": "[parameters('msSQLPassword')]"
                     },
                     "sshPublicKey": {
                         "value": "[parameters('sshPublicKey')]"
@@ -354,17 +354,17 @@
         }
     ],
     "outputs": {
-        "MySQLVMFQDN:": {
+        "SQLVMFQDN:": {
             "value": "[reference('ProvisioningPublicIPs').outputs.fqdn.value]",
             "type": "string"
         },
-        "MySQLAdminUsername ": {
+        "SQLAdminUsername ": {
             "type": "string",
             "value": "[parameters('adminUsername')]"
         },
-        "MySQLDatabaseUsername ": {
+        "SQLDatabaseUsername ": {
             "type": "string",
-            "value": "root"
+            "value": "sa"
         }
     }
 }

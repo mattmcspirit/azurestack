@@ -15,11 +15,11 @@
             "properties": {
                 "securityRules": [
                     {
-                        "name": "mySQL",
+                        "name": "SQL",
                         "properties": {
                             "protocol": "Tcp",
                             "sourcePortRange": "*",
-                            "destinationPortRange": "3306",
+                            "destinationPortRange": "1433",
                             "sourceAddressPrefix": "*",
                             "destinationAddressPrefix": "*",
                             "access": "Allow",
