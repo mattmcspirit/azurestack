@@ -231,9 +231,6 @@
                     },
                     "virtualNetworkSubnetAddressPrefix": {
                         "value": "[parameters('virtualNetworkSubnetAddressPrefix')]"
-                    },
-                    "nsgName": {
-                        "value": "[variables('nsgName')]"
                     }
                 }
             }

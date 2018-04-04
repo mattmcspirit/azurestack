@@ -16,9 +16,6 @@
         },
         "virtualNetworkResourceGroup": {
             "type": "string"
-        },
-        "nsgName": {
-            "type": "string"
         }
     },
     "variables": {
