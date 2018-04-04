@@ -26,5 +26,11 @@ apt-get -y install mysql-server-5.7 mysql-client
 # Reset MySQL Password to match supplied parameter
 mysql -u root -proot -e "use mysql; UPDATE user SET authentication_string=PASSWORD('$1') WHERE User='root'; flush privileges;"
 
-# Optionally allow remote connectivity for the root user
+# Allow remote connectivity for the root user
 # mysql -u root -p$1 -e "use mysql; CREATE USER 'root'@'%' IDENTIFIED BY '$1'; GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$1'; flush privileges;"
+
+# Edit the MySQL Configuration File to allow Remote Connectivity
+sed -i "s/.*bind-address.*/bind-address = 0.0.0.0/" /etc/mysql/mysql.conf.d/mysqld.cnf
+
+# Restart MySQL
+sudo service mysql restart
