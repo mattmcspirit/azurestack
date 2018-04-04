@@ -5,6 +5,9 @@
     "publicIPAddressName": {
       "type": "string"
     },
+    "publicIPAddressDomainNameLabel": {
+      "type": "string"
+    },
     "publicIPAddressResourceGroup": {
       "type": "string",
       "metadata": {
