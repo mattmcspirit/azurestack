@@ -1,0 +1,370 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "vmName": {
+            "type": "string",
+            "defaultValue": "sql",
+            "metadata": {
+                "description": "VM Name"
+            }
+        },
+        "vmSize": {
+            "type": "string",
+            "defaultValue": "Standard_D3_v2",
+            "metadata": {
+                "description": "VM Size"
+            }
+        },
+        "adminUsername": {
+            "type": "string",
+            "defaultValue": "sqladmin",
+            "metadata": {
+                "description": "Admin user name"
+            }
+        },
+        "authenticationType": {
+            "type": "string",
+            "defaultValue": "password",
+            "metadata": {
+                "description": "Authentication Type [password|sshPublicKey]"
+            }
+        },
+        "adminPassword": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Admin password"
+            }
+        },
+        "msSQLPassword": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Password for SQL Server 2017 Database Server"
+            }
+        },
+        "sshPublicKey": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "SSH key"
+            }
+        },
+        "virtualNetworkNewOrExisting": {
+            "type": "string",
+            "defaultValue": "new",
+            "metadata": {
+                "description": "Virtual Network New Or Existing"
+            }
+        },
+        "virtualNetworkName": {
+            "type": "string",
+            "defaultValue": "sql_vnet",
+            "metadata": {
+                "description": "Virtual Network Name"
+            }
+        },
+        "virtualNetworkAddressPrefix": {
+            "type": "string",
+            "defaultValue": "10.0.0.0/16",
+            "metadata": {
+                "description": "Virtual Network Address Prefix"
+            }
+        },
+        "virtualNetworkSubnetName": {
+            "type": "string",
+            "defaultValue": "sql_subnet",
+            "metadata": {
+                "description": "Virtual Network subnet name"
+            }
+        },
+        "virtualNetworkSubnetAddressPrefix": {
+            "type": "string",
+            "defaultValue": "10.0.0.0/24",
+            "metadata": {
+                "description": "Virtual Network subnet address prefix"
+            }
+        },
+        "publicIPAddressNewOrExisting": {
+            "type": "string",
+            "defaultValue": "new",
+            "metadata": {
+                "description": "Public IP Address New or Existing"
+            }
+        },
+        "publicIPAddressName": {
+            "type": "string",
+            "defaultValue": "sql_ip",
+            "metadata": {
+                "description": "Public IP Address Name"
+            }
+        },
+        "publicIPAddressDomainNameLabel": {
+            "type": "string",
+            "defaultValue": "sql",
+            "metadata": {
+                "description": "Public IP domain name prefix"
+            }
+        },
+        "storageAccountNewOrExisting": {
+            "type": "string",
+            "defaultValue": "new",
+            "metadata": {
+                "description": "Storage Account New or Existing"
+            }
+        },
+        "storageAccountName": {
+            "type": "string",
+            "defaultValue": "sqlstor",
+            "metadata": {
+                "description": "Storage Account Name"
+            }
+        },
+        "storageAccountType": {
+            "type": "string",
+            "defaultValue": "Standard_LRS",
+            "metadata": {
+                "description": "Storage Account Type"
+            }
+        },
+        "templateBaseUrl": {
+            "type": "string",
+            "metadata": {
+                "artifactsBaseUrl": "",
+                "description": "Specify the URL of where the additional SQL Server 2017 on Ubuntu Server 16.04 LTS JSON template files can be found"
+            },
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/AzureStack.MSSQL/DeploymentTemplates/"
+        },
+        "scriptBaseUrl": {
+            "type": "string",
+            "metadata": {
+                "artifactsBaseUrl": "",
+                "description": "Specify the URL of where the SQL Server 2017 install script can be found"
+            },
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
+        }
+    },
+    "variables": {
+        "storageAccountResourceGroup": "[resourceGroup().name]",
+        "virtualNetworkResourceGroup": "[resourceGroup().name]",
+        "publicIPAddressResourceGroup": "[resourceGroup().name]",
+        "nsgName": "[toLower(concat(parameters('vmName'), '_nsg'))]",
+        "nicName": "[toLower(concat(parameters('vmName'), '_nic'))]",
+        "imagePublisher": "Canonical",
+        "imageOffer": "UbuntuServer",
+        "imageSku": "16.04-LTS",
+        "imageVersion": "latest",
+        "storageAccountSetupUrl": "[concat(parameters('templateBaseUrl'),'/storage-',parameters('storageAccountNewOrExisting'),'.json')]",
+        "publicIpAddressSetupUrl": "[concat(parameters('templateBaseUrl'),'/publicip-',parameters('publicIPAddressNewOrExisting'),'.json')]",
+        "vnetSetupUrl": "[concat(parameters('templateBaseUrl'),'/vnet-',parameters('virtualNetworkNewOrExisting'),'.json')]",
+        "vmSetupUrl": "[concat(parameters('templateBaseUrl'),'/compute-',parameters('authenticationType'),'.json')]",
+        "networkSecurityGroupSetupUrl": "[concat(parameters('templateBaseUrl'),'/networkSecurityGroup.json')]"
+    },
+    "resources": [
+        {
+            "name": "ProvisioningStorageAccount",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('storageAccountSetupUrl')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "storageAccountType": {
+                        "value": "[parameters('storageAccountType')]"
+                    },
+                    "storageAccountResourceGroup": {
+                        "value": "[variables('storageAccountResourceGroup')]"
+                    },
+                    "storageAccountName": {
+                        "value": "[parameters('storageAccountName')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "ProvisioningNetworkSecurityGroup",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('networkSecurityGroupSetupUrl')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "nsgName": {
+                        "value": "[variables('nsgName')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "ProvisioningVirtualNetwork",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/ProvisioningNetworkSecurityGroup"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('vnetSetupUrl')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualNetworkName": {
+                        "value": "[parameters('virtualNetworkName')]"
+                    },
+                    "virtualNetworkResourceGroup": {
+                        "value": "[variables('virtualNetworkResourceGroup')]"
+                    },
+                    "virtualNetworkAddressPrefix": {
+                        "value": "[parameters('virtualNetworkAddressPrefix')]"
+                    },
+                    "virtualNetworkSubnetName": {
+                        "value": "[parameters('virtualNetworkSubnetName')]"
+                    },
+                    "virtualNetworkSubnetAddressPrefix": {
+                        "value": "[parameters('virtualNetworkSubnetAddressPrefix')]"
+                    },
+                    "nsgName": {
+                        "value": "[variables('nsgName')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "ProvisioningPublicIPs",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('publicIpAddressSetupUrl')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "publicIPAddressName": {
+                        "value": "[parameters('publicIPAddressName')]"
+                    },
+                    "publicIPAddressResourceGroup": {
+                        "value": "[variables('publicIPAddressResourceGroup')]"
+                    },
+                    "publicIPAddressDomainNameLabel": {
+                        "value": "[parameters('publicIPAddressDomainNameLabel')]"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[variables('nicName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/ProvisioningPublicIPs",
+                "Microsoft.Resources/deployments/ProvisioningVirtualNetwork",
+                "Microsoft.Resources/deployments/ProvisioningNetworkSecurityGroup"
+            ],
+            "properties": {
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups',variables('nsgName'))]"
+                },
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[reference('ProvisioningPublicIPs').outputs.publicIpId.value]"
+                            },
+                            "subnet": {
+                                "id": "[reference('ProvisioningVirtualNetwork').outputs.subnetRef.value]"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "ProvisioningVirtualMachine",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/ProvisioningStorageAccount",
+                "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('vmSetupUrl')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "vmName": {
+                        "value": "[parameters('vmName')]"
+                    },
+                    "vmSize": {
+                        "value": "[parameters('vmSize')]"
+                    },
+                    "imagePublisher": {
+                        "value": "[variables('imagePublisher')]"
+                    },
+                    "imageOffer": {
+                        "value": "[variables('imageOffer')]"
+                    },
+                    "imageSku": {
+                        "value": "[variables('imageSku')]"
+                    },
+                    "imageVersion": {
+                        "value": "[variables('imageVersion')]"
+                    },
+                    "adminUserName": {
+                        "value": "[parameters('adminUserName')]"
+                    },
+                    "adminPassword": {
+                        "value": "[parameters('adminPassword')]"
+                    },
+                    "msSQLPassword": {
+                        "value": "[parameters('msSQLPassword')]"
+                    },
+                    "sshPublicKey": {
+                        "value": "[parameters('sshPublicKey')]"
+                    },
+                    "storageAccountName": {
+                        "value": "[parameters('storageAccountName')]"
+                    },
+                    "storageAccountResourceGroup": {
+                        "value": "[variables('storageAccountResourceGroup')]"
+                    },
+                    "nicName": {
+                        "value": "[variables('nicName')]"
+                    },
+                    "scriptBaseUrl": {
+                        "value": "[parameters('scriptBaseUrl')]"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "SQLVMFQDN:": {
+            "value": "[reference('ProvisioningPublicIPs').outputs.fqdn.value]",
+            "type": "string"
+        },
+        "SQLAdminUsername ": {
+            "type": "string",
+            "value": "[parameters('adminUsername')]"
+        },
+        "SQLDatabaseUsername ": {
+            "type": "string",
+            "value": "sa"
+        }
+    }
+}

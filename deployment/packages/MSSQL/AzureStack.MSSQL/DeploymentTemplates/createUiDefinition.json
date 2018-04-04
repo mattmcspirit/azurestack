@@ -1,0 +1,266 @@
+{
+    "handler": "Microsoft.Compute.MultiVm",
+    "version": "0.1.2-preview",
+    "parameters": {
+        "basics": [
+            {
+                "name": "vmName",
+                "type": "Microsoft.Common.TextBox",
+                "label": "SQL Server Virtual Machine Name",
+                "defaultValue": "sql",
+                "constraints": {
+                    "required": true,
+                    "regex": "^[a-z0-9]{1,25}$",
+                    "validationMessage": "Only lowercase letters and numbers are allowed, and the value must be 1-25 characters long."
+                }
+            },
+            {
+                "name": "templateBaseUrl",
+                "type": "Microsoft.Common.TextBox",
+                "label": "Template Files URL",
+                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/AzureStack.MSSQL/DeploymentTemplates/",
+                "toolTip": "Specify the URL of where the additional SQL Server 2017 on Ubuntu Server 16.04 LTS JSON template files can be found",
+                "constraints": {
+                    "required": true,
+                    "validationMessage": "Please use a correctly formatted URL, ending with the containing folder."
+                }
+            },
+            {
+                "name": "scriptBaseUrl",
+                "type": "Microsoft.Common.TextBox",
+                "label": "Script URL",
+                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
+                "toolTip": "Specify the URL of where the SQL Server 2017 on Ubuntu Server 16.04 LTS Custom Script can be found",
+                "constraints": {
+                    "required": true,
+                    "validationMessage": "Please use a correctly formatted URL, ending with the containing folder."
+                }
+            }
+        ],
+        "steps": [
+            {
+                "name": "settings",
+                "label": "Infrastructure Settings",
+                "subLabel": {
+                    "preValidation": "Configure infrastructure settings",
+                    "postValidation": "Done"
+                },
+                "bladeTitle": "Infrastructure Settings",
+                "elements": [
+                    {
+                        "name": "Compute",
+                        "type": "Microsoft.Common.Section",
+                        "label": "Compute",
+                        "elements": [
+                            {
+                                "name": "adminUsername",
+                                "type": "Microsoft.Compute.UserNameTextBox",
+                                "label": "Username",
+                                "defaultValue": "sqladmin",
+                                "toolTip": "Admin username for the SQL Server virtual machine",
+                                "osPlatform": "Linux",
+                                "constraints": {
+                                    "required": true
+                                }
+                            },
+                            {
+                                "name": "adminPassword",
+                                "type": "Microsoft.Compute.CredentialsCombo",
+                                "label": {
+                                    "authenticationType": "Authentication type",
+                                    "password": "Password",
+                                    "confirmPassword": "Confirm password",
+                                    "sshPublicKey": "SSH public key"
+                                },
+                                "toolTip": {
+                                    "authenticationType": "Authentication Type for the Virtual Machine",
+                                    "password": "Password for the Virtual Machine",
+                                    "sshPublicKey": "SSH Public Key for the Virtual Machine"
+                                },
+                                "constraints": {
+                                    "required": true
+                                },
+                                "options": {
+                                    "hideConfirmation": false,
+                                    "hidePassword": false
+                                },
+                                "osPlatform": "Linux",
+                                "visible": true
+                            },
+                            {
+                                "name": "vmSize",
+                                "type": "Microsoft.Compute.SizeSelector",
+                                "label": "Virtual Machine Size",
+                                "toolTip": "The size of virtual machine to provision.",
+                                "recommendedSizes": [
+                                    "Standard_D2_v2",
+                                    "Standard_D3",
+                                    "Standard_DS3"
+                                ],
+                                "constraints": {
+                                    "allowedSizes": [],
+                                    "excludedSizes": [
+                                        "Standard_A0",
+                                        "Standard_A1",
+                                        "Basic_A0",
+                                        "Basic_A1",
+                                        "Basic_A2",
+                                        "Basic_A3",
+                                        "Basic_A5"
+                                    ]
+                                },
+                                "osPlatform": "Linux",
+                                "visible": true
+                            }
+                        ],
+                        "visible": true
+                    },
+                    {
+                        "name": "Network",
+                        "type": "Microsoft.Common.Section",
+                        "label": "Network",
+                        "elements": [
+                            {
+                                "name": "ipAddress",
+                                "type": "Microsoft.Network.PublicIpAddressCombo",
+                                "label": {
+                                    "publicIpAddress": "Public IP address",
+                                    "domainNameLabel": "DNS label"
+                                },
+                                "toolTip": {
+                                    "publicIpAddress": "Public IP address for the SQL Server 2017 virtual machine",
+                                    "domainNameLabel": "DNS label for the SQL Server 2017 virtual machine"
+                                },
+                                "defaultValue": {
+                                    "publicIpAddressName": "sql_ip",
+                                    "domainNameLabel": "sql"
+                                },
+                                "options": {
+                                    "hideNone": true,
+                                    "hideDomainNameLabel": false
+                                },
+                                "constraints": {
+                                    "required": {
+                                        "domainNameLabel": true
+                                    }
+                                }
+                            },
+                            {
+                                "name": "virtualNetwork",
+                                "type": "Microsoft.Network.VirtualNetworkCombo",
+                                "label": {
+                                    "virtualNetwork": "Virtual network",
+                                    "subnets": "Subnets"
+                                },
+                                "toolTip": {
+                                    "virtualNetwork": "Virtual Network Name",
+                                    "subnets": "Subnets requied for the SQL Server 2017 virtual machine"
+                                },
+                                "defaultValue": {
+                                    "name": "sql_vnet",
+                                    "addressPrefixSize": "/24"
+                                },
+                                "constraints": {
+                                    "minAddressPrefixSize": "/24"
+                                },
+                                "subnets": {
+                                    "subnet1": {
+                                        "label": "SQL Server subnet",
+                                        "defaultValue": {
+                                            "name": "sql_subnet",
+                                            "addressPrefixSize": "/24"
+                                        },
+                                        "constraints": {
+                                            "minAddressPrefixSize": "/24",
+                                            "minAddressCount": 12,
+                                            "requireContiguousAddresses": false
+                                        }
+                                    }
+                                }
+                            }
+                        ],
+                        "visible": true
+                    },
+                    {
+                        "name": "Storage",
+                        "type": "Microsoft.Common.Section",
+                        "label": "Storage",
+                        "elements": [
+                            {
+                                "name": "storageAccount",
+                                "type": "Microsoft.Storage.StorageAccountSelector",
+                                "label": "Storage account",
+                                "toolTip": "Storage account for the Virtual Machine disks",
+                                "defaultValue": {
+                                    "name": "[concat('sqlstor',substring(guid(),0,4))]",
+                                    "type": "Standard_LRS"
+                                },
+                                "constraints": {
+                                    "allowedTypes": [
+                                        "Standard_LRS",
+                                        "Premium_LRS"
+                                    ],
+                                    "excludedTypes": []
+                                },
+                                "options": {
+                                    "hideExisting": false
+                                },
+                                "visible": true
+                            }
+                        ],
+                        "visible": true
+                    }
+                ]
+            },
+            {
+                "name": "sqlsettings",
+                "label": "SQL Server Settings",
+                "subLabel": {
+                    "preValidation": "Configure SQL Server settings",
+                    "postValidation": "Done"
+                },
+                "bladeTitle": "SQL Server Settings",
+                "elements": [
+                    {
+                        "name": "msSQLPassword",
+                        "type": "Microsoft.Common.PasswordBox",
+                        "label": {
+                          "password": "Password for SQL Server 2017 Database Server",
+                          "confirmPassword": "Confirm password"
+                        },
+                        "toolTip": "Password for SQL Server 2017 Database Server",
+                        "constraints": {
+                          "required": true
+                        },
+                        "options": {
+                          "hideConfirmation": false
+                        },
+                        "visible": true
+                      }
+                    ]
+            }
+        ],
+        "outputs": {
+            "vmName": "[steps('basicsStep').vmName]",
+            "templateBaseUrl": "[steps('basicsStep').templateBaseUrl]",
+            "scriptBaseUrl": "[steps('basicsStep').scriptBaseUrl]",
+            "vmSize": "[steps('settings').Compute.vmSize]",
+            "adminUsername": "[steps('settings').Compute.adminUsername]",
+            "adminPassword": "[steps('settings').Compute.adminPassword.password]",
+            "msSQLPassword": "[steps('sqlsettings').msSQLPassword]",
+            "sshPublicKey": "[steps('settings').Compute.adminPassword.sshPublicKey]",
+            "authenticationType": "[steps('settings').Compute.adminPassword.authenticationType]",
+            "publicIPAddressName": "[steps('settings').Network.ipAddress.name]",
+            "publicIPAddressDomainNameLabel": "[steps('settings').Network.ipAddress.domainNameLabel]",
+            "publicIPAddressNewOrExisting": "[steps('settings').Network.ipAddress.newOrExistingOrNone]",
+            "virtualNetworkAddressPrefix": "[steps('settings').Network.virtualNetwork.addressPrefix]",
+            "virtualNetworkName": "[steps('settings').Network.virtualNetwork.name]",
+            "virtualNetworkNewOrExisting": "[steps('settings').Network.virtualNetwork.newOrExisting]",
+            "virtualNetworkSubnetName": "[steps('settings').Network.virtualNetwork.subnets.subnet1.name]",
+            "virtualNetworkSubnetAddressPrefix": "[steps('settings').Network.virtualNetwork.subnets.subnet1.addressPrefix]",
+            "storageAccountName": "[steps('settings').Storage.storageAccount.name]",
+            "storageAccountType": "[steps('settings').Storage.storageAccount.type]",
+            "storageAccountNewOrExisting": "[steps('settings').Storage.storageAccount.newOrExisting]"
+        }
+    }
+}

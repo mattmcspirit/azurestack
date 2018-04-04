@@ -1281,7 +1281,7 @@ Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"}
 
 # Set the variables and gather token for creating the SKU & Quota
 $mySqlSkuFamily = "MySQL"
-$mySqlSkuName = "MySQL59"
+$mySqlSkuName = "MySQL57"
 $mySqlSkuTier = "Standalone"
 $mySqlLocation = "local"
 $mySqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
@@ -1465,35 +1465,52 @@ catch {
 Write-Verbose "Creating a dedicated Resource Group for all database hosting assets"
 New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location local
 
+### Deploy the MySQL VM ###
+
 # Deploy a MySQL VM for hosting tenant db
-Write-Verbose "Creating a dedicated MySQL host VM for database hosting"
+Write-Verbose "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
 New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/mainTemplate.json `
-    -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A2 -mode Incremental -Verbose
+    -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd `
+    -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose
 
 # Get the FQDN of the VM
 $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
 
-# Create SKU and add host server to mysql RP - requires fix
+# Add host server to MySQL RP
 Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
 New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
     -username "mysqlrpadmin" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName MySQL57 -Mode Incremental -Verbose
 
-# Deploy a SQL 2014 VM for hosting tenant db
-Write-Verbose "Creating a dedicated SQL 2014 host for database hosting"
-New-AzureRmResourceGroup -Name SQL-Host -Location local
-New-AzureRmResourceGroupDeployment -Name sqlhost1 -ResourceGroupName SQL-Host -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/SQL2014/azuredeploy.json -adminPassword $vmlocaladminpass -adminUsername "cloudadmin" -windowsOSVersion "2016-Datacenter" -Mode Incremental -Verbose
+### Deploy the MSSQL VM ###
 
-# Create SKU and add host server to sql RP - requires fix
-#Write-Verbose "Attaching SQL hosting server to SQL resource provider"
-#New-AzureRmResourceGroupDeployment -ResourceGroupName sql-host -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/sqladapter-add-hosting-server/azuredeploy.json -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $vmLocalAdminPass -totalSpaceMB 10240 -skuName SQL2014 -Mode Incremental -Verbose
+# Deploy a SQL Server 2017 on Ubuntu VM for hosting tenant db
+Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
+New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/AzureStack.MSSQL/DeploymentTemplates/mainTemplate.json `
+    -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd `
+    -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose
 
-# deploy prerequisites for app service
-Write-Verbose "deploying file server"
-New-AzureRmResourceGroup -Name appservice-fileshare -Location local
-New-AzureRmResourceGroupDeployment -Name fileshareserver -ResourceGroupName appservice-fileshare -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/appservice-fileserver-standalone/azuredeploy.json -adminPassword $vmLocalAdminPass -fileShareOwnerPassword $vmLocalAdminPass -fileShareUserPassword $vmLocalAdminPass -Mode Incremental -Verbose 
-Write-Verbose "deploying sql server for appservice"
-New-AzureRmResourceGroup -Name appservice-sql -Location local
-New-AzureRmResourceGroupDeployment -Name sqlapp -ResourceGroupName appservice-sql -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/SQL2014/azuredeploy.json -adminPassword $vmlocaladminpass -adminUsername "cloudadmin" -windowsOSVersion "2016-Datacenter" -vmName "sqlapp" -dnsNameForPublicIP "sqlapp" -Mode Incremental -Verbose
+# Get the FQDN of the VM
+$sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
+
+# Add host server to SQL Server RP
+Write-Verbose "Attaching SQL Server 2017 hosting server to SQL Server resource provider"
+New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/sqladapter-add-hosting-server/azuredeploy.json `
+    -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 10240 -skuName SQL2017 -Mode Incremental -Verbose
+
+#### DEPLOY APP SERVICE ######################################################################################################################################
+##############################################################################################################################################################
+
+### Deploy File Server ###
+Write-Verbose "Deploying Windows Server 2016 File Server"
+New-AzureRmResourceGroup -Name "appservice-fileshare" -Location local
+New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/appservice-fileserver-standalone/azuredeploy.json `
+-adminPassword $vmLocalAdminPass -fileShareOwnerPassword $vmLocalAdminPass -fileShareUserPassword $vmLocalAdminPass -Mode Incremental -Verbose 
+
+### Deploy SQL Server for App Service ###
+Write-Verbose "Deploying SQL Server for App Service"
+New-AzureRmResourceGroup -Name "appservice-sql" -Location local
+New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/SQL2014/azuredeploy.json `
+-adminPassword $vmlocaladminpass -adminUsername "cloudadmin" -windowsOSVersion "2016-Datacenter" -vmName "sqlapp" -dnsNameForPublicIP "sqlapp" -Mode Incremental -Verbose
 
 # install App Service To be added
 Write-Verbose "downloading appservice installer"
