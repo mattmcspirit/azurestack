@@ -1281,7 +1281,7 @@ Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"}
 
 # Set the variables and gather token for creating the SKU & Quota
 $mySqlSkuFamily = "MySQL"
-$mySqlSkuName = "MySQL59"
+$mySqlSkuName = "MySQL57"
 $mySqlSkuTier = "Standalone"
 $mySqlLocation = "local"
 $mySqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
@@ -1476,7 +1476,7 @@ New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurest
 # Get the FQDN of the VM
 $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
 
-# Create SKU and add host server to mysql RP
+# Add host server to MySQL RP
 Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
 New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
     -username "mysqlrpadmin" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName MySQL57 -Mode Incremental -Verbose
@@ -1492,7 +1492,7 @@ New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestac
 # Get the FQDN of the VM
 $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
 
-# Create SKU and add host server to sql RP
+# Add host server to SQL Server RP
 Write-Verbose "Attaching SQL Server 2017 hosting server to SQL Server resource provider"
 New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/sqladapter-add-hosting-server/azuredeploy.json `
     -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 10240 -skuName SQL2017 -Mode Incremental -Verbose
