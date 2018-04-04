@@ -1486,7 +1486,7 @@ New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -Te
 # Deploy a SQL Server 2017 on Ubuntu VM for hosting tenant db
 Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
 New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/AzureStack.MSSQL/DeploymentTemplates/mainTemplate.json `
-    -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd `
+    -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
     -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose
 
 # Get the FQDN of the VM

@@ -5,10 +5,19 @@
         "virtualNetworkName": {
             "type": "string"
         },
+        "virtualNetworkAddressPrefix": {
+            "type": "string"
+        },
         "virtualNetworkSubnetName": {
             "type": "string"
         },
+        "virtualNetworkSubnetAddressPrefix": {
+            "type": "string"
+        },
         "virtualNetworkResourceGroup": {
+            "type": "string"
+        },
+        "nsgName": {
             "type": "string"
         }
     },
