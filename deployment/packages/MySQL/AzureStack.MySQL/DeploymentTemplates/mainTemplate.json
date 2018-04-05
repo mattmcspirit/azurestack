@@ -131,6 +131,10 @@
         "allowRemoteConnections": {
             "type": "string",
             "defaultValue": "No",
+            "allowedValues": [
+                "Yes",
+                "No"
+            ],
             "metadata": {
                 "description": "Choose to allow remote connections for MySQL Database Server"
             }
