@@ -1180,8 +1180,8 @@ Add-AzsVMSSGalleryItem -Location local
 
 ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-$mySQLPackageName = "AzureStack.MySQL.1.0.0"
-$mySQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/AzureStack.MySQL.1.0.0.azpkg"
+$mySQLPackageName = "ASDK.MySQL.1.0.0"
+$mySQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
 Write-Verbose "Checking for the MySQL gallery item"
 if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$mySQLPackageName*"}) {
     Write-Verbose "Found a suitable MySQL Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
@@ -1207,8 +1207,8 @@ else {
 
 ### Login to Azure Stack, then confirm if the SQL Server 2017 Gallery Item is already present ###
 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-$MSSQLPackageName = "AzureStack.MSSQL.1.0.0"
-$MSSQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/AzureStack.MSSQL.1.0.0.azpkg"
+$MSSQLPackageName = "ASDK.MSSQL.1.0.0"
+$MSSQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
 Write-Verbose "Checking for the SQL Server 2017 gallery item"
 if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$MSSQLPackageName*"}) {
     Write-Verbose "Found a suitable MySQL Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
@@ -1469,7 +1469,7 @@ New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location local
 
 # Deploy a MySQL VM for hosting tenant db
 Write-Verbose "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
-New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/mainTemplate.json `
+New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json `
     -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
     -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose
 
@@ -1485,7 +1485,7 @@ New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -Te
 
 # Deploy a SQL Server 2017 on Ubuntu VM for hosting tenant db
 Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
-New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/AzureStack.MSSQL/DeploymentTemplates/mainTemplate.json `
+New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
     -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
     -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose
 
@@ -1495,7 +1495,7 @@ $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azures
 # Add host server to SQL Server RP
 Write-Verbose "Attaching SQL Server 2017 hosting server to SQL Server resource provider"
 New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/sqladapter-add-hosting-server/azuredeploy.json `
-    -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 10240 -skuName SQL2017 -Mode Incremental -Verbose
+    -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 10240 -skuName $msSqlSkuName -Mode Incremental -Verbose
 
 #### DEPLOY APP SERVICE ######################################################################################################################################
 ##############################################################################################################################################################
@@ -1524,8 +1524,8 @@ Set-Location C:\Temp\AppService
 .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $AZDCredential
 
 # Configure a simple base plan and offer for IaaS
-Import-Module C:\AzureStack-Tools\Connect\AzureStack.Connect.psm1
-Import-Module C:\AzureStack-Tools\ServiceAdmin\AzureStack.ServiceAdmin.psm1
+Import-Module $modulePath\Connect\AzureStack.Connect.psm1
+Import-Module $modulePath\ServiceAdmin\AzureStack.ServiceAdmin.psm1
 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $Azscredential
 
 # Default quotas, plan, and offer
