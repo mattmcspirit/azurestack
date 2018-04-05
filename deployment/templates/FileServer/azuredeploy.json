@@ -75,21 +75,21 @@
     }
   },
   "variables": {
-    "scenarioPrefix": "FileServer",
+    "scenarioPrefix": "fileserver",
 
     "powershell_fileShareOwner": "[concat('base64:', base64(parameters('fileShareOwner')))]",
     "powershell_fileShareOwnerPassword": "[concat('base64:', base64(parameters('fileShareOwnerPassword')))]",
     "powershell_fileShareUser": "[concat('base64:', base64(parameters('fileShareUser')))]",
     "powershell_fileShareUserPassword": "[concat('base64:', base64(parameters('fileShareUserPassword')))]",
 
-    "publicIPAddressName": "[concat(variables('scenarioPrefix'),'PublicIp')]",
+    "publicIPAddressName": "[concat(variables('scenarioPrefix'),'_ip')]",
     "publicIPAddressType": "Static",
 
-    "virtualNetworkName": "[concat(variables('scenarioPrefix'),'Vnet')]",
+    "virtualNetworkName": "[concat(variables('scenarioPrefix'),'_vnet')]",
     "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('virtualNetworkName'))]",
     "vnetAddressPrefix": "10.100.0.0/16",
 
-    "subnetName": "[concat(variables('scenarioPrefix'),'Subnet')]",
+    "subnetName": "[concat(variables('scenarioPrefix'),'_subnet')]",
     "subnetRef": "[concat(variables('vnetID'),'/subnets/',variables('subnetName'))]",
     "subnetPrefix": "10.100.0.0/24",
 
@@ -103,8 +103,8 @@
     "namingInfix": "[toLower(take(trim(variables('scenarioPrefix')), 10))]",
     "storageAccountName": "[concat(variables('namingInfix'), variables('uniqueStorageString'))]",
 
-    "nicName": "[concat(variables('scenarioPrefix'),'Nic')]",
-    "vmName": "[concat(variables('scenarioPrefix'),'VM')]"
+    "nicName": "[concat(variables('scenarioPrefix'),'_nic')]",
+    "vmName": "[concat(variables('scenarioPrefix'),'_vm')]"
   },
   "resources": [
     {
@@ -183,7 +183,7 @@
       "name": "[variables('vmName')]",
       "location": "[resourceGroup().location]",
       "tags": {
-        "displayName": "Standalone file server Virtual Machines"
+        "displayName": "Standalone file server virtual machines"
       },
       "dependsOn": [
         "[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",

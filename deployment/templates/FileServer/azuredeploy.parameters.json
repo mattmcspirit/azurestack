@@ -5,9 +5,6 @@
         "fileServerVirtualMachineSize": {
             "value": "Standard_A2"
         },
-        "imageReference": {
-            "value": "MicrosoftWindowsServer | WindowsServer | 2016-Datacenter | latest"
-        },
         "dnsNameForPublicIP": {
             "value": "appservicefileshare"
         },
