@@ -1,6 +1,6 @@
 {
-  "displayName": "MSSQL",
-  "publisherDisplayName": "Azure Stack",
+  "displayName": "SQL Server 2017 Eval on Ubuntu Server 16.04 LTS",
+  "publisherDisplayName": "ASDK",
   "summary": "Latest version of SQL Server 2017 Evaluation Edition on an Ubuntu Server 16.04-LTS VM, pre-configured and ready to run on Azure Stack",
   "longSummary": "Latest version of SQL Server 2017 Evaluation Edition on an Ubuntu Server 16.04-LTS VM, pre-configured and ready to run on Azure Stack",
   "description": "<p>SQL Server 2017 represents a major step towards making SQL Server a platform that gives you choices of development languages, data types, on-premises or cloud, and operating systems by bringing the power of SQL Server to Linux, Linux-based Docker containers, and Windows. For a comprehensive list of the components included in Evaluation edition on Linux go to http://docs.microsoft.com/en-us/sql/linux/sql-server-linux-editions-and-components-2017. We recommend that you use a virtual machine size of DS13 or higher.</p><p><b>Please Note - </b>This deployment will go through a number of steps. Firstly, the Ubuntu Server 16.04-LTS virtual machine will be deployed. Towards the end of the deployment, a <a href='https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/install_MSSQL.sh' target='_blank'>custom bash script</a> will be executed which will install the latest stable SQL Server 2017 database server</p><p>Once you have completed the deployment, view the Outputs in the deployment blade to access the FQDN and admin accounts, which you can use to SSH to the virtual machine for further customization.</p><p>For more information, and to continue learning about SQL Server 2017 on Linux, review the links below.</p>",
