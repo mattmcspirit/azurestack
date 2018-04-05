@@ -225,19 +225,39 @@
                         "name": "mySQLPassword",
                         "type": "Microsoft.Common.PasswordBox",
                         "label": {
-                          "password": "Password for MySQL Database Server",
-                          "confirmPassword": "Confirm password"
+                            "password": "Password for MySQL Database Server",
+                            "confirmPassword": "Confirm password"
                         },
                         "toolTip": "Password for MySQL Database Server",
                         "constraints": {
-                          "required": true
+                            "required": true
                         },
                         "options": {
-                          "hideConfirmation": false
+                            "hideConfirmation": false
                         },
                         "visible": true
-                      }
-                    ]
+                    },
+                    {
+                        "name": "allowRemoteConnections",
+                        "type": "Microsoft.Common.OptionsGroup",
+                        "label": "Allow Remote Connections?",
+                        "defaultValue": "No",
+                        "toolTip": "Choose to allow remote connections to the MySQL database server for the root account",
+                        "constraints": {
+                            "allowedValues": [
+                                {
+                                    "label": "Yes",
+                                    "value": "Yes"
+                                },
+                                {
+                                    "label": "No",
+                                    "value": "No"
+                                }
+                            ]
+                        },
+                        "visible": true
+                    }
+                ]
             }
         ],
         "outputs": {
@@ -248,6 +268,7 @@
             "adminUsername": "[steps('settings').Compute.adminUsername]",
             "adminPassword": "[steps('settings').Compute.adminPassword.password]",
             "mySQLPassword": "[steps('mysqlsettings').mySQLPassword]",
+            "allowRemoteConnections": "[steps('mysqlsettings').allowRemoteConnections]",
             "sshPublicKey": "[steps('settings').Compute.adminPassword.sshPublicKey]",
             "authenticationType": "[steps('settings').Compute.adminPassword.authenticationType]",
             "publicIPAddressName": "[steps('settings').Network.ipAddress.name]",

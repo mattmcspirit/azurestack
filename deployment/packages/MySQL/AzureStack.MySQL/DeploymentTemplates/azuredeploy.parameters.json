@@ -59,6 +59,9 @@
     "resourceGroupName": {
       "value": ""
     },
+    "allowRemoteConnections": {
+      "value": "No"
+    },
     "templateBaseUrl": {
       "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/"
     },

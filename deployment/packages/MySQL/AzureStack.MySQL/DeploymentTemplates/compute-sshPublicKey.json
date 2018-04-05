@@ -32,6 +32,9 @@
         "mySQLPassword": {
             "type": "securestring"
         },
+        "allowRemoteConnections": {
+            "type": "string"
+        },
         "sshPublicKey": {
             "type": "securestring"
         },
@@ -123,7 +126,7 @@
                     ]
                 },
                 "protectedSettings": {
-                    "commandToExecute": "[concat('bash install_MySQL.sh ', parameters('mySQLPassword'))]"
+                    "commandToExecute": "[concat('bash install_MySQL.sh ', parameters('mySQLPassword'), parameters('allowRemoteConnections'))]"
                 }
             }
         }
