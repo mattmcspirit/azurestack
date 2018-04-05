@@ -1373,7 +1373,7 @@ Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"}
 
 # Set the variables and gather token for creating the SKU & Quota
 $mySqlSkuFamily = "MySQL"
-$mySqlSkuName = "MySQL59"
+$mySqlSkuName = "MySQL57"
 $mySqlSkuTier = "Standalone"
 $mySqlLocation = "local"
 $mySqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
@@ -1470,7 +1470,7 @@ New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location local
 # Deploy a MySQL VM for hosting tenant db
 Write-Verbose "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
 New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/mainTemplate.json `
-    -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd `
+    -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
     -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose
 
 # Get the FQDN of the VM
@@ -1479,7 +1479,7 @@ $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "az
 # Add host server to MySQL RP
 Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
 New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
-    -username "mysqlrpadmin" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName MySQL57 -Mode Incremental -Verbose
+    -username "mysqlrpadmin" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName $mySqlSkuName -Mode Incremental -Verbose
 
 ### Deploy the MSSQL VM ###
 
