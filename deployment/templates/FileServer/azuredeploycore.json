@@ -96,7 +96,7 @@
     "subnetPrefix": "10.100.0.0/24",
     "publisher": "MicrosoftWindowsServer",
     "offer": "WindowsServer",
-    "sku": "2016-Datacenter-Core",
+    "sku": "2016-Datacenter-Server-Core",
     "version": "latest",
     "storageAccountType": "Standard_LRS",
     "uniqueStorageString": "[uniqueString(toLower(resourceGroup().id),parameters('vmName'))]",
