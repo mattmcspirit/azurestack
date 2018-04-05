@@ -2,6 +2,13 @@
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
+    "vmName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the Virtual Machine. Limit 15 characters. (Reference: https://support.microsoft.com/en-us/kb/909264)"
+      },
+      "defaultValue": "fileserver"
+    },
     "fileServerVirtualMachineSize": {
       "type": "string",
       "defaultValue": "Standard_A2",
@@ -76,33 +83,26 @@
   },
   "variables": {
     "scenarioPrefix": "fileserver",
-
     "powershell_fileShareOwner": "[concat('base64:', base64(parameters('fileShareOwner')))]",
     "powershell_fileShareOwnerPassword": "[concat('base64:', base64(parameters('fileShareOwnerPassword')))]",
     "powershell_fileShareUser": "[concat('base64:', base64(parameters('fileShareUser')))]",
     "powershell_fileShareUserPassword": "[concat('base64:', base64(parameters('fileShareUserPassword')))]",
-
     "publicIPAddressName": "[concat(variables('scenarioPrefix'),'_ip')]",
     "publicIPAddressType": "Static",
-
     "virtualNetworkName": "[concat(variables('scenarioPrefix'),'_vnet')]",
     "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('virtualNetworkName'))]",
     "vnetAddressPrefix": "10.100.0.0/16",
-
     "subnetName": "[concat(variables('scenarioPrefix'),'_subnet')]",
     "subnetRef": "[concat(variables('vnetID'),'/subnets/',variables('subnetName'))]",
     "subnetPrefix": "10.100.0.0/24",
-
     "publisher": "MicrosoftWindowsServer",
     "offer": "WindowsServer",
     "sku": "2016-Datacenter-Core",
     "version": "latest",
-
     "storageAccountType": "Standard_LRS",
     "uniqueStorageString": "[uniqueString(toLower(resourceGroup().id),variables('scenarioPrefix'))]",
     "namingInfix": "[toLower(take(trim(variables('scenarioPrefix')), 10))]",
     "storageAccountName": "[concat(variables('namingInfix'), variables('uniqueStorageString'))]",
-
     "nicName": "[concat(variables('scenarioPrefix'),'_nic')]",
     "vmName": "[concat(variables('scenarioPrefix'),'_vm')]"
   },
@@ -176,7 +176,6 @@
         ]
       }
     },
-
     {
       "apiVersion": "2015-06-15",
       "type": "Microsoft.Compute/virtualMachines",
@@ -194,7 +193,7 @@
           "vmSize": "[parameters('fileServerVirtualMachineSize')]"
         },
         "osProfile": {
-          "computerName": "[variables('vmName')]",
+          "computerName": "[parameters('vmName')]",
           "adminUsername": "[parameters('adminUsername')]",
           "adminPassword": "[parameters('adminPassword')]"
         },
