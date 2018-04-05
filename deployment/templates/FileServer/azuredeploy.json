@@ -19,16 +19,6 @@
         "description": "Size of vm"
       }
     },
-    "imageReference": {
-      "type": "string",
-      "defaultValue": "MicrosoftWindowsServer | WindowsServer | 2016-Datacenter | latest",
-      "allowedValues": [
-        "MicrosoftWindowsServer | WindowsServer | 2016-Datacenter | latest"
-      ],
-      "metadata": {
-        "description": "Please ensure the image is available. publisher: MicrosoftWindowsServer | offer: WindowsServer | sku: 2016-Datacenter"
-      }
-    },
     "dnsNameForPublicIP": {
       "type": "string",
       "defaultValue": "appservicefileshare",
@@ -78,7 +68,7 @@
     },
     "vmExtensionScriptLocation": {
       "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/appservice-fileserver-standalone/",
+      "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/scripts/",
       "metadata": {
         "description": "File Server extension script Url"
       }

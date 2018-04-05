@@ -9,7 +9,7 @@
             "value": "MicrosoftWindowsServer | WindowsServer | 2016-Datacenter | latest"
         },
         "dnsNameForPublicIP": {
-            "value": "appServiceFileShare"
+            "value": "appservicefileshare"
         },
         "adminUsername": {
             "value": "fileshareowner"
@@ -30,7 +30,7 @@
             "value": null
         },
       "vmExtensionScriptLocation": {
-        "value": "https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/appservice-fileserver-standalone/"
+        "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/scripts/"
       }
     }
 }
