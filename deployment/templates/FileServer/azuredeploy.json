@@ -87,12 +87,12 @@
     "powershell_fileShareOwnerPassword": "[concat('base64:', base64(parameters('fileShareOwnerPassword')))]",
     "powershell_fileShareUser": "[concat('base64:', base64(parameters('fileShareUser')))]",
     "powershell_fileShareUserPassword": "[concat('base64:', base64(parameters('fileShareUserPassword')))]",
-    "publicIPAddressName": "[concat(variables('scenarioPrefix'),'_ip')]",
+    "publicIPAddressName": "[concat(parameters('vmName'),'_ip')]",
     "publicIPAddressType": "Static",
-    "virtualNetworkName": "[concat(variables('scenarioPrefix'),'_vnet')]",
+    "virtualNetworkName": "[concat(parameters('vmName'),'_vnet')]",
     "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('virtualNetworkName'))]",
     "vnetAddressPrefix": "10.100.0.0/16",
-    "subnetName": "[concat(variables('scenarioPrefix'),'_subnet')]",
+    "subnetName": "[concat(parameters('vmName'),'_subnet')]",
     "subnetRef": "[concat(variables('vnetID'),'/subnets/',variables('subnetName'))]",
     "subnetPrefix": "10.100.0.0/24",
     "publisher": "MicrosoftWindowsServer",
@@ -100,11 +100,11 @@
     "sku": "2016-Datacenter",
     "version": "latest",
     "storageAccountType": "Standard_LRS",
-    "uniqueStorageString": "[uniqueString(toLower(resourceGroup().id),variables('scenarioPrefix'))]",
-    "namingInfix": "[toLower(take(trim(variables('scenarioPrefix')), 10))]",
+    "uniqueStorageString": "[uniqueString(toLower(resourceGroup().id),parameters('vmName'))]",
+    "namingInfix": "[toLower(take(trim(parameters('vmName')), 10))]",
     "storageAccountName": "[concat(variables('namingInfix'), variables('uniqueStorageString'))]",
-    "nicName": "[concat(variables('scenarioPrefix'),'_nic')]",
-    "vmName": "[concat(variables('scenarioPrefix'),'_vm')]"
+    "nicName": "[concat(parameters('vmName'),'_nic')]",
+    "vmName": "[concat(parameters('vmName'),'_vm')]"
   },
   "resources": [
     {
