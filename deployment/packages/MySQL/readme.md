@@ -30,6 +30,7 @@ In this example, you run a script to deploy a virtual machine to Azure Stack Dev
            -adminUsername <username> `
            -adminPassword ("<password>" | ConvertTo-SecureString -AsPlainText -Force) `
            -mySQLPassword ("<password>" | ConvertTo-SecureString -AsPlainText -Force) `
+           -allowRemoteConnections "No" `
            -authenticationType password `
            -virtualNetworkName mysql_vnet$myNum `
            -virtualNetworkAddressPrefix 10.0.0.0/16 `
