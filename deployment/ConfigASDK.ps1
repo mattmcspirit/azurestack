@@ -1211,7 +1211,7 @@ $MSSQLPackageName = "ASDK.MSSQL.1.0.0"
 $MSSQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
 Write-Verbose "Checking for the SQL Server 2017 gallery item"
 if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$MSSQLPackageName*"}) {
-    Write-Verbose "Found a suitable MySQL Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
+    Write-Verbose "Found a suitable SQL Server 2017 Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
 }
 else {
     Write-Verbose "Didn't find this package: $MSSQLPackageName"
