@@ -1,5 +1,4 @@
-
-%#!/bin/bash
+#!/bin/bash
 
 # Validate input parameters
 if [[ !("$#" -eq 2) ]]; 
