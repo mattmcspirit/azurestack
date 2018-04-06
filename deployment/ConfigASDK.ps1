@@ -1634,15 +1634,18 @@ msiexec.exe /qb-! /i C:\AzureCli.msi
 #### FINAL STEPS #############################################################################################################################################
 ##############################################################################################################################################################
 
+Write-Host -ForegroundColor Green "The ASDK configuration is complete....well, almost"
+Write-Host -ForegroundColor Green "Please copy the following application ID, and the documentation to finish the process"
+
 # Create Azure AD or ADFS Service Principal
 if ($authenticationType.ToString() -like "AzureAd") {
-    Write-Host -ForegroundColor Green "Please note Application Id: $($applicationId)"
+    Write-Host -ForegroundColor Green "Application Id: $($applicationId)"
     Write-Host -ForegroundColor Green "Sign in to the Azure portal as Azure Active Directory Service Admin -> Search for Application Id and grant permissions."
     Write-Host "Opening documentation to complete the app deployment process"
     Start-Process 'https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application'
 }
 elseif ($authenticationType.ToString() -like "ADFS") {
-    Write-Host -ForegroundColor Green "Please note Application Id: $($appId)"
+    Write-Host -ForegroundColor Green "Application Id: $($appId)"
     Write-Host "Opening documentation to complete the app deployment process"
     Start-Process 'https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application'
 }

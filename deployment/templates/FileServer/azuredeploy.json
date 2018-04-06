@@ -82,7 +82,6 @@
     }
   },
   "variables": {
-    "scenarioPrefix": "fileserver",
     "powershell_fileShareOwner": "[concat('base64:', base64(parameters('fileShareOwner')))]",
     "powershell_fileShareOwnerPassword": "[concat('base64:', base64(parameters('fileShareOwnerPassword')))]",
     "powershell_fileShareUser": "[concat('base64:', base64(parameters('fileShareUser')))]",
