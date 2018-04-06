@@ -1506,12 +1506,6 @@ New-AzureRmResourceGroup -Name "appservice-fileshare" -Location local
 New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json `
     -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose
 
-### Deploy SQL Server for App Service ###
-Write-Verbose "Deploying SQL Server for App Service"
-New-AzureRmResourceGroup -Name "appservice-sql" -Location local
-New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/SQL2014/azuredeploy.json `
-    -adminPassword $vmlocaladminpass -adminUsername "cloudadmin" -windowsOSVersion "2016-Datacenter" -vmName "sqlapp" -dnsNameForPublicIP "sqlapp" -Mode Incremental -Verbose
-
 # Deploy a SQL Server 2017 on Ubuntu VM for App Service
 Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for App Service"
 New-AzureRmResourceGroup -Name "appservice-sql" -Location local
