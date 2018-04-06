@@ -1503,39 +1503,65 @@ New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -Te
 ### Deploy File Server ###
 Write-Verbose "Deploying Windows Server 2016 File Server"
 New-AzureRmResourceGroup -Name "appservice-fileshare" -Location local
-New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/appservice-fileserver-standalone/azuredeploy.json `
--adminPassword $vmLocalAdminPass -fileShareOwnerPassword $vmLocalAdminPass -fileShareUserPassword $vmLocalAdminPass -Mode Incremental -Verbose 
+New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json `
+    -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose
 
 ### Deploy SQL Server for App Service ###
 Write-Verbose "Deploying SQL Server for App Service"
 New-AzureRmResourceGroup -Name "appservice-sql" -Location local
 New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/alainv-msft/Azure-Stack/master/Templates/SQL2014/azuredeploy.json `
--adminPassword $vmlocaladminpass -adminUsername "cloudadmin" -windowsOSVersion "2016-Datacenter" -vmName "sqlapp" -dnsNameForPublicIP "sqlapp" -Mode Incremental -Verbose
+    -adminPassword $vmlocaladminpass -adminUsername "cloudadmin" -windowsOSVersion "2016-Datacenter" -vmName "sqlapp" -dnsNameForPublicIP "sqlapp" -Mode Incremental -Verbose
 
-# install App Service To be added
-Write-Verbose "downloading appservice installer"
-Set-Location C:\Temp
-Invoke-WebRequest https://aka.ms/appsvconmashelpers -OutFile "c:\temp\appservicehelper.zip"
-Expand-Archive C:\Temp\appservicehelper.zip -DestinationPath .\AppService\ -Force
-Invoke-WebRequest http://aka.ms/appsvconmasrc1installer -OutFile "c:\temp\AppService\appservice.exe"
-Write-Verbose "generating certificates"
-Set-Location C:\Temp\AppService
-.\Create-AppServiceCerts.ps1 -PfxPassword $vmLocalAdminPass -DomainName "local.azurestack.external"
-.\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $AZDCredential
+# Deploy a SQL Server 2017 on Ubuntu VM for App Service
+Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for App Service"
+New-AzureRmResourceGroup -Name "appservice-sql" -Location local
+New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
+    -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
+    -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose
+
+# Install App Service To be added
+Write-Verbose "Downloading App Service Installer"
+Set-Location $ASDKpath
+Invoke-WebRequest https://aka.ms/appsvconmashelpers -OutFile "$ASDKpath\appservicehelper.zip"
+Expand-Archive $ASDKpath\appservicehelper.zip -DestinationPath "$ASDKpath\AppService\" -Force
+Invoke-WebRequest https://aka.ms/appsvconmasinstaller -OutFile "$ASDKpath\AppService\appservice.exe"
+Write-Verbose "Generating Certificates"
+$AppServicePath = "$ASDKpath\AppService"
+Set-Location "$AppServicePath"
+.\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName "local.azurestack.external"
+.\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $cloudAdminCreds
+
+# Create Azure AD or ADFS Service Principal
+if ($authenticationType.ToString() -like "AzureAd") {
+    Set-Location "$AppServicePath"
+    . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
+        -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
+}
+elseif ($authenticationType.ToString() -like "ADFS") {
+    Set-Location "$AppServicePath"
+    . .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
+        -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds
+}
+else {
+    Write-Verbose ("No valid application was created, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
+}
+
+#### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
+##############################################################################################################################################################
 
 # Configure a simple base plan and offer for IaaS
 Import-Module $modulePath\Connect\AzureStack.Connect.psm1
 Import-Module $modulePath\ServiceAdmin\AzureStack.ServiceAdmin.psm1
-Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $Azscredential
+Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
 # Default quotas, plan, and offer
-$PlanName = "SimplePlan"
-$OfferName = "SimpleOffer"
+$PlanName = "BasePlan"
+$OfferName = "BaseOffer"
 $RGName = "PlansandoffersRG"
 $Location = (Get-AzsLocation).Name
 
 $computeParams = @{
-    Name                 = "computedefault"
+    Name                 = "compute_default"
     CoresLimit           = 200
     AvailabilitySetCount = 20
     VirtualMachineCount  = 100
@@ -1544,7 +1570,7 @@ $computeParams = @{
 }
 
 $netParams = @{
-    Name                          = "netdefault"
+    Name                          = "network_default"
     PublicIpsPerSubscription      = 500
     VNetsPerSubscription          = 500
     GatewaysPerSubscription       = 10
@@ -1556,7 +1582,7 @@ $netParams = @{
 }
 
 $storageParams = @{
-    Name                    = "storagedefault"
+    Name                    = "storage_default"
     NumberOfStorageAccounts = 200
     CapacityInGB            = 2048
     Location                = $Location
@@ -1575,6 +1601,9 @@ $quotaIDs += (Get-AzsKeyVaultQuota @kvParams)
 New-AzureRmResourceGroup -Name $RGName -Location $Location
 $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -ArmLocation $Location -ResourceGroupName $RGName -QuotaIds $QuotaIDs
 New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -ArmLocation $Location
+
+#### CUSTOMIZE ASDK HOST #####################################################################################################################################
+##############################################################################################################################################################
 
 # Install useful ASDK Host Apps via Chocolatey
 Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
@@ -1607,6 +1636,27 @@ choco install windirstat
 Write-Verbose "Installing latest version of Azure CLI"
 invoke-webrequest https://aka.ms/InstallAzureCliWindows -OutFile C:\AzureCLI.msi
 msiexec.exe /qb-! /i C:\AzureCli.msi
+
+#### FINAL STEPS #############################################################################################################################################
+##############################################################################################################################################################
+
+# Create Azure AD or ADFS Service Principal
+if ($authenticationType.ToString() -like "AzureAd") {
+    Write-Host -ForegroundColor Green "Please note Application Id: $($applicationId)"
+    Write-Host -ForegroundColor Green "Sign in to the Azure portal as Azure Active Directory Service Admin -> Search for Application Id and grant permissions."
+    Write-Host "Opening documentation to complete the app deployment process"
+    Start-Process 'https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application'
+}
+elseif ($authenticationType.ToString() -like "ADFS") {
+    Write-Host -ForegroundColor Green "Please note Application Id: $($appId)"
+    Write-Host "Opening documentation to complete the app deployment process"
+    Start-Process 'https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application'
+}
+
+Write-Host "Opening up explorer and documentation - please execute the appservice.exe once you have configured your service principal application"
+Set-Location "$AppServicePath"
+explorer.exe .
+Start-Process 'https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-deploy'
 
 Write-Verbose "Setting Execution Policy back to RemoteSigned"
 Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
