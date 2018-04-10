@@ -11,15 +11,16 @@ This includes:
 * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the tempation to apply the patches...)
 * Tools installation (Azure Stack Tools)
 * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
-* Windows Server 2016 Datacenter Full & Core and Ubuntu Server 16.04-LTS images added to the Platform Image Repository
-* Corresponding Gallery Items created in the Marketplace for the Windows Server and Ubuntu Server images.
+* Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
+* Ubuntu Server 16.04-LTS image added to the Platform Image Repository
+* Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images.
 * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
-* Creates VM scale set gallery item
-* MySQL Resource Provider Installation
-* SQL Server Resource Provider Installation
-* Deployment of a MySQL 5.7 hosting Server on Ubuntu Server 16.04 LTS
+* Creates VM Scale Set gallery item
+* MySQL Resource Provider installation
+* SQL Server Resource Provider installation
+* Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
 * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
-* Adding SQL Server & MySQL Hosting Servers to Resource Providers inc. SKU/Quotas
+* Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
 * App Service prerequisites installation (SQL Server and Standalone File Server)
 * App Service Resource Provider sources download and certificates generation
 * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
