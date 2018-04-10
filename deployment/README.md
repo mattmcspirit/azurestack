@@ -37,7 +37,7 @@ of the ConfigASDK.ps1 script may include more offline support.
 
 Instructions
 ------------
-### Install PowerShell for Azure Stack ###
+#### Install PowerShell for Azure Stack ####
 
 * Login as azurestack\azurestackadmin on your ASDK host.
 * Open an elevated PowerShell window and run the following script to download the Azure Stack PowerShell:
@@ -57,7 +57,7 @@ Install-Module -Name AzureStack -RequiredVersion 1.2.11
 * Detailed instructions for installing the appropriate PowerShell modules can be found here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install
 * Close your PowerShell console window.
 
-### Download the ConfigASDK.ps1 script ###
+#### Download the ConfigASDK.ps1 script ####
 
 * Open an elevated PowerShell window and run the following script to download the ConfigASDK.ps1 file:
 
