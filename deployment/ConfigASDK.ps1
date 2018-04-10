@@ -721,13 +721,13 @@ if ($registerASDK) {
 
     ### Login to Azure to get all the details about the syndicated Ubuntu Server 16.04 marketplace offering ###
     Import-Module C:\AzureStack-Tools-master\Syndication\AzureStack.MarketplaceSyndication.psm1
-    Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $AzureADCreds -ErrorAction Stop | Out-Null
+    Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction Stop | Out-Null
     $sub = Get-AzureRmSubscription
     $sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
     $AzureContext = Get-AzureRmContext
     $subID = $AzureContext.Subscription.Id
 
-    $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $AzureAdCreds
+    $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $azureRegCreds
     $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
     $resources = Get-AzureRmResource
     $resource = $resources.resourcename
@@ -1069,14 +1069,14 @@ if (!$registerASDK) {
 elseif ($registerASDK) {
 
     ### Login to Azure to get all the details about the syndicated Windows Server 2016 marketplace offering ###
-    Import-Module C:\AzureStack-Tools-master\Syndication\AzureStack.MarketplaceSyndication.psm1
-    Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $AzureADCreds -ErrorAction Stop | Out-Null
+    Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
+    Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction Stop | Out-Null
     $sub = Get-AzureRmSubscription
     $sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
     $AzureContext = Get-AzureRmContext
     $subID = $AzureContext.Subscription.Id
 
-    $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $AzureAdCreds
+    $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $azureRegCreds
     $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
     $resources = Get-AzureRmResource
     $resource = $resources.resourcename
@@ -1278,6 +1278,7 @@ foreach ($s in (Get-AzureRmSubscription)) {
 
 # Logout to clean up
 Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+Clear-AzureRmContext -Scope CurrentUser -Force
 
 # Set the variables and gather token for creating the SKU & Quota
 $mySqlSkuFamily = "MySQL"
@@ -1287,15 +1288,15 @@ $mySqlLocation = "local"
 $mySqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
 $mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
 $mySqlApiVersion = "2017-08-28"
-$mySqlQuotaName = "MySQL_Default"
-$mySqlQuotaResourceCount = "20"
+$mySqlQuotaName = "mysqldefault"
+$mySqlQuotaResourceCount = "10"
+$mySqlQuotaResourceSizeMB = "1024"
 
 # Login to Azure Stack and populate variables
 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 $sub = Get-AzureRmSubscription
-$sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-$AzureContext = Get-AzureRmContext
-$subID = $AzureContext.Subscription.Id
+$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+$subID = $azureContext.Subscription.Id
 $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
 
 # Fetch the tokens
@@ -1309,12 +1310,11 @@ $mySqlHeaders = @{ 'authorization' = "Bearer $($mySqlToken.AccessToken)"}
 
 # Build the URIs
 $skuUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/skus/{4}?api-version={5}' -f $mySqlArmEndpoint, $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlSkuName, $mySqlApiVersion)
-$quotaUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/quotas/{4}?api-version={5}' -f $mySqlArmEndpoint, $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName, $mySqlApiVersion)   
-    
-$skuTenantNamespace = $mySqlDatabaseAdapterNamespace.TrimEnd(".Admin");
-$skuResourceType = '{0}/databases' -f $skuTenantNamespace
+$quotaUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/quotas/{4}?api-version={5}' -f $mySqlArmEndpoint, $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName, $mySqlApiVersion)
 
 # Create the request body for SKU
+$skuTenantNamespace = $mySqlDatabaseAdapterNamespace.TrimEnd(".Admin");
+$skuResourceType = '{0}/databases' -f $skuTenantNamespace
 $skuIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/skus/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlSkuName
 $skuRequestBody = @{
     properties = @{
@@ -1334,7 +1334,8 @@ $skuRequestBodyJson = $skuRequestBody | ConvertTo-Json
 $quotaIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
 $quotaRequestBody = @{
     properties = @{
-        resourceCount = $quotaResourceCount
+        resourceCount       = $mySqlQuotaResourceCount
+        totalResourceSizeMB = $mySqlQuotaResourceSizeMB
     }
     id         = $quotaIdForRequestBody
     name       = $mySqlQuotaName
@@ -1342,27 +1343,27 @@ $quotaRequestBody = @{
 $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
 
 # Create the SKU
-Write-Verbose -Message "Creating new database adapter SKU with name: $($mySqlSkuName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
+Write-Verbose -Message "Creating new MySQL Resource Provider SKU with name: $($mySqlSkuName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
 try {
     # Make the REST call
-    $response = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $mySqlHeaders -Body $skuRequestBodyJson -ContentType "application/json"
-    return $response
+    $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $mySqlHeaders -Body $skuRequestBodyJson -ContentType "application/json"
+    $skuResponse
 }
 catch {
     $message = $_.Exception.Message
-    Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create database adapter SKU with name {0}, failed with error: {1}" -f $mySqlSkuName, $message) 
+    Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create MySQL Resource Provider SKU with name {0}, failed with error: {1}" -f $mySqlSkuName, $message) 
 }
 
 # Create the Quota
-Write-Verbose -Message "Creating new database adapter Quota with name: $($mySqlSkuName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
+Write-Verbose -Message "Creating new MySQL Resource Provider Quota with name: $($mySqlQuotaName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
 try {
     # Make the REST call
-    $response = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $mySqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json"
-    return $response
+    $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $mySqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json"
+    $quotaResponse
 }
 catch {
     $message = $_.Exception.Message
-    Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create database adapter SKU with name {0}, failed with error: {1}" -f $mySqlSkuName, $message) 
+    Write-Error -Message ("Failed to create MySQL Resource Provider Quota with name {0}, failed with error: {1}" -f $mySqlQuotaName, $message) 
 }
 
 #### ADD SQL SERVER SKU & QUOTA ##############################################################################################################################
@@ -1370,93 +1371,94 @@ catch {
 
 # Logout to clean up
 Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+Clear-AzureRmContext -Scope CurrentUser -Force
 
 # Set the variables and gather token for creating the SKU & Quota
-$mySqlSkuFamily = "MySQL"
-$mySqlSkuName = "MySQL57"
-$mySqlSkuTier = "Standalone"
-$mySqlLocation = "local"
-$mySqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
-$mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
-$mySqlApiVersion = "2017-08-28"
-$mySqlQuotaName = ""
-$mySqlQuotaResourceCount = ""
-$mySqlQuotaResourceSizeMB = ""
+$sqlSkuFamily = "SQLServer"
+$sqlSkuEdition = "Evaluation"
+$sqlSkuName = "MSSQL2017"
+$sqlSkuTier = "Standalone"
+$sqlLocation = "local"
+$sqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
+$sqlDatabaseAdapterNamespace = "Microsoft.SQLAdapter.Admin"
+$sqlApiVersion = "2017-08-28"
+$sqlQuotaName = "sqldefault"
+$sqlQuotaResourceCount = "10"
+$sqlQuotaResourceSizeMB = "1024"
 
 # Login to Azure Stack and populate variables
 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 $sub = Get-AzureRmSubscription
-$sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-$AzureContext = Get-AzureRmContext
-$subID = $AzureContext.Subscription.Id
+$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+$subID = $azureContext.Subscription.Id
 $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
 
 # Fetch the tokens
-$mySqlToken = $null
-$mySqlTokens = $null
-$mySqlTokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-$mySqlToken = $mySqlTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $AzureContext.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+$sqlToken = $null
+$sqlTokens = $null
+$sqlTokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
+$sqlToken = $sqlTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $AzureContext.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
 
 # Build the header for authorization
-$mySqlHeaders = @{ 'authorization' = "Bearer $($mySqlToken.AccessToken)"}
+$sqlHeaders = @{ 'authorization' = "Bearer $($sqlToken.AccessToken)"}
 
 # Build the URIs
-$skuUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/skus/{4}?api-version={5}' -f $mySqlArmEndpoint, $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlSkuName, $mySqlApiVersion)
-$quotaUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/quotas/{4}?api-version={5}' -f $mySqlArmEndpoint, $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName, $mySqlApiVersion)   
-    
-$skuTenantNamespace = $mySqlDatabaseAdapterNamespace.TrimEnd(".Admin");
-$skuResourceType = '{0}/databases' -f $skuTenantNamespace
+$skuUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/skus/{4}?api-version={5}' -f $sqlArmEndpoint, $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlSkuName, $sqlApiVersion)
+$quotaUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/quotas/{4}?api-version={5}' -f $sqlArmEndpoint, $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlQuotaName, $sqlApiVersion)
 
 # Create the request body for SKU
-$skuIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/skus/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlSkuName
+$skuTenantNamespace = $sqlDatabaseAdapterNamespace.TrimEnd(".Admin");
+$skuResourceType = '{0}/databases' -f $skuTenantNamespace
+$skuIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/skus/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlSkuName
 $skuRequestBody = @{
     properties = @{
         resourceType = $skuResourceType
         sku          = @{
-            family = $mySqlSkuFamily
-            name   = $mySqlSkuName
-            tier   = $mySqlSkuTier
+            family = $sqlSkuFamily
+            kind   = $sqlSkuEdition
+            name   = $sqlSkuName
+            tier   = $sqlSkuTier
         }
     }
     id         = $skuIdForRequestBody
-    name       = $mySqlSkuName
+    name       = $sqlSkuName
 }
 $skuRequestBodyJson = $skuRequestBody | ConvertTo-Json
 
 # Create the request body for Quota
-$quotaIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
+$quotaIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlQuotaName
 $quotaRequestBody = @{
     properties = @{
-        resourceCount       = $quotaResourceCount
-        totalResourceSizeGB = $quotaResourceSizeGB
+        resourceCount       = $sqlQuotaResourceCount
+        totalResourceSizeMB = $sqlQuotaResourceSizeMB
     }
     id         = $quotaIdForRequestBody
-    name       = $mySqlQuotaName
+    name       = $sqlQuotaName
 }
 $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
 
 # Create the SKU
-Write-Verbose -Message "Creating new database adapter SKU with name: $($mySqlSkuName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
+Write-Verbose -Message "Creating new SQL Server Resource Provider SKU with name: $($sqlSkuName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
 try {
     # Make the REST call
-    $response = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $mySqlHeaders -Body $skuRequestBodyJson -ContentType "application/json"
-    return $response
+    $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $sqlHeaders -Body $skuRequestBodyJson -ContentType "application/json"
+    $skuResponse
 }
 catch {
     $message = $_.Exception.Message
-    Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create database adapter SKU with name {0}, failed with error: {1}" -f $mySqlSkuName, $message) 
+    Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create SQL Server Resource Provider SKU with name {0}, failed with error: {1}" -f $sqlSkuName, $message) 
 }
 
 # Create the Quota
-Write-Verbose -Message "Creating new database adapter Quota with name: $($mySqlSkuName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
+Write-Verbose -Message "Creating new SQL Server Resource Provider Quota with name: $($sqlQuotaName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
 try {
     # Make the REST call
-    $response = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $mySqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json"
-    return $response
+    $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $sqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json"
+    $quotaResponse
 }
 catch {
     $message = $_.Exception.Message
-    Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create database adapter SKU with name {0}, failed with error: {1}" -f $mySqlSkuName, $message) 
+    Write-Error -Message ("Failed to create SQL Server Resource Provider Quota with name {0}, failed with error: {1}" -f $sqlQuotaName, $message) 
 }
 
 #### DEPLOY VMs TO HOST USER DATABASES #######################################################################################################################
@@ -1479,7 +1481,7 @@ $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "az
 # Add host server to MySQL RP
 Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
 New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
-    -username "mysqlrpadmin" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName $mySqlSkuName -Mode Incremental -Verbose
+    -username "mysqladmin" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName $mySqlSkuName -Mode Incremental -Verbose
 
 ### Deploy the MSSQL VM ###
 
@@ -1506,12 +1508,18 @@ New-AzureRmResourceGroup -Name "appservice-fileshare" -Location local
 New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json `
     -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose
 
+# Get the FQDN of the VM
+$fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
+
 # Deploy a SQL Server 2017 on Ubuntu VM for App Service
 Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for App Service"
 New-AzureRmResourceGroup -Name "appservice-sql" -Location local
 New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
     -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
     -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose
+
+# Get the FQDN of the VM
+$sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
 
 # Install App Service To be added
 Write-Verbose "Downloading App Service Installer"
@@ -1655,9 +1663,6 @@ Set-Location "$AppServicePath"
 explorer.exe .
 Start-Process 'https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-deploy'
 
-Write-Verbose "Setting Execution Policy back to RemoteSigned"
-Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
-
 # Calculate completion time
 $endTime = Get-Date -format HH:mm:ss
 $timeDiff = New-TimeSpan $startTime $endTime
@@ -1675,3 +1680,66 @@ $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
 Start-Sleep -Seconds 2
 Write-Verbose "`r`nASDK Configurator setup completed successfully, taking $difference."
 Start-Sleep -Seconds 2
+
+### Create Output Document ###
+
+$txtPath = "$ASDKpath\ConfigASDKOutput.txt"
+New-Item "$txtPath" -ItemType file -Force
+
+Write-Output "ASDK Configurator setup completed successfully, taking $difference." > $txtPath
+Write-Output "`r`nYour chosen authentication type was: $authenticationType" >> $txtPath
+
+if ($authenticationType.ToString() -like "ADFS") {
+    Write-Output "Your ASDK admin account and the Azure Stack portal use the following account for login: $azureStackAdminUsername" >> $txtPath
+}
+
+elseif ($authenticationType.ToString() -like "AzureAD") {
+    Write-Output "Use the following username to login to your ASDK host: $azureStackAdminUsername" >> $txtPath
+    Write-Output "Use the following username to login to the Azure Stack portal: $azureAdUsername" >> $txtPath
+}
+
+Write-Output "`r`nASDK has been registered to Azure: $($registerASDK.IsPresent)" >> $txtPath
+
+if ($registerASDK) {
+    Write-Output "Your Azure Stack was registered to this Azure subscription: $azureRegSubId" >> $txtPath
+}
+
+if ($useAzureCredsForRegistration -and $registerASDK) {
+    Write-Output "Your Azure Stack was registered to Azure with the following username: $azureAdUsername" >> $txtPath
+}
+elseif (!$useAzureCredsForRegistration -and $registerASDK) {
+    Write-Output "Your Azure Stack was registered to Azure with the following username: $azureRegUsername" >> $txtPath
+}
+
+if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
+    Write-Output "Your Azure Stack was registered to Azure with the following username: $azureRegUsername" >> $txtPath
+}
+
+Write-Output "`r`nThe Azure Stack PowerShell tools have been downloaded to: $modulePath" >> $txtPath
+Write-Output "All other downloads have been stored here: $ASDKpath" >> $txtPath
+Write-Output "`r`nSQL & MySQL Resource Provider Information:" >> $txtPath
+Write-Output "MySQL Resource Provider VM Credentials = mysqlrpadmin | $VMpwd" >> $txtPath
+Write-Output "MySQL Database Hosting VM FQDN: $mySqlFqdn" >> $txtPath
+Write-Output "MySQL Database Hosting VM Credentials = mysqladmin | $VMpwd" >> $txtPath
+Write-Output "SQL Server Resource Provider VM Credentials = sqlrpadmin | $VMpwd" >> $txtPath
+Write-Output "SQL Server Database Hosting VM FQDN: $sqlFqdn" >> $txtPath
+Write-Output "SQL Server Database Hosting VM Credentials = sqladmin | $VMpwd" >> $txtPath
+Write-Output "`r`nApp Service Resource Provider Information:" >> $txtPath
+Write-Output "App Service File Server VM FQDN: $fileServerFqdn" >> $txtPath
+Write-Output "App Service File Server VM Credentials = fileshareowner or fileshareuser | $VMpwd" >> $txtPath
+Write-Output "App Service SQL Server VM FQDN: $sqlAppServerFqdn" >> $txtPath
+Write-Output "App Service SQL Server VM Credentials = sqladmin | $VMpwd" >> $txtPath
+Write-Output "App Service SQL Server SA Credentials = sa | $VMpwd" >> $txtPath
+
+if ($authenticationType.ToString() -like "AzureAd") {
+    Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $applicationId" >> $txtPath
+    Write-Output "Sign in to the Azure portal as Azure Active Directory Service Admin ($azureAdUsername) -> Search for Application Id and grant permissions." >> $txtPath
+    Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application" >> $txtPath
+}
+elseif ($authenticationType.ToString() -like "ADFS") {
+    Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $appId" >> $txtPath
+    Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application" >> $txtPath
+}
+
+Write-Verbose "Setting Execution Policy back to RemoteSigned"
+Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
