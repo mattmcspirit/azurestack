@@ -54,7 +54,7 @@ Use-AzureRmProfile -Profile 2017-03-09-profile -Force
 Install-Module -Name AzureStack -RequiredVersion 1.2.11
 ```
 
-* Detailed instructions for installing the PowerShell for Azure Stack can be found here:\nhttps://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install
+* Detailed instructions for installing the PowerShell for Azure Stack can be found here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install
 * Once completed successfully, close your PowerShell console window.
 
 #### Download the ConfigASDK.ps1 script ####
@@ -68,7 +68,8 @@ Set-Location "C:\ConfigASDK"
 
 # Download the ConfigASDK Script.
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-Webrequest https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/ConfigASDK.ps1 -OutFile ConfigASDK.ps1
+Invoke-Webrequest https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/ConfigASDK.ps1 `
+-OutFile ConfigASDK.ps1
 ```
 
 Usage Examples:
@@ -78,9 +79,10 @@ Usage Examples:
 as you used when you deployed your ASDK:
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd P@ssw0rd! -VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd! -registerASDK `
--useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
+.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd! `
+-VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd! `
+-registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
 **Please Note**
@@ -95,9 +97,11 @@ as you used when you deployed your ASDK:
 **Scenario 2** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use a different set of Azure AD credentials from the set you used when you deployed your ASDK:
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd P@ssw0rd! -VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd! -registerASDK `
--azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd! -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
+.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd! `
+-VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd! `
+-registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd! `
+-azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
 **Please Note**
@@ -106,8 +110,9 @@ as you used when you deployed your ASDK:
 **Scenario 3** - Using Azure AD for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd P@ssw0rd! -VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd!
+.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd! `
+-VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd!
 ```
 
 
@@ -116,7 +121,8 @@ as you used when you deployed your ASDK:
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd P@ssw0rd! -VMpwd P@ssw0rd! -registerASDK `
--azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd! -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
+-azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd! `
+-azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
 **Please Note**
@@ -135,5 +141,5 @@ as you used when you deployed your ASDK:
 Post-Script Actions
 -------------------
 This script can take up to 6 hours to finish.
-Once the script has completed, be sure to look in your $asdkPath folder, as it will contain a .txt file, with useful information for the next steps for deploying the App Service.
+Once the script has completed, be sure to look in your downloadPath folder, as it will contain a .txt file, with useful information for the next steps for deploying the App Service.
 Please refer to your .txt file for specific guidance and links.
