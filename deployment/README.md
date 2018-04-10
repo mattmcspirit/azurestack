@@ -86,9 +86,9 @@ as you used when you deployed your ASDK:
 ```
 
 **Please Note**
-* You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that
-* For the download path, ensure the folder exists, and you have enough space to hold up to 40GB of files
-* ISOPath should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
+* For the -azureDirectoryTenantName, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that
+* For the -downloadPath, ensure the folder exists, and you have enough space to hold up to 40GB of files
+* -ISOPath should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
 * -azureStackAdminPwd is the password you used when deploying your ASDK
 * Use the -registerASDK flag to instruct the script to register your ASDK to Azure
 * Use the -useAzureCredsForRegistration flag if you want to use the same Azure AD credentials to register the ASDK, as you did when deploying the ASDK
