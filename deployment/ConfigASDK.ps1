@@ -3,19 +3,22 @@
 .SYNOPSYS
 
     The purpose of this script is to automate as much as possible post deployment tasks in Azure Stack Development Kit
-    This include :
+    This includes:
         - Set password expiration
         - Disable Windows Update on all infrastructures VMs and ASDK host
-        - Tools installation (git, azstools, Azure Stack PS module)
-        - Windows Server 2016 and Ubuntu 16.04-LTS images installation
+        - Tools installation (Azure Stack Tools)
+        - Registration of the ASDK to Azure (Optional)
+        - Windows Server 2016 Datacenter Full & Core and Ubuntu 16.04-LTS images installation
         - Creates VM scale set gallery item
         - MySQL Resource Provider Installation
-        - SQL Resource Provider Installation
-        - Deployment of a MySQL 5.7 hosting Server on Windows Server 2016 Core (with latest CU Updates)
-        - Deployment of a SQL 2014 hosting server on Windows Server 2016 (with latest CU Updates)
+        - SQL Server Resource Provider Installation
+        - Deployment of a MySQL 5.7 hosting Server on Ubuntu Server 16.04 LTS
+        - Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
+        - Adding SQL Server & MySQL Hosting Servers to Resource Providers inc. SKU/Quotas
         - AppService prerequisites installation (SQL Server and Standalone File Server)
         - AppService Resource Provider sources download and certificates generation
-        - Set new default Quotas for Compute, Network, Storage and Key Vault
+        - Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
+        - Generate output text file for use in the next steps of configuration.
 
 .VERSION
 
@@ -66,7 +69,7 @@ param (
     # For ASDK deployment - this switch may be expanded in future for Multinode deployments
     [switch]$ASDK,
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [String] $azureDirectoryTenantName,
 
     [Parameter(Mandatory = $true)]
@@ -275,6 +278,12 @@ elseif ($azureStackAdminPwd -cmatch $regex -eq $false) {
     }
 }
 
+<### Credentials Recap ###
+$azureStackAdminUsername = "AzureStack\AzureStackAdmin" | Used to log into the local ASDK Host
+azureStackAdminPwd (and $secureAzureStackAdminPwd) | Used to log into the local ASDK Host
+$azureStackAdminCreds | Used to log into the local ASDK Host
+#>
+
 ### Validate Azure Stack Development Kit Service Administrator Credentials (AZURE AD ONLY) ###
 
 if ($authenticationType.ToString() -like "AzureAd") {
@@ -350,8 +359,15 @@ if ($authenticationType.ToString() -like "AzureAd") {
 
     $asdkCreds = $azureAdCreds
 
+    <### Credentials Recap ###
+$azureAdUsername | Used for Azure AD athentication to log into Azure/Azure Stack portals
+$azureAdPwd (and $secureAzureAdPwd) | Used to log into Azure/Azure Stack portals
+$azureAdCreds | Combined credentials, used to log into Azure/Azure Stack portals
+$asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $azureStackAdminCreds (if ADFS)
+#>
+
     if ($useAzureCredsForRegistration -and $registerASDK) {
-        $azureRegCreds = $asdkCreds
+        $azureRegCreds = $azureAdCreds
     }
 
     elseif (!$useAzureCredsForRegistration -and $registerASDK) {
@@ -425,11 +441,24 @@ if ($authenticationType.ToString() -like "AzureAd") {
     }
 }
 
+<### Credentials Recap ###
+$azureRegUsername | Used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
+$azureRegPwd (and $secureAzureRegPwd) | Used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
+$azureRegCreds | Combined credentials, used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
+#>
+
 if ($authenticationType.ToString() -like "ADFS") {
     $asdkCreds = $azureStackAdminCreds
 }
 
+<### Credentials Recap ###
+$asdkCreds | If deployment is using ADFS, $asdkCreds will be set to match $azureStackAdminCreds, which should be azurestack\azurestackadmin and accompanying password
+#>
+
 if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
+
+    # If the user has chosen ADFS authentication, they will need to be prompted to provide some additional Azure credentials to register the ASDK.
+    # This If statement captures those credentials
 
     Remove-Variable -Name azureAdPwd -Force -ErrorAction SilentlyContinue
     Remove-Variable -Name azureAdUsername -Force -ErrorAction SilentlyContinue
@@ -568,7 +597,8 @@ elseif ($ASDKpath -eq $false) {
 ### DOWNLOAD & EXTRACT TOOLS ###
 
 # Download the tools archive using a function incase the download fails or is interrupted.
-$toolsURI = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
+# Download points to my fork of the tools, to ensure compatibility - this will be updated accordingly.
+$toolsURI = "https://github.com/mattmcspirit/AzureStack-Tools/archive/master.zip"
 $toolsDownloadLocation = "$ASDKpath\master.zip"
 function DownloadWithRetry([string] $toolsURI, [string] $toolsDownloadLocation, [int] $retries) {
     while ($true) {
@@ -610,8 +640,8 @@ $modulePath = "C:\AzureStack-Tools-master"
 Set-Location $modulePath
 
 # Import the Azure Stack Connect and Compute Modules
-Import-Module .\Connect\AzureStack.Connect.psm1
-Import-Module .\ComputeAdmin\AzureStack.ComputeAdmin.psm1
+Import-Module $modulePath\Connect\AzureStack.Connect.psm1
+Import-Module $modulePath\ComputeAdmin\AzureStack.ComputeAdmin.psm1
 Disable-AzureRmDataCollection -WarningAction SilentlyContinue
 Write-Verbose "Azure Stack Connect and Compute modules imported successfully" 
 
@@ -622,19 +652,6 @@ Write-Verbose "Azure Stack Connect and Compute modules imported successfully"
 Write-Verbose "Configuring password expiration policy"
 Set-ADDefaultDomainPasswordPolicy -MaxPasswordAge 180.00:00:00 -Identity azurestack.local
 Get-ADDefaultDomainPasswordPolicy
-
-# Disable Server Manager at Logon
-Write-Verbose "Disabling Server Manager at logon..."
-Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask -Verbose
-
-# Disable IE ESC
-Write-Verbose "Disabling IE Enhanced Security Configuration (ESC)."
-$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
-$UserKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"
-Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
-Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0
-Stop-Process -Name explorer -Force
-Write-Verbose "IE Enhanced Security Configuration (ESC) has been disabled."
 
 # Set Power Policy
 Write-Verbose "Optimizing power policy for high performance"
@@ -657,7 +674,7 @@ Write-Verbose "Disabling DNS Server on ASDK Host"
 Stop-Service -Name DNS -Force -Confirm:$false
 Set-Service -Name DNS -startuptype disabled -Confirm:$false
 
-Write-Verbose "Host configuration is now complete. Starting Azure Stack registration to Azure"
+Write-Verbose "Host configuration is now complete."
 
 ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
 ##############################################################################################################################################################
@@ -665,6 +682,7 @@ Write-Verbose "Host configuration is now complete. Starting Azure Stack registra
 if ($registerASDK) {
 
     try {
+        Write-Verbose "Starting Azure Stack registration to Azure"
         # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
         Add-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds
         # Register the Azure Stack resource provider in your Azure subscription
@@ -718,6 +736,9 @@ else {
 ##############################################################################################################################################################
 
 if ($registerASDK) {
+    # Logout to clean up
+    Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+    Clear-AzureRmContext -Scope CurrentUser -Force
 
     ### Login to Azure to get all the details about the syndicated Ubuntu Server 16.04 marketplace offering ###
     Import-Module C:\AzureStack-Tools-master\Syndication\AzureStack.MarketplaceSyndication.psm1
@@ -1552,8 +1573,8 @@ else {
 ##############################################################################################################################################################
 
 # Configure a simple base plan and offer for IaaS
-Import-Module $modulePath\Connect\AzureStack.Connect.psm1
-Import-Module $modulePath\ServiceAdmin\AzureStack.ServiceAdmin.psm1
+Import-Module "$modulePath\Connect\AzureStack.Connect.psm1"
+Import-Module "$modulePath\ServiceAdmin\AzureStack.ServiceAdmin.psm1"
 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
 # Default quotas, plan, and offer
