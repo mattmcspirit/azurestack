@@ -40,7 +40,7 @@ Instructions
 #### Install PowerShell for Azure Stack ####
 
 * Login as azurestack\azurestackadmin on your ASDK host.
-* Open an elevated PowerShell window and run the following script to download the Azure Stack PowerShell:
+* Open an elevated PowerShell window and run the following script to install PowerShell for Azure Stack:
 
 ```PowerShell
 Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
@@ -54,8 +54,8 @@ Use-AzureRmProfile -Profile 2017-03-09-profile -Force
 Install-Module -Name AzureStack -RequiredVersion 1.2.11
 ```
 
-* Detailed instructions for installing the appropriate PowerShell modules can be found here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install
-* Close your PowerShell console window.
+* Detailed instructions for installing the PowerShell for Azure Stack can be found here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install
+* Once completed successfully, close your PowerShell console window.
 
 #### Download the ConfigASDK.ps1 script ####
 
