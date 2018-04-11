@@ -145,7 +145,7 @@
                 "artifactsBaseUrl": "",
                 "description": "Specify the URL of where the additional MySQL JSON template files can be found"
             },
-            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/"
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/"
         },
         "scriptBaseUrl": {
             "type": "string",
