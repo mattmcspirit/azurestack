@@ -693,7 +693,7 @@ if ($registerASDK) {
         $AzureContext = Get-AzureRmContext
         $cloudAdminUsername = "AzureStack\CloudAdmin"
         $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
-        Set-AzsRegistration -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ErrorAction Stop
+        Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ResourceGroupName "azurestack-registration" -ErrorAction Stop
     }
     catch {
         Write-Verbose $_.Exception.Message -ErrorAction Stop
