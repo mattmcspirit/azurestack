@@ -1486,7 +1486,7 @@ catch {
 ##############################################################################################################################################################
 
 Write-Verbose "Creating a dedicated Resource Group for all database hosting assets"
-New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location local
+New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location local -Force
 
 ### Deploy the MySQL VM ###
 
@@ -1494,7 +1494,7 @@ New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location local
 Write-Verbose "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
 New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json `
     -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
-    -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose
+    -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
 # Get the FQDN of the VM
 $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
@@ -1502,7 +1502,7 @@ $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "az
 # Add host server to MySQL RP
 Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
 New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
-    -username "mysqladmin" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName $mySqlSkuName -Mode Incremental -Verbose
+    -username "mysqladmin" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName $mySqlSkuName -Mode Incremental -Verbose -ErrorAction Stop
 
 ### Deploy the MSSQL VM ###
 
@@ -1510,7 +1510,7 @@ New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -Te
 Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
 New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
     -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
-    -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose
+    -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
 # Get the FQDN of the VM
 $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
@@ -1518,7 +1518,7 @@ $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azures
 # Add host server to SQL Server RP
 Write-Verbose "Attaching SQL Server 2017 hosting server to SQL Server resource provider"
 New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json `
-    -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 10240 -skuName $msSqlSkuName -Mode Incremental -Verbose
+    -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 10240 -skuName $sqlSkuName -Mode Incremental -Verbose -ErrorAction Stop
 
 #### DEPLOY APP SERVICE ######################################################################################################################################
 ##############################################################################################################################################################
@@ -1527,7 +1527,7 @@ New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -Te
 Write-Verbose "Deploying Windows Server 2016 File Server"
 New-AzureRmResourceGroup -Name "appservice-fileshare" -Location local
 New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json `
-    -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose
+    -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
 
 # Get the FQDN of the VM
 $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
@@ -1537,7 +1537,7 @@ Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for App 
 New-AzureRmResourceGroup -Name "appservice-sql" -Location local
 New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
     -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
-    -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose
+    -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
 # Get the FQDN of the VM
 $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
