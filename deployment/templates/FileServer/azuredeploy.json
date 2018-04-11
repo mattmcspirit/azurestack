@@ -103,7 +103,7 @@
     "namingInfix": "[toLower(take(trim(parameters('vmName')), 10))]",
     "storageAccountName": "[concat(variables('namingInfix'), variables('uniqueStorageString'))]",
     "nicName": "[concat(parameters('vmName'),'_nic')]",
-    "vmName": "[concat(parameters('vmName'),'_vm')]"
+    "nsgName": "[concat(parameters('vmName'),'_nsg')]"
   },
   "resources": [
     {
@@ -114,6 +114,44 @@
       "kind": "Storage",
       "sku": {
         "name": "[variables('storageAccountType')]"
+      }
+    },
+    {
+      "apiVersion": "2015-05-01-preview",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[variables('nsgName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "RDP",
+            "properties": {
+              "description": "AllowRDP",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "SMB",
+            "properties": {
+              "description": "AllowSMBTraffic",
+              "protocol": "*",
+              "sourcePortRange": "*",
+              "destinationPortRange": "445",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 200,
+              "direction": "Inbound"
+            }
+          }
+        ]
       }
     },
     {
@@ -156,9 +194,13 @@
       "location": "[resourceGroup().location]",
       "dependsOn": [
         "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
-        "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+        "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
+        "[concat('Microsoft.Network/networkSecurityGroups/', variables('nsgName'))]"
       ],
       "properties": {
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups',variables('nsgName'))]"
+        },
         "ipConfigurations": [
           {
             "name": "ipconfig1",
@@ -178,7 +220,7 @@
     {
       "apiVersion": "2015-06-15",
       "type": "Microsoft.Compute/virtualMachines",
-      "name": "[variables('vmName')]",
+      "name": "[parameters('vmName')]",
       "location": "[resourceGroup().location]",
       "tags": {
         "displayName": "Standalone file server virtual machines"
@@ -223,11 +265,11 @@
     },
     {
       "type": "Microsoft.Compute/virtualMachines/extensions",
-      "name": "[concat(variables('vmName'),'/configurefileserver')]",
+      "name": "[concat(parameters('vmName'),'/configurefileserver')]",
       "apiVersion": "2015-06-15",
       "location": "[resourceGroup().location]",
       "dependsOn": [
-        "[concat('Microsoft.Compute/virtualMachines/', variables('vmName'))]"
+        "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
       ],
       "properties": {
         "publisher": "Microsoft.Compute",

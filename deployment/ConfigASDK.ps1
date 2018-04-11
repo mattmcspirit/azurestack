@@ -1502,7 +1502,7 @@ $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "az
 # Add host server to MySQL RP
 Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
 New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
-    -username "mysqladmin" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName $mySqlSkuName -Mode Incremental -Verbose -ErrorAction Stop
+    -username "root" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName $mySqlSkuName -Mode Incremental -Verbose -ErrorAction Stop
 
 ### Deploy the MSSQL VM ###
 
@@ -1525,7 +1525,7 @@ New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -Te
 
 ### Deploy File Server ###
 Write-Verbose "Deploying Windows Server 2016 File Server"
-New-AzureRmResourceGroup -Name "appservice-fileshare" -Location local
+New-AzureRmResourceGroup -Name "appservice-fileshare" -Location local -Force
 New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json `
     -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
 
@@ -1534,7 +1534,7 @@ $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGro
 
 # Deploy a SQL Server 2017 on Ubuntu VM for App Service
 Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for App Service"
-New-AzureRmResourceGroup -Name "appservice-sql" -Location local
+New-AzureRmResourceGroup -Name "appservice-sql" -Location local -Force
 New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
     -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
     -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
@@ -1580,7 +1580,7 @@ Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Cre
 # Default quotas, plan, and offer
 $PlanName = "BasePlan"
 $OfferName = "BaseOffer"
-$RGName = "PlansandoffersRG"
+$RGName = "azurestack-plansandoffers"
 $Location = (Get-AzsLocation).Name
 
 $computeParams = @{
@@ -1664,25 +1664,16 @@ msiexec.exe /qb-! /i C:\AzureCli.msi
 ##############################################################################################################################################################
 
 Write-Host -ForegroundColor Green "The ASDK configuration is complete....well, almost"
-Write-Host -ForegroundColor Green "Please copy the following application ID, and the documentation to finish the process"
+Write-Host -ForegroundColor Green "Please copy the following application ID, and review the documentation to finish the process"
 
 # Create Azure AD or ADFS Service Principal
 if ($authenticationType.ToString() -like "AzureAd") {
     Write-Host -ForegroundColor Green "Application Id: $($applicationId)"
     Write-Host -ForegroundColor Green "Sign in to the Azure portal as Azure Active Directory Service Admin -> Search for Application Id and grant permissions."
-    Write-Host "Opening documentation to complete the app deployment process"
-    Start-Process 'https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application'
 }
 elseif ($authenticationType.ToString() -like "ADFS") {
     Write-Host -ForegroundColor Green "Application Id: $($appId)"
-    Write-Host "Opening documentation to complete the app deployment process"
-    Start-Process 'https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application'
 }
-
-Write-Host "Opening up explorer and documentation - please execute the appservice.exe once you have configured your service principal application"
-Set-Location "$AppServicePath"
-explorer.exe .
-Start-Process 'https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-deploy'
 
 # Calculate completion time
 $endTime = Get-Date -format HH:mm:ss
@@ -1698,9 +1689,6 @@ else {
     $Secs = $timeDiff.Seconds 
 }
 $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
-Start-Sleep -Seconds 2
-Write-Verbose "`r`nASDK Configurator setup completed successfully, taking $difference."
-Start-Sleep -Seconds 2
 
 ### Create Output Document ###
 
@@ -1762,5 +1750,54 @@ elseif ($authenticationType.ToString() -like "ADFS") {
     Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application" >> $txtPath
 }
 
+Write-Output "`r`nYou'll now need to run the appservice.exe located in your $AppServicePath folder" >> $txtPath
+Write-Output "Documentation can be found here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-deploy" >> $txtPath
+Write-Output "Use the following values to populate the wizard:" >> $txtPath
+Write-Output "`r`nAzure Stack Admin ARM Endpoint: adminmanagement.local.azurestack.external" >> $txtPath
+Write-Output "Azure Stack Tenant ARM Endpoint: management.local.azurestack.external" >> $txtPath
+Write-Output "Azure Directory Tenant Name: $azureDirectoryTenantName" >> $txtPath
+Write-Output "`r`nOn the next screen, click Connect, login, and then choose your subscription and location (local)" >> $txtPath
+Write-Output "`r`nOn the next screen, replace your Resource Group Name with appservice-infra" >> $txtPath
+Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
+Write-Output "File Share UNC Path: \\appservicefileshare.local.cloudapp.azurestack.external\websites" >> $txtPath
+Write-Output "File Share Owner: fileshareowner" >> $txtPath
+Write-Output "File Share Owner Password: $VMpwd" >> $txtPath
+Write-Output "File Share User: fileshareuser" >> $txtPath
+Write-Output "File Share User Password: $VMpwd" >> $txtPath
+Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
+
+if ($authenticationType.ToString() -like "AzureAd") {
+    Write-Output "Identity Application ID: $applicationId" >> $txtPath
+}
+elseif ($authenticationType.ToString() -like "ADFS") {
+    Write-Output "Identity Application Id: $appId" >> $txtPath
+}
+
+Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.local.azurestack.external" >> $txtPath
+Write-Output "Identity Application Certificate (*.pfx) password: $VMpwd" >> $txtPath
+Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority" >> $txtPath
+Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
+Write-Output "App Service default SSL certificate file (*.pfx): $AppServicePath\_.appservice.local.AzureStack.external.pfx" >> $txtPath
+Write-Output "App Service default SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
+Write-Output "App Service API SSL certificate file (*.pfx): $AppServicePath\api.appservice.local.AzureStack.external.pfx" >> $txtPath
+Write-Output "App Service API SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
+Write-Output "App Service Publisher SSL certificate file (*.pfx): $AppServicePath\ftp.appservice.local.AzureStack.external.pfx" >> $txtPath
+Write-Output "App Service Publisher SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
+Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
+Write-Output "SQL Server Name: $sqlAppServerFqdn" >> $txtPath
+Write-Output "SQL sysadmin login: sa" >> $txtPath
+Write-Output "SQL sysadmin password: $VMpwd" >> $txtPath
+Write-Output "`r`nOn the next screen, accept the defaults for the instances and click Next:" >> $txtPath
+Write-Output "`r`nOn the next screen, accept the default for the Platform Image and click Next:" >> $txtPath
+Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
+Write-Output "Worker Role Virtual Machine(s) Admin: workeradmin" >> $txtPath
+Write-Output "Worker Role Virtual Machine(s) Password: $VMpwd" >> $txtPath
+Write-Output "Confirm Password: $VMpwd" >> $txtPath
+Write-Output "Other Roles Virtual Machine(s) Admin: roleadmin" >> $txtPath
+Write-Output "Other Roles Virtual Machine(s) Password: $VMpwd" >> $txtPath
+Write-Output "Confirm Password: $VMpwd" >> $txtPath
+
 Write-Verbose "Setting Execution Policy back to RemoteSigned"
+Write-Verbose "ASDK Configurator setup completed successfully, taking $difference."
 Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
+Set-Location $ScriptLocation -ErrorAction SilentlyContinue
