@@ -132,9 +132,9 @@ $ScriptLocation = Get-Location
 ### SET ERCS IP Address - same for all default ASDKs ###
 $ERCSip = "192.168.200.225"
 
-# Define Regex for Password Complexity - needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character
+# Define Regex for Password Complexity - needs to be at least 8 characters, with at least 1 upper case and 1 special character
 $regex = @"
-^.*(?=.{8,})(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&£*\-_+=[\]{}|\\:',?/`~"();!]).*$
+^.*(?=.{8,})(?=.*[A-Z])(?=.*[@#$%^&£*\-_+=[\]{}|\\:',?/`~"();!]).*$
 "@
 
 $emailRegex = @"
@@ -217,7 +217,7 @@ if ($VMpwd -cmatch $regex -eq $true) {
 }
 
 elseif ($VMpwd -cmatch $regex -eq $false) {
-    Write-Verbose "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character " 
+    Write-Verbose "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character " 
     # Obtain new password and store as a secure string
     $secureVMpwd = Read-Host -AsSecureString "Enter VM password again"
     # Convert to plain text to test regex complexity
@@ -257,7 +257,7 @@ if ($azureStackAdminPwd -cmatch $regex -eq $true) {
 }
 
 elseif ($azureStackAdminPwd -cmatch $regex -eq $false) {
-    Write-Verbose "Azure Stack Development Kit Deployment password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character " 
+    Write-Verbose "Azure Stack Development Kit Deployment password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character " 
     # Obtain new password and store as a secure string
     $secureAzureStackAdminPwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Deployment password again"
     # Convert to plain text to test regex complexity
@@ -321,7 +321,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
 
     if ([string]::IsNullOrEmpty($azureAdPwd)) {
         Write-Verbose "You didn't enter the Azure Stack Development Kit Service Administrator password." 
-        $secureAzureAdPwd = Read-Host "Please enter the Azure Stack Development Kit Service Administrator password. It should be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -AsSecureString -ErrorAction Stop
+        $secureAzureAdPwd = Read-Host "Please enter the Azure Stack Development Kit Service Administrator password. It should be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureAdPwd)            
         $azureAdPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
     }
@@ -336,7 +336,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
     }
 
     elseif ($azureAdPwd -cmatch $regex -eq $false) {
-        Write-Verbose "Azure Stack Development Kit Service Administrator password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." 
+        Write-Verbose "Azure Stack Development Kit Service Administrator password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character." 
         # Obtain new password and store as a secure string
         $secureAzureAdPwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Service Administrator password again"
         # Convert to plain text to test regex complexity
@@ -403,7 +403,7 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
     
         if ([string]::IsNullOrEmpty($azureRegPwd)) {
             Write-Verbose "You didn't enter the Azure AD password." 
-            $secureAzureRegPwd = Read-Host "Please enter the Azure AD password. It should be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -AsSecureString -ErrorAction Stop
+            $secureAzureRegPwd = Read-Host "Please enter the Azure AD password. It should be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
             $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
         }
@@ -418,7 +418,7 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
         }
     
         elseif ($azureRegPwd -cmatch $regex -eq $false) {
-            Write-Verbose "Azure AD password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." 
+            Write-Verbose "Azure AD password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character." 
             # Obtain new password and store as a secure string
             $secureAzureRegPwd = Read-Host -AsSecureString "Enter Azure AD password again"
             # Convert to plain text to test regex complexity
