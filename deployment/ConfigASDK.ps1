@@ -1690,28 +1690,12 @@ elseif ($authenticationType.ToString() -like "ADFS") {
     Write-Host -ForegroundColor Green "Application Id: $($appId)"
 }
 
-# Calculate completion time
-$endTime = Get-Date -format HH:mm:ss -Verbose -ErrorAction SilentlyContinue
-Write-Verbose "Script completed at $endTime" -ErrorAction SilentlyContinue
-$timeDiff = New-TimeSpan $startTime $endTime -ErrorAction SilentlyContinue
-if ($timeDiff.Seconds -lt 0) {
-    $Hrs = ($timeDiff.Hours) + 23
-    $Mins = ($timeDiff.Minutes) + 59
-    $Secs = ($timeDiff.Seconds) + 59 
-}
-else {
-    $Hrs = $timeDiff.Hours
-    $Mins = $timeDiff.Minutes
-    $Secs = $timeDiff.Seconds 
-}
-$difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
-
 ### Create Output Document ###
 
 $txtPath = "$ASDKpath\ConfigASDKOutput.txt"
 New-Item "$txtPath" -ItemType file -Force
 
-Write-Output "ASDK Configurator setup completed successfully, taking $difference." > $txtPath
+Write-Output "`r`nThis document contains useful information for deployment of the App Service" > $txtPath
 Write-Output "`r`nYour chosen authentication type was: $authenticationType" >> $txtPath
 
 if ($authenticationType.ToString() -like "ADFS") {
@@ -1817,3 +1801,21 @@ Write-Verbose "Setting Execution Policy back to RemoteSigned"
 Write-Verbose "ASDK Configurator setup completed successfully, taking $difference."
 Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
 Set-Location $ScriptLocation -ErrorAction SilentlyContinue
+
+# Calculate completion time
+$endTime = Get-Date -format HH:mm:ss -Verbose -ErrorAction SilentlyContinue
+Write-Verbose "Script completed at $endTime" -ErrorAction SilentlyContinue
+$timeDiff = New-TimeSpan $startTime $endTime -ErrorAction SilentlyContinue
+if ($timeDiff.Seconds -lt 0) {
+    $Hrs = ($timeDiff.Hours) + 23
+    $Mins = ($timeDiff.Minutes) + 59
+    $Secs = ($timeDiff.Seconds) + 59 
+}
+else {
+    $Hrs = $timeDiff.Hours
+    $Mins = $timeDiff.Minutes
+    $Secs = $timeDiff.Seconds 
+}
+$difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
+
+Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
