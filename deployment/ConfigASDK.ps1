@@ -574,6 +574,11 @@ if ($registerASDK) {
     }
 }
 
+### Create CloudAdminCreds, used for registration, SQL/MYSQL RP Installation ###
+
+$cloudAdminUsername = "AzureStack\CloudAdmin"
+$cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
+
 ### DOWNLOAD TOOLS #####################################################################################################################################
 ########################################################################################################################################################
 
@@ -691,8 +696,6 @@ if ($registerASDK) {
         Import-Module $modulePath\Registration\RegisterWithAzure.psm1
         #Register Azure Stack
         $AzureContext = Get-AzureRmContext
-        $cloudAdminUsername = "AzureStack\CloudAdmin"
-        $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
         Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ResourceGroupName "azurestack-registration" -ErrorAction Stop
     }
     catch {
