@@ -124,7 +124,8 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 ### GET START TIME ###
-$startTime = Get-Date -format HH:mm:ss
+$startTime = Get-Date -format HH:mm:ss -Verbose
+Write-Verbose "Script run started at $startTime"
 
 ### SET LOCATION ###
 $ScriptLocation = Get-Location
@@ -1690,8 +1691,9 @@ elseif ($authenticationType.ToString() -like "ADFS") {
 }
 
 # Calculate completion time
-$endTime = Get-Date -format HH:mm:ss
-$timeDiff = New-TimeSpan $startTime $endTime
+$endTime = Get-Date -format HH:mm:ss -Verbose -ErrorAction SilentlyContinue
+Write-Verbose "Script completed at $endTime" -ErrorAction SilentlyContinue
+$timeDiff = New-TimeSpan $startTime $endTime -ErrorAction SilentlyContinue
 if ($timeDiff.Seconds -lt 0) {
     $Hrs = ($timeDiff.Hours) + 23
     $Mins = ($timeDiff.Minutes) + 59
