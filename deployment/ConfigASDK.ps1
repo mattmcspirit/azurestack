@@ -124,8 +124,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 ### GET START TIME ###
-$startTime = Get-Date -format HH:mm:ss -Verbose
-Write-Verbose "Script run started at $startTime"
+$sw = [Diagnostics.Stopwatch]::StartNew()
 
 ### SET LOCATION ###
 $ScriptLocation = Get-Location
@@ -1803,19 +1802,10 @@ Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
 Set-Location $ScriptLocation -ErrorAction SilentlyContinue
 
 # Calculate completion time
-$endTime = Get-Date -format HH:mm:ss -Verbose -ErrorAction SilentlyContinue
-Write-Verbose "Script completed at $endTime" -ErrorAction SilentlyContinue
-$timeDiff = New-TimeSpan $startTime $endTime -ErrorAction SilentlyContinue
-if ($timeDiff.Seconds -lt 0) {
-    $Hrs = ($timeDiff.Hours) + 23
-    $Mins = ($timeDiff.Minutes) + 59
-    $Secs = ($timeDiff.Seconds) + 59 
-}
-else {
-    $Hrs = $timeDiff.Hours
-    $Mins = $timeDiff.Minutes
-    $Secs = $timeDiff.Seconds 
-}
+$sw.Stop()
+$Hrs = $sw.Elapsed.Hours
+$Mins = $sw.Elapsed.Minutes
+$Secs = $sw.Elapsed.Seconds
 $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
 
 Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
