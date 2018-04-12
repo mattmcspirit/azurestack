@@ -756,8 +756,13 @@ if ($registerASDK) {
     $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
     $resources = Get-AzureRmResource
     $resource = $resources.resourcename
-    $registrations = $resource | Where-Object {$_ -like "AzureStack*"}
-    $registration = $registrations[0]
+    $registrations = @($resource | Where-Object {$_ -like "AzureStack*"})
+    if ($registrations.count -gt 1) {
+        $Registration = $registrations[0]
+    }
+    else {
+        $Registration = $registrations
+    }
 
     # Retrieve the access token
     $token = $null
