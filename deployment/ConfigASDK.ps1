@@ -787,7 +787,7 @@ if ($registerASDK) {
     }
 
     ### Get the package information ###
-    $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/$regResourceGroup/providers/Microsoft.AzureStack/registrations/$($Registration.ToString())/products?api-version=2016-01-01"
+    $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/$regResourceGroup/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
     $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
     $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
 
