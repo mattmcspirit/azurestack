@@ -172,7 +172,51 @@ elseif ($validDownloadPath -eq $false) {
     }
 }
 
-Start-Transcript -Path $downloadPath\ConfigASDKLog.txt -Append
+### Start Logging ###
+Start-Transcript -Path "$downloadPath\ConfigASDKLog.txt" -Append
+
+### Check if ConfigASDKProgressLog.csv exists ###
+$ConfigASDKProgressLogPath = "$downloadPath\ConfigASDKProgressLog.csv"
+$validConfigASDKProgressLogPath = [System.IO.File]::Exists($ConfigASDKProgressLogPath)
+If ($validConfigASDKProgressLogPath -eq $true) {
+    Write-Verbose "ConfigASDkProgressLog.csv exists - this must be a rerun"
+    Write-Verbose "Starting from previous failed step"
+    $progress = Import-Csv $ConfigASDKProgressLogPath
+    Write-Output $progress
+}
+elseif ($validConfigASDKProgressLogPath -eq $false) {
+    Write-Verbose "No ConfigASDkProgressLog.csv exists - this must be a fresh deployment"
+    Write-Verbose "Creating ConfigASDKProgressLog.csv"
+    Add-Content -Path $ConfigASDKProgressLogPath -Value '"Stage","Status"' -Force -Confirm:$false
+    $ConfigASDKprogress = @(
+        '"DownloadTools","Incomplete"'
+        '"HostConfiguration","Incomplete"'
+        '"Registration","Incomplete"'
+        '"UbuntuImage","Incomplete"'
+        '"WindowsImage","Incomplete"'
+        '"ScaleSetGalleryItem","Incomplete"'
+        '"MySQLGalleryItem","Incomplete"'
+        '"SQLServerGalleryItem","Incomplete"'
+        '"MySQLRP","Incomplete"'
+        '"SQLServerRP","Incomplete"'
+        '"RegisterNewRPs","Incomplete"'
+        '"MySQLSKUQuota","Incomplete"'
+        '"SQLServerSKUQuota","Incomplete"'
+        '"MySQLDBVM","Incomplete"'
+        '"SQLServerDBVM","Incomplete"'
+        '"MySQLAddHosting","Incomplete"'
+        '"SQLServerAddHosting","Incomplete"'
+        '"AppServiceFileServer","Incomplete"'
+        '"AppServiceSQLServer","Incomplete"'
+        '"DownloadAppService","Incomplete"'
+        '"GenerateAppServiceCerts","Incomplete"'
+        '"CreateServicePrincipal","Incomplete"'
+        '"CreatePlansOffers","Incomplete"'
+        '"InstallHostApps","Incomplete"'
+        '"CreateOutput","Incomplete"'
+    )
+    $ConfigASDKprogress | ForEach-Object { Add-Content -Path $ConfigASDKProgressLogPath -Value $_ }
+}
 
 ### Validate path to ISO File ###
 
