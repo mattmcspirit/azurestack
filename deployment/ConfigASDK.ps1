@@ -122,6 +122,7 @@ param (
 $VerbosePreference = "Continue"
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+Stop-Transcript | Out-Null
 
 ### GET START TIME ###
 $sw = [Diagnostics.Stopwatch]::StartNew()
@@ -170,6 +171,8 @@ elseif ($validDownloadPath -eq $false) {
         $downloadPath = Set-Location -Path "$downloadPath" -PassThru
     }
 }
+
+Start-Transcript -Path $downloadPath\ConfigASDKLog.txt -Append
 
 ### Validate path to ISO File ###
 
@@ -1807,3 +1810,5 @@ $Secs = $sw.Elapsed.Seconds
 $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
 
 Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
+
+Stop-Transcript -ErrorAction SilentlyContinue
