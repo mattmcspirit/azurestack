@@ -696,8 +696,7 @@ if ($registerASDK) {
         Import-Module $modulePath\Registration\RegisterWithAzure.psm1
         #Register Azure Stack
         $AzureContext = Get-AzureRmContext
-        $regResourceGroup = "azurestack-registration"
-        Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ResourceGroupName $regResourceGroup -ErrorAction Stop
+        Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ErrorAction Stop
     }
     catch {
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -751,7 +750,6 @@ if ($registerASDK) {
     $sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
     $AzureContext = Get-AzureRmContext
     $subID = $AzureContext.Subscription.Id
-
     $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $azureRegCreds
     $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
     $resources = Get-AzureRmResource
@@ -787,7 +785,7 @@ if ($registerASDK) {
     }
 
     ### Get the package information ###
-    $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/$regResourceGroup/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
+    $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
     $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
     $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
 
@@ -798,13 +796,13 @@ if ($registerASDK) {
     $azpkg.offer = $product.properties.offer
 
     # Get product info
-    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/$regResourceGroup/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
+    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
     $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
     $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
     $azpkg.name = $productDetails.properties.galleryItemIdentity
 
     # Get download location for Ubuntu Server 16.04 LTS AZPKG file
-    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/$regResourceGroup/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
+    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
     $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
     $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
 
@@ -1145,7 +1143,7 @@ elseif ($registerASDK) {
         }
 
         # Get the package information
-        $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/$regResourceGroup/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
+        $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
         $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
         $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
 
@@ -1156,13 +1154,13 @@ elseif ($registerASDK) {
         $azpkg.offer = $product.properties.offer
 
         # Get product info
-        $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/$regResourceGroup/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
+        $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
         $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
         $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
         $azpkg.name = $productDetails.properties.galleryItemIdentity
 
         # Get download location for AZPKG file
-        $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/$regResourceGroup/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
+        $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
         $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
         $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
 
