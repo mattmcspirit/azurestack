@@ -878,14 +878,14 @@ else {
             $ubuntuBuild = $azpkg.vhdVersion
             $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
             $ubuntuBuild = $ubuntuBuild.split('.')[2]
-            Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop
+            Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop -UseBasicParsing
         }
 
         # Otherwise, it will just use 1.0.0 as specified earlier
 
         else {
             $ubuntuBuild = $azpkg.vhdVersion
-            Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop
+            Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop -UseBasicParsing
         }
        
         Expand-Archive -Path "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -DestinationPath $ASDKpath -Force -ErrorAction Stop
@@ -1002,11 +1002,11 @@ if ($downloadCURequired -eq $true) {
 
     # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
     Write-Verbose "Downloading $StartKB to retrieve the list of updates."
-    $kbID = (Invoke-WebRequest -Uri $StartKB).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $Build | Select-Object -First 1
+    $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $Build | Select-Object -First 1
 
     # Get Download Link for the corresponding Cumulative Update
     Write-Verbose "Found ID: KB$($kbID.articleID)"
-    $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($kbID.articleID)"
+    $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($kbID.articleID)" -UseBasicParsing
     $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
     $Available_kbIDs | Out-String | Write-Verbose
     $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
@@ -1022,7 +1022,7 @@ if ($downloadCURequired -eq $true) {
         Write-Verbose "KB ID: $kbID"
         $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
         $PostBody = @{ updateIDs = "[$Post]" } 
-        $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
+        $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
     }
 
     # Download the corresponding Windows Server 2016 (Build 14393) Cumulative Update
@@ -1032,7 +1032,7 @@ if ($downloadCURequired -eq $true) {
         Write-Verbose "Windows Server 2016 Cumulative Update will be stored at $target"
         Write-Verbose "These are generally larger than 1GB, so may take a few minutes."
         If (!(Test-Path -Path $target)) {
-            Invoke-WebRequest -Uri $Url -OutFile $target
+            Invoke-WebRequest -Uri $Url -OutFile $target -UseBasicParsing
         }
         Else {
             Write-Verbose "File exists: $target. Skipping download."
@@ -1270,7 +1270,7 @@ Write-Verbose "Downloading and installing MySQL Resource Provider"
 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
 # Download and Expand the MySQL RP files
-Invoke-WebRequest https://aka.ms/azurestackmysqlrp -OutFile "$ASDKpath\MySQL.zip" -ErrorAction Stop
+Invoke-WebRequest https://aka.ms/azurestackmysqlrp -OutFile "$ASDKpath\MySQL.zip" -ErrorAction Stop -UseBasicParsing
 Set-Location $ASDKpath
 Expand-Archive "$ASDKpath\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
 Set-Location "$ASDKpath\MySQL"
@@ -1287,7 +1287,7 @@ Write-Verbose "Downloading and installing SQL Server Resource Provider"
 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
 # Download and Expand the SQL Server RP files
-Invoke-WebRequest https://aka.ms/azurestacksqlrp -OutFile "$ASDKpath\SQL.zip" -ErrorAction Stop
+Invoke-WebRequest https://aka.ms/azurestacksqlrp -OutFile "$ASDKpath\SQL.zip" -ErrorAction Stop -UseBasicParsing
 Set-Location $ASDKpath
 Expand-Archive "$ASDKpath\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
 Set-Location "$ASDKpath\SQL"
@@ -1379,7 +1379,7 @@ $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
 Write-Verbose -Message "Creating new MySQL Resource Provider SKU with name: $($mySqlSkuName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
 try {
     # Make the REST call
-    $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $mySqlHeaders -Body $skuRequestBodyJson -ContentType "application/json"
+    $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $mySqlHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
     $skuResponse
 }
 catch {
@@ -1391,7 +1391,7 @@ catch {
 Write-Verbose -Message "Creating new MySQL Resource Provider Quota with name: $($mySqlQuotaName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
 try {
     # Make the REST call
-    $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $mySqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json"
+    $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $mySqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing
     $quotaResponse
 }
 catch {
@@ -1474,7 +1474,7 @@ $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
 Write-Verbose -Message "Creating new SQL Server Resource Provider SKU with name: $($sqlSkuName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
 try {
     # Make the REST call
-    $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $sqlHeaders -Body $skuRequestBodyJson -ContentType "application/json"
+    $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $sqlHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
     $skuResponse
 }
 catch {
@@ -1486,7 +1486,7 @@ catch {
 Write-Verbose -Message "Creating new SQL Server Resource Provider Quota with name: $($sqlQuotaName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
 try {
     # Make the REST call
-    $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $sqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json"
+    $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $sqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing
     $quotaResponse
 }
 catch {
@@ -1557,9 +1557,9 @@ $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroup
 # Install App Service To be added
 Write-Verbose "Downloading App Service Installer"
 Set-Location $ASDKpath
-Invoke-WebRequest https://aka.ms/appsvconmashelpers -OutFile "$ASDKpath\appservicehelper.zip"
+Invoke-WebRequest https://aka.ms/appsvconmashelpers -OutFile "$ASDKpath\appservicehelper.zip" -UseBasicParsing
 Expand-Archive $ASDKpath\appservicehelper.zip -DestinationPath "$ASDKpath\AppService\" -Force
-Invoke-WebRequest https://aka.ms/appsvconmasinstaller -OutFile "$ASDKpath\AppService\appservice.exe"
+Invoke-WebRequest https://aka.ms/appsvconmasinstaller -OutFile "$ASDKpath\AppService\appservice.exe" -UseBasicParsing
 Write-Verbose "Generating Certificates"
 $AppServicePath = "$ASDKpath\AppService"
 Set-Location "$AppServicePath"
@@ -1669,7 +1669,7 @@ choco install windirstat
 
 # Azure CLI
 Write-Verbose "Installing latest version of Azure CLI"
-invoke-webrequest https://aka.ms/InstallAzureCliWindows -OutFile C:\AzureCLI.msi
+invoke-webrequest https://aka.ms/InstallAzureCliWindows -OutFile C:\AzureCLI.msi -UseBasicParsing
 msiexec.exe /qb-! /i C:\AzureCli.msi
 
 #### FINAL STEPS #############################################################################################################################################
