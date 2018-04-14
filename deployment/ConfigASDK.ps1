@@ -216,6 +216,8 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"CreateOutput","Incomplete"'
     )
     $ConfigASDKprogress | ForEach-Object { Add-Content -Path $ConfigASDKProgressLogPath -Value $_ }
+    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+    Write-Output $progress
 }
 
 ### Validate path to ISO File ###
@@ -629,62 +631,84 @@ $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredentia
 ### DOWNLOAD TOOLS #####################################################################################################################################
 ########################################################################################################################################################
 
-### CREATE ASDK FOLDER ###
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
+$RowIndex = [array]::IndexOf($progress.Stage, "DownloadTools")
 
-$ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
-If ($ASDKpath -eq $true) {
-    Write-Verbose "ASDK folder exists at $downloadPath - no need to create it."
-    Write-Verbose "Download files will be placed in $downloadPath\ASDK"
-    $ASDKpath = "$downloadPath\ASDK"
-    Write-Verbose "ASDK folder full path is $ASDKpath"
-}
-elseif ($ASDKpath -eq $false) {
-    # Create the ASDK folder.
-    Write-Verbose "ASDK folder doesn't exist within $downloadPath, creating it"
-    mkdir "$downloadPath\ASDK" -Force | Out-Null
-    $ASDKpath = "$downloadPath\ASDK"
-    Write-Verbose "ASDK folder full path is $ASDKpath"
-}
+if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
 
-### DOWNLOAD & EXTRACT TOOLS ###
+    try {
+        
+        ### CREATE ASDK FOLDER ###
 
-# Download the tools archive using a function incase the download fails or is interrupted.
-# Download points to my fork of the tools, to ensure compatibility - this will be updated accordingly.
-$toolsURI = "https://github.com/mattmcspirit/AzureStack-Tools/archive/master.zip"
-$toolsDownloadLocation = "$ASDKpath\master.zip"
-function DownloadWithRetry([string] $toolsURI, [string] $toolsDownloadLocation, [int] $retries) {
-    while ($true) {
-        try {
-            Invoke-WebRequest $toolsURI -OutFile "$toolsDownloadLocation"
-            break
+        $ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
+        If ($ASDKpath -eq $true) {
+            Write-Verbose "ASDK folder exists at $downloadPath - no need to create it."
+            Write-Verbose "Download files will be placed in $downloadPath\ASDK"
+            $ASDKpath = "$downloadPath\ASDK"
+            Write-Verbose "ASDK folder full path is $ASDKpath"
         }
-        catch {
-            $exceptionMessage = $_.Exception.Message
-            Write-Verbose "Failed to download '$toolsURI': $exceptionMessage"
-            if ($retries -gt 0) {
-                $retries--
-                Write-Verbose "Waiting 10 seconds before retrying. Retries left: $retries"
-                Start-Sleep -Seconds 10
- 
-            }
-            else {
-                $exception = $_.Exception
-                throw $exception
+        elseif ($ASDKpath -eq $false) {
+            # Create the ASDK folder.
+            Write-Verbose "ASDK folder doesn't exist within $downloadPath, creating it"
+            mkdir "$downloadPath\ASDK" -Force | Out-Null
+            $ASDKpath = "$downloadPath\ASDK"
+            Write-Verbose "ASDK folder full path is $ASDKpath"
+        }
+
+        ### DOWNLOAD & EXTRACT TOOLS ###
+
+        # Download the tools archive using a function incase the download fails or is interrupted.
+        # Download points to my fork of the tools, to ensure compatibility - this will be updated accordingly.
+        $toolsURI = "https://github.com/mattmcspirit/AzureStack-Tools/archive/master.zip"
+        $toolsDownloadLocation = "$ASDKpath\master.zip"
+        function DownloadWithRetry([string] $toolsURI, [string] $toolsDownloadLocation, [int] $retries) {
+            while ($true) {
+                try {
+                    Invoke-WebRequest $toolsURI -OutFile "$toolsDownloadLocation"
+                    break
+                }
+                catch {
+                    $exceptionMessage = $_.Exception.Message
+                    Write-Verbose "Failed to download '$toolsURI': $exceptionMessage"
+                    if ($retries -gt 0) {
+                        $retries--
+                        Write-Verbose "Waiting 10 seconds before retrying. Retries left: $retries"
+                        Start-Sleep -Seconds 10
+                    }
+                    else {
+                        $exception = $_.Exception
+                        throw $exception
+                    }
+                }
             }
         }
+        Write-Verbose "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
+        Write-Verbose "The download will be stored in $ASDKpath."
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        DownloadWithRetry -toolsURI "$toolsURI" -toolsDownloadLocation "$toolsDownloadLocation" -retries 3
+
+        # Expand the downloaded files
+        Write-Verbose "Expanding Archive"
+        expand-archive "$toolsDownloadLocation" -DestinationPath "C:\" -Force
+        Write-Verbose "Archive expanded. Cleaning up."
+        Remove-Item "$toolsDownloadLocation" -Force -ErrorAction Stop
+
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    }
+    catch {
+        Write-Verbose "Azure Stack Tools Stage Failed"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return        
     }
 }
-
-Write-Verbose "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
-Write-Verbose "The download will be stored in $ASDKpath."
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-DownloadWithRetry -toolsURI "$toolsURI" -toolsDownloadLocation "$toolsDownloadLocation" -retries 3
-
-# Expand the downloaded files
-Write-Verbose "Expanding Archive"
-expand-archive "$toolsDownloadLocation" -DestinationPath "C:\" -Force
-Write-Verbose "Archive expanded. Cleaning up."
-Remove-Item "$toolsDownloadLocation" -Force -ErrorAction Stop
+elseif ($progress[$RowIndex].Status -eq "Complete") {
+    Write-Verbose "Azure Stack Tools already downloaded successfully"
+}
 
 # Change to the tools directory
 Write-Verbose "Changing Directory"
