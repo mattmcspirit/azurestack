@@ -141,5 +141,5 @@ as you used when you deployed your ASDK:
 Post-Script Actions
 -------------------
 This script can take up to 6 hours to finish.
-Once the script has completed, be sure to look in your downloadPath folder, as it will contain a .txt file, with useful information for the next steps for deploying the App Service.
+Once the script has completed, be sure to look in your downloadPath folder, as it will contain a ConfigASDKOutput.txt file, with useful information for the next steps for deploying the App Service.
 Please refer to your .txt file for specific guidance and links.

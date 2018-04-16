@@ -1881,6 +1881,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
+    # Get the FQDN of the VM
+    $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
@@ -1913,6 +1915,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
+    # Get the FQDN of the VM
+    $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
@@ -1946,6 +1950,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
+    # Get the FQDN of the VM
+    $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
@@ -1956,7 +1962,7 @@ $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceSQLServer")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         # Deploy a SQL Server 2017 on Ubuntu VM for App Service
-        Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for App Service"
+        Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu Server 16.04 LTS for App Service"
         New-AzureRmResourceGroup -Name "appservice-sql" -Location local -Force
         New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
             -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
@@ -1980,6 +1986,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
+    # Get the FQDN of the VM
+    $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
@@ -2055,17 +2063,17 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Set-Location "$AppServicePath"
             . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
-                $appIdPath = "$AppServicePath\ApplicationID.txt"
-                New-Item $appIdPath -ItemType file -Force
-                Write-Output $applicationId > $appIdPath
+            $appIdPath = "$AppServicePath\ApplicationID.txt"
+            New-Item $appIdPath -ItemType file -Force
+            Write-Output $applicationId > $appIdPath
         }
         elseif ($authenticationType.ToString() -like "ADFS") {
             Set-Location "$AppServicePath"
             . .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds
-                $appIdPath = "$AppServicePath\ApplicationID.txt"
-                New-Item $appIdPath -ItemType file -Force
-                Write-Output $appId > $appIdPath
+            $appIdPath = "$AppServicePath\ApplicationID.txt"
+            New-Item $appIdPath -ItemType file -Force
+            Write-Output $appId > $appIdPath
         }
         else {
             Write-Verbose ("No valid application was created, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
@@ -2355,7 +2363,6 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 
 Write-Verbose "Setting Execution Policy back to RemoteSigned"
 Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
-Set-Location $ScriptLocation -ErrorAction SilentlyContinue
 
 # Calculate completion time
 $sw.Stop()
@@ -2365,4 +2372,10 @@ $Secs = $sw.Elapsed.Seconds
 $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
 
 Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
+Write-Output "The following steps have been completed:`r`n"
+Write-Output $progress
+Write-Output "`r`nOpening your ConfigASDKOutput.txt file that you'll use for the App Service deployment..."
+Start-Sleep -Seconds 5
+Notepad $txtPath
+Set-Location $ScriptLocation -ErrorAction SilentlyContinue
 Stop-Transcript -ErrorAction SilentlyContinue
