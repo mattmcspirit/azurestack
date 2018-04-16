@@ -9,7 +9,7 @@
         - Tools installation (Azure Stack Tools)
         - Registration of the ASDK to Azure (Optional)
         - Windows Server 2016 Datacenter Full & Core and Ubuntu 16.04-LTS images installation
-        - Creates VM scale set gallery item
+        - Creates VM Scale Set gallery item
         - MySQL Resource Provider Installation
         - SQL Server Resource Provider Installation
         - Deployment of a MySQL 5.7 hosting Server on Ubuntu Server 16.04 LTS
@@ -37,17 +37,10 @@
     Email: matt.mcspirit@microsoft.com 
     Twitter: @mattmcspirit
 
-.PARAMETERS
+.GUIDANCE
 
-    -ASDK (Specify this is for an ASDK deployment - this switch may be expanded in future to include Multinode deployments)
-    -azureDirectoryTenantName - (Name of your AAD Tenant which your Azure subscription is a part of. This parameter is mandatory)
-    -authenticationType - (Either AzureAd or ADFS - which one that is entered will determine which ARM endpoints are used)
-	-rppassword -  ("yourpassword" this will be the administrator password for every virtual machine deployed to support PaaS Services)
-	-ISOPath ("c:\xxxx\xxx.iso" specify the path to your Windows Server 2016 Datacenter Evaluation ISO)
-
-.EXAMPLE
-
-	ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType "AzureAD" -rppassword "yourpassword" -ISOPath "c:\mywin2016eval.iso" -verbose
+    Please refer to the Readme.md (https://github.com/mattmcspirit/azurestack/blob/master/deployment/README.md) for recommended
+    deployment parameter usage and instructions.
 
 #>
 
