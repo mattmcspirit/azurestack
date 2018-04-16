@@ -699,7 +699,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "Azure Stack Tools Stage Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -708,7 +708,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "Azure Stack Tools already downloaded successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 # Change to the tools directory
@@ -757,7 +757,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "`r`nHost configuration is now complete."
     }
     Catch {
-        Write-Verbose "Azure Stack Host Configuration Stage Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -766,7 +766,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "Azure Stack Host Configuration already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
@@ -792,7 +792,7 @@ if ($registerASDK) {
             Write-Output $progress
         }
         catch {
-            Write-Verbose "Azure Stack Registration Stage Failed"
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
             Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -801,7 +801,7 @@ if ($registerASDK) {
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "Azure Stack Registration already completed successfully"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 
@@ -1043,7 +1043,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "Azure Stack Add Ubuntu Image Stage Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1052,7 +1052,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "Azure Stack Add Ubuntu Image stage already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 ### ADD WINDOWS SERVER 2016 PLATFORM IMAGES ##################################################################################################################
@@ -1329,7 +1329,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1338,7 +1338,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 ### ADD VM SCALE SET GALLERY ITEM ############################################################################################################################
@@ -1356,7 +1356,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     Catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1365,7 +1365,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 ### ADD MYSQL GALLERY ITEM ###################################################################################################################################
@@ -1403,7 +1403,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1412,7 +1412,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 ### ADD SQL SERVER GALLERY ITEM ##############################################################################################################################
@@ -1450,7 +1450,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1459,7 +1459,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### INSTALL MYSQL RESOURCE PROVIDER #########################################################################################################################
@@ -1488,7 +1488,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1497,7 +1497,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### INSTALL SQL SERVER RESOURCE PROVIDER ####################################################################################################################
@@ -1526,7 +1526,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1535,7 +1535,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
@@ -1556,7 +1556,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1565,7 +1565,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### ADD MYSQL SKU & QUOTA ###################################################################################################################################
@@ -1669,7 +1669,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1678,7 +1678,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### ADD SQL SERVER SKU & QUOTA ##############################################################################################################################
@@ -1784,7 +1784,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1793,7 +1793,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### DEPLOY MySQL VM TO HOST USER DATABASES ##################################################################################################################
@@ -1817,7 +1817,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1826,7 +1826,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### DEPLOY SQL SERVER VM TO HOST USER DATABASES #############################################################################################################
@@ -1847,7 +1847,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1856,7 +1856,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### ADD MYSQL HOSTING SERVER ################################################################################################################################
@@ -1879,7 +1879,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1888,7 +1888,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### ADD SQL SERVER HOSTING SERVER ###########################################################################################################################
@@ -1911,7 +1911,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1920,7 +1920,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### DEPLOY APP SERVICE FILE SERVER ##########################################################################################################################
@@ -1944,7 +1944,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1953,7 +1953,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### DEPLOY APP SERVICE SQL SERVER ###########################################################################################################################
@@ -1978,7 +1978,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -1987,7 +1987,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### DOWNLOAD APP SERVICE ####################################################################################################################################
@@ -2009,7 +2009,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -2018,7 +2018,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### GENERATE APP SERVICE CERTS ##############################################################################################################################
@@ -2039,7 +2039,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -2048,7 +2048,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### CREATE AD SERVICE PRINCIPAL #############################################################################################################################
@@ -2084,7 +2084,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -2093,7 +2093,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
@@ -2161,7 +2161,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -2170,7 +2170,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### CUSTOMIZE ASDK HOST #####################################################################################################################################
@@ -2217,7 +2217,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -2226,7 +2226,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### GENERATE OUTPUT #########################################################################################################################################
@@ -2345,7 +2345,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) Failed"
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -2354,7 +2354,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex]) already completed successfully"
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### FINAL STEPS #############################################################################################################################################
