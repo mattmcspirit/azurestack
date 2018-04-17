@@ -657,7 +657,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         function DownloadWithRetry([string] $toolsURI, [string] $toolsDownloadLocation, [int] $retries) {
             while ($true) {
                 try {
-                    Invoke-WebRequest $toolsURI -OutFile "$toolsDownloadLocation"
+                    Invoke-WebRequest $toolsURI -OutFile "$toolsDownloadLocation" -UseBasicParsing
                     break
                 }
                 catch {
@@ -678,7 +678,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
         Write-Verbose "The download will be stored in $ASDKpath."
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        DownloadWithRetry -toolsURI "$toolsURI" -toolsDownloadLocation "$toolsDownloadLocation" -retries 3
+        DownloadWithRetry -toolsURI "$toolsURI" -toolsDownloadLocation "$toolsDownloadLocation" -retries 10
 
         # Expand the downloaded files
         Write-Verbose "Expanding Archive"
