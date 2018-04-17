@@ -621,6 +621,31 @@ if ($registerASDK) {
 $cloudAdminUsername = "AzureStack\CloudAdmin"
 $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
 
+### DOWNLOADER FUNCTION #####################################################################################################################################
+########################################################################################################################################################
+
+function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
+    while ($true) {
+        try {
+            Invoke-WebRequest $downloadURI -OutFile "$downloadLocation" -UseBasicParsing
+            break
+        }
+        catch {
+            $exceptionMessage = $_.Exception.Message
+            Write-Verbose "Failed to download '$downloadURI': $exceptionMessage"
+            if ($retries -gt 0) {
+                $retries--
+                Write-Verbose "Waiting 10 seconds before retrying. Retries left: $retries"
+                Start-Sleep -Seconds 10
+            }
+            else {
+                $exception = $_.Exception
+                throw $exception
+            }
+        }
+    }
+}
+
 ### DOWNLOAD TOOLS #####################################################################################################################################
 ########################################################################################################################################################
 
@@ -652,31 +677,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Download points to my fork of the tools, to ensure compatibility - this will be updated accordingly.
         $toolsURI = "https://github.com/mattmcspirit/AzureStack-Tools/archive/master.zip"
         $toolsDownloadLocation = "$ASDKpath\master.zip"
-        function DownloadWithRetry([string] $toolsURI, [string] $toolsDownloadLocation, [int] $retries) {
-            while ($true) {
-                try {
-                    Invoke-WebRequest $toolsURI -OutFile "$toolsDownloadLocation" -UseBasicParsing
-                    break
-                }
-                catch {
-                    $exceptionMessage = $_.Exception.Message
-                    Write-Verbose "Failed to download '$toolsURI': $exceptionMessage"
-                    if ($retries -gt 0) {
-                        $retries--
-                        Write-Verbose "Waiting 10 seconds before retrying. Retries left: $retries"
-                        Start-Sleep -Seconds 10
-                    }
-                    else {
-                        $exception = $_.Exception
-                        throw $exception
-                    }
-                }
-            }
-        }
         Write-Verbose "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
         Write-Verbose "The download will be stored in $ASDKpath."
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        DownloadWithRetry -toolsURI "$toolsURI" -toolsDownloadLocation "$toolsDownloadLocation" -retries 10
+        DownloadWithRetry -downloadURI "$toolsURI" -downloadLocation "$toolsDownloadLocation" -retries 10
 
         # Expand the downloaded files
         Write-Verbose "Expanding Archive"
@@ -968,18 +972,23 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 # If registerASDK is true, the script will grab the properties of the gallery item from the syndicated marketplace and construct a replica from this info
 
                 if ($registerASDK) {
-
                     $ubuntuBuild = $azpkg.vhdVersion
                     $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
                     $ubuntuBuild = $ubuntuBuild.split('.')[2]
-                    Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop -UseBasicParsing
+                    #Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop -UseBasicParsing
+                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
+                    $ubuntuDownloadLocation = "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                    DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
                 }
 
                 # Otherwise, it will just use 1.0.0 as specified earlier
 
                 else {
                     $ubuntuBuild = $azpkg.vhdVersion
-                    Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop -UseBasicParsing
+                    #Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop -UseBasicParsing
+                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
+                    $ubuntuDownloadLocation = "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                    DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
                 }
        
                 Expand-Archive -Path "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -DestinationPath $ASDKpath -Force -ErrorAction Stop
@@ -1146,7 +1155,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Write-Verbose "Windows Server 2016 Cumulative Update will be stored at $target"
                 Write-Verbose "These are generally larger than 1GB, so may take a few minutes."
                 If (!(Test-Path -Path $target)) {
-                    Invoke-WebRequest -Uri $Url -OutFile $target -UseBasicParsing
+                    DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
+                    #Invoke-WebRequest -Uri $Url -OutFile $target -UseBasicParsing
                 }
                 Else {
                     Write-Verbose "File exists: $target. Skipping download."
@@ -1464,7 +1474,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
         # Download and Expand the MySQL RP files
-        Invoke-WebRequest https://aka.ms/azurestackmysqlrp -OutFile "$ASDKpath\MySQL.zip" -ErrorAction Stop -UseBasicParsing
+        $mySqlRpURI = "https://aka.ms/azurestackmysqlrp"
+        $mySqlRpDownloadLocation = "$ASDKpath\MySQL.zip"
+        DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
+        #Invoke-WebRequest https://aka.ms/azurestackmysqlrp -OutFile "$ASDKpath\MySQL.zip" -ErrorAction Stop -UseBasicParsing
         Set-Location $ASDKpath
         Expand-Archive "$ASDKpath\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
         Set-Location "$ASDKpath\MySQL"
@@ -1502,7 +1515,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
         # Download and Expand the SQL Server RP files
-        Invoke-WebRequest https://aka.ms/azurestacksqlrp -OutFile "$ASDKpath\SQL.zip" -ErrorAction Stop -UseBasicParsing
+        $sqlRpURI = "https://aka.ms/azurestacksqlrp"
+        $sqlRpDownloadLocation = "$ASDKpath\SQL.zip"
+        DownloadWithRetry -downloadURI "$sqlRpURI" -downloadLocation "$sqlRpDownloadLocation" -retries 10
+        #Invoke-WebRequest https://aka.ms/azurestacksqlrp -OutFile "$ASDKpath\SQL.zip" -ErrorAction Stop -UseBasicParsing
         Set-Location $ASDKpath
         Expand-Archive "$ASDKpath\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
         Set-Location "$ASDKpath\SQL"
@@ -1998,9 +2014,15 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Install App Service To be added
         Write-Verbose "Downloading App Service Installer"
         Set-Location $ASDKpath
-        Invoke-WebRequest https://aka.ms/appsvconmashelpers -OutFile "$ASDKpath\appservicehelper.zip" -UseBasicParsing
+        $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
+        $appServiceHelperDownloadLocation = "$ASDKpath\appservicehelper.zip"
+        DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
+        #Invoke-WebRequest https://aka.ms/appsvconmashelpers -OutFile "$ASDKpath\appservicehelper.zip" -UseBasicParsing
         Expand-Archive $ASDKpath\appservicehelper.zip -DestinationPath "$ASDKpath\AppService\" -Force
-        Invoke-WebRequest https://aka.ms/appsvconmasinstaller -OutFile "$ASDKpath\AppService\appservice.exe" -UseBasicParsing
+        $appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
+        $appServiceExeDownloadLocation = "$ASDKpath\AppService\appservice.exe"
+        DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
+        #Invoke-WebRequest https://aka.ms/appsvconmasinstaller -OutFile "$ASDKpath\AppService\appservice.exe" -UseBasicParsing
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
@@ -2207,8 +2229,11 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         # Azure CLI
         Write-Verbose "Installing latest version of Azure CLI"
-        invoke-webrequest https://aka.ms/InstallAzureCliWindows -OutFile C:\AzureCLI.msi -UseBasicParsing
-        msiexec.exe /qb-! /i C:\AzureCli.msi
+        $azureCliURI = "https://aka.ms/InstallAzureCliWindows"
+        $azureCliDownloadLocation = "$ASDKpath\AzureCLI.msi"
+        DownloadWithRetry -downloadURI "$azureCliURI" -downloadLocation "$azureCliDownloadLocation" -retries 10
+        #Invoke-Webrequest https://aka.ms/InstallAzureCliWindows -OutFile C:\AzureCLI.msi -UseBasicParsing
+        msiexec.exe /qb-! /i "$ASDKpath\AzureCLI.msi"
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
