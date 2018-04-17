@@ -624,32 +624,30 @@ $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredentia
 ### DOWNLOAD TOOLS #####################################################################################################################################
 ########################################################################################################################################################
 
+### CREATE ASDK FOLDER ###
+
+$ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
+If ($ASDKpath -eq $true) {
+    Write-Verbose "ASDK folder exists at $downloadPath - no need to create it."
+    Write-Verbose "Download files will be placed in $downloadPath\ASDK"
+    $ASDKpath = "$downloadPath\ASDK"
+    Write-Verbose "ASDK folder full path is $ASDKpath"
+}
+elseif ($ASDKpath -eq $false) {
+    # Create the ASDK folder.
+    Write-Verbose "ASDK folder doesn't exist within $downloadPath, creating it"
+    mkdir "$downloadPath\ASDK" -Force | Out-Null
+    $ASDKpath = "$downloadPath\ASDK"
+    Write-Verbose "ASDK folder full path is $ASDKpath"
+}
+
 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "DownloadTools")
 
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
 
     try {
-        
-        ### CREATE ASDK FOLDER ###
-
-        $ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
-        If ($ASDKpath -eq $true) {
-            Write-Verbose "ASDK folder exists at $downloadPath - no need to create it."
-            Write-Verbose "Download files will be placed in $downloadPath\ASDK"
-            $ASDKpath = "$downloadPath\ASDK"
-            Write-Verbose "ASDK folder full path is $ASDKpath"
-        }
-        elseif ($ASDKpath -eq $false) {
-            # Create the ASDK folder.
-            Write-Verbose "ASDK folder doesn't exist within $downloadPath, creating it"
-            mkdir "$downloadPath\ASDK" -Force | Out-Null
-            $ASDKpath = "$downloadPath\ASDK"
-            Write-Verbose "ASDK folder full path is $ASDKpath"
-        }
-
         ### DOWNLOAD & EXTRACT TOOLS ###
-
         # Download the tools archive using a function incase the download fails or is interrupted.
         # Download points to my fork of the tools, to ensure compatibility - this will be updated accordingly.
         $toolsURI = "https://github.com/mattmcspirit/AzureStack-Tools/archive/master.zip"
