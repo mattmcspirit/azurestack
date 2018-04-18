@@ -1074,7 +1074,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         if ($platformImageCore -ne $null -and $platformImageCore.Properties.ProvisioningState -eq 'Succeeded') {
             Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
-            Write-Output "Insert details here"
             $serverCoreVMImageAlreadyAvailable = $true
         }
 
@@ -1086,7 +1085,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         if ($platformImageFull -ne $null -and $platformImageFull.Properties.ProvisioningState -eq 'Succeeded') {
             Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
-            Write-Output "Insert details here"
             $serverFullVMImageAlreadyAvailable = $true
         }
 
