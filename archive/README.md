@@ -24,7 +24,7 @@ You can learn more about Azure Stack on the dedicated [Azure Stack website](http
 It's also a great platform to learn about DevOps, and what better way to learn about DevOps, than through utilizing the DevOps Toolkit.
 
 ## What is the DevOps Toolkit?
-The DevOps Toolkit is a PowerShell script that automates the deployment of a number of pre-packaged, open-source DevOps tools, including Ansible, Chef, Jenkins, Puppet, Salt and Terraform, into your Azure Stack environment, specifically into the Azure Stack marketplace, to enable consumption by your tenants. These open-source offerings consist of an .azpkg file, which contains an ARM template for deployment, and a variety of other files, along with links to additional deployment scripts [hosted on GitHub](/scripts).
+The DevOps Toolkit is a PowerShell script that automates the deployment of a number of pre-packaged, open-source DevOps tools, including Ansible, Chef, Jenkins, Puppet, Salt and Terraform, into your Azure Stack environment, specifically into the Azure Stack marketplace, to enable consumption by your tenants. These open-source offerings consist of an .azpkg file, which contains an ARM template for deployment, and a variety of other files, along with links to additional deployment scripts [hosted on GitHub](/archive/scripts).
 
 Once you've successfully run the DevOpsToolkit.ps1 script, you'll be presented with a dedicated section of the navigation for the DevOps Toolkit, and inside, you'll find a selection of open-source DevOps tools, ready for deployment.
 
@@ -34,7 +34,7 @@ Once you've successfully run the DevOpsToolkit.ps1 script, you'll be presented w
 
 Upon deployment, the PowerShell script will walk through a series of steps to automate the deployment of key dependencies, and the marketplace packages themselves.  Below is a graphic that represents the process.
 
-![DevOps Toolkit Process Flow](</media/DevOpsToolkitFlow.png>)
+![DevOps Toolkit Process Flow](</archive/media/DevOpsToolkitFlow.png>)
 
 At a high level, when you kick off the process, the DevOpsToolkit.ps1 script will first download the required tools to interact correctly with Azure Stack.  Once downloaded, and extracted, you'll be prompted to log in to either Azure AD, or ADFS, to connect with your Azure Stack.  You'll use which one you selected at Azure Stack deployment time.  Once logged in successfully, the script will check for the existence of an Ubuntu Server 16.04 LTS image.  If it finds one with the correct characteristics, it will use that, however if it doesn't find one, the script will prompt you to download an image, and add it to your Azure Stack Platform Image Repository (PIR), using one of three methods:
 
@@ -96,17 +96,17 @@ If you wish, you can edit the template and make modifications, however for most 
 
 With the parameters entered, give the **resource group** a name and you're ready to click **Create**
 
-![Jenkins Deployment](</media/DevOpsJenkins.PNG>)
+![Jenkins Deployment](</archive/media/DevOpsJenkins.PNG>)
 
 Your deployment will begin, and depending on your hardware, will take a few minutes.
 
 Once completed, you should receive a notification, and in the **Deployment blade**, you should see information about the success (or failure!) of the deployment, including the FQDN to access the Jenkins virtual machine.
 
-![Jenkins Deployment Completed](</media/DevOpsJenkinsFinished.PNG>)
+![Jenkins Deployment Completed](</archive/media/DevOpsJenkinsFinished.PNG>)
 
 With that completed, in the case of Jenkins, you can go to the Jenkins Master FQDN, which in my case, is http://jenkins1.local.cloudapp.azurestack.external:8080, and I'll need to access this from within my Azure Stack environment.
 
-![Jenkins Deployment Completed](</media/UnlockJenkins.PNG>)
+![Jenkins Deployment Completed](<media/UnlockJenkins.PNG>)
 
 Now in the case of Jenkins, you'll also need to SSH into the VM itself, using a tool such as Putty, in order to retrieve the initial admin password, and once done, paste into the browser, and you're pretty much there to a Jenkins deployment, perfect for kicking the tires, testing, learning and more.
 
