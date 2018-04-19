@@ -110,12 +110,9 @@ With that completed, in the case of Jenkins, you can go to the Jenkins Master FQ
 
 Now in the case of Jenkins, you'll also need to SSH into the VM itself, using a tool such as Putty, in order to retrieve the initial admin password, and once done, paste into the browser, and you're pretty much there to a Jenkins deployment, perfect for kicking the tires, testing, learning and more.
 
-If you want to automate the deployment, instead of deploying through the portal, I've provided PowerShell scripts within each of the individual package folders, which can be found within the main [Packages folder](../../../packages)
+If you want to automate the deployment, instead of deploying through the portal, I've provided PowerShell scripts within each of the individual package folders, which can be found within the main [Packages folder](../../../../packages)
 
 ## Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../../issues>) and I'll do my best to resolve them.
 
 Likewise, if you are awesome at PowerShell, or Linux scripting, or would like to have additional tools included within the packages, let me know, and we can collaborate to improve the overall project!
-
-## Changelog
-To view version history, and see changes made for new versions, check out the [changelog](changelog.md)
