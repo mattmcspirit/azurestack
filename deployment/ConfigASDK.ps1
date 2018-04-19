@@ -830,25 +830,6 @@ else {
     Write-Verbose ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
 }
 
-### CREATE STORAGE ACCOUNT #############################################################################################################################
-########################################################################################################################################################
-
-if ($registerASDK) {
-    try {
-        Write-Verbose "Proceeding to create new temporary ASDK Configurator Resource Group and Storage Account for uploading gallery packages."
-        $RG = New-AzureRmResourceGroup -Name azurestack-galleryitems -Location local -Force -Confirm:$false -ErrorAction Stop
-        $StorageAccount = New-AzureRmStorageAccount -Name azurestackgalleryitems -Type Standard_LRS -Location Local -ResourceGroupName $RG.ResourceGroupName
-        $GalleryContainer = New-AzureStorageContainer -Name azurestackgalleryitems -Permission Blob -Context $StorageAccount.Context
-        Write-Verbose "Creation successful:"
-        Get-AzureRmResourceGroup -Name azurestack-galleryitems | Format-Table ResourceGroupName, Location, ProvisioningState, ResourceId
-    }
-    catch {
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
 ##############################################################################################################################################################
 
@@ -1281,7 +1262,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 # Get the package information
                 $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
                 $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-                $products = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name
+                $products = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
 
                 foreach ($product in $products) {
 
