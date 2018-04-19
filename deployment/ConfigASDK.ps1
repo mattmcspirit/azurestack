@@ -622,7 +622,7 @@ $cloudAdminUsername = "AzureStack\CloudAdmin"
 $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
 
 ### DOWNLOADER FUNCTION #####################################################################################################################################
-########################################################################################################################################################
+#############################################################################################################################################################
 
 function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
     while ($true) {
@@ -828,6 +828,25 @@ elseif ($authenticationType.ToString() -like "ADFS") {
 }
 else {
     Write-Verbose ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
+}
+
+### CREATE STORAGE ACCOUNT #############################################################################################################################
+########################################################################################################################################################
+
+if ($registerASDK) {
+    try {
+        Write-Verbose "Proceeding to create new temporary ASDK Configurator Resource Group and Storage Account for uploading gallery packages."
+        $RG = New-AzureRmResourceGroup -Name azurestack-galleryitems -Location local -Force -Confirm:$false -ErrorAction Stop
+        $StorageAccount = New-AzureRmStorageAccount -Name azurestackgalleryitems -Type Standard_LRS -Location Local -ResourceGroupName $RG.ResourceGroupName
+        $GalleryContainer = New-AzureStorageContainer -Name azurestackgalleryitems -Permission Blob -Context $StorageAccount.Context
+        Write-Verbose "Creation successful:"
+        Get-AzureRmResourceGroup -Name azurestack-galleryitems | Format-Table ResourceGroupName, Location, ProvisioningState, ResourceId
+    }
+    catch {
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
 }
 
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
@@ -1220,6 +1239,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             ### Login to Azure to get all the details about the syndicated Windows Server 2016 marketplace offering ###
             Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Clear-AzureRmContext -Scope CurrentUser -Force
             Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             $sub = Get-AzureRmSubscription
             $sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
@@ -1253,47 +1274,53 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             foreach ($package in $packageArray) {
 
-                $azpkg = $null
-                $azpkg = @{
-                    id        = ""
-                    publisher = ""
-                    sku       = ""
-                    offer     = ""
-                    azpkgPath = ""
-                    name      = ""
-                    type      = ""
-                }
+                $products = @()
+                $products.Clear()
+                $product = $null
 
                 # Get the package information
                 $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
                 $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-                $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
+                $products = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name
 
-                $azpkg.id = $product.name.Split('/')[-1]
-                $azpkg.type = $product.properties.productKind
-                $azpkg.publisher = $product.properties.publisherDisplayName
-                $azpkg.sku = $product.properties.sku
-                $azpkg.offer = $product.properties.offer
+                foreach ($product in $products) {
 
-                # Get product info
-                $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
-                $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-                $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
-                $azpkg.name = $productDetails.properties.galleryItemIdentity
+                    $azpkg = $null
+                    $azpkg = @{
+                        id        = ""
+                        publisher = ""
+                        sku       = ""
+                        offer     = ""
+                        azpkgPath = ""
+                        name      = ""
+                        type      = ""
+                    }
 
-                # Get download location for AZPKG file
-                $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
-                $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
-                $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
+                    $azpkg.id = $product.name.Split('/')[-1]
+                    $azpkg.type = $product.properties.productKind
+                    $azpkg.publisher = $product.properties.publisherDisplayName
+                    $azpkg.sku = $product.properties.sku
+                    $azpkg.offer = $product.properties.offer
 
-                # Display Legal Terms
-                $legalTerms = $productDetails.properties.description
-                $legalDisplay = $legalTerms -replace '<.*?>', ''
-                Write-Host "$legalDisplay" -ForegroundColor Yellow
+                    # Get product info
+                    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
+                    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
+                    $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
+                    $azpkg.name = $productDetails.properties.galleryItemIdentity
 
-                # Add to the array
-                $azpkgArray += , $azpkg
+                    # Get download location for AZPKG file
+                    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
+                    $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
+                    $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
 
+                    # Display Legal Terms
+                    $legalTerms = $productDetails.properties.description
+                    $legalDisplay = $legalTerms -replace '<.*?>', ''
+                    Write-Host "$legalDisplay" -ForegroundColor Yellow
+
+                    # Add to the array
+                    $azpkgArray += , $azpkg
+                }
             }
 
             ### With all the information stored in the arrays, log back into Azure Stack to check for existing images and push new ones if required ###
