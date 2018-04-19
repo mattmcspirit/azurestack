@@ -1,5 +1,12 @@
-# DevOps Toolkit Version History
+# ConfigASDK.ps1 Version History
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
-## DevOps Toolkit 1.0.0
-Initial Release
+## ConfigASDK.psq
+
+    3.0  major update for ASDK release 20180329.1
+    2.0  update for release 1.0.280917.3 
+    1.0: small bug fixes and adding quotas/plan/offer creation
+    0.5: add SQL 2014 VM deployment
+    0.4: add Windows update disable
+    0.3: Bug fix (SQL Provider prompting for tenantdirectoryID)
+    0.2: Bug Fix (AZStools download)
