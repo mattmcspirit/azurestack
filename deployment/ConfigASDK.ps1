@@ -2234,12 +2234,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         choco install windirstat
 
         # Azure CLI
-        Write-Verbose "Installing latest version of Azure CLI"
-        $azureCliURI = "https://aka.ms/InstallAzureCliWindows"
-        $azureCliDownloadLocation = "$ASDKpath\AzureCLI.msi"
-        DownloadWithRetry -downloadURI "$azureCliURI" -downloadLocation "$azureCliDownloadLocation" -retries 10
-        #Invoke-Webrequest https://aka.ms/InstallAzureCliWindows -OutFile C:\AzureCLI.msi -UseBasicParsing
-        msiexec.exe /qb-! /i "$ASDKpath\AzureCLI.msi"
+        Write-Verbose "Installing latest version of Azure CLI with Chocolatey"
+        choco install azure-cli
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
@@ -2395,8 +2391,9 @@ $scriptSuccess = $progress | Where-Object {($_.Status -eq "Incomplete") -or ($_.
 if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Verbose "Congratulations - all steps completed successfully:`r`n"
     $progress
-    Write-Verbose "Cleaning up ASDK Folder"
-    Remove-Item -Path $asdkPath -Recurse -Confirm:$false -Force
+    Write-Verbose "Cleaning up ASDK Folder and Progress CSV file"
+    Remove-Item -Path $asdkPath -Recurse -Confirm:$false -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue
 }
 else {
     Write-Verbose "Script hasn't completed successfully"
