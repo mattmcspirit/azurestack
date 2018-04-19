@@ -1,14 +1,15 @@
 Azure Stack Development Kit | Configurator Tool
 ==============
+
+ASDK Version
+-----------
+The current version of the ConfigASDK.ps1 Script has been tested with ASDK build **20180329.1**
+
 Description
 -----------
 Once you have completed the installation of your ASDK, you need to populate it with content, in order to have a more complete experience. This content may include
 virtual machine images, extensions, database hosts, app services and more. All of that takes time to install and configure.
 The purpose of this ConfigASDK.ps1 script is to automate as much as possible, the post-deployment tasks for the Azure Stack Development Kit
-
-   > [!NOTE]
-   > The ConfigASDK.ps1 Script has been tested with ASDK build 20180329.1
-   > 
 
 This includes:
 * Updated password expiration (180 days)
