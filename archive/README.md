@@ -28,7 +28,7 @@ The DevOps Toolkit is a PowerShell script that automates the deployment of a num
 
 Once you've successfully run the DevOpsToolkit.ps1 script, you'll be presented with a dedicated section of the navigation for the DevOps Toolkit, and inside, you'll find a selection of open-source DevOps tools, ready for deployment.
 
-![DevOps Toolkit Deployed](</../media/DevOpsToolkitPortal.PNG>)
+![DevOps Toolkit Deployed](</archive/media/DevOpsToolkitPortal.PNG>)
 
 ### DevOps Toolkit Process
 
