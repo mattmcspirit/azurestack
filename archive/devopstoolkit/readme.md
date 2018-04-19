@@ -4,7 +4,7 @@ In order to download the script, you'll want to run the following from your admi
 
 ```powershell
     # Variables
-    $Uri = 'https://raw.githubusercontent.com/mattmcspirit/azurestack/master/powershell/DevOpsToolkit.ps1'
+    $Uri = 'https://raw.githubusercontent.com/mattmcspirit/azurestack/master/archive/devopstoolkit/DevOpsToolkit.ps1'
     $LocalPath = 'c:\DevOpsToolkit'
 
     # Create folder
