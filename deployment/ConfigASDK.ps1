@@ -2271,7 +2271,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         ### Create Output Document ###
 
-        $txtPath = "$ASDKpath\ConfigASDKOutput.txt"
+        $txtPath = "$downloadPath\ConfigASDKOutput.txt"
         New-Item "$txtPath" -ItemType file -Force
 
         Write-Output "`r`nThis document contains useful information for deployment of the App Service" > $txtPath
@@ -2390,6 +2390,20 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 #### FINAL STEPS #############################################################################################################################################
 ##############################################################################################################################################################
 
+### Clean Up ASDK Folder ###
+$scriptSuccess = $progress | Where-Object {($_.Status -eq "Incomplete") -or ($_.Status -eq "Failed")}
+if ([string]::IsNullOrEmpty($scriptSuccess)) {
+    Write-Verbose "Congratulations - all steps completed successfully:`r`n"
+    $progress
+    Write-Verbose "Cleaning up ASDK Folder"
+    Remove-Item -Path $asdkPath -Recurse -Confirm:$false -Force
+}
+else {
+    Write-Verbose "Script hasn't completed successfully"
+    Write-Verbose "Please rerun the script to complete the process"
+    $progress
+}
+
 Write-Verbose "Setting Execution Policy back to RemoteSigned"
 Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
 
@@ -2400,11 +2414,9 @@ $Mins = $sw.Elapsed.Minutes
 $Secs = $sw.Elapsed.Seconds
 $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
 
-Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
-Write-Output "The following steps have been completed:`r`n"
-Write-Output $progress
 Write-Output "`r`nOpening your ConfigASDKOutput.txt file that you'll use for the App Service deployment..."
 Start-Sleep -Seconds 5
-Notepad $txtPath
+Notepad "$downloadPath\ConfigASDKOutput.txt" -ErrorAction SilentlyContinue
 Set-Location $ScriptLocation -ErrorAction SilentlyContinue
+Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
 Stop-Transcript -ErrorAction SilentlyContinue
