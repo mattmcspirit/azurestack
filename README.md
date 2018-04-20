@@ -1,9 +1,13 @@
-Azure Stack Development Kit | Configurator Tool
+Azure Stack Development Kit | Configurator Tool 3.0
 ==============
 
 ASDK Version
 -----------
-The current version of the ConfigASDK.ps1 Script has been tested with ASDK build **20180329.1**
+The current version of the ConfigASDK.ps1 script has been tested with the following versions:
+* ASDK build **20180329.1**
+* Azure Stack PowerShell Module **1.2.11**
+* Azure Stack PowerShell Tools forked to <https://github.com/mattmcspirit/AzureStack-Tools>
+
 
 Description
 -----------
@@ -29,16 +33,16 @@ This includes:
 * App Service prerequisites installation (SQL Server and Standalone File Server)
 * App Service Resource Provider sources download and certificates generation
 * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
-* Generate output text file for use in the next steps of configuration.
+* Generate output text file for use in the next steps of App Service configuration.
 
 It's important to note, that the ConfigASDK.ps1 script cannot automate everything today. The App Service installation, for instance, cannot be automated today
-however, the script completes with an output text file, that can be used to populate the App Service installer, to streamline deployment of the App Service.
+however, the script completes with an output text file, that can be used to populate the App Service installer, to streamline deployment of the App Service. Future versions may automatically install the App Service.
 
 Important Considerations
 ------------
-The current version of the ConfigASDK.ps1 script relies on your ASDK having an internet connection. During the execution, the script will download a number of
+The current version of the ConfigASDK.ps1 script **relies** on your ASDK host having an internet connection. During the execution, the script will download a number of
 files from the internet, including the Azure Stack Tools, Ubuntu Server 16.04 VHD, Windows Updates for the Windows Server image creation process, and more. Future versions
-of the ConfigASDK.ps1 script may include more offline support.
+of the ConfigASDK.ps1 script may include complete offline support.
 
 Instructions
 ------------
@@ -59,7 +63,7 @@ Use-AzureRmProfile -Profile 2017-03-09-profile -Force
 Install-Module -Name AzureStack -RequiredVersion 1.2.11
 ```
 
-* Detailed instructions for installing the PowerShell for Azure Stack can be found here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install
+* Detailed instructions for installing the PowerShell for Azure Stack can be found here: <https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install>
 * Once completed successfully, close your PowerShell console window.
 
 #### Download the ConfigASDK.ps1 script ####
