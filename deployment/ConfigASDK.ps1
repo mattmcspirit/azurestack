@@ -2420,7 +2420,7 @@ $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
 
 Write-Output "`r`nOpening your ConfigASDKOutput.txt file that you'll use for the App Service deployment..."
 Start-Sleep -Seconds 5
-Notepad "$downloadPath\ConfigASDKOutput.txt" -ErrorAction SilentlyContinue
+Notepad "$downloadPath\ConfigASDKOutput.txt"
 Set-Location $ScriptLocation -ErrorAction SilentlyContinue
 Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
 Stop-Transcript -ErrorAction SilentlyContinue
