@@ -2394,7 +2394,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ##############################################################################################################################################################
 
 ### Clean Up ASDK Folder ###
-$scriptSuccess = $progress | Where-Object {($_.Status -eq "Incomplete") -or ($_.Status -eq "Failed") -or ($_.Status -eq "Skipped")}
+$scriptSuccess = $progress | Where-Object {($_.Status -eq "Incomplete") -or ($_.Status -eq "Failed")}
 if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Verbose "Congratulations - all steps completed successfully:`r`n"
     $progress
