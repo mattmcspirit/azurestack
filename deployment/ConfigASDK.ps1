@@ -2111,7 +2111,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         else {
             Write-Verbose ("No valid application was created, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
         }
-
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
