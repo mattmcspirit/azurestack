@@ -33,11 +33,16 @@ This includes:
 * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
 * App Service prerequisites installation (SQL Server and Standalone File Server)
 * App Service Resource Provider sources download and certificates generation
+* App Service Service Principal Created (for Azure AD and ADFS)
 * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
 * Generate output text file for use in the next steps of App Service configuration.
+* Transcript Log for Errors and Troubleshooting
+* Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
 
 It's important to note, that the ConfigASDK.ps1 script cannot automate everything today. The App Service installation, for instance, cannot be automated today
 however, the script completes with an output text file, that can be used to populate the App Service installer, to streamline deployment of the App Service. Future versions may automatically install the App Service.
+
+Additionally, if you encounter an issue, try rerunning the script with the same command you used to run it previously.  The script is written in such a way that it shouldn't try to rerun previously completed steps.
 
 Important Considerations
 ------------
