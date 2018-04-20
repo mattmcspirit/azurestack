@@ -17,7 +17,7 @@ The purpose of this ConfigASDK.ps1 script is to automate as much as possible, th
 
 This includes:
 * Updated password expiration (180 days)
-* Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the tempation to apply the patches...)
+* Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
 * Tools installation (Azure Stack Tools)
 * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
 * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
