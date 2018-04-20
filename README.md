@@ -1,4 +1,4 @@
-Azure Stack Development Kit | Configurator Tool 3.0
+Azure Stack Development Kit Configurator 3.0
 ==============
 
 ASDK Version
