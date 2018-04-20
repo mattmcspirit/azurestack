@@ -483,14 +483,19 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
     }
 }
 
+### Create Cloud Admin Creds ###
+$cloudAdminUsername = "azurestack\cloudadmin"
+$cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
+
 <### Credentials Recap ###
 $azureRegUsername | Used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
 $azureRegPwd (and $secureAzureRegPwd) | Used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
 $azureRegCreds | Combined credentials, used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
+$cloudAdminCreds | Used for ADFS login (azurestackadmin not used) and also MySQL/SQL RP deployment
 #>
 
 if ($authenticationType.ToString() -like "ADFS") {
-    $asdkCreds = $azureStackAdminCreds
+    $asdkCreds = $cloudAdminCreds
 }
 
 <### Credentials Recap ###
@@ -615,11 +620,6 @@ if ($registerASDK) {
         return    
     }
 }
-
-### Create CloudAdminCreds, used for registration, SQL/MYSQL RP Installation ###
-
-$cloudAdminUsername = "AzureStack\CloudAdmin"
-$cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
 
 ### DOWNLOADER FUNCTION #####################################################################################################################################
 #############################################################################################################################################################
@@ -2398,8 +2398,10 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Verbose "Congratulations - all steps completed successfully:`r`n"
     $progress
     Write-Verbose "Cleaning up ASDK Folder and Progress CSV file"
-    Remove-Item -Path $asdkPath -Recurse -Confirm:$false -Force -ErrorAction SilentlyContinue
-    Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -Path "$asdkPath\*" | Where-Object {($_.Extension -eq ".zip")} | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    Remove-Item "$asdkPath\SQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    Get-ChildItem -Path "$asdkPath\AppService\*" -Recurse | Where-Object {($_.Extension -ne ".exe") -and ($_.Extension -ne ".pfx") -and ($_.Extension -ne ".cer")} | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
 }
 else {
     Write-Verbose "Script hasn't completed successfully"
@@ -2422,4 +2424,13 @@ Start-Sleep -Seconds 5
 Notepad "$downloadPath\ConfigASDKOutput.txt"
 Set-Location $ScriptLocation -ErrorAction SilentlyContinue
 Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
+
+### Launch browser to activate admin and user portal for Azure AD deployments
+if ($authenticationType.ToString() -like "AzureAd") {
+    Write-Output "Launching browser to activate admin and user portals"
+    [System.Diagnostics.Process]::Start("chrome.exe", "https://adminportal.local.azurestack.external/guest/signup")
+    Start-Sleep -Seconds 10
+    [System.Diagnostics.Process]::Start("chrome.exe", "https://portal.local.azurestack.external/guest/signup")
+}
+
 Stop-Transcript -ErrorAction SilentlyContinue
