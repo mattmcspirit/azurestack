@@ -799,6 +799,13 @@ if ($registerASDK) {
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
+elseif (!$registerASDK) {
+    Write-Verbose "Skipping Azure Stack registration to Azure"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
+}
 
 ### CONNECT TO AZURE STACK #############################################################################################################################
 ########################################################################################################################################################
@@ -2387,7 +2394,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ##############################################################################################################################################################
 
 ### Clean Up ASDK Folder ###
-$scriptSuccess = $progress | Where-Object {($_.Status -eq "Incomplete") -or ($_.Status -eq "Failed")}
+$scriptSuccess = $progress | Where-Object {($_.Status -eq "Incomplete") -or ($_.Status -eq "Failed") -or ($_.Status -eq "Skipped")}
 if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Verbose "Congratulations - all steps completed successfully:`r`n"
     $progress
