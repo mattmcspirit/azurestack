@@ -16,6 +16,7 @@ virtual machine images, extensions, database hosts, app services and more. All o
 The purpose of this ConfigASDK.ps1 script is to automate as much as possible, the post-deployment tasks for the Azure Stack Development Kit
 
 This includes:
+* Validates all input parameters
 * Updated password expiration (180 days)
 * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
 * Tools installation (Azure Stack Tools)
