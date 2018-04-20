@@ -1,7 +1,7 @@
 Azure Stack Development Kit Configurator 3.0
 ==============
 
-ASDK Version
+Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been tested with the following versions:
 * ASDK build **20180329.1**
