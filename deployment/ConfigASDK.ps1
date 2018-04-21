@@ -2402,6 +2402,7 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item "$asdkPath\SQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
     Get-ChildItem -Path "$asdkPath\AppService\*" -Recurse | Where-Object {($_.Extension -ne ".exe") -and ($_.Extension -ne ".pfx") -and ($_.Extension -ne ".cer")} | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue
 }
 else {
     Write-Verbose "Script hasn't completed successfully"
