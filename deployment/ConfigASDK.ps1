@@ -2347,9 +2347,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output "File Share User Password: $VMpwd" >> $txtPath
         Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
         Write-Output "Identity Application ID: $finalAppId" >> $txtPath
-        Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.local.azurestack.external" >> $txtPath
+        Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.local.azurestack.external.pfx" >> $txtPath
         Write-Output "Identity Application Certificate (*.pfx) password: $VMpwd" >> $txtPath
-        Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority" >> $txtPath
+        Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority.cer" >> $txtPath
         Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
         Write-Output "App Service default SSL certificate file (*.pfx): $AppServicePath\_.appservice.local.AzureStack.external.pfx" >> $txtPath
         Write-Output "App Service default SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
