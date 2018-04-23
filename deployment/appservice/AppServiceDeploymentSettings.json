@@ -11,7 +11,7 @@
     "LoginEndpoint": "https://login.windows.net/",
     "AzureClient": {
         "Metadata": null,
-        "ResouceManagerEndpoint": "<<ResouceManagerEndpoint>>",
+        "ResouceManagerEndpoint": "adminmanagement.local.azurestack.external",
         "AzureDirectoryTenantName": "<<AzureDirectoryTenantName>>",
         "ApiVersion": "2015-01-01",
         "AuthenticationEndpoint": "https://login.windows.net/",
