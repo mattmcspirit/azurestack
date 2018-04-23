@@ -5,7 +5,7 @@
     "IsMultiTenant": true,
     "TenantArmResource": "https://management.<<AzureDirectoryTenantName>>/<<DeploymentId>>",
     "TenantArmApplicationId": "<<TenantArmApplicationId>>",
-    "AzureResourceManagerDnsSuffix": "<<ResourceManagerEndpoint>>",
+    "AzureResourceManagerDnsSuffix": "adminmanagement.local.azurestack.external",
     "AzureDirectoryTenantName": "<<AzureDirectoryTenantName>>",
     "AppResourceId": "https://adminmanagement.<<AzureDirectoryTenantName>>/<<DeploymentId>>",
     "LoginEndpoint": "https://login.windows.net/",
