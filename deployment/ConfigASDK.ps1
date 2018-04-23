@@ -2094,11 +2094,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Create Azure AD or ADFS Service Principal
         if ($authenticationType.ToString() -like "AzureAd") {
             Set-Location "$AppServicePath"
-            . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
+            $appID = .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
             $appIdPath = "$AppServicePath\ApplicationID.txt"
+            $deploymentID = $appID[0]
+            $identityApplicationID = $appID[1]
             New-Item $appIdPath -ItemType file -Force
-            Write-Output $applicationId > $appIdPath
+            Write-Output $identityApplicationID > $appIdPath
 
             try {
                 # Logout to clean up
@@ -2118,7 +2120,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     'x-ms-client-request-id' = [guid]::NewGuid()
                     'x-ms-correlation-id'    = [guid]::NewGuid()
                 }
-                $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$applicationId/Consent?onBehalfOfAll=true"
+                $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
                 Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction SilentlyContinue
                 Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
                 Clear-AzureRmContext -Scope CurrentUser -Force
@@ -2131,11 +2133,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         }
         elseif ($authenticationType.ToString() -like "ADFS") {
             Set-Location "$AppServicePath"
-            . .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
+            $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds
             $appIdPath = "$AppServicePath\ApplicationID.txt"
+            $deploymentID = $appID[0]
+            $identityApplicationID = $appID[1]
             New-Item $appIdPath -ItemType file -Force
-            Write-Output $appId > $appIdPath
+            Write-Output $identityApplicationID > $appIdPath
         }
         else {
             Write-Verbose ("No valid application was created, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
@@ -2299,8 +2303,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-        $JsonConfig = Get-Content -Path $scriptsPath\deployparameters.json
-
+        $JsonConfig = Get-Content -Path https://raw.githubusercontent.com/mattmcspirit/azurestack/AppServiceAutomate/deployment/appservice/AppServiceDeploymentSettings.json
         #Create the JSON from deployment
         $AzureDirectoryTenantName = $TenantName
         $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $AzureDirectoryTenantName)
