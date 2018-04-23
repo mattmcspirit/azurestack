@@ -2099,6 +2099,35 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $appIdPath = "$AppServicePath\ApplicationID.txt"
             New-Item $appIdPath -ItemType file -Force
             Write-Output $applicationId > $appIdPath
+
+            try {
+                # Logout to clean up
+                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+                Clear-AzureRmContext -Scope CurrentUser -Force
+
+                # Grant permissions to Azure AD Service Principal
+                Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction SilentlyContinue | Out-Null
+                $context = Get-AzureRmContext
+                $tenantId = $context.Tenant.Id
+                $refreshToken = $context.TokenCache.ReadItems().RefreshToken
+                $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
+                $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
+                $header = @{
+                    'Authorization'          = 'Bearer ' + $apiToken.access_token
+                    'X-Requested-With'       = 'XMLHttpRequest'
+                    'x-ms-client-request-id' = [guid]::NewGuid()
+                    'x-ms-correlation-id'    = [guid]::NewGuid()
+                }
+                $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$applicationId/Consent?onBehalfOfAll=true"
+                Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction SilentlyContinue
+                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+                Clear-AzureRmContext -Scope CurrentUser -Force
+                Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            }
+            catch {
+                Write-Verbose $_.Exception.Message -ErrorAction SilentlyContinue
+                Write-Verbose ("No valid application was created, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
+            }
         }
         elseif ($authenticationType.ToString() -like "ADFS") {
             Set-Location "$AppServicePath"
@@ -2138,6 +2167,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Configure a simple base plan and offer for IaaS
         Import-Module "$modulePath\Connect\AzureStack.Connect.psm1"
         Import-Module "$modulePath\ServiceAdmin\AzureStack.ServiceAdmin.psm1"
+
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Clear-AzureRmContext -Scope CurrentUser -Force
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
         # Default quotas, plan, and offer
@@ -2260,6 +2292,11 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
+
+#### DEPLOY APP SERVICE ######################################################################################################################################
+##############################################################################################################################################################
+
+
 
 #### GENERATE OUTPUT #########################################################################################################################################
 ##############################################################################################################################################################
