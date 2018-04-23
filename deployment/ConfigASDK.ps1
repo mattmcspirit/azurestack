@@ -206,6 +206,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"CreateServicePrincipal","Incomplete"'
         '"CreatePlansOffers","Incomplete"'
         '"InstallHostApps","Incomplete"'
+        '"InstallAppService","Incomplete"'
         '"CreateOutput","Incomplete"'
     )
     $ConfigASDKprogress | ForEach-Object { Add-Content -Path $ConfigASDKProgressLogPath -Value $_ }
@@ -2093,6 +2094,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         # Create Azure AD or ADFS Service Principal
         if ($authenticationType.ToString() -like "AzureAd") {
+            # Logout to clean up
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Clear-AzureRmContext -Scope CurrentUser -Force
+
+            # Grant permissions to Azure AD Service Principal
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             Set-Location "$AppServicePath"
             $appID = .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
@@ -2101,14 +2108,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $identityApplicationID = $appID[1]
             New-Item $appIdPath -ItemType file -Force
             Write-Output $identityApplicationID > $appIdPath
-
+            Start-Sleep -Seconds 20
             try {
                 # Logout to clean up
                 Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
                 Clear-AzureRmContext -Scope CurrentUser -Force
-
                 # Grant permissions to Azure AD Service Principal
-                Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction SilentlyContinue | Out-Null
+                Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction Stop | Out-Null
                 $context = Get-AzureRmContext
                 $tenantId = $context.Tenant.Id
                 $refreshToken = $context.TokenCache.ReadItems().RefreshToken
@@ -2128,7 +2134,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
             catch {
                 Write-Verbose $_.Exception.Message -ErrorAction SilentlyContinue
-                Write-Verbose ("No valid application was created, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
+                Write-Verbose ("Permissions were not correctly set on your App ID: $identityApplicationID, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
             }
         }
         elseif ($authenticationType.ToString() -like "ADFS") {
@@ -2303,45 +2309,41 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-        $JsonConfig = Get-Content -Path https://raw.githubusercontent.com/mattmcspirit/azurestack/AppServiceAutomate/deployment/appservice/AppServiceDeploymentSettings.json
+        Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/AppServiceAutomate/deployment/appservice/AppServiceDeploymentSettings.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json"
+        $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
         #Create the JSON from deployment
-        $AzureDirectoryTenantName = $TenantName
-        $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $AzureDirectoryTenantName)
-        $DeploymentId = $appID[0]
-        $JsonConfig = $JsonConfig.Replace("<<DeploymentId>>", $DeploymentId)
-        $TenantArmAppIDObj = Get-AzureRmADApplication -IdentifierUri "https://management.$TenantName/$($appID[0])"
+        $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $azureDirectoryTenantName)
+        $JsonConfig = $JsonConfig.Replace("<<DeploymentId>>", $deploymentID)
+        $TenantArmAppIDObj = Get-AzureRmADApplication -IdentifierUri "https://management.$azureDirectoryTenantName/$($appID[0])"
         $TenantArmApplicationId = $TenantArmAppIDObj.ApplicationId
         $JsonConfig = $JsonConfig.Replace("<<TenantArmApplicationId>>", $TenantArmApplicationId)
-        $ResourceManagerEndpoint = $ArmEndpoint
-        $JsonConfig = $JsonConfig.Replace("<<ResourceManagerEndpoint>>", $ResourceManagerEndpoint)
         $sub = Get-AzureRmSubscription
         $subscriptionId = $sub.Id
         $JsonConfig = $JsonConfig.Replace("<<subscriptionId>>", $subscriptionId)
         $TenantId = $sub.TenantId
         $JsonConfig = $JsonConfig.Replace("<<TenantId>>", $TenantId)
-        $FileServerDNSLabel = $deployment.Outputs.fqdn.Value
-        $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $FileServerDNSLabel)
-        $JsonPassword = $Password
+        $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $fileServerFqdn)
+        $JsonPassword = $VMPwd
         $JsonConfig = $JsonConfig.Replace("<<Password>>", $JsonPassword)
-        $IdentityApplicationId = $appID[1]
-        $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $IdentityApplicationId)
+        $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $identityApplicationID)
         $ServicePrincipalObjectId = (Get-AzureRmADServicePrincipal -ServicePrincipalName $IdentityApplicationId).Id.Guid
         $JsonConfig = $JsonConfig.Replace("<<ServicePrincipalObjectId>>", $ServicePrincipalObjectId)
-        $CertPathDoubleSlash = "$scriptsPath\AppServiceHelperScripts"
-        $CertPathDoubleSlash = $CertPathDoubleSlash.Replace("\", "\\")
+        $CertPathDoubleSlash = $AppServicePath.Replace("\", "\\")
         $JsonConfig = $JsonConfig.Replace("<<CertPathDoubleSlash>>", $CertPathDoubleSlash)
-        $SQLServerName = $SQLdeployment.Outputs.fqdn.value
-        $JsonConfig = $JsonConfig.Replace("<<SQLServerName>>", $SQLServerName)
-        $SQLServerUser = $SQLUserName
+        $JsonConfig = $JsonConfig.Replace("<<SQLServerName>>", $sqlAppServerFqdn)
+        $SQLServerUser = "sa"
         $JsonConfig = $JsonConfig.Replace("<<SQLServerUser>>", $SQLServerUser)
-        Out-File -FilePath $scriptsPath\deploymentparameters-completed.json -InputObject $JsonConfig
+        Out-File -FilePath "$AppServicePath\AppServiceDeploymentSettings.json" -InputObject $JsonConfig
 
         # Deploy App Service EXE
-        .\AppService.exe /quiet Deploy UserName=$($AzureStackAdmin.UserName) Password=$AzureStackAdminPassword ParamFile="$scriptsPath\deploymentparameters-completed.json" 
+        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
+        $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+        Set-Location "$AppServicePath"
+        .\AppService.exe /quiet Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile="$AppServicePath\AppServiceDeploymentSettings.json"
 
         do {
-            Write-Output "AppService is Deploying"
-            Wait-Event -Timeout 5
+            Write-Output "AppService is Deploying."
+            Wait-Event -Timeout 30
         } while ((Get-Process -Name AppService) -ne $null)
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
@@ -2368,9 +2370,8 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateOutput")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-        $finalAppId = Get-Content -Path "$AppServicePath\ApplicationID.txt"
         Write-Host -ForegroundColor Green "The ASDK configuration is complete....well, almost"
-        Write-Host -ForegroundColor Green "Please copy the following application ID: $finalAppId and review the documentation to finish the process"
+        Write-Host -ForegroundColor Green "Please copy the following application ID: $identityApplicationID and review the documentation to finish the process"
 
         ### Create Output Document ###
 
@@ -2423,12 +2424,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output "App Service SQL Server SA Credentials = sa | $VMpwd" >> $txtPath
 
         if ($authenticationType.ToString() -like "AzureAd") {
-            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $finalAppId" >> $txtPath
+            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
             Write-Output "Sign in to the Azure portal as Azure Active Directory Service Admin ($azureAdUsername) -> Search for Application Id and grant permissions." >> $txtPath
             Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application" >> $txtPath
         }
         elseif ($authenticationType.ToString() -like "ADFS") {
-            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $finalAppId" >> $txtPath
+            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
             Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application" >> $txtPath
         }
 
@@ -2447,7 +2448,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output "File Share User: fileshareuser" >> $txtPath
         Write-Output "File Share User Password: $VMpwd" >> $txtPath
         Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
-        Write-Output "Identity Application ID: $finalAppId" >> $txtPath
+        Write-Output "Identity Application ID: $identityApplicationID" >> $txtPath
         Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.local.azurestack.external.pfx" >> $txtPath
         Write-Output "Identity Application Certificate (*.pfx) password: $VMpwd" >> $txtPath
         Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority.cer" >> $txtPath
