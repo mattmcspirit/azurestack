@@ -2296,7 +2296,68 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 #### DEPLOY APP SERVICE ######################################################################################################################################
 ##############################################################################################################################################################
 
+$RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
+if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    try {
+        $JsonConfig = Get-Content -Path $scriptsPath\deployparameters.json
 
+        #Create the JSON from deployment
+        $AzureDirectoryTenantName = $TenantName
+        $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $AzureDirectoryTenantName)
+        $DeploymentId = $appID[0]
+        $JsonConfig = $JsonConfig.Replace("<<DeploymentId>>", $DeploymentId)
+        $TenantArmAppIDObj = Get-AzureRmADApplication -IdentifierUri "https://management.$TenantName/$($appID[0])"
+        $TenantArmApplicationId = $TenantArmAppIDObj.ApplicationId
+        $JsonConfig = $JsonConfig.Replace("<<TenantArmApplicationId>>", $TenantArmApplicationId)
+        $ResourceManagerEndpoint = $ArmEndpoint
+        $JsonConfig = $JsonConfig.Replace("<<ResourceManagerEndpoint>>", $ResourceManagerEndpoint)
+        $sub = Get-AzureRmSubscription
+        $subscriptionId = $sub.Id
+        $JsonConfig = $JsonConfig.Replace("<<subscriptionId>>", $subscriptionId)
+        $TenantId = $sub.TenantId
+        $JsonConfig = $JsonConfig.Replace("<<TenantId>>", $TenantId)
+        $FileServerDNSLabel = $deployment.Outputs.fqdn.Value
+        $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $FileServerDNSLabel)
+        $JsonPassword = $Password
+        $JsonConfig = $JsonConfig.Replace("<<Password>>", $JsonPassword)
+        $IdentityApplicationId = $appID[1]
+        $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $IdentityApplicationId)
+        $ServicePrincipalObjectId = (Get-AzureRmADServicePrincipal -ServicePrincipalName $IdentityApplicationId).Id.Guid
+        $JsonConfig = $JsonConfig.Replace("<<ServicePrincipalObjectId>>", $ServicePrincipalObjectId)
+        $CertPathDoubleSlash = "$scriptsPath\AppServiceHelperScripts"
+        $CertPathDoubleSlash = $CertPathDoubleSlash.Replace("\", "\\")
+        $JsonConfig = $JsonConfig.Replace("<<CertPathDoubleSlash>>", $CertPathDoubleSlash)
+        $SQLServerName = $SQLdeployment.Outputs.fqdn.value
+        $JsonConfig = $JsonConfig.Replace("<<SQLServerName>>", $SQLServerName)
+        $SQLServerUser = $SQLUserName
+        $JsonConfig = $JsonConfig.Replace("<<SQLServerUser>>", $SQLServerUser)
+        Out-File -FilePath $scriptsPath\deploymentparameters-completed.json -InputObject $JsonConfig
+
+        # Deploy App Service EXE
+        .\AppService.exe /quiet Deploy UserName=$($AzureStackAdmin.UserName) Password=$AzureStackAdminPassword ParamFile="$scriptsPath\deploymentparameters-completed.json" 
+
+        do {
+            Write-Output "AppService is Deploying"
+            Wait-Event -Timeout 5
+        } while ((Get-Process -Name AppService) -ne $null)
+
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
+    }
+    catch {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif ($progress[$RowIndex].Status -eq "Complete") {
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
 
 #### GENERATE OUTPUT #########################################################################################################################################
 ##############################################################################################################################################################
