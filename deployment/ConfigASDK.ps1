@@ -204,6 +204,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"DownloadAppService","Incomplete"'
         '"GenerateAppServiceCerts","Incomplete"'
         '"CreateServicePrincipal","Incomplete"'
+        '"GrantAzureADAppPermissions","Incomplete"'
         '"CreatePlansOffers","Incomplete"'
         '"InstallHostApps","Incomplete"'
         '"InstallAppService","Incomplete"'
@@ -2109,33 +2110,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             New-Item $appIdPath -ItemType file -Force
             Write-Output $identityApplicationID > $appIdPath
             Start-Sleep -Seconds 20
-            try {
-                # Logout to clean up
-                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-                Clear-AzureRmContext -Scope CurrentUser -Force
-                # Grant permissions to Azure AD Service Principal
-                Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                $context = Get-AzureRmContext
-                $tenantId = $context.Tenant.Id
-                $refreshToken = $context.TokenCache.ReadItems().RefreshToken
-                $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
-                $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
-                $header = @{
-                    'Authorization'          = 'Bearer ' + $apiToken.access_token
-                    'X-Requested-With'       = 'XMLHttpRequest'
-                    'x-ms-client-request-id' = [guid]::NewGuid()
-                    'x-ms-correlation-id'    = [guid]::NewGuid()
-                }
-                $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
-                Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction SilentlyContinue
-                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-                Clear-AzureRmContext -Scope CurrentUser -Force
-                Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            }
-            catch {
-                Write-Verbose $_.Exception.Message -ErrorAction SilentlyContinue
-                Write-Verbose ("Permissions were not correctly set on your App ID: $identityApplicationID, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
-            }
         }
         elseif ($authenticationType.ToString() -like "ADFS") {
             Set-Location "$AppServicePath"
@@ -2168,12 +2142,61 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
+#### GRANT AZURE AD APP PERMISSION ###########################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
+if ($authenticationType.ToString() -like "AzureAd") {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+
+        try {
+            # Logout to clean up
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Clear-AzureRmContext -Scope CurrentUser -Force
+            # Grant permissions to Azure AD Service Principal
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $context = Get-AzureRmContext
+            $tenantId = $context.Tenant.Id
+            $refreshToken = $context.TokenCache.ReadItems().RefreshToken
+            $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
+            $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
+            $header = @{
+                'Authorization'          = 'Bearer ' + $apiToken.access_token
+                'X-Requested-With'       = 'XMLHttpRequest'
+                'x-ms-client-request-id' = [guid]::NewGuid()
+                'x-ms-correlation-id'    = [guid]::NewGuid()
+            }
+            $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
+            Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction SilentlyContinue
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    }
+}
+elseif ($authenticationType.ToString() -like "ADFS") {
+    Write-Verbose "Skipping Azure AD App Permissions, as this is an ADFS deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
+}
+
 #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Configure a simple base plan and offer for IaaS
         Import-Module "$modulePath\Connect\AzureStack.Connect.psm1"
         Import-Module "$modulePath\ServiceAdmin\AzureStack.ServiceAdmin.psm1"
@@ -2342,9 +2365,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         .\AppService.exe /quiet Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile="$AppServicePath\AppServiceDeploymentSettings.json"
 
         do {
-            Write-Output "AppService is Deploying."
+            Write-Output "AppService is Deploying. Checking in 30 seconds"
             Wait-Event -Timeout 30
-        } while ((Get-Process -Name AppService) -ne $null)
+        } while ((Get-Process -Name AppService -ErrorAction SilentlyContinue) -ne $null)
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
