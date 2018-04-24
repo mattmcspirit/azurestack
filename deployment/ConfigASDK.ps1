@@ -2099,7 +2099,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Clear-AzureRmContext -Scope CurrentUser -Force
 
             # Grant permissions to Azure AD Service Principal
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Set-Location "$AppServicePath"
             $appID = .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
@@ -2114,7 +2114,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
                 Clear-AzureRmContext -Scope CurrentUser -Force
                 # Grant permissions to Azure AD Service Principal
-                Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+                Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $asdkCreds -ErrorAction Stop | Out-Null
                 $context = Get-AzureRmContext
                 $tenantId = $context.Tenant.Id
                 $refreshToken = $context.TokenCache.ReadItems().RefreshToken
