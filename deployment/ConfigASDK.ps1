@@ -206,8 +206,8 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"CreateServicePrincipal","Incomplete"'
         '"GrantAzureADAppPermissions","Incomplete"'
         '"CreatePlansOffers","Incomplete"'
-        '"InstallHostApps","Incomplete"'
         '"InstallAppService","Incomplete"'
+        '"InstallHostApps","Incomplete"'
         '"CreateOutput","Incomplete"'
     )
     $ConfigASDKprogress | ForEach-Object { Add-Content -Path $ConfigASDKProgressLogPath -Value $_ }
@@ -2032,12 +2032,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
         $appServiceHelperDownloadLocation = "$ASDKpath\appservicehelper.zip"
         DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
-        #Invoke-WebRequest https://aka.ms/appsvconmashelpers -OutFile "$ASDKpath\appservicehelper.zip" -UseBasicParsing
         Expand-Archive $ASDKpath\appservicehelper.zip -DestinationPath "$ASDKpath\AppService\" -Force
         $appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
         $appServiceExeDownloadLocation = "$ASDKpath\AppService\appservice.exe"
         DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
-        #Invoke-WebRequest https://aka.ms/appsvconmasinstaller -OutFile "$ASDKpath\AppService\appservice.exe" -UseBasicParsing
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
@@ -2105,13 +2103,17 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $appID = .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
             $appIdPath = "$AppServicePath\ApplicationID.txt"
+            $deploymentIdPath = "$AppServicePath\DeploymentID.txt"
             $deploymentID = $appID[0]
             $identityApplicationID = $appID[1]
             New-Item $appIdPath -ItemType file -Force
+            New-Item $deploymentIdPath -ItemType file -Force
             Write-Output $identityApplicationID > $appIdPath
+            Write-Output $deploymentID > $appIdPath
             Start-Sleep -Seconds 20
         }
         elseif ($authenticationType.ToString() -like "ADFS") {
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Set-Location "$AppServicePath"
             $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds
@@ -2168,6 +2170,10 @@ if ($authenticationType.ToString() -like "AzureAd") {
             }
             $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
             Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction SilentlyContinue
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
         }
         catch {
             Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
@@ -2271,61 +2277,6 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
-#### CUSTOMIZE ASDK HOST #####################################################################################################################################
-##############################################################################################################################################################
-
-$RowIndex = [array]::IndexOf($progress.Stage, "InstallHostApps")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Install useful ASDK Host Apps via Chocolatey
-        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-
-        # Enable Choco Global Confirmation
-        Write-Verbose "Enabling global confirmation to streamline installs"
-        choco feature enable -n allowGlobalConfirmation
-
-        # Visual Studio Code
-        Write-Verbose "Installing VS Code with Chocolatey"
-        choco install visualstudiocode
-
-        # Putty
-        Write-Verbose "Installing Putty with Chocolatey"
-        choco install putty.install
-
-        # WinSCP
-        Write-Verbose "Installing WinSCP with Chocolatey"
-        choco install winscp.install 
-
-        # Chrome
-        Write-Verbose "Installing Chrome with Chocolatey"
-        choco install googlechrome
-
-        # WinDirStat
-        Write-Verbose "Installing WinDirStat with Chocolatey"
-        choco install windirstat
-
-        # Azure CLI
-        Write-Verbose "Installing latest version of Azure CLI with Chocolatey"
-        choco install azure-cli
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-    }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-
 #### DEPLOY APP SERVICE ######################################################################################################################################
 ##############################################################################################################################################################
 
@@ -2362,12 +2313,72 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
         $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
         Set-Location "$AppServicePath"
+        Write-Verbose "Starting deployment of the App Service"
         .\AppService.exe /quiet Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile="$AppServicePath\AppServiceDeploymentSettings.json"
 
-        do {
-            Write-Output "AppService is Deploying. Checking in 30 seconds"
-            Wait-Event -Timeout 30
-        } while ((Get-Process -Name AppService -ErrorAction SilentlyContinue) -ne $null)
+        while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
+            Write-Verbose "App Service is Deploying. Checking in 10 seconds"
+            Start-Sleep -Seconds 10
+        }
+            
+        if (!(Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
+            Write-Verbose "App Service Deployment Completed."
+        }
+
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
+    }
+    catch {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif ($progress[$RowIndex].Status -eq "Complete") {
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+
+#### CUSTOMIZE ASDK HOST #####################################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "InstallHostApps")
+if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    try {
+        # Install useful ASDK Host Apps via Chocolatey
+        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+        # Enable Choco Global Confirmation
+        Write-Verbose "Enabling global confirmation to streamline installs"
+        choco feature enable -n allowGlobalConfirmation
+
+        # Visual Studio Code
+        Write-Verbose "Installing VS Code with Chocolatey"
+        choco install visualstudiocode
+
+        # Putty
+        Write-Verbose "Installing Putty with Chocolatey"
+        choco install putty.install
+
+        # WinSCP
+        Write-Verbose "Installing WinSCP with Chocolatey"
+        choco install winscp.install 
+
+        # Chrome
+        Write-Verbose "Installing Chrome with Chocolatey"
+        choco install googlechrome
+
+        # WinDirStat
+        Write-Verbose "Installing WinDirStat with Chocolatey"
+        choco install windirstat
+
+        # Azure CLI
+        Write-Verbose "Installing latest version of Azure CLI with Chocolatey"
+        choco install azure-cli
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
