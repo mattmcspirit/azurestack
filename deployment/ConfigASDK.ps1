@@ -22,7 +22,7 @@
 
 .VERSION
 
-    3.0  major update for ASDK release 20180302.1
+    3.0  major update for ASDK release 20180329.1
     2.0  update for release 1.0.280917.3 
     1.0: small bug fixes and adding quotas/plan/offer creation
     0.5: add SQL 2014 VM deployment
@@ -118,6 +118,7 @@ $ProgressPreference = 'SilentlyContinue'
 try {Stop-Transcript | Out-Null} catch {}
 
 ### GET START TIME ###
+$startTime = $(Get-Date).ToLocalTime()
 $sw = [Diagnostics.Stopwatch]::StartNew()
 
 ### SET LOCATION ###
@@ -2550,6 +2551,7 @@ Write-Verbose "Setting Execution Policy back to RemoteSigned"
 Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
 
 # Calculate completion time
+$endTime = $(Get-Date).ToLocalTime()
 $sw.Stop()
 $Hrs = $sw.Elapsed.Hours
 $Mins = $sw.Elapsed.Minutes
@@ -2561,6 +2563,8 @@ Start-Sleep -Seconds 5
 Notepad "$downloadPath\ConfigASDKOutput.txt"
 Set-Location $ScriptLocation -ErrorAction SilentlyContinue
 Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
+Write-Output "You started the ASDK Configurator deployment at $startTime." -ErrorAction SilentlyContinue
+Write-Output "ASDK Configurator deployment completed at $endTime." -ErrorAction SilentlyContinue
 
 ### Launch browser to activate admin and user portal for Azure AD deployments
 if ($authenticationType.ToString() -like "AzureAd") {
