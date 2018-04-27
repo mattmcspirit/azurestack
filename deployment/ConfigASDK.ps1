@@ -262,24 +262,16 @@ if ($VMpwd -cmatch $regex -eq $true) {
 }
 
 elseif ($VMpwd -cmatch $regex -eq $false) {
-    Write-Verbose "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character " 
-    # Obtain new password and store as a secure string
-    $secureVMpwd = Read-Host -AsSecureString "Enter VM password again"
-    # Convert to plain text to test regex complexity
-    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureVMpwd)            
-    $VMpwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
-    if ($VMpwd -cmatch $regex -eq $true) {
-        Write-Verbose "Virtual Machine password matches desired complexity" 
-        # Convert plain text password to a secure string
-        $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
-        # Clean up unused variable
-        Remove-Variable -Name VMpwd -ErrorAction SilentlyContinue
-    }
-    else {
-        Write-Verbose "No valid password was entered again. Exiting process..." -ErrorAction Stop 
-        Set-Location $ScriptLocation
-        return
-    }
+    Write-Host "`r`n
+    ______________________________________________________________________________________________________________
+    
+    Virtual Machine password is not a strong password.
+    It should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.
+    Please consider a stronger password in the future.
+    ______________________________________________________________________________________________________________
+    `r`n" -ForegroundColor Cyan
+    Start-Sleep -Seconds 10
+    $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
 }
 
 ### Validate Azure Stack Development Kit Deployment Credentials ###
@@ -302,25 +294,18 @@ if ($azureStackAdminPwd -cmatch $regex -eq $true) {
 }
 
 elseif ($azureStackAdminPwd -cmatch $regex -eq $false) {
-    Write-Verbose "Azure Stack Development Kit Deployment password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character " 
-    # Obtain new password and store as a secure string
-    $secureAzureStackAdminPwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Deployment password again"
-    # Convert to plain text to test regex complexity
-    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureStackAdminPwd)            
-    $azureStackAdminPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
-    if ($azureStackAdminPwd -cmatch $regex -eq $true) {
-        Write-Verbose "Azure Stack Development Kit Deployment password for AzureStack\AzureStackAdmin, meets desired complexity level" 
-        # Convert plain text password to a secure string
-        $secureAzureStackAdminPwd = ConvertTo-SecureString -AsPlainText $azureStackAdminPwd -Force
-        # Clean up unused variable
-        Remove-Variable -Name azureStackAdminPwd -ErrorAction SilentlyContinue
-        $azureStackAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $azureStackAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
-    }
-    else {
-        Write-Verbose "No Azure Stack Development Kit Deployment password was entered again. Exiting process..." -ErrorAction Stop 
-        Set-Location $ScriptLocation
-        return
-    }
+    Write-Host "`r`n
+    ______________________________________________________________________________________________________________
+    
+    Azure Stack Admin (AzureStack\AzureStackAdmin) password is not a strong password.
+    It should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.
+    Please consider a stronger password in the future.
+    ______________________________________________________________________________________________________________
+    `r`n" -ForegroundColor Cyan
+    Start-Sleep -Seconds 10
+    # Convert plain text password to a secure string
+    $secureAzureStackAdminPwd = ConvertTo-SecureString -AsPlainText $azureStackAdminPwd -Force
+    $azureStackAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $azureStackAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
 }
 
 <### Credentials Recap ###
@@ -333,73 +318,65 @@ $azureStackAdminCreds | Used to log into the local ASDK Host
 
 if ($authenticationType.ToString() -like "AzureAd") {
 
-    ### Validate Azure Stack Development Kit Service Administrator Username ###
+    ### Validate Azure AD Service Administrator Username (Used for ASDK Deployment) ###
 
     if ([string]::IsNullOrEmpty($azureAdUsername)) {
         Write-Verbose "You didn't enter a username for the Azure AD login." 
         $azureAdUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
     }
 
-    Write-Verbose "Checking to see if Azure Stack Development Kit Service Administrator username is correctly formatted..."
+    Write-Verbose "Checking to see if Azure AD Service Administrator (Used for ASDK Deployment) username is correctly formatted..."
 
     if ($azureAdUsername -cmatch $emailRegex -eq $true) {
-        Write-Verbose "Azure Stack Development Kit Service Administrator username is correctly formatted." 
+        Write-Verbose "Azure AD Service Administrator username (Used for ASDK Deployment) is correctly formatted." 
         Write-Verbose "$azureAdUsername will be used to connect to Azure." 
     }
 
     elseif ($azureAdUsername -cmatch $emailRegex -eq $false) {
-        Write-Verbose "Azure Stack Development Kit Service Administrator username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
+        Write-Verbose "Azure AD Service Administrator Username (Used for ASDK Deployment) isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
         # Obtain new username
-        $azureAdUsername = Read-Host "Enter Azure Stack Development Kit Service Administrator username again"
+        $azureAdUsername = Read-Host "Enter Azure AD Service Administrator Username (Used for ASDK Deployment) again"
         if ($azureAdUsername -cmatch $emailRegex -eq $true) {
-            Write-Verbose "Azure Stack Development Kit Service Administrator username is correctly formatted." 
+            Write-Verbose "Azure AD Service Administrator Username (Used for ASDK Deployment) is correctly formatted." 
             Write-Verbose "$azureAdUsername will be used to connect to Azure." 
         }
         else {
-            Write-Verbose "No valid Azure Stack Development Kit Service Administrator username was entered again. Exiting process..." -ErrorAction Stop 
+            Write-Verbose "No valid Azure AD Service Administrator Username (Used for ASDK Deployment) was entered again. Exiting process..." -ErrorAction Stop 
             Set-Location $ScriptLocation
             return
         }
     }
 
-    ### Validate Azure Stack Development Kit Service Administrator Password ###
+    ### Validate Azure AD Service Administrator (Used for ASDK Deployment) Password ###
 
     if ([string]::IsNullOrEmpty($azureAdPwd)) {
-        Write-Verbose "You didn't enter the Azure Stack Development Kit Service Administrator password." 
-        $secureAzureAdPwd = Read-Host "Please enter the Azure Stack Development Kit Service Administrator password. It should be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
+        Write-Verbose "You didn't enter the Azure AD Service Administrator account (Used for ASDK Deployment) password." 
+        $secureAzureAdPwd = Read-Host "Please enter the password for the Azure AD Service Administrator account used to deploy the ASDK. It should be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureAdPwd)            
         $azureAdPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
     }
 
-    Write-Verbose "Checking to see if Azure Stack Development Kit Service Administrator password is strong..."
+    Write-Verbose "Checking to see if password for the Azure AD Service Administrator used to deploy the ASDK, is strong..."
 
     if ($azureAdPwd -cmatch $regex -eq $true) {
-        Write-Verbose "Azure Stack Development Kit Service Administrator password meets desired complexity level" 
+        Write-Verbose "Password for the Azure AD Service Administrator account used to deploy the ASDK meets desired complexity level" 
         # Convert plain text password to a secure string
         $secureAzureAdPwd = ConvertTo-SecureString -AsPlainText $azureAdPwd -Force
         $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
     }
 
     elseif ($azureAdPwd -cmatch $regex -eq $false) {
-        Write-Verbose "Azure Stack Development Kit Service Administrator password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character." 
-        # Obtain new password and store as a secure string
-        $secureAzureAdPwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Service Administrator password again"
-        # Convert to plain text to test regex complexity
-        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureAdPwd)            
-        $azureAdPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
-        if ($azureAdPwd -cmatch $regex -eq $true) {
-            Write-Verbose "Azure Stack Development Kit Service Administrator meets desired complexity level" 
-            # Convert plain text password to a secure string
-            $secureAzureAdPwd = ConvertTo-SecureString -AsPlainText $azureAdPwd -Force
-            # Clean up unused variable
-            Remove-Variable -Name plainazureAdPwd -ErrorAction SilentlyContinue
-            $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
-        }
-        else {
-            Write-Verbose "No valid Azure Stack Development Kit Service Administrator password was entered again. Exiting process..." -ErrorAction Stop 
-            Set-Location $ScriptLocation
-            return
-        }
+        Write-Host "`r`n
+        ______________________________________________________________________________________________________________
+        
+        Azure AD Service Administrator account password is not a strong password.
+        It should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.
+        Please consider a stronger password in the future.
+        ______________________________________________________________________________________________________________
+        `r`n" -ForegroundColor Cyan
+        Start-Sleep -Seconds 10
+        $secureAzureAdPwd = ConvertTo-SecureString -AsPlainText $azureAdPwd -Force
+        $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
     }
 
     $asdkCreds = $azureAdCreds
@@ -447,8 +424,8 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
         ### Validate Azure AD Registration Password ###
     
         if ([string]::IsNullOrEmpty($azureRegPwd)) {
-            Write-Verbose "You didn't enter the Azure AD password." 
-            $secureAzureRegPwd = Read-Host "Please enter the Azure AD password. It should be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
+            Write-Verbose "You didn't enter the Azure AD password that you want to use for registration." 
+            $secureAzureRegPwd = Read-Host "Please enter the Azure AD password you wish to use for registration. It should ideally be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
             $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
         }
@@ -463,25 +440,17 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
         }
     
         elseif ($azureRegPwd -cmatch $regex -eq $false) {
-            Write-Verbose "Azure AD password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character." 
-            # Obtain new password and store as a secure string
-            $secureAzureRegPwd = Read-Host -AsSecureString "Enter Azure AD password again"
-            # Convert to plain text to test regex complexity
-            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
-            $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
-            if ($azureRegPwd -cmatch $regex -eq $true) {
-                Write-Verbose "Azure AD password meets desired complexity level" 
-                # Convert plain text password to a secure string
-                $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
-                # Clean up unused variable
-                Remove-Variable -Name azureRegPwd -ErrorAction SilentlyContinue
-                $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
-            }
-            else {
-                Write-Verbose "No valid Azure AD password was entered again. Exiting process..." -ErrorAction Stop 
-                Set-Location $ScriptLocation
-                return
-            }
+            Write-Host "`r`n
+            ______________________________________________________________________________________________________________
+            
+            Azure AD password for registration is not a strong password.
+            It should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.
+            Please consider a stronger password in the future.
+            ______________________________________________________________________________________________________________
+            `r`n" -ForegroundColor Cyan
+            Start-Sleep -Seconds 10
+            $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
+            $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
         }
     }
 }
@@ -551,41 +520,33 @@ if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
     Write-Verbose "Checking for an Azure AD password - this account will be used to register the ADFS-based ASDK to Azure..."
         
     if ([string]::IsNullOrEmpty($azureRegPwd)) {
-        Write-Verbose "You didn't enter the Azure AD password."
-        $secureAzureRegPwd = Read-Host "Please enter the Azure AD password. It should be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -AsSecureString -ErrorAction Stop
+        Write-Verbose "You didn't enter the Azure AD password that you want to use for registration." 
+        $secureAzureRegPwd = Read-Host "Please enter the Azure AD password you wish to use for registration. It should ideally be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
         $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
     }
-        
-    Write-Verbose "Checking to see if Azure AD password is strong..."
-        
+
+    Write-Verbose "Checking to see if Azure AD password for registration is strong..."
+
     if ($azureRegPwd -cmatch $regex -eq $true) {
-        Write-Verbose "Azure AD password meets desired complexity level"
+        Write-Verbose "Azure AD password meets desired complexity level" 
         # Convert plain text password to a secure string
         $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
         $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
     }
-        
+
     elseif ($azureRegPwd -cmatch $regex -eq $false) {
-        Write-Verbose "Azure AD password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character."
-        # Obtain new password and store as a secure string
-        $secureAzureRegPwd = Read-Host -AsSecureString "Enter Azure AD password again"
-        # Convert to plain text to test regex complexity
-        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
-        $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
-        if ($azureRegPwd -cmatch $regex -eq $true) {
-            Write-Verbose "Azure AD password meets desired complexity level"
-            # Convert plain text password to a secure string
-            $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
-            # Clean up unused variable
-            Remove-Variable -Name azureRegPwd -ErrorAction SilentlyContinue
-            $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
-        }
-        else {
-            Write-Verbose "No valid Azure AD password was entered again. Exiting process..." -ErrorAction Stop 
-            Set-Location $ScriptLocation
-            return
-        }
+        Write-Host "`r`n
+        ______________________________________________________________________________________________________________
+        
+        Azure AD password for registration is not a strong password.
+        It should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.
+        Please consider a stronger password in the future.
+        ______________________________________________________________________________________________________________
+        `r`n" -ForegroundColor Cyan
+        Start-Sleep -Seconds 10
+        $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
+        $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
     }
 }
 
