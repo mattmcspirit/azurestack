@@ -591,7 +591,7 @@ if ($registerASDK) {
 function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
     while ($true) {
         try {
-            Invoke-WebRequest $downloadURI -OutFile "$downloadLocation" -UseBasicParsing
+            (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
             break
         }
         catch {
