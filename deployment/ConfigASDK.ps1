@@ -127,7 +127,7 @@ $ScriptLocation = Get-Location
 ### SET ERCS IP Address - same for all default ASDKs ###
 $ERCSip = "192.168.200.225"
 
-# Define Regex for Password Complexity - needs to be at least 8 characters, with at least 1 upper case and 1 special character
+# Define Regex for Password Complexity - needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character
 $regex = @"
 ^.*(?=.{8,})(?=.*[A-Z])(?=.*[a-z])(?=.*[@#$%^&£*\-_+=[\]{}|\\:',?/`~"();!]).*$
 "@
