@@ -75,7 +75,6 @@
     "FileShareUserPassword": "<<Password>>",
     "ResourceGroupName": "appservice.infra",
     "StorageAccountName": "appsvclocalstor",
-
     "IdentityPfxCertPath": "<<CertPathDoubleSlash>>\\sso.appservice.local.azurestack.external.pfx",
     "IdentityPfxCertPassword": "<<Password>>",
     "RootCertPath": "<<CertPathDoubleSlash>>\\AzureStackCertificationAuthority.cer",
@@ -85,7 +84,6 @@
     "ResouceProviderPfxCertPassword": "<<Password>>",
     "PublisherPfxCertPath": "<<CertPathDoubleSlash>>\\ftp.appservice.local.azurestack.external.pfx",
     "PublisherPfxCertPassword": "<<Password>>",
-    
     "SQLServerName": "<<SQLServerName>>",
     "SQLSysAdminLogin": "<<SQLServerUser>>",
     "SQLSysAdminPassword": "<<Password>>",
