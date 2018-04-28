@@ -101,7 +101,7 @@
         "Version": "latest"
     },
     "WorkerVirtualMachineAdministrator": "workeradmin",
-    "WorkerVirtualMachinePassword": "<<Password>>",
+    "WorkerVirtualMachinePassword": "<<Password2>>",
     "OtherVirtualMachineAdministrator": "roleadmin",
-    "OtherVirtualMachinePassword": "<<Password>>"
+    "OtherVirtualMachinePassword": "<<Password2>>"
 }

@@ -1,0 +1,224 @@
+{
+    "Scenario": 2,
+    "DeploymentId": "<<DeploymentId>>",
+    "GraphEndpoint": "https://graph.windows.net/",
+    "IsMultiTenant": true,
+    "TenantArmResource": "https://management.<<AzureDirectoryTenantName>>/<<DeploymentId>>",
+    "TenantArmApplicationId": "<<TenantArmApplicationId>>",
+    "AzureResourceManagerDnsSuffix": "adminmanagement.local.azurestack.external",
+    "AzureDirectoryTenantName": "<<AzureDirectoryTenantName>>",
+    "AppResourceId": "https://adminmanagement.<<AzureDirectoryTenantName>>/<<DeploymentId>>",
+    "LoginEndpoint": "https://login.windows.net/",
+    "AzureClient": {
+        "Metadata": null,
+        "ResouceManagerEndpoint": "adminmanagement.local.azurestack.external",
+        "AzureDirectoryTenantName": "<<AzureDirectoryTenantName>>",
+        "ApiVersion": "2015-01-01",
+        "AuthenticationEndpoint": "https://login.windows.net/",
+        "AppResourceId": "https://adminmanagement.<<AzureDirectoryTenantName>>/<<DeploymentId>>"
+    },
+    "Subscription": {
+        "subscriptionId": "<<subscriptionId>>",
+        "displayName": "Default Provider Subscription",
+        "state": "Enabled",
+        "TenantId": "<<TenantId>>"
+    },
+    "Location": {
+        "id": "/subscriptions/<<subscriptionId>>/locations/local",
+        "name": "local",
+        "displayName": "local"
+    },
+    "DomainSuffix": "azurestack.external",
+    "TenantAzureResourceManagerDnsSuffix": "management.local.azurestack.external",
+    "OpenIdConfigurationUrl": "https://login.microsoftonline.com/common/.well-known/openid-configuration",
+    "ProviderLocation": null,
+    "DefaultVNetDeployment": true,
+    "ResourceGroupName": "appservice-infra",
+    "SelectedControllerSKUs": {
+        "name": "Standard_A1",
+        "numberOfCores": 1,
+        "osDiskSizeInMB": 1047552,
+        "resourceDiskSizeInMB": 71680,
+        "memoryInMB": 1792,
+        "maxDataDiskCount": 2
+    },
+    "SelectedManagementRoleSKUs": {
+        "name": "Standard_A2",
+        "numberOfCores": 2,
+        "osDiskSizeInMB": 1047552,
+        "resourceDiskSizeInMB": 138240,
+        "memoryInMB": 3584,
+        "maxDataDiskCount": 4
+    },
+    "SelectedPublisherRoleSKUs": {
+        "name": "Standard_A1",
+        "numberOfCores": 1,
+        "osDiskSizeInMB": 1047552,
+        "resourceDiskSizeInMB": 71680,
+        "memoryInMB": 1792,
+        "maxDataDiskCount": 2
+    },
+    "SelectedFrontEndRoleSKUs": {
+        "name": "Standard_A1",
+        "numberOfCores": 1,
+        "osDiskSizeInMB": 1047552,
+        "resourceDiskSizeInMB": 71680,
+        "memoryInMB": 1792,
+        "maxDataDiskCount": 2
+    },
+    "SelectedWorkerSKUs": {
+        "name": "Standard_A1",
+        "numberOfCores": 1,
+        "osDiskSizeInMB": 1047552,
+        "resourceDiskSizeInMB": 71680,
+        "memoryInMB": 1792,
+        "maxDataDiskCount": 2
+    },
+    "SelectedSmallWorkerSKUs": {
+        "name": "Standard_A1",
+        "numberOfCores": 1,
+        "osDiskSizeInMB": 1047552,
+        "resourceDiskSizeInMB": 71680,
+        "memoryInMB": 1792,
+        "maxDataDiskCount": 2
+    },
+    "SelectedMediumWorkerSKUs": {
+        "name": "Standard_A2",
+        "numberOfCores": 2,
+        "osDiskSizeInMB": 1047552,
+        "resourceDiskSizeInMB": 138240,
+        "memoryInMB": 3584,
+        "maxDataDiskCount": 4
+    },
+    "SelectedLargeWorkerSKUs": {
+        "name": "Standard_A3",
+        "numberOfCores": 4,
+        "osDiskSizeInMB": 1047552,
+        "resourceDiskSizeInMB": 291840,
+        "memoryInMB": 7168,
+        "maxDataDiskCount": 8
+    },
+    "AppServiceWebAppsDnsSuffix": "appservice.local.azurestack.external",
+    "AppServiceApiDnsSuffix": "api.appservice.local.azurestack.external",
+    "VirtualNetwork": {
+        "name": "AppServiceVirtualNetwork",
+        "location": "local",
+        "properties": {
+            "provisioningState": null,
+            "resourceGuid": null,
+            "addressSpace": {
+                "addressPrefixes": [
+                    "10.200.0.0/16"
+                ]
+            },
+            "subnets": [
+                {
+                    "name": "ControllersSubnet",
+                    "properties": {
+                        "provisioningState": null,
+                        "addressPrefix": "10.200.0.0/24"
+                    }
+                },
+                {
+                    "name": "ManagementServersSubnet",
+                    "properties": {
+                        "provisioningState": null,
+                        "addressPrefix": "10.200.1.0/24"
+                    }
+                },
+                {
+                    "name": "FrontEndsSubnet",
+                    "properties": {
+                        "provisioningState": null,
+                        "addressPrefix": "10.200.2.0/24"
+                    }
+                },
+                {
+                    "name": "PublishersSubnet",
+                    "properties": {
+                        "provisioningState": null,
+                        "addressPrefix": "10.200.3.0/24"
+                    }
+                },
+                {
+                    "name": "WorkersSubnet",
+                    "properties": {
+                        "provisioningState": null,
+                        "addressPrefix": "10.200.8.0/21"
+                    }
+                }
+            ]
+        }
+    },
+    "ControllersSubnet": {
+        "name": "ControllersSubnet",
+        "properties": {
+            "provisioningState": null,
+            "addressPrefix": "10.200.0.0/24"
+        }
+    },
+    "ManagementServersSubnet": {
+        "name": "ManagementServersSubnet",
+        "properties": {
+            "provisioningState": null,
+            "addressPrefix": "10.200.1.0/24"
+        }
+    },
+    "FrontEndsSubnet": {
+        "name": "FrontEndsSubnet",
+        "properties": {
+            "provisioningState": null,
+            "addressPrefix": "10.200.2.0/24"
+        }
+    },
+    "PublishersSubnet": {
+        "name": "PublishersSubnet",
+        "properties": {
+            "provisioningState": null,
+            "addressPrefix": "10.200.3.0/24"
+        }
+    },
+    "WorkersSubnet": {
+        "name": "WorkersSubnet",
+        "properties": {
+            "provisioningState": null,
+            "addressPrefix": "10.200.8.0/21"
+        }
+    },
+    "FileShareUNCPath": "\\\\<<FileServerDNSLabel>>\\Websites",
+    "FileShareOwner": "FileShareOwner",
+    "FileShareOwnerPassword": "<<Password>>",
+    "FileShareUser": "FileShareUser",
+    "FileShareUserPassword": "<<Password>>",
+    "ServicePrincipalObjectId": "<<ServicePrincipalObjectId>>",
+    "IdentityApplicationId": "<<IdentityApplicationId>>",
+    "IdentityPfxCertPath": "<<CertPathDoubleSlash>>\\sso.appservice.local.azurestack.external.pfx",
+    "IdentityPfxCertPassword": "<<Password>>",
+    "RootCertPath": "<<CertPathDoubleSlash>>\\AzureStackCertificationAuthority.cer",
+    "DefaultPfxCertPath": "<<CertPathDoubleSlash>>\\_.appservice.local.azurestack.external.pfx",
+    "DefaultPfxCertPassword": "<<Password>>",
+    "ResouceProviderPfxCertPath": "<<CertPathDoubleSlash>>\\api.appservice.local.azurestack.external.pfx",
+    "ResouceProviderPfxCertPassword": "<<Password>>",
+    "PublisherPfxCertPath": "<<CertPathDoubleSlash>>\\ftp.appservice.local.azurestack.external.pfx",
+    "PublisherPfxCertPassword": "<<Password>>",
+    "SQLServerName": "<<SQLServerName>>",
+    "SQLSysAdminLogin": "<<SQLServerUser>>",
+    "SQLSysAdminPassword": "<<Password>>",
+    "SelectedControllerInstances": 1,
+    "SelectedManagementRoleInstances": 1,
+    "SelectedPublisherRoleInstances": 1,
+    "SelectedFrontEndRoleInstances": 1,
+    "SelectedWorkerInstances": 1,
+    "PlatformImage": {
+        "Publisher": "MicrosoftWindowsServer",
+        "Offer": "WindowsServer",
+        "name": "2016-Datacenter",
+        "location": "local",
+        "id": "/Subscriptions/<<subscriptionId>>/Providers/Microsoft.Compute/Locations/local/Publishers/MicrosoftWindowsServer/ArtifactTypes/VMImage/Offers/WindowsServer/Skus/2016-Datacenter",
+        "Version": "latest"
+    },
+    "WorkerVirtualMachineAdministrator": "workeradmin",
+    "WorkerVirtualMachinePassword": "<<Password>>",
+    "OtherVirtualMachineAdministrator": "roleadmin",
+    "OtherVirtualMachinePassword": "<<Password>>"
+}
