@@ -129,7 +129,7 @@ $ERCSip = "192.168.200.225"
 
 # Define Regex for Password Complexity - needs to be at least 8 characters, with at least 1 upper case and 1 special character
 $regex = @"
-^.*(?=.{8,})(?=.*[A-Z])(?=.*[@#$%^&£*\-_+=[\]{}|\\:',?/`~"();!]).*$
+^.*(?=.{8,})(?=.*[A-Z])(?=.*[a-z])(?=.*[@#$%^&£*\-_+=[\]{}|\\:',?/`~"();!]).*$
 "@
 
 $emailRegex = @"
@@ -262,16 +262,25 @@ if ($VMpwd -cmatch $regex -eq $true) {
 }
 
 elseif ($VMpwd -cmatch $regex -eq $false) {
-    Write-Host "`r`n
-    ______________________________________________________________________________________________________________
-    
-    Virtual Machine password is not a strong password.
-    It should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.
-    Please consider a stronger password in the future.
-    ______________________________________________________________________________________________________________
-    `r`n" -ForegroundColor Cyan
-    Start-Sleep -Seconds 10
-    $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
+    Write-Verbose "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character."
+    Write-Verbose "App Service installation requires a strong password." 
+    # Obtain new password and store as a secure string
+    $secureVMpwd = Read-Host -AsSecureString "Enter VM password again"
+    # Convert to plain text to test regex complexity
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureVMpwd)            
+    $VMpwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+    if ($VMpwd -cmatch $regex -eq $true) {
+        Write-Verbose "Virtual Machine password matches desired complexity" 
+        # Convert plain text password to a secure string
+        $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
+        # Clean up unused variable
+        Remove-Variable -Name VMpwd -ErrorAction SilentlyContinue
+    }
+    else {
+        Write-Verbose "No valid password was entered again. Exiting process..." -ErrorAction Stop 
+        Set-Location $ScriptLocation
+        return
+    }
 }
 
 ### Validate Azure Stack Development Kit Deployment Credentials ###
@@ -2245,30 +2254,25 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-        Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/AppServiceAutomate/deployment/appservice/AppServiceDeploymentSettings.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json"
+        Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/AppServiceAutomate/deployment/appservice/AppServiceDeploymentSettings2.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json"
         $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
         #Create the JSON from deployment
-        $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $azureDirectoryTenantName)
-        $JsonConfig = $JsonConfig.Replace("<<DeploymentId>>", $deploymentID)
-        $TenantArmAppIDObj = Get-AzureRmADApplication -IdentifierUri "https://management.$azureDirectoryTenantName/$($appID[0])"
-        $TenantArmApplicationId = $TenantArmAppIDObj.ApplicationId
-        $JsonConfig = $JsonConfig.Replace("<<TenantArmApplicationId>>", $TenantArmApplicationId)
-        $sub = Get-AzureRmSubscription
-        $subscriptionId = $sub.Id
-        $JsonConfig = $JsonConfig.Replace("<<subscriptionId>>", $subscriptionId)
-        $TenantId = $sub.TenantId
-        $JsonConfig = $JsonConfig.Replace("<<TenantId>>", $TenantId)
+
+        if ($authenticationType.ToString() -like "AzureAd") {
+            $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $azureDirectoryTenantName)
+        }
+        elseif ($authenticationType.ToString() -like "ADFS") {
+            $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", "adfs")
+        }
+
         $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $fileServerFqdn)
-        $JsonPassword = $VMPwd
-        $JsonConfig = $JsonConfig.Replace("<<Password>>", $JsonPassword)
-        $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $identityApplicationID)
-        $ServicePrincipalObjectId = (Get-AzureRmADServicePrincipal -ServicePrincipalName $IdentityApplicationId).Id.Guid
-        $JsonConfig = $JsonConfig.Replace("<<ServicePrincipalObjectId>>", $ServicePrincipalObjectId)
+        $JsonConfig = $JsonConfig.Replace("<<Password>>", $VMpwd)
         $CertPathDoubleSlash = $AppServicePath.Replace("\", "\\")
         $JsonConfig = $JsonConfig.Replace("<<CertPathDoubleSlash>>", $CertPathDoubleSlash)
         $JsonConfig = $JsonConfig.Replace("<<SQLServerName>>", $sqlAppServerFqdn)
         $SQLServerUser = "sa"
         $JsonConfig = $JsonConfig.Replace("<<SQLServerUser>>", $SQLServerUser)
+        $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $identityApplicationID)
         Out-File -FilePath "$AppServicePath\AppServiceDeploymentSettings.json" -InputObject $JsonConfig
 
         # Deploy App Service EXE
