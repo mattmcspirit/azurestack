@@ -200,13 +200,13 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"SQLServerDBVM","Incomplete"'
         '"MySQLAddHosting","Incomplete"'
         '"SQLServerAddHosting","Incomplete"'
+        '"CreatePlansOffers","Incomplete"'
         '"AppServiceFileServer","Incomplete"'
         '"AppServiceSQLServer","Incomplete"'
         '"DownloadAppService","Incomplete"'
         '"GenerateAppServiceCerts","Incomplete"'
         '"CreateServicePrincipal","Incomplete"'
         '"GrantAzureADAppPermissions","Incomplete"'
-        '"CreatePlansOffers","Incomplete"'
         '"InstallAppService","Incomplete"'
         '"InstallHostApps","Incomplete"'
         '"CreateOutput","Incomplete"'
@@ -1920,6 +1920,87 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
+#### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
+if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    try {
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        # Configure a simple base plan and offer for IaaS
+        Import-Module "$modulePath\Connect\AzureStack.Connect.psm1"
+        Import-Module "$modulePath\ServiceAdmin\AzureStack.ServiceAdmin.psm1"
+
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Clear-AzureRmContext -Scope CurrentUser -Force
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
+        # Default quotas, plan, and offer
+        $PlanName = "BasePlan"
+        $OfferName = "BaseOffer"
+        $RGName = "azurestack-plansandoffers"
+        $Location = (Get-AzsLocation).Name
+
+        $computeParams = @{
+            Name                 = "compute_default"
+            CoresLimit           = 200
+            AvailabilitySetCount = 20
+            VirtualMachineCount  = 100
+            VmScaleSetCount      = 20
+            Location             = $Location
+        }
+
+        $netParams = @{
+            Name                          = "network_default"
+            PublicIpsPerSubscription      = 500
+            VNetsPerSubscription          = 500
+            GatewaysPerSubscription       = 10
+            ConnectionsPerSubscription    = 20
+            LoadBalancersPerSubscription  = 500
+            NicsPerSubscription           = 1000
+            SecurityGroupsPerSubscription = 500
+            Location                      = $Location
+        }
+
+        $storageParams = @{
+            Name                    = "storage_default"
+            NumberOfStorageAccounts = 200
+            CapacityInGB            = 2048
+            Location                = $Location
+        }
+
+        $kvParams = @{
+            Location = $Location
+        }
+
+        $quotaIDs = @()
+        $quotaIDs += (New-AzsNetworkQuota @netParams).ID
+        $quotaIDs += (New-AzsComputeQuota @computeParams).ID
+        $quotaIDs += (New-AzsStorageQuota @storageParams).ID
+        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams)
+
+        New-AzureRmResourceGroup -Name $RGName -Location $Location
+        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -ArmLocation $Location -ResourceGroupName $RGName -QuotaIds $QuotaIDs
+        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -ArmLocation $Location
+
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
+    }
+    catch {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif ($progress[$RowIndex].Status -eq "Complete") {
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+
 #### DEPLOY APP SERVICE FILE SERVER ##########################################################################################################################
 ##############################################################################################################################################################
 
@@ -2165,87 +2246,6 @@ elseif ($authenticationType.ToString() -like "ADFS") {
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
     Write-Output $progress
-}
-
-#### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
-##############################################################################################################################################################
-
-$RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        # Configure a simple base plan and offer for IaaS
-        Import-Module "$modulePath\Connect\AzureStack.Connect.psm1"
-        Import-Module "$modulePath\ServiceAdmin\AzureStack.ServiceAdmin.psm1"
-
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-        Clear-AzureRmContext -Scope CurrentUser -Force
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-
-        # Default quotas, plan, and offer
-        $PlanName = "BasePlan"
-        $OfferName = "BaseOffer"
-        $RGName = "azurestack-plansandoffers"
-        $Location = (Get-AzsLocation).Name
-
-        $computeParams = @{
-            Name                 = "compute_default"
-            CoresLimit           = 200
-            AvailabilitySetCount = 20
-            VirtualMachineCount  = 100
-            VmScaleSetCount      = 20
-            Location             = $Location
-        }
-
-        $netParams = @{
-            Name                          = "network_default"
-            PublicIpsPerSubscription      = 500
-            VNetsPerSubscription          = 500
-            GatewaysPerSubscription       = 10
-            ConnectionsPerSubscription    = 20
-            LoadBalancersPerSubscription  = 500
-            NicsPerSubscription           = 1000
-            SecurityGroupsPerSubscription = 500
-            Location                      = $Location
-        }
-
-        $storageParams = @{
-            Name                    = "storage_default"
-            NumberOfStorageAccounts = 200
-            CapacityInGB            = 2048
-            Location                = $Location
-        }
-
-        $kvParams = @{
-            Location = $Location
-        }
-
-        $quotaIDs = @()
-        $quotaIDs += (New-AzsNetworkQuota @netParams).ID
-        $quotaIDs += (New-AzsComputeQuota @computeParams).ID
-        $quotaIDs += (New-AzsStorageQuota @storageParams).ID
-        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams)
-
-        New-AzureRmResourceGroup -Name $RGName -Location $Location
-        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -ArmLocation $Location -ResourceGroupName $RGName -QuotaIds $QuotaIDs
-        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -ArmLocation $Location
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-    }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### DEPLOY APP SERVICE ######################################################################################################################################
