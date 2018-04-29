@@ -303,14 +303,7 @@ if ($azureStackAdminPwd -cmatch $regex -eq $true) {
 }
 
 elseif ($azureStackAdminPwd -cmatch $regex -eq $false) {
-    Write-Host "`r`n
-    ______________________________________________________________________________________________________________
-    
-    Azure Stack Admin (AzureStack\AzureStackAdmin) password is not a strong password.
-    It should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.
-    Please consider a stronger password in the future.
-    ______________________________________________________________________________________________________________
-    `r`n" -ForegroundColor Cyan
+    Write-Host "`r`nAzure Stack Admin (AzureStack\AzureStackAdmin) password is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
     Start-Sleep -Seconds 10
     # Convert plain text password to a secure string
     $secureAzureStackAdminPwd = ConvertTo-SecureString -AsPlainText $azureStackAdminPwd -Force
@@ -375,14 +368,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
     }
 
     elseif ($azureAdPwd -cmatch $regex -eq $false) {
-        Write-Host "`r`n
-        ______________________________________________________________________________________________________________
-        
-        Azure AD Service Administrator account password is not a strong password.
-        It should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.
-        Please consider a stronger password in the future.
-        ______________________________________________________________________________________________________________
-        `r`n" -ForegroundColor Cyan
+        Write-Host "`r`nAzure AD Service Administrator account password is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
         Start-Sleep -Seconds 10
         $secureAzureAdPwd = ConvertTo-SecureString -AsPlainText $azureAdPwd -Force
         $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
@@ -449,14 +435,7 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
         }
     
         elseif ($azureRegPwd -cmatch $regex -eq $false) {
-            Write-Host "`r`n
-            ______________________________________________________________________________________________________________
-            
-            Azure AD password for registration is not a strong password.
-            It should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.
-            Please consider a stronger password in the future.
-            ______________________________________________________________________________________________________________
-            `r`n" -ForegroundColor Cyan
+            Write-Host "`r`nAzure AD password for registration is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
             Start-Sleep -Seconds 10
             $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
             $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
@@ -545,14 +524,7 @@ if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
     }
 
     elseif ($azureRegPwd -cmatch $regex -eq $false) {
-        Write-Host "`r`n
-        ______________________________________________________________________________________________________________
-        
-        Azure AD password for registration is not a strong password.
-        It should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.
-        Please consider a stronger password in the future.
-        ______________________________________________________________________________________________________________
-        `r`n" -ForegroundColor Cyan
+        Write-Host "`r`nAzure AD password for registration is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
         Start-Sleep -Seconds 10
         $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
         $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
@@ -2150,6 +2122,8 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
+$AppServicePath = "$ASDKpath\AppService"
+
 #### GENERATE APP SERVICE CERTS ##############################################################################################################################
 ##############################################################################################################################################################
 
@@ -2157,7 +2131,6 @@ $RowIndex = [array]::IndexOf($progress.Stage, "GenerateAppServiceCerts")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         Write-Verbose "Generating Certificates"
-        $AppServicePath = "$ASDKpath\AppService"
         Set-Location "$AppServicePath"
         .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName "local.azurestack.external"
         .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $cloudAdminCreds
@@ -2239,6 +2212,10 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
+if (!$identityApplicationID) {
+    $identityApplicationID = Get-Content -Path "$AppServicePath\ApplicationID.txt"
+}
+
 #### GRANT AZURE AD APP PERMISSION ###########################################################################################################################
 ##############################################################################################################################################################
 
@@ -2297,7 +2274,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-        Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/AppServiceAutomate/deployment/appservice/AppServiceDeploymentSettings2.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json"
+        Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/AppServiceAutomate/deployment/appservice/AppServiceDeploymentSettings.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json" -ErrorAction Stop
         $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
         #Create the JSON from deployment
 
