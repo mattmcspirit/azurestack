@@ -737,6 +737,66 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
+
+### TEST LOGINS #############################################################################################################################################
+#############################################################################################################################################################
+
+# Register an AzureRM environment that targets your administrative Azure Stack instance
+$ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+
+if ($authenticationType.ToString() -like "AzureAd") {
+    try {
+        # Login to Azure Stack
+        Write-Verbose ("Testing Azure Stack login with Azure Active Directory")
+        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
+        Write-Verbose ("Setting GraphEndpointResourceId value for Azure AD")
+        Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
+        $TenantID = Get-AzsDirectoryTenantId -AADTenantName $azureDirectoryTenantName -EnvironmentName "AzureStackAdmin"
+        Write-Verbose "Logging in with your Azure Stack Administrator Account used with Azure Active Directory"
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop
+    }
+    catch {
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif ($authenticationType.ToString() -like "ADFS") {
+    try {
+        # Login to Azure Stack
+        Write-Verbose ("Testing Azure Stack login with ADFS")
+        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
+        Write-Verbose ("Setting GraphEndpointResourceId value for ADFS")
+        Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
+        $TenantID = Get-AzsDirectoryTenantId -ADFS -EnvironmentName "AzureStackAdmin"
+        Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop
+    }
+    catch {
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+
+if ($registerASDK) {
+    try {
+        # Login to Azure with azureRegCreds
+        Write-Verbose ("Testing Azure login with registration credentials")
+        Add-AzureRmAccount -EnvironmentName "AzureCloud" -Subscription $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
+    }
+    catch {
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+
+# Clean up current logins
+Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+Clear-AzureRmContext -Scope CurrentUser -Force
+
 ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
 ##############################################################################################################################################################
 
@@ -782,10 +842,6 @@ elseif (!$registerASDK) {
 
 ### CONNECT TO AZURE STACK #############################################################################################################################
 ########################################################################################################################################################
-
-# Register an AzureRM environment that targets your administrative Azure Stack instance
-$ArmEndpoint = "https://adminmanagement.local.azurestack.external"
-Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
 
 # Add GraphEndpointResourceId value for Azure AD or ADFS and obtain Tenant ID, then login to Azure Stack
 if ($authenticationType.ToString() -like "AzureAd") {
