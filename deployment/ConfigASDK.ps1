@@ -2274,6 +2274,45 @@ elseif ($authenticationType.ToString() -like "ADFS") {
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
+        Write-Verbose "Checking variables are present before creating JSON"
+        # Check Variables #
+        if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -ne $null)) {
+            Write-Verbose "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
+        }
+        else {
+            throw "Missing Azure Directory Tenant Name - Exiting process"
+        }
+        if ($fileServerFqdn -ne $null) {
+            Write-Verbose "File Server FQDN is present: $fileServerFqdn"
+        }
+        else {
+            throw "Missing File Server FQDN - Exiting process"
+        }
+        if ($VMpwd -ne $null) {
+            Write-Verbose "Virtual Machine password is present: $VMpwd"
+        }
+        else {
+            throw "Missing Virtual Machine password - Exiting process"
+        }
+        if ($sqlAppServerFqdn -ne $null) {
+            Write-Verbose "SQL Server FQDN is present: $sqlAppServerFqdn"
+        }
+        else {
+            throw "Missing SQL Server FQDN - Exiting process"
+        }
+        if ($SQLServerUser -ne $null) {
+            Write-Verbose "SQL Server username is present: $SQLServerUser"
+        }
+        else {
+            throw "Missing SQL Server username - Exiting process"
+        }
+        if ($identityApplicationID -ne $null) {
+            Write-Verbose "Identity Application ID present: $identityApplicationID"
+        }
+        else {
+            throw "Missing Identity Application ID - Exiting process"
+        }
+        
         Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/AppServiceAutomate/deployment/appservice/AppServiceDeploymentSettings.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json" -ErrorAction Stop
         $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
         #Create the JSON from deployment
@@ -2298,17 +2337,39 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Deploy App Service EXE
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
         $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+        $appServiceLogPath = "$AppServicePath\AppServiceLog.txt"
         Set-Location "$AppServicePath"
         Write-Verbose "Starting deployment of the App Service"
-        .\AppService.exe /quiet Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile="$AppServicePath\AppServiceDeploymentSettings.json"
+        Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
 
         while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-            Write-Verbose "App Service is Deploying. Checking in 10 seconds"
+            Write-Verbose "App Service is deploying. Checking in 10 seconds"
             Start-Sleep -Seconds 10
         }
             
         if (!(Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-            Write-Verbose "App Service Deployment Completed."
+            Write-Verbose "App Service deployment has finished executing."
+        }
+
+        $appServiceErrorCode = "Exit code: 0xffffffff"
+        Write-Verbose "Checking App Service log file for issues"
+        if ($(Select-String -Path $appServiceLogPath -Pattern "$appServiceErrorCode" -SimpleMatch -Quiet) -eq "True") {
+            Write-Verbose "App Service install failed with $appServiceErrorCode"
+            Write-Verbose "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
+            throw "App Service install failed with $appServiceErrorCode. Please check the App Service logs at $appServiceLogPath"
+        }
+        else {
+            Write-Verbose "App Service log file indicates successful deployment"
+        }
+        Write-Verbose "Checking App Service resource group for successful deployment"
+
+        $appServiceRgCheck = Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud"
+        if ($appServiceRgCheck.ProvisioningState -ne 'Succeeded') {
+            Write-Verbose "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
+            throw "$($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState). Please check the App Service logs at $appServiceLogPath"
+        }
+        else {
+            Write-Verbose "App Service deployment with name: $($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState)"
         }
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
