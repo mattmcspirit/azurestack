@@ -780,19 +780,6 @@ elseif ($authenticationType.ToString() -like "ADFS") {
     }
 }
 
-if ($registerASDK) {
-    try {
-        # Login to Azure with azureRegCreds
-        Write-Verbose ("Testing Azure login with registration credentials")
-        Add-AzureRmAccount -EnvironmentName "AzureCloud" -Subscription $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
-    }
-    catch {
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-
 # Clean up current logins
 Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
 Clear-AzureRmContext -Scope CurrentUser -Force
@@ -806,7 +793,7 @@ if ($registerASDK) {
         try {
             Write-Verbose "Starting Azure Stack registration to Azure"
             # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
-            Add-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds
+            Add-AzureRmAccount -EnvironmentName "AzureCloud" -Subscription $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
             # Register the Azure Stack resource provider in your Azure subscription
             Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
             # Import the registration module that was downloaded with the GitHub tools
