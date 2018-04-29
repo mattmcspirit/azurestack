@@ -2168,16 +2168,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # Grant permissions to Azure AD Service Principal
             Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Set-Location "$AppServicePath"
-            $appID = .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
+            $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
             $appIdPath = "$AppServicePath\ApplicationID.txt"
-            $deploymentIdPath = "$AppServicePath\DeploymentID.txt"
-            $deploymentID = $appID[0]
-            $identityApplicationID = $appID[1]
+            $identityApplicationID = $applicationId
             New-Item $appIdPath -ItemType file -Force
-            New-Item $deploymentIdPath -ItemType file -Force
             Write-Output $identityApplicationID > $appIdPath
-            Write-Output $deploymentID > $appIdPath
             Start-Sleep -Seconds 20
         }
         elseif ($authenticationType.ToString() -like "ADFS") {
@@ -2186,8 +2182,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds
             $appIdPath = "$AppServicePath\ApplicationID.txt"
-            $deploymentID = $appID[0]
-            $identityApplicationID = $appID[1]
+            $identityApplicationID = $appID
             New-Item $appIdPath -ItemType file -Force
             Write-Output $identityApplicationID > $appIdPath
         }
