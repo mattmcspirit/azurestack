@@ -2606,12 +2606,12 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Verbose "Congratulations - all steps completed successfully:`r`n"
     $progress
     Write-Verbose "Cleaning up ASDK Folder and Progress CSV file"
-    Remove-Item "$asdkPath\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    Remove-Item "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
     #Get-ChildItem -Path "$asdkPath\*" | Where-Object {($_.Extension -eq ".zip")} | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
     #Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
     #Remove-Item "$asdkPath\SQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
     #Remove-Item "$asdkPath\AppService" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
 }
 else {
     Write-Verbose "Script hasn't completed successfully"
