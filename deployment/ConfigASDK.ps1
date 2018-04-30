@@ -2274,7 +2274,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -ne $null)) {
             Write-Verbose "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
         }
-        else {
+        elseif ($authenticationType.ToString() -like "ADFS") {
+            Write-Verbose "ADFS deployment, no need for Azure Directory Tenant Name"
+        }
+        elseif (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -eq $null)) {
             throw "Missing Azure Directory Tenant Name - Exiting process"
         }
         if ($fileServerFqdn -ne $null) {
@@ -2294,12 +2297,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         }
         else {
             throw "Missing SQL Server FQDN - Exiting process"
-        }
-        if ($SQLServerUser -ne $null) {
-            Write-Verbose "SQL Server username is present: $SQLServerUser"
-        }
-        else {
-            throw "Missing SQL Server username - Exiting process"
         }
         if ($identityApplicationID -ne $null) {
             Write-Verbose "Identity Application ID present: $identityApplicationID"
