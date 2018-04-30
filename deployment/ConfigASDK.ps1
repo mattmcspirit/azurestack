@@ -2573,10 +2573,11 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Verbose "Congratulations - all steps completed successfully:`r`n"
     $progress
     Write-Verbose "Cleaning up ASDK Folder and Progress CSV file"
-    Get-ChildItem -Path "$asdkPath\*" | Where-Object {($_.Extension -eq ".zip")} | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    Remove-Item "$asdkPath\SQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    Get-ChildItem -Path "$asdkPath\AppService\*" -Recurse | Where-Object {($_.Extension -ne ".exe") -and ($_.Extension -ne ".pfx") -and ($_.Extension -ne ".cer")} | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    Remove-Item "$asdkPath\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    #Get-ChildItem -Path "$asdkPath\*" | Where-Object {($_.Extension -eq ".zip")} | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    #Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    #Remove-Item "$asdkPath\SQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    #Remove-Item "$asdkPath\AppService" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue
 }
 else {
