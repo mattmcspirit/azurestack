@@ -642,6 +642,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return        
@@ -700,6 +701,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -782,6 +784,7 @@ if ($registerASDK) {
             Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
             Write-Verbose $_.Exception.Message -ErrorAction Stop
             Set-Location $ScriptLocation
             return
@@ -1041,6 +1044,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1334,6 +1338,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1361,6 +1366,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1408,6 +1414,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1455,6 +1462,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1496,6 +1504,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1537,6 +1546,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1567,6 +1577,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1680,6 +1691,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1795,6 +1807,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1828,6 +1841,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1858,6 +1872,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1890,6 +1905,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1924,6 +1940,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2007,6 +2024,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2040,6 +2058,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2076,6 +2095,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2113,6 +2133,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2144,6 +2165,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2198,6 +2220,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2246,6 +2269,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
             Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
             Write-Verbose $_.Exception.Message -ErrorAction Stop
             Set-Location $ScriptLocation
             return
@@ -2376,6 +2400,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2431,6 +2456,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2558,6 +2584,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
