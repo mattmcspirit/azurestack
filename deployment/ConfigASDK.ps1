@@ -22,6 +22,7 @@
 
 .VERSION
 
+    3.1  Update for ASDK release $$$$$$$$$$ and App Service automation
     3.0  major update for ASDK release 20180329.1
     2.0  update for release 1.0.280917.3 
     1.0: small bug fixes and adding quotas/plan/offer creation
@@ -167,7 +168,8 @@ elseif ($validDownloadPath -eq $false) {
 }
 
 ### Start Logging ###
-Start-Transcript -Path "$downloadPath\ConfigASDKLog.txt" -Append
+$logTime = $startTime.ToString("MMdd-HHmmss")
+Start-Transcript -Path "$downloadPath\ConfigASDKLog$logTime.txt" -Append
 
 ### Check if ConfigASDKProgressLog.csv exists ###
 $ConfigASDKProgressLogPath = "$downloadPath\ConfigASDKProgressLog.csv"
@@ -2481,6 +2483,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         ### Create Output Document ###
 
         $txtPath = "$downloadPath\ConfigASDKOutput.txt"
+        Remove-Item -Path $txtPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
         New-Item "$txtPath" -ItemType file -Force
 
         Write-Output "`r`nThis document contains useful information for deployment of the App Service" > $txtPath
