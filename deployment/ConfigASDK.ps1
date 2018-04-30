@@ -1481,6 +1481,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "Downloading and installing MySQL Resource Provider"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
+        # Cleanup old folder
+        Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         # Download and Expand the MySQL RP files
         $mySqlRpURI = "https://aka.ms/azurestackmysqlrp"
         $mySqlRpDownloadLocation = "$ASDKpath\MySQL.zip"
@@ -2115,6 +2117,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Install App Service To be added
         Write-Verbose "Downloading App Service Installer"
         Set-Location $ASDKpath
+        # Clean up old App Service Path if it exists
+        Remove-Item "$asdkPath\AppService" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
         $appServiceHelperDownloadLocation = "$ASDKpath\appservicehelper.zip"
         DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
