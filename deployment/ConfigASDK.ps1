@@ -2354,7 +2354,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Write-Verbose "App Service log file indicates successful deployment"
         }
         Write-Verbose "Checking App Service resource group for successful deployment"
-
+        # Ensure logged into Azure Stack
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Clear-AzureRmContext -Scope CurrentUser -Force
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         $appServiceRgCheck = Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud"
         if ($appServiceRgCheck.ProvisioningState -ne 'Succeeded') {
             Write-Verbose "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
