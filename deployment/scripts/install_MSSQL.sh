@@ -32,6 +32,14 @@ then
   exit 1
 fi
 
+# Configure firewall to allow TCP port 1433:
+echo Configuring UFW to allow traffic on port 1433...
+sudo ufw allow out 53
+sudo ufw allow 1433/tcp
+sudo ufw allow ssh
+sudo ufw reload
+yes | sudo ufw enable
+
 echo Adding Microsoft repositories...
 wget -qO- https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
 sudo add-apt-repository "$(wget -qO- https://packages.microsoft.com/config/ubuntu/16.04/mssql-server-2017.list)"
@@ -62,13 +70,6 @@ then
     echo Installing SQL Server Full-Text Search...
     sudo apt-get install -y mssql-server-fts
 fi
-
-# Configure firewall to allow TCP port 1433:
-echo Configuring UFW to allow traffic on port 1433...
-sudo ufw allow 1433/tcp
-sudo ufw allow ssh
-sudo ufw reload
-yes | sudo ufw enable
 
 # Optional example of post-installation configuration.
 # Trace flags 1204 and 1222 are for deadlock tracing.
