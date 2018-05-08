@@ -41,7 +41,7 @@ sudo ufw reload
 yes | sudo ufw enable
 
 echo Adding Microsoft repositories...
-wget -qO- https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+wget -vO- https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
 sudo add-apt-repository "$(wget -qO- https://packages.microsoft.com/config/ubuntu/16.04/mssql-server-2017.list)"
 sudo wget -qO- https://packages.microsoft.com/config/ubuntu/16.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
 
