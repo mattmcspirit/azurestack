@@ -829,6 +829,9 @@ else {
     Write-Verbose ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
 }
 
+# Get Azure Stack location
+$azsLocation = (Get-AzsLocation).Name
+
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
 ##############################################################################################################################################################
 
@@ -884,7 +887,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             ### Get the package information ###
             $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
             $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-            $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
+            $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -First 1
 
             $azpkg.id = $product.name.Split('/')[-1]
             $azpkg.type = $product.properties.productKind
@@ -931,7 +934,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
         Write-Verbose "Checking to see if an Ubuntu Server 16.04-LTS VM Image is present in your Azure Stack Platform Image Repository"
-        if ($(Get-AzsVMImage -Location "local" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
+        if ($(Get-AzsVMImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
             Write-Verbose "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
             Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
         }
@@ -1005,7 +1008,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             else {
                 Add-AzsVMImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -osType $azpkg.osVersion -osDiskLocalPath "$UbuntuServerVHD"
             }
-            if ($(Get-AzsVMImage -Location "local" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
+            if ($(Get-AzsVMImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
                 Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                 Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP "
                 Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Remove-Item -Force
@@ -1069,7 +1072,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
         $sku = "2016-Datacenter-Server-Core"
-        $platformImageCore = Get-AzsVMImage -Location "local" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
+        $platformImageCore = Get-AzsVMImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverCoreVMImageAlreadyAvailable = $false
 
         if ($platformImageCore -ne $null -and $platformImageCore.Properties.ProvisioningState -eq 'Succeeded') {
@@ -1080,7 +1083,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Pre-validate that the Windows Server 2016 Full Image is not already available
         Remove-Variable -Name platformImageFull -Force -ErrorAction SilentlyContinue
         $sku = "2016-Datacenter"
-        $platformImageFull = Get-AzsVMImage -Location "local" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
+        $platformImageFull = Get-AzsVMImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverFullVMImageAlreadyAvailable = $false
 
         if ($platformImageFull -ne $null -and $platformImageFull.Properties.ProvisioningState -eq 'Succeeded') {
@@ -1167,10 +1170,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # If the user chose not to register the ASDK, the New-AzsServer2016VMImage will create a default gallery item
             try {
                 if ($registerASDK) {
-                    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -CreateGalleryItem $false -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "local"
+                    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -CreateGalleryItem $false -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "$azsLocation"
                 }
                 elseif (!$registerASDK) {
-                    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "local"
+                    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "$azsLocation"
                 }
                 # Cleanup the VHD, MSU and Cab files
                 $computeAdminPath = "$modulePath\ComputeAdmin"
@@ -1205,10 +1208,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     Write-Verbose "Didn't find this package: $wsPackage"
                     Write-Verbose "Will need to sideload it in to the gallery"
                     if ($wsPackage -eq "WindowsServer2016-Datacenter") {
-                        New-AzsServer2016VMImage -Version Full -ISOPath $ISOpath -Location "local"
+                        New-AzsServer2016VMImage -Version Full -ISOPath $ISOpath -Location "$azsLocation"
                     }
                     elseif ($wsPackage -eq "WindowsServer2016-Datacenter-Server-Core") {
-                        New-AzsServer2016VMImage -Version Core -ISOPath $ISOpath -Location "local"
+                        New-AzsServer2016VMImage -Version Core -ISOPath $ISOpath -Location "$azsLocation"
                     }
                 }
             }
@@ -1357,7 +1360,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         # Create VM Scale Set Marketplace item
         Write-Verbose "Creating VM Scale Set Marketplace Item"
-        Add-AzsVMSSGalleryItem -Location local
+        Add-AzsVMSSGalleryItem -Location $azsLocation
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
@@ -1604,7 +1607,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $mySqlSkuFamily = "MySQL"
         $mySqlSkuName = "MySQL57"
         $mySqlSkuTier = "Standalone"
-        $mySqlLocation = "local"
+        $mySqlLocation = "$azsLocation"
         $mySqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
         $mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
         $mySqlApiVersion = "2017-08-28"
@@ -1719,7 +1722,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $sqlSkuEdition = "Evaluation"
         $sqlSkuName = "MSSQL2017"
         $sqlSkuTier = "Standalone"
-        $sqlLocation = "local"
+        $sqlLocation = "$azsLocation"
         $sqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
         $sqlDatabaseAdapterNamespace = "Microsoft.SQLAdapter.Admin"
         $sqlApiVersion = "2017-08-28"
@@ -1827,7 +1830,7 @@ $RowIndex = [array]::IndexOf($progress.Stage, "MySQLDBVM")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         Write-Verbose "Creating a dedicated Resource Group for all database hosting assets"
-        New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location local -Force
+        New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
 
         # Deploy a MySQL VM for hosting tenant db
         Write-Verbose "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
@@ -1974,7 +1977,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $PlanName = "BasePlan"
         $OfferName = "BaseOffer"
         $RGName = "azurestack-plansandoffers"
-        $Location = (Get-AzsLocation).Name
 
         $computeParams = @{
             Name                 = "compute_default"
@@ -1982,7 +1984,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             AvailabilitySetCount = 20
             VirtualMachineCount  = 100
             VmScaleSetCount      = 20
-            Location             = $Location
+            Location             = $azsLocation
         }
 
         $netParams = @{
@@ -1994,18 +1996,18 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             LoadBalancersPerSubscription  = 500
             NicsPerSubscription           = 1000
             SecurityGroupsPerSubscription = 500
-            Location                      = $Location
+            Location                      = $azsLocation
         }
 
         $storageParams = @{
             Name                    = "storage_default"
             NumberOfStorageAccounts = 200
             CapacityInGB            = 2048
-            Location                = $Location
+            Location                = $azsLocation
         }
 
         $kvParams = @{
-            Location = $Location
+            Location = $azsLocation
         }
 
         $quotaIDs = @()
@@ -2014,9 +2016,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $quotaIDs += (New-AzsStorageQuota @storageParams).ID
         $quotaIDs += (Get-AzsKeyVaultQuota @kvParams)
 
-        New-AzureRmResourceGroup -Name $RGName -Location $Location
-        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -ArmLocation $Location -ResourceGroupName $RGName -QuotaIds $QuotaIDs
-        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -ArmLocation $Location
+        New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
+        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -ArmLocation $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
+        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -ArmLocation $azsLocation
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
@@ -2045,7 +2047,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         ### Deploy File Server ###
         Write-Verbose "Deploying Windows Server 2016 File Server"
-        New-AzureRmResourceGroup -Name "appservice-fileshare" -Location local -Force
+        New-AzureRmResourceGroup -Name "appservice-fileshare" -Location $azsLocation -Force
         New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json `
             -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
 
@@ -2081,7 +2083,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         # Deploy a SQL Server 2017 on Ubuntu VM for App Service
         Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu Server 16.04 LTS for App Service"
-        New-AzureRmResourceGroup -Name "appservice-sql" -Location local -Force
+        New-AzureRmResourceGroup -Name "appservice-sql" -Location $azsLocation -Force
         New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
             -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
             -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
