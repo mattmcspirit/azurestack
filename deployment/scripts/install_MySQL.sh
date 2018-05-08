@@ -14,6 +14,9 @@ AllowRemoteConnections=$(echo "$2" | tr '[:upper:]' '[:lower:]')
 # Download and Install the Latest Updates for the OS
 sudo apt-get update -y
 
+# Set hostname in etc/hosts
+sudo echo "127.0.0.1  $HOSTNAME" >> /etc/hosts
+
 # Enable Ubuntu Firewall and allow SSH & MySQL Ports
 ufw --force enable
 ufw allow 22
