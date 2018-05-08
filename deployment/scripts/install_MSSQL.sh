@@ -11,13 +11,13 @@ fi
 # Password for the SA user (required)
 MSSQL_SA_PASSWORD=$1
 
+# Set hostname in etc/hosts
+sudo echo "127.0.0.1  $HOSTNAME" >> /etc/hosts
+
 # Product ID of the version of SQL server you're installing
 # Must be evaluation, developer, express, web, standard, enterprise, or your 25 digit product key
 # Defaults to developer
 MSSQL_PID='evaluation'
-
-# Install SQL Server Agent (recommended)
-SQL_INSTALL_AGENT='y'
 
 # Install SQL Server Full Text Search (optional)
 # SQL_INSTALL_FULLTEXT='y'
@@ -56,13 +56,6 @@ echo Adding SQL Server tools to your path...
 echo PATH="$PATH:/opt/mssql-tools/bin" >> ~/.bash_profile
 echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bashrc
 
-# Optional SQL Server Agent installation:
-if [ ! -z $SQL_INSTALL_AGENT ]
-then
-  echo Installing SQL Server Agent...
-  sudo apt-get install -y mssql-server-agent
-fi
-
 # Optional SQL Server Full Text Search installation:
 if [ ! -z $SQL_INSTALL_FULLTEXT ]
 then
@@ -73,7 +66,9 @@ fi
 # Configure firewall to allow TCP port 1433:
 echo Configuring UFW to allow traffic on port 1433...
 sudo ufw allow 1433/tcp
+sudo ufw allow ssh
 sudo ufw reload
+yes | sudo ufw enable
 
 # Optional example of post-installation configuration.
 # Trace flags 1204 and 1222 are for deadlock tracing.
