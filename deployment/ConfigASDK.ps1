@@ -1492,7 +1492,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $mySqlRpURI = "https://aka.ms/azurestackmysqlrp"
         $mySqlRpDownloadLocation = "$ASDKpath\MySQL.zip"
         DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
-        #Invoke-WebRequest https://aka.ms/azurestackmysqlrp -OutFile "$ASDKpath\MySQL.zip" -ErrorAction Stop -UseBasicParsing
         Set-Location $ASDKpath
         Expand-Archive "$ASDKpath\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
         Set-Location "$ASDKpath\MySQL"
@@ -1534,7 +1533,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $sqlRpURI = "https://aka.ms/azurestacksqlrp"
         $sqlRpDownloadLocation = "$ASDKpath\SQL.zip"
         DownloadWithRetry -downloadURI "$sqlRpURI" -downloadLocation "$sqlRpDownloadLocation" -retries 10
-        #Invoke-WebRequest https://aka.ms/azurestacksqlrp -OutFile "$ASDKpath\SQL.zip" -ErrorAction Stop -UseBasicParsing
         Set-Location $ASDKpath
         Expand-Archive "$ASDKpath\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
         Set-Location "$ASDKpath\SQL"
