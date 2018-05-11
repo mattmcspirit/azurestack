@@ -34,7 +34,7 @@ if [ "$AllowRemoteConnections" = "yes" ]
 then
     echo "Setting up remote connections for root user"
     # Allow remote connectivity for the root user
-    mysql -u root -p"$MySQLPassword" -e "use mysql; CREATE USER 'root'@'%' IDENTIFIED BY '$MySQLPassword'; GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$MySQLPassword'; flush privileges;"
+    mysql -u root -p"$MySQLPassword" -e "use mysql; CREATE USER 'root'@'%' IDENTIFIED BY '$MySQLPassword'; GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' with GRANT OPTION; flush privileges;"
     # Edit the MySQL Configuration File to allow Remote Connectivity
     sed -i "s/.*bind-address.*/bind-address = 0.0.0.0/" /etc/mysql/mysql.conf.d/mysqld.cnf
 fi
