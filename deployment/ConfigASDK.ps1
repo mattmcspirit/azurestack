@@ -4,25 +4,35 @@
 
     The purpose of this script is to automate as much as possible post deployment tasks in Azure Stack Development Kit
     This includes:
-        - Set password expiration
-        - Disable Windows Update on all infrastructures VMs and ASDK host
-        - Tools installation (Azure Stack Tools)
-        - Registration of the ASDK to Azure (Optional)
-        - Windows Server 2016 Datacenter Full & Core and Ubuntu 16.04-LTS images installation
-        - Creates VM Scale Set gallery item
-        - MySQL Resource Provider Installation
-        - SQL Server Resource Provider Installation
-        - Deployment of a MySQL 5.7 hosting Server on Ubuntu Server 16.04 LTS
-        - Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
-        - Adding SQL Server & MySQL Hosting Servers to Resource Providers inc. SKU/Quotas
-        - AppService prerequisites installation (SQL Server and Standalone File Server)
-        - AppService Resource Provider sources download and certificates generation
-        - Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
-        - Generate output text file for use in the next steps of configuration.
+        * Validates all input parameters
+        * Updated password expiration (180 days)
+        * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
+        * Tools installation (Azure Stack Tools)
+        * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
+        * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
+        * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
+        * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images.
+        * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
+        * Creates VM Scale Set gallery item
+        * MySQL Resource Provider installation
+        * SQL Server Resource Provider installation
+        * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
+        * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
+        * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
+        * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
+        * App Service prerequisites installation (SQL Server and Standalone File Server)
+        * App Service Resource Provider sources download and certificates generation
+        * App Service Service Principal Created (for Azure AD and ADFS)
+        * Grants App Service Service Principal Admin Consent (for Azure AD)
+        * Automates deployment of the App Service using dynamically constructed JSON
+        * Cleans up download folder to ensure clean future runs
+        * Transcript Log for errors and troubleshooting
+        * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
+        * Stores script output in a ConfigASDKOutput.txt, for future reference
 
 .VERSION
 
-    3.1  Update for ASDK release $$$$$$$$$$ and App Service automation
+    3.1  Update for ASDK release $$$$$$$$$$ and App Service automation, bug fixes, MySQL Root account fix.
     3.0  major update for ASDK release 20180329.1
     2.0  update for release 1.0.280917.3 
     1.0: small bug fixes and adding quotas/plan/offer creation
@@ -37,6 +47,12 @@
     Blog: http://www.mattmcspirit.com
     Email: matt.mcspirit@microsoft.com 
     Twitter: @mattmcspirit
+
+.CREDITS
+
+    Jon LaBelle - https://jonlabelle.com/snippets/view/powershell/download-remote-file-with-retry-support
+    Alain Vetier - https://github.com/esache/Azure-Stack
+    Ned Ballavance - https://github.com/ned1313/AzureStack-VM-PoC 
 
 .GUIDANCE
 
@@ -1834,7 +1850,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
         New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json `
             -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
-            -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+            -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
@@ -1865,7 +1881,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
         New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
             -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
-            -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+            -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
@@ -2610,10 +2626,6 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     $progress
     Write-Verbose "Cleaning up ASDK Folder and Progress CSV file"
     Remove-Item "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-    #Get-ChildItem -Path "$asdkPath\*" | Where-Object {($_.Extension -eq ".zip")} | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    #Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    #Remove-Item "$asdkPath\SQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    #Remove-Item "$asdkPath\AppService" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
 }
 else {
