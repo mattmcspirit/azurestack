@@ -4,25 +4,36 @@
 
     The purpose of this script is to automate as much as possible post deployment tasks in Azure Stack Development Kit
     This includes:
-        - Set password expiration
-        - Disable Windows Update on all infrastructures VMs and ASDK host
-        - Tools installation (Azure Stack Tools)
-        - Registration of the ASDK to Azure (Optional)
-        - Windows Server 2016 Datacenter Full & Core and Ubuntu 16.04-LTS images installation
-        - Creates VM Scale Set gallery item
-        - MySQL Resource Provider Installation
-        - SQL Server Resource Provider Installation
-        - Deployment of a MySQL 5.7 hosting Server on Ubuntu Server 16.04 LTS
-        - Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
-        - Adding SQL Server & MySQL Hosting Servers to Resource Providers inc. SKU/Quotas
-        - AppService prerequisites installation (SQL Server and Standalone File Server)
-        - AppService Resource Provider sources download and certificates generation
-        - Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
-        - Generate output text file for use in the next steps of configuration.
+        * Validates all input parameters
+        * Updated password expiration (180 days)
+        * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
+        * Tools installation (Azure Stack Tools)
+        * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
+        * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
+        * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
+        * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images.
+        * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
+        * Creates VM Scale Set gallery item
+        * MySQL Resource Provider installation
+        * SQL Server Resource Provider installation
+        * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
+        * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
+        * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
+        * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
+        * App Service prerequisites installation (SQL Server and Standalone File Server)
+        * App Service Resource Provider sources download and certificates generation
+        * App Service Service Principal Created (for Azure AD and ADFS)
+        * Grants App Service Service Principal Admin Consent (for Azure AD)
+        * Automates deployment of the App Service using dynamically constructed JSON
+        * Cleans up download folder to ensure clean future runs
+        * Transcript Log for errors and troubleshooting
+        * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
+        * Stores script output in a ConfigASDKOutput.txt, for future reference
 
 .VERSION
 
-    3.0  major update for ASDK release 20180302.1
+    3.1  Update added App Service automation, bug fixes, MySQL Root account fix.
+    3.0  major update for ASDK release 20180329.1
     2.0  update for release 1.0.280917.3 
     1.0: small bug fixes and adding quotas/plan/offer creation
     0.5: add SQL 2014 VM deployment
@@ -36,6 +47,12 @@
     Blog: http://www.mattmcspirit.com
     Email: matt.mcspirit@microsoft.com 
     Twitter: @mattmcspirit
+
+.CREDITS
+
+    Jon LaBelle - https://jonlabelle.com/snippets/view/powershell/download-remote-file-with-retry-support
+    Alain Vetier - https://github.com/esache/Azure-Stack
+    Ned Ballavance - https://github.com/ned1313/AzureStack-VM-PoC 
 
 .GUIDANCE
 
@@ -118,6 +135,7 @@ $ProgressPreference = 'SilentlyContinue'
 try {Stop-Transcript | Out-Null} catch {}
 
 ### GET START TIME ###
+$startTime = $(Get-Date).ToLocalTime()
 $sw = [Diagnostics.Stopwatch]::StartNew()
 
 ### SET LOCATION ###
@@ -126,9 +144,9 @@ $ScriptLocation = Get-Location
 ### SET ERCS IP Address - same for all default ASDKs ###
 $ERCSip = "192.168.200.225"
 
-# Define Regex for Password Complexity - needs to be at least 8 characters, with at least 1 upper case and 1 special character
+# Define Regex for Password Complexity - needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character
 $regex = @"
-^.*(?=.{8,})(?=.*[A-Z])(?=.*[@#$%^&£*\-_+=[\]{}|\\:',?/`~"();!]).*$
+^.*(?=.{8,})(?=.*[A-Z])(?=.*[a-z])(?=.*[@#$%^&£*\-_+=[\]{}|\\:',?/`~"();!]).*$
 "@
 
 $emailRegex = @"
@@ -166,7 +184,8 @@ elseif ($validDownloadPath -eq $false) {
 }
 
 ### Start Logging ###
-Start-Transcript -Path "$downloadPath\ConfigASDKLog.txt" -Append
+$logTime = $startTime.ToString("MMdd-HHmmss")
+Start-Transcript -Path "$downloadPath\ConfigASDKLog$logTime.txt" -Append
 
 ### Check if ConfigASDKProgressLog.csv exists ###
 $ConfigASDKProgressLogPath = "$downloadPath\ConfigASDKProgressLog.csv"
@@ -199,12 +218,14 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"SQLServerDBVM","Incomplete"'
         '"MySQLAddHosting","Incomplete"'
         '"SQLServerAddHosting","Incomplete"'
+        '"CreatePlansOffers","Incomplete"'
         '"AppServiceFileServer","Incomplete"'
         '"AppServiceSQLServer","Incomplete"'
         '"DownloadAppService","Incomplete"'
         '"GenerateAppServiceCerts","Incomplete"'
         '"CreateServicePrincipal","Incomplete"'
-        '"CreatePlansOffers","Incomplete"'
+        '"GrantAzureADAppPermissions","Incomplete"'
+        '"InstallAppService","Incomplete"'
         '"InstallHostApps","Incomplete"'
         '"CreateOutput","Incomplete"'
     )
@@ -259,7 +280,8 @@ if ($VMpwd -cmatch $regex -eq $true) {
 }
 
 elseif ($VMpwd -cmatch $regex -eq $false) {
-    Write-Verbose "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character " 
+    Write-Verbose "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character."
+    Write-Verbose "App Service installation requires a strong password." 
     # Obtain new password and store as a secure string
     $secureVMpwd = Read-Host -AsSecureString "Enter VM password again"
     # Convert to plain text to test regex complexity
@@ -299,25 +321,11 @@ if ($azureStackAdminPwd -cmatch $regex -eq $true) {
 }
 
 elseif ($azureStackAdminPwd -cmatch $regex -eq $false) {
-    Write-Verbose "Azure Stack Development Kit Deployment password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character " 
-    # Obtain new password and store as a secure string
-    $secureAzureStackAdminPwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Deployment password again"
-    # Convert to plain text to test regex complexity
-    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureStackAdminPwd)            
-    $azureStackAdminPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
-    if ($azureStackAdminPwd -cmatch $regex -eq $true) {
-        Write-Verbose "Azure Stack Development Kit Deployment password for AzureStack\AzureStackAdmin, meets desired complexity level" 
-        # Convert plain text password to a secure string
-        $secureAzureStackAdminPwd = ConvertTo-SecureString -AsPlainText $azureStackAdminPwd -Force
-        # Clean up unused variable
-        Remove-Variable -Name azureStackAdminPwd -ErrorAction SilentlyContinue
-        $azureStackAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $azureStackAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
-    }
-    else {
-        Write-Verbose "No Azure Stack Development Kit Deployment password was entered again. Exiting process..." -ErrorAction Stop 
-        Set-Location $ScriptLocation
-        return
-    }
+    Write-Host "`r`nAzure Stack Admin (AzureStack\AzureStackAdmin) password is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
+    Start-Sleep -Seconds 10
+    # Convert plain text password to a secure string
+    $secureAzureStackAdminPwd = ConvertTo-SecureString -AsPlainText $azureStackAdminPwd -Force
+    $azureStackAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $azureStackAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
 }
 
 <### Credentials Recap ###
@@ -330,73 +338,58 @@ $azureStackAdminCreds | Used to log into the local ASDK Host
 
 if ($authenticationType.ToString() -like "AzureAd") {
 
-    ### Validate Azure Stack Development Kit Service Administrator Username ###
+    ### Validate Azure AD Service Administrator Username (Used for ASDK Deployment) ###
 
     if ([string]::IsNullOrEmpty($azureAdUsername)) {
         Write-Verbose "You didn't enter a username for the Azure AD login." 
         $azureAdUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
     }
 
-    Write-Verbose "Checking to see if Azure Stack Development Kit Service Administrator username is correctly formatted..."
+    Write-Verbose "Checking to see if Azure AD Service Administrator (Used for ASDK Deployment) username is correctly formatted..."
 
     if ($azureAdUsername -cmatch $emailRegex -eq $true) {
-        Write-Verbose "Azure Stack Development Kit Service Administrator username is correctly formatted." 
+        Write-Verbose "Azure AD Service Administrator username (Used for ASDK Deployment) is correctly formatted." 
         Write-Verbose "$azureAdUsername will be used to connect to Azure." 
     }
 
     elseif ($azureAdUsername -cmatch $emailRegex -eq $false) {
-        Write-Verbose "Azure Stack Development Kit Service Administrator username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
+        Write-Verbose "Azure AD Service Administrator Username (Used for ASDK Deployment) isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
         # Obtain new username
-        $azureAdUsername = Read-Host "Enter Azure Stack Development Kit Service Administrator username again"
+        $azureAdUsername = Read-Host "Enter Azure AD Service Administrator Username (Used for ASDK Deployment) again"
         if ($azureAdUsername -cmatch $emailRegex -eq $true) {
-            Write-Verbose "Azure Stack Development Kit Service Administrator username is correctly formatted." 
+            Write-Verbose "Azure AD Service Administrator Username (Used for ASDK Deployment) is correctly formatted." 
             Write-Verbose "$azureAdUsername will be used to connect to Azure." 
         }
         else {
-            Write-Verbose "No valid Azure Stack Development Kit Service Administrator username was entered again. Exiting process..." -ErrorAction Stop 
+            Write-Verbose "No valid Azure AD Service Administrator Username (Used for ASDK Deployment) was entered again. Exiting process..." -ErrorAction Stop 
             Set-Location $ScriptLocation
             return
         }
     }
 
-    ### Validate Azure Stack Development Kit Service Administrator Password ###
+    ### Validate Azure AD Service Administrator (Used for ASDK Deployment) Password ###
 
     if ([string]::IsNullOrEmpty($azureAdPwd)) {
-        Write-Verbose "You didn't enter the Azure Stack Development Kit Service Administrator password." 
-        $secureAzureAdPwd = Read-Host "Please enter the Azure Stack Development Kit Service Administrator password. It should be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
+        Write-Verbose "You didn't enter the Azure AD Service Administrator account (Used for ASDK Deployment) password." 
+        $secureAzureAdPwd = Read-Host "Please enter the password for the Azure AD Service Administrator account used to deploy the ASDK. It should be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureAdPwd)            
         $azureAdPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
     }
 
-    Write-Verbose "Checking to see if Azure Stack Development Kit Service Administrator password is strong..."
+    Write-Verbose "Checking to see if password for the Azure AD Service Administrator used to deploy the ASDK, is strong..."
 
     if ($azureAdPwd -cmatch $regex -eq $true) {
-        Write-Verbose "Azure Stack Development Kit Service Administrator password meets desired complexity level" 
+        Write-Verbose "Password for the Azure AD Service Administrator account used to deploy the ASDK meets desired complexity level" 
         # Convert plain text password to a secure string
         $secureAzureAdPwd = ConvertTo-SecureString -AsPlainText $azureAdPwd -Force
         $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
     }
 
     elseif ($azureAdPwd -cmatch $regex -eq $false) {
-        Write-Verbose "Azure Stack Development Kit Service Administrator password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character." 
-        # Obtain new password and store as a secure string
-        $secureAzureAdPwd = Read-Host -AsSecureString "Enter Azure Stack Development Kit Service Administrator password again"
-        # Convert to plain text to test regex complexity
-        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureAdPwd)            
-        $azureAdPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
-        if ($azureAdPwd -cmatch $regex -eq $true) {
-            Write-Verbose "Azure Stack Development Kit Service Administrator meets desired complexity level" 
-            # Convert plain text password to a secure string
-            $secureAzureAdPwd = ConvertTo-SecureString -AsPlainText $azureAdPwd -Force
-            # Clean up unused variable
-            Remove-Variable -Name plainazureAdPwd -ErrorAction SilentlyContinue
-            $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
-        }
-        else {
-            Write-Verbose "No valid Azure Stack Development Kit Service Administrator password was entered again. Exiting process..." -ErrorAction Stop 
-            Set-Location $ScriptLocation
-            return
-        }
+        Write-Host "`r`nAzure AD Service Administrator account password is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
+        Start-Sleep -Seconds 10
+        $secureAzureAdPwd = ConvertTo-SecureString -AsPlainText $azureAdPwd -Force
+        $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
     }
 
     $asdkCreds = $azureAdCreds
@@ -444,8 +437,8 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
         ### Validate Azure AD Registration Password ###
     
         if ([string]::IsNullOrEmpty($azureRegPwd)) {
-            Write-Verbose "You didn't enter the Azure AD password." 
-            $secureAzureRegPwd = Read-Host "Please enter the Azure AD password. It should be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
+            Write-Verbose "You didn't enter the Azure AD password that you want to use for registration." 
+            $secureAzureRegPwd = Read-Host "Please enter the Azure AD password you wish to use for registration. It should ideally be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
             $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
         }
@@ -460,25 +453,10 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
         }
     
         elseif ($azureRegPwd -cmatch $regex -eq $false) {
-            Write-Verbose "Azure AD password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case and 1 special character." 
-            # Obtain new password and store as a secure string
-            $secureAzureRegPwd = Read-Host -AsSecureString "Enter Azure AD password again"
-            # Convert to plain text to test regex complexity
-            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
-            $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
-            if ($azureRegPwd -cmatch $regex -eq $true) {
-                Write-Verbose "Azure AD password meets desired complexity level" 
-                # Convert plain text password to a secure string
-                $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
-                # Clean up unused variable
-                Remove-Variable -Name azureRegPwd -ErrorAction SilentlyContinue
-                $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
-            }
-            else {
-                Write-Verbose "No valid Azure AD password was entered again. Exiting process..." -ErrorAction Stop 
-                Set-Location $ScriptLocation
-                return
-            }
+            Write-Host "`r`nAzure AD password for registration is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
+            Start-Sleep -Seconds 10
+            $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
+            $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
         }
     }
 }
@@ -548,41 +526,26 @@ if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
     Write-Verbose "Checking for an Azure AD password - this account will be used to register the ADFS-based ASDK to Azure..."
         
     if ([string]::IsNullOrEmpty($azureRegPwd)) {
-        Write-Verbose "You didn't enter the Azure AD password."
-        $secureAzureRegPwd = Read-Host "Please enter the Azure AD password. It should be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character." -AsSecureString -ErrorAction Stop
+        Write-Verbose "You didn't enter the Azure AD password that you want to use for registration." 
+        $secureAzureRegPwd = Read-Host "Please enter the Azure AD password you wish to use for registration. It should ideally be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
         $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
     }
-        
-    Write-Verbose "Checking to see if Azure AD password is strong..."
-        
+
+    Write-Verbose "Checking to see if Azure AD password for registration is strong..."
+
     if ($azureRegPwd -cmatch $regex -eq $true) {
-        Write-Verbose "Azure AD password meets desired complexity level"
+        Write-Verbose "Azure AD password meets desired complexity level" 
         # Convert plain text password to a secure string
         $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
         $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
     }
-        
+
     elseif ($azureRegPwd -cmatch $regex -eq $false) {
-        Write-Verbose "Azure AD password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character."
-        # Obtain new password and store as a secure string
-        $secureAzureRegPwd = Read-Host -AsSecureString "Enter Azure AD password again"
-        # Convert to plain text to test regex complexity
-        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
-        $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
-        if ($azureRegPwd -cmatch $regex -eq $true) {
-            Write-Verbose "Azure AD password meets desired complexity level"
-            # Convert plain text password to a secure string
-            $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
-            # Clean up unused variable
-            Remove-Variable -Name azureRegPwd -ErrorAction SilentlyContinue
-            $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
-        }
-        else {
-            Write-Verbose "No valid Azure AD password was entered again. Exiting process..." -ErrorAction Stop 
-            Set-Location $ScriptLocation
-            return
-        }
+        Write-Host "`r`nAzure AD password for registration is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
+        Start-Sleep -Seconds 10
+        $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
+        $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
     }
 }
 
@@ -627,7 +590,7 @@ if ($registerASDK) {
 function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
     while ($true) {
         try {
-            Invoke-WebRequest $downloadURI -OutFile "$downloadLocation" -UseBasicParsing
+            (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
             break
         }
         catch {
@@ -697,6 +660,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return        
@@ -755,6 +719,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -763,6 +728,52 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
+
+### TEST LOGINS #############################################################################################################################################
+#############################################################################################################################################################
+
+# Register an AzureRM environment that targets your administrative Azure Stack instance
+$ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+
+if ($authenticationType.ToString() -like "AzureAd") {
+    try {
+        # Login to Azure Stack
+        Write-Verbose ("Testing Azure Stack login with Azure Active Directory")
+        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
+        Write-Verbose ("Setting GraphEndpointResourceId value for Azure AD")
+        Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
+        $TenantID = Get-AzsDirectoryTenantId -AADTenantName $azureDirectoryTenantName -EnvironmentName "AzureStackAdmin"
+        Write-Verbose "Logging in with your Azure Stack Administrator Account used with Azure Active Directory"
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop
+    }
+    catch {
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif ($authenticationType.ToString() -like "ADFS") {
+    try {
+        # Login to Azure Stack
+        Write-Verbose ("Testing Azure Stack login with ADFS")
+        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
+        Write-Verbose ("Setting GraphEndpointResourceId value for ADFS")
+        Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
+        $TenantID = Get-AzsDirectoryTenantId -ADFS -EnvironmentName "AzureStackAdmin"
+        Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop
+    }
+    catch {
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+
+# Clean up current logins
+Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+Clear-AzureRmContext -Scope CurrentUser -Force
 
 ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
 ##############################################################################################################################################################
@@ -773,7 +784,7 @@ if ($registerASDK) {
         try {
             Write-Verbose "Starting Azure Stack registration to Azure"
             # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
-            Add-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds
+            Add-AzureRmAccount -EnvironmentName "AzureCloud" -Subscription $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
             # Register the Azure Stack resource provider in your Azure subscription
             Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
             # Import the registration module that was downloaded with the GitHub tools
@@ -790,6 +801,7 @@ if ($registerASDK) {
             Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
             Write-Verbose $_.Exception.Message -ErrorAction Stop
             Set-Location $ScriptLocation
             return
@@ -809,10 +821,6 @@ elseif (!$registerASDK) {
 
 ### CONNECT TO AZURE STACK #############################################################################################################################
 ########################################################################################################################################################
-
-# Register an AzureRM environment that targets your administrative Azure Stack instance
-$ArmEndpoint = "https://adminmanagement.local.azurestack.external"
-Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
 
 # Add GraphEndpointResourceId value for Azure AD or ADFS and obtain Tenant ID, then login to Azure Stack
 if ($authenticationType.ToString() -like "AzureAd") {
@@ -836,6 +844,9 @@ elseif ($authenticationType.ToString() -like "ADFS") {
 else {
     Write-Verbose ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
 }
+
+# Get Azure Stack location
+$azsLocation = (Get-AzsLocation).Name
 
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
 ##############################################################################################################################################################
@@ -892,7 +903,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             ### Get the package information ###
             $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
             $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-            $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
+            $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -First 1
 
             $azpkg.id = $product.name.Split('/')[-1]
             $azpkg.type = $product.properties.productKind
@@ -939,7 +950,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
         Write-Verbose "Checking to see if an Ubuntu Server 16.04-LTS VM Image is present in your Azure Stack Platform Image Repository"
-        if ($(Get-AzsVMImage -Location "local" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
+        if ($(Get-AzsVMImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
             Write-Verbose "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
             Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
         }
@@ -1013,7 +1024,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             else {
                 Add-AzsVMImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -osType $azpkg.osVersion -osDiskLocalPath "$UbuntuServerVHD"
             }
-            if ($(Get-AzsVMImage -Location "local" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
+            if ($(Get-AzsVMImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
                 Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                 Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP "
                 Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Remove-Item -Force
@@ -1053,6 +1064,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1076,7 +1088,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
         $sku = "2016-Datacenter-Server-Core"
-        $platformImageCore = Get-AzsVMImage -Location "local" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
+        $platformImageCore = Get-AzsVMImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverCoreVMImageAlreadyAvailable = $false
 
         if ($platformImageCore -ne $null -and $platformImageCore.Properties.ProvisioningState -eq 'Succeeded') {
@@ -1087,7 +1099,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Pre-validate that the Windows Server 2016 Full Image is not already available
         Remove-Variable -Name platformImageFull -Force -ErrorAction SilentlyContinue
         $sku = "2016-Datacenter"
-        $platformImageFull = Get-AzsVMImage -Location "local" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
+        $platformImageFull = Get-AzsVMImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverFullVMImageAlreadyAvailable = $false
 
         if ($platformImageFull -ne $null -and $platformImageFull.Properties.ProvisioningState -eq 'Succeeded') {
@@ -1174,10 +1186,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # If the user chose not to register the ASDK, the New-AzsServer2016VMImage will create a default gallery item
             try {
                 if ($registerASDK) {
-                    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -CreateGalleryItem $false -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "local"
+                    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -CreateGalleryItem $false -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "$azsLocation"
                 }
                 elseif (!$registerASDK) {
-                    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "local"
+                    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "$azsLocation"
                 }
                 # Cleanup the VHD, MSU and Cab files
                 $computeAdminPath = "$modulePath\ComputeAdmin"
@@ -1212,10 +1224,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     Write-Verbose "Didn't find this package: $wsPackage"
                     Write-Verbose "Will need to sideload it in to the gallery"
                     if ($wsPackage -eq "WindowsServer2016-Datacenter") {
-                        New-AzsServer2016VMImage -Version Full -ISOPath $ISOpath -Location "local"
+                        New-AzsServer2016VMImage -Version Full -ISOPath $ISOpath -Location "$azsLocation"
                     }
                     elseif ($wsPackage -eq "WindowsServer2016-Datacenter-Server-Core") {
-                        New-AzsServer2016VMImage -Version Core -ISOPath $ISOpath -Location "local"
+                        New-AzsServer2016VMImage -Version Core -ISOPath $ISOpath -Location "$azsLocation"
                     }
                 }
             }
@@ -1346,6 +1358,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1363,7 +1376,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         # Create VM Scale Set Marketplace item
         Write-Verbose "Creating VM Scale Set Marketplace Item"
-        Add-AzsVMSSGalleryItem -Location local
+        Add-AzsVMSSGalleryItem -Location $azsLocation
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
@@ -1373,6 +1386,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1420,6 +1434,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1467,6 +1482,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1486,11 +1502,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "Downloading and installing MySQL Resource Provider"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
+        # Cleanup old folder
+        Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         # Download and Expand the MySQL RP files
         $mySqlRpURI = "https://aka.ms/azurestackmysqlrp"
         $mySqlRpDownloadLocation = "$ASDKpath\MySQL.zip"
         DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
-        #Invoke-WebRequest https://aka.ms/azurestackmysqlrp -OutFile "$ASDKpath\MySQL.zip" -ErrorAction Stop -UseBasicParsing
         Set-Location $ASDKpath
         Expand-Archive "$ASDKpath\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
         Set-Location "$ASDKpath\MySQL"
@@ -1508,6 +1525,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1531,7 +1549,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $sqlRpURI = "https://aka.ms/azurestacksqlrp"
         $sqlRpDownloadLocation = "$ASDKpath\SQL.zip"
         DownloadWithRetry -downloadURI "$sqlRpURI" -downloadLocation "$sqlRpDownloadLocation" -retries 10
-        #Invoke-WebRequest https://aka.ms/azurestacksqlrp -OutFile "$ASDKpath\SQL.zip" -ErrorAction Stop -UseBasicParsing
         Set-Location $ASDKpath
         Expand-Archive "$ASDKpath\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
         Set-Location "$ASDKpath\SQL"
@@ -1549,6 +1566,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1579,6 +1597,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1602,7 +1621,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $mySqlSkuFamily = "MySQL"
         $mySqlSkuName = "MySQL57"
         $mySqlSkuTier = "Standalone"
-        $mySqlLocation = "local"
+        $mySqlLocation = "$azsLocation"
         $mySqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
         $mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
         $mySqlApiVersion = "2017-08-28"
@@ -1692,6 +1711,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1716,7 +1736,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $sqlSkuEdition = "Evaluation"
         $sqlSkuName = "MSSQL2017"
         $sqlSkuTier = "Standalone"
-        $sqlLocation = "local"
+        $sqlLocation = "$azsLocation"
         $sqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
         $sqlDatabaseAdapterNamespace = "Microsoft.SQLAdapter.Admin"
         $sqlApiVersion = "2017-08-28"
@@ -1807,6 +1827,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1823,13 +1844,13 @@ $RowIndex = [array]::IndexOf($progress.Stage, "MySQLDBVM")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         Write-Verbose "Creating a dedicated Resource Group for all database hosting assets"
-        New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location local -Force
+        New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
 
         # Deploy a MySQL VM for hosting tenant db
         Write-Verbose "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
         New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json `
             -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
-            -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+            -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
@@ -1840,6 +1861,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1859,7 +1881,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
         New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
             -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
-            -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+            -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
@@ -1870,6 +1892,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1902,6 +1925,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1936,6 +1960,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1947,6 +1972,87 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
+#### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
+if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    try {
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        # Configure a simple base plan and offer for IaaS
+        Import-Module "$modulePath\Connect\AzureStack.Connect.psm1"
+        Import-Module "$modulePath\ServiceAdmin\AzureStack.ServiceAdmin.psm1"
+
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Clear-AzureRmContext -Scope CurrentUser -Force
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
+        # Default quotas, plan, and offer
+        $PlanName = "BasePlan"
+        $OfferName = "BaseOffer"
+        $RGName = "azurestack-plansandoffers"
+
+        $computeParams = @{
+            Name                 = "compute_default"
+            CoresLimit           = 200
+            AvailabilitySetCount = 20
+            VirtualMachineCount  = 100
+            VmScaleSetCount      = 20
+            Location             = $azsLocation
+        }
+
+        $netParams = @{
+            Name                          = "network_default"
+            PublicIpsPerSubscription      = 500
+            VNetsPerSubscription          = 500
+            GatewaysPerSubscription       = 10
+            ConnectionsPerSubscription    = 20
+            LoadBalancersPerSubscription  = 500
+            NicsPerSubscription           = 1000
+            SecurityGroupsPerSubscription = 500
+            Location                      = $azsLocation
+        }
+
+        $storageParams = @{
+            Name                    = "storage_default"
+            NumberOfStorageAccounts = 200
+            CapacityInGB            = 2048
+            Location                = $azsLocation
+        }
+
+        $kvParams = @{
+            Location = $azsLocation
+        }
+
+        $quotaIDs = @()
+        $quotaIDs += (New-AzsNetworkQuota @netParams).ID
+        $quotaIDs += (New-AzsComputeQuota @computeParams).ID
+        $quotaIDs += (New-AzsStorageQuota @storageParams).ID
+        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams)
+
+        New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
+        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -ArmLocation $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
+        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -ArmLocation $azsLocation
+
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
+    }
+    catch {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif ($progress[$RowIndex].Status -eq "Complete") {
+    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+
 #### DEPLOY APP SERVICE FILE SERVER ##########################################################################################################################
 ##############################################################################################################################################################
 
@@ -1955,7 +2061,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         ### Deploy File Server ###
         Write-Verbose "Deploying Windows Server 2016 File Server"
-        New-AzureRmResourceGroup -Name "appservice-fileshare" -Location local -Force
+        New-AzureRmResourceGroup -Name "appservice-fileshare" -Location $azsLocation -Force
         New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json `
             -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
 
@@ -1971,6 +2077,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -1990,7 +2097,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         # Deploy a SQL Server 2017 on Ubuntu VM for App Service
         Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu Server 16.04 LTS for App Service"
-        New-AzureRmResourceGroup -Name "appservice-sql" -Location local -Force
+        New-AzureRmResourceGroup -Name "appservice-sql" -Location $azsLocation -Force
         New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
             -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
             -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
@@ -2007,6 +2114,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2027,15 +2135,15 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Install App Service To be added
         Write-Verbose "Downloading App Service Installer"
         Set-Location $ASDKpath
+        # Clean up old App Service Path if it exists
+        Remove-Item "$asdkPath\AppService" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
         $appServiceHelperDownloadLocation = "$ASDKpath\appservicehelper.zip"
         DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
-        #Invoke-WebRequest https://aka.ms/appsvconmashelpers -OutFile "$ASDKpath\appservicehelper.zip" -UseBasicParsing
         Expand-Archive $ASDKpath\appservicehelper.zip -DestinationPath "$ASDKpath\AppService\" -Force
         $appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
         $appServiceExeDownloadLocation = "$ASDKpath\AppService\appservice.exe"
         DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
-        #Invoke-WebRequest https://aka.ms/appsvconmasinstaller -OutFile "$ASDKpath\AppService\appservice.exe" -UseBasicParsing
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
@@ -2046,6 +2154,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2055,6 +2164,8 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
+$AppServicePath = "$ASDKpath\AppService"
+
 #### GENERATE APP SERVICE CERTS ##############################################################################################################################
 ##############################################################################################################################################################
 
@@ -2062,7 +2173,6 @@ $RowIndex = [array]::IndexOf($progress.Stage, "GenerateAppServiceCerts")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         Write-Verbose "Generating Certificates"
-        $AppServicePath = "$ASDKpath\AppService"
         Set-Location "$AppServicePath"
         .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName "local.azurestack.external"
         .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $cloudAdminCreds
@@ -2076,6 +2186,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2093,20 +2204,30 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         # Create Azure AD or ADFS Service Principal
         if ($authenticationType.ToString() -like "AzureAd") {
+            # Logout to clean up
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Clear-AzureRmContext -Scope CurrentUser -Force
+
+            # Grant permissions to Azure AD Service Principal
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Set-Location "$AppServicePath"
-            . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
+            $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
             $appIdPath = "$AppServicePath\ApplicationID.txt"
+            $identityApplicationID = $applicationId
             New-Item $appIdPath -ItemType file -Force
-            Write-Output $applicationId > $appIdPath
+            Write-Output $identityApplicationID > $appIdPath
+            Start-Sleep -Seconds 20
         }
         elseif ($authenticationType.ToString() -like "ADFS") {
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Set-Location "$AppServicePath"
-            . .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
+            $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
                 -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds
             $appIdPath = "$AppServicePath\ApplicationID.txt"
+            $identityApplicationID = $appID
             New-Item $appIdPath -ItemType file -Force
-            Write-Output $appId > $appIdPath
+            Write-Output $identityApplicationID > $appIdPath
         }
         else {
             Write-Verbose ("No valid application was created, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
@@ -2120,6 +2241,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2129,64 +2251,166 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
-#### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
+if (!$identityApplicationID) {
+    $identityApplicationID = Get-Content -Path "$AppServicePath\ApplicationID.txt"
+}
+
+#### GRANT AZURE AD APP PERMISSION ###########################################################################################################################
 ##############################################################################################################################################################
 
-$RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
+$RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
+if ($authenticationType.ToString() -like "AzureAd") {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+
+        try {
+            # Logout to clean up
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Clear-AzureRmContext -Scope CurrentUser -Force
+            # Grant permissions to Azure AD Service Principal
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $context = Get-AzureRmContext
+            $tenantId = $context.Tenant.Id
+            $refreshToken = $context.TokenCache.ReadItems().RefreshToken
+            $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
+            $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
+            $header = @{
+                'Authorization'          = 'Bearer ' + $apiToken.access_token
+                'X-Requested-With'       = 'XMLHttpRequest'
+                'x-ms-client-request-id' = [guid]::NewGuid()
+                'x-ms-correlation-id'    = [guid]::NewGuid()
+            }
+            $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
+            Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction SilentlyContinue
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    }
+}
+elseif ($authenticationType.ToString() -like "ADFS") {
+    Write-Verbose "Skipping Azure AD App Permissions, as this is an ADFS deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
+}
+
+#### DEPLOY APP SERVICE ######################################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-        # Configure a simple base plan and offer for IaaS
-        Import-Module "$modulePath\Connect\AzureStack.Connect.psm1"
-        Import-Module "$modulePath\ServiceAdmin\AzureStack.ServiceAdmin.psm1"
+        Write-Verbose "Checking variables are present before creating JSON"
+        # Check Variables #
+        if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -ne $null)) {
+            Write-Verbose "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
+        }
+        elseif ($authenticationType.ToString() -like "ADFS") {
+            Write-Verbose "ADFS deployment, no need for Azure Directory Tenant Name"
+        }
+        elseif (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -eq $null)) {
+            throw "Missing Azure Directory Tenant Name - Exiting process"
+        }
+        if ($fileServerFqdn -ne $null) {
+            Write-Verbose "File Server FQDN is present: $fileServerFqdn"
+        }
+        else {
+            throw "Missing File Server FQDN - Exiting process"
+        }
+        if ($VMpwd -ne $null) {
+            Write-Verbose "Virtual Machine password is present: $VMpwd"
+        }
+        else {
+            throw "Missing Virtual Machine password - Exiting process"
+        }
+        if ($sqlAppServerFqdn -ne $null) {
+            Write-Verbose "SQL Server FQDN is present: $sqlAppServerFqdn"
+        }
+        else {
+            throw "Missing SQL Server FQDN - Exiting process"
+        }
+        if ($identityApplicationID -ne $null) {
+            Write-Verbose "Identity Application ID present: $identityApplicationID"
+        }
+        else {
+            throw "Missing Identity Application ID - Exiting process"
+        }
+        
+        Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json" -UseBasicParsing -ErrorAction Stop
+        $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
+        #Create the JSON from deployment
+
+        if ($authenticationType.ToString() -like "AzureAd") {
+            $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $azureDirectoryTenantName)
+        }
+        elseif ($authenticationType.ToString() -like "ADFS") {
+            $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", "adfs")
+        }
+
+        $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $fileServerFqdn)
+        $JsonConfig = $JsonConfig.Replace("<<Password>>", $VMpwd)
+        $CertPathDoubleSlash = $AppServicePath.Replace("\", "\\")
+        $JsonConfig = $JsonConfig.Replace("<<CertPathDoubleSlash>>", $CertPathDoubleSlash)
+        $JsonConfig = $JsonConfig.Replace("<<SQLServerName>>", $sqlAppServerFqdn)
+        $SQLServerUser = "sa"
+        $JsonConfig = $JsonConfig.Replace("<<SQLServerUser>>", $SQLServerUser)
+        $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $identityApplicationID)
+        Out-File -FilePath "$AppServicePath\AppServiceDeploymentSettings.json" -InputObject $JsonConfig
+
+        # Deploy App Service EXE
+        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
+        $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+        $appServiceLogPath = "$AppServicePath\AppServiceLog.txt"
+        Set-Location "$AppServicePath"
+        Write-Verbose "Starting deployment of the App Service"
+        Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
+
+        while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
+            Write-Verbose "App Service is deploying. Checking in 10 seconds"
+            Start-Sleep -Seconds 10
+        }
+            
+        if (!(Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
+            Write-Verbose "App Service deployment has finished executing."
+        }
+
+        $appServiceErrorCode = "Exit code: 0xffffffff"
+        Write-Verbose "Checking App Service log file for issues"
+        if ($(Select-String -Path $appServiceLogPath -Pattern "$appServiceErrorCode" -SimpleMatch -Quiet) -eq "True") {
+            Write-Verbose "App Service install failed with $appServiceErrorCode"
+            Write-Verbose "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
+            throw "App Service install failed with $appServiceErrorCode. Please check the App Service logs at $appServiceLogPath"
+        }
+        else {
+            Write-Verbose "App Service log file indicates successful deployment"
+        }
+        Write-Verbose "Checking App Service resource group for successful deployment"
+        # Ensure logged into Azure Stack
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Clear-AzureRmContext -Scope CurrentUser -Force
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-
-        # Default quotas, plan, and offer
-        $PlanName = "BasePlan"
-        $OfferName = "BaseOffer"
-        $RGName = "azurestack-plansandoffers"
-        $Location = (Get-AzsLocation).Name
-
-        $computeParams = @{
-            Name                 = "compute_default"
-            CoresLimit           = 200
-            AvailabilitySetCount = 20
-            VirtualMachineCount  = 100
-            VmScaleSetCount      = 20
-            Location             = $Location
+        $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
+        if ($appServiceRgCheck.ProvisioningState -ne 'Succeeded') {
+            Write-Verbose "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
+            throw "$($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState). Please check the App Service logs at $appServiceLogPath"
         }
-
-        $netParams = @{
-            Name                          = "network_default"
-            PublicIpsPerSubscription      = 500
-            VNetsPerSubscription          = 500
-            GatewaysPerSubscription       = 10
-            ConnectionsPerSubscription    = 20
-            LoadBalancersPerSubscription  = 500
-            NicsPerSubscription           = 1000
-            SecurityGroupsPerSubscription = 500
-            Location                      = $Location
+        else {
+            Write-Verbose "App Service deployment with name: $($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState)"
         }
-
-        $storageParams = @{
-            Name                    = "storage_default"
-            NumberOfStorageAccounts = 200
-            CapacityInGB            = 2048
-            Location                = $Location
-        }
-
-        $kvParams = @{
-            Location = $Location
-        }
-
-        $quotaIDs = @()
-        $quotaIDs += (New-AzsNetworkQuota @netParams).ID
-        $quotaIDs += (New-AzsComputeQuota @computeParams).ID
-        $quotaIDs += (New-AzsStorageQuota @storageParams).ID
-        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams)
-
-        New-AzureRmResourceGroup -Name $RGName -Location $Location
-        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -ArmLocation $Location -ResourceGroupName $RGName -QuotaIds $QuotaIDs
-        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -ArmLocation $Location
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
@@ -2197,6 +2421,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2252,6 +2477,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2267,13 +2493,13 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateOutput")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-        $finalAppId = Get-Content -Path "$AppServicePath\ApplicationID.txt"
         Write-Host -ForegroundColor Green "The ASDK configuration is complete....well, almost"
-        Write-Host -ForegroundColor Green "Please copy the following application ID: $finalAppId and review the documentation to finish the process"
+        Write-Host -ForegroundColor Green "Please copy the following application ID: $identityApplicationID and review the documentation to finish the process"
 
         ### Create Output Document ###
 
         $txtPath = "$downloadPath\ConfigASDKOutput.txt"
+        Remove-Item -Path $txtPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
         New-Item "$txtPath" -ItemType file -Force
 
         Write-Output "`r`nThis document contains useful information for deployment of the App Service" > $txtPath
@@ -2322,12 +2548,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output "App Service SQL Server SA Credentials = sa | $VMpwd" >> $txtPath
 
         if ($authenticationType.ToString() -like "AzureAd") {
-            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $finalAppId" >> $txtPath
+            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
             Write-Output "Sign in to the Azure portal as Azure Active Directory Service Admin ($azureAdUsername) -> Search for Application Id and grant permissions." >> $txtPath
             Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application" >> $txtPath
         }
         elseif ($authenticationType.ToString() -like "ADFS") {
-            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $finalAppId" >> $txtPath
+            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
             Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application" >> $txtPath
         }
 
@@ -2346,7 +2572,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output "File Share User: fileshareuser" >> $txtPath
         Write-Output "File Share User Password: $VMpwd" >> $txtPath
         Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
-        Write-Output "Identity Application ID: $finalAppId" >> $txtPath
+        Write-Output "Identity Application ID: $identityApplicationID" >> $txtPath
         Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.local.azurestack.external.pfx" >> $txtPath
         Write-Output "Identity Application Certificate (*.pfx) password: $VMpwd" >> $txtPath
         Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority.cer" >> $txtPath
@@ -2380,6 +2606,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
         Write-Verbose $_.Exception.Message -ErrorAction Stop
         Set-Location $ScriptLocation
         return
@@ -2398,11 +2625,8 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Verbose "Congratulations - all steps completed successfully:`r`n"
     $progress
     Write-Verbose "Cleaning up ASDK Folder and Progress CSV file"
-    Get-ChildItem -Path "$asdkPath\*" | Where-Object {($_.Extension -eq ".zip")} | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    Remove-Item "$asdkPath\SQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    Get-ChildItem -Path "$asdkPath\AppService\*" -Recurse | Where-Object {($_.Extension -ne ".exe") -and ($_.Extension -ne ".pfx") -and ($_.Extension -ne ".cer")} | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-    Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue
+    Remove-Item "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+    Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
 }
 else {
     Write-Verbose "Script hasn't completed successfully"
@@ -2414,17 +2638,17 @@ Write-Verbose "Setting Execution Policy back to RemoteSigned"
 Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
 
 # Calculate completion time
+$endTime = $(Get-Date).ToLocalTime()
 $sw.Stop()
 $Hrs = $sw.Elapsed.Hours
 $Mins = $sw.Elapsed.Minutes
 $Secs = $sw.Elapsed.Seconds
 $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
 
-Write-Output "`r`nOpening your ConfigASDKOutput.txt file that you'll use for the App Service deployment..."
-Start-Sleep -Seconds 5
-Notepad "$downloadPath\ConfigASDKOutput.txt"
 Set-Location $ScriptLocation -ErrorAction SilentlyContinue
 Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
+Write-Output "You started the ASDK Configurator deployment at $startTime." -ErrorAction SilentlyContinue
+Write-Output "ASDK Configurator deployment completed at $endTime." -ErrorAction SilentlyContinue
 
 ### Launch browser to activate admin and user portal for Azure AD deployments
 if ($authenticationType.ToString() -like "AzureAd") {

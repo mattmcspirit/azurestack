@@ -1,13 +1,14 @@
-Azure Stack Development Kit Configurator 3.0
+Azure Stack Development Kit Configurator 3.1
 ==============
 
 Version Compatibility
 -----------
-The current version of the ConfigASDK.ps1 script has been tested with the following versions:
+The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
 * ASDK build **20180329.1**
 * Azure Stack PowerShell Module **1.2.11**
 * Azure Stack PowerShell Tools forked to <https://github.com/mattmcspirit/AzureStack-Tools>
 
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has not been tested with ASDK build 1804, or PowerShell 1.3. A version that supports the newer ASDK builds (post 1804) and PowerShell versions is currently in development.
 
 Description
 -----------
@@ -31,16 +32,16 @@ This includes:
 * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
 * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
 * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
+* Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
 * App Service prerequisites installation (SQL Server and Standalone File Server)
 * App Service Resource Provider sources download and certificates generation
 * App Service Service Principal Created (for Azure AD and ADFS)
-* Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
-* Generate output text file for use in the next steps of App Service configuration.
-* Transcript Log for Errors and Troubleshooting
+* Grants App Service Service Principal Admin Consent (for Azure AD)
+* Automates deployment of the App Service using dynamically constructed JSON
+* Cleans up download folder to ensure clean future runs
+* Transcript Log for errors and troubleshooting
 * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
-
-It's important to note, that the ConfigASDK.ps1 script cannot automate everything today. The App Service installation, for instance, cannot be automated today
-however, the script completes with an output text file, that can be used to populate the App Service installer, to streamline deployment of the App Service. Future versions may automatically install the App Service.
+* Stores script output in a ConfigASDKOutput.txt, for future reference
 
 Additionally, if you encounter an issue, try rerunning the script with the same command you used to run it previously.  The script is written in such a way that it shouldn't try to rerun previously completed steps.
 
@@ -91,7 +92,7 @@ Usage Examples:
 -------------
 
 **Scenario 1** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use the same Azure AD credentials
-as you used when you deployed your ASDK:
+as you used when you deployed your ASDK.
 
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
@@ -101,12 +102,14 @@ as you used when you deployed your ASDK:
 ```
 
 **Please Note**
-* For the -azureDirectoryTenantName, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that
-* For the -downloadPath, ensure the folder exists, and you have enough space to hold up to 40GB of files
-* -ISOPath should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
-* -azureStackAdminPwd is the password you used when deploying your ASDK
-* Use the -registerASDK flag to instruct the script to register your ASDK to Azure
-* Use the -useAzureCredsForRegistration flag if you want to use the same Azure AD credentials to register the ASDK, as you did when deploying the ASDK
+* For the **-azureDirectoryTenantName**, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that
+* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files
+* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
+* **-azureStackAdminPwd** is the password you used when deploying your ASDK
+* **-VMpwd** is the password assigned to all VMs created by the script. **Important** - it needs to be a strong password, with at least 1 upper, lower and special character, minimum of 8 characters long
+* **-azureAdUsername** and **-azureAdPwd** are the *Service Administrator* credentials you used when you deployed your ASDK host (in Azure AD connected mode)
+* Use the **-registerASDK** flag to instruct the script to register your ASDK to Azure
+* Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK
 * If you specify -registerASDK but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials
 
 **Scenario 2** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use a different set of Azure AD credentials from the set you used when you deployed your ASDK:
@@ -120,7 +123,7 @@ as you used when you deployed your ASDK:
 ```
 
 **Please Note**
-* The key difference this time, is that the -azureRegUsername and -azureRegPwd flags are used, to capture the different set of credentials for registering the ASDK to Azure.
+* The key difference this time, is that the **-azureRegUsername** and **-azureRegPwd** flags are used, to capture the different set of Azure AD credentials (and therefore, different subscription) for registering the ASDK to Azure.
 
 **Scenario 3** - Using Azure AD for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
 
@@ -140,8 +143,6 @@ as you used when you deployed your ASDK:
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
-**Please Note**
-* This scenario requires testing.
 
 **Scenario 5** - Using ADFS for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
 
@@ -150,14 +151,12 @@ as you used when you deployed your ASDK:
 -azureStackAdminPwd P@ssw0rd! -VMpwd P@ssw0rd!
 ```
 
-**Please Note**
-* This scenario requires testing.
 
 Post-Script Actions
 -------------------
-This script can take up to 6 hours to finish.
-Once the script has completed, be sure to look in your downloadPath folder, as it will contain a ConfigASDKOutput.txt file, with useful information for the next steps for deploying the App Service.
-Please refer to your .txt file for specific guidance and links.
+This script can take over 6 hours to finish.
+Once the script has completed, be sure to look in your downloadPath folder, as it will contain a ConfigASDKOutput.txt file, which contains useful information.
+Assuming the script has completed successfully, you just need to activate the portals: <https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-post-deploy#activate-the-administrator-and-tenant-portals>
 
 #### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.

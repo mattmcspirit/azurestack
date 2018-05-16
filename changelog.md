@@ -1,8 +1,9 @@
 # ConfigASDK.ps1 Version History
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
-## ConfigASDK.psq
+## ConfigASDK.ps1
 
+    3.1  update added App Service automation, bug fixes, MySQL Root account fix.
     3.0  major update for ASDK release 20180329.1
     2.0  update for release 1.0.280917.3 
     1.0: small bug fixes and adding quotas/plan/offer creation
