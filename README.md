@@ -3,11 +3,12 @@ Azure Stack Development Kit Configurator 3.1
 
 Version Compatibility
 -----------
-The current version of the ConfigASDK.ps1 script has been tested with the following versions:
+The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
 * ASDK build **20180329.1**
 * Azure Stack PowerShell Module **1.2.11**
 * Azure Stack PowerShell Tools forked to <https://github.com/mattmcspirit/AzureStack-Tools>
 
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has not been tested with ASDK build 1804, or PowerShell 1.3. A version that supports the newer ASDK builds (post 1804) and PowerShell versions is currently in development.
 
 Description
 -----------

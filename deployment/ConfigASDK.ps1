@@ -32,7 +32,7 @@
 
 .VERSION
 
-    3.1  Update for ASDK release $$$$$$$$$$ and App Service automation, bug fixes, MySQL Root account fix.
+    3.1  Update added App Service automation, bug fixes, MySQL Root account fix.
     3.0  major update for ASDK release 20180329.1
     2.0  update for release 1.0.280917.3 
     1.0: small bug fixes and adding quotas/plan/offer creation
@@ -2350,7 +2350,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             throw "Missing Identity Application ID - Exiting process"
         }
         
-        Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/AppServiceAutomate/deployment/appservice/AppServiceDeploymentSettings.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json" -ErrorAction Stop
+        Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json" -UseBasicParsing -ErrorAction Stop
         $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
         #Create the JSON from deployment
 
