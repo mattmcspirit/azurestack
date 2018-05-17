@@ -675,11 +675,10 @@ Write-Verbose "Changing Directory"
 $modulePath = "C:\AzureStack-Tools-master"
 Set-Location $modulePath
 
-# Import the Azure Stack Connect and Compute Modules
+# Import the Azure Stack Connect Module
 Import-Module $modulePath\Connect\AzureStack.Connect.psm1
-Import-Module $modulePath\ComputeAdmin\AzureStack.ComputeAdmin.psm1
 Disable-AzureRmDataCollection -WarningAction SilentlyContinue
-Write-Verbose "Azure Stack Connect and Compute modules imported successfully" 
+Write-Verbose "Azure Stack Connect module imported successfully" 
 
 ### CONFIGURE THE AZURE STACK HOST & INFRA VIRTUAL MACHINES ############################################################################################
 ########################################################################################################################################################
@@ -903,7 +902,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             ### Get the package information ###
             $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
             $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-            $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -First 1
+            $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1 -ErrorAction Stop
 
             $azpkg.id = $product.name.Split('/')[-1]
             $azpkg.type = $product.properties.productKind
@@ -942,7 +941,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 offer      = "UbuntuServer"
                 vhdVersion = "1.0.0"
                 osVersion  = "Linux"
-                name       = "Canonical.UbuntuServer16-04-LTS.1.0.0"
+                name       = "Canonical.UbuntuServer1604LTS-ARM.1.0.0"
             }
         }
 
@@ -950,7 +949,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
         Write-Verbose "Checking to see if an Ubuntu Server 16.04-LTS VM Image is present in your Azure Stack Platform Image Repository"
-        if ($(Get-AzsVMImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
+        if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
             Write-Verbose "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
             Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
         }
@@ -987,27 +986,18 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Write-Verbose "Cannot find a previously extracted Ubuntu Server download or ZIP file"
                 Write-Verbose "Begin download of correct Ubuntu Server ZIP and extraction of VHD into $ASDKpath"
 
-                # If registerASDK is true, the script will grab the properties of the gallery item from the syndicated marketplace and construct a replica from this info
-
                 if ($registerASDK) {
                     $ubuntuBuild = $azpkg.vhdVersion
                     $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
                     $ubuntuBuild = $ubuntuBuild.split('.')[2]
-                    #Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop -UseBasicParsing
                     $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-                    $ubuntuDownloadLocation = "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip"
-                    DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
+
                 }
-
-                # Otherwise, it will just use 1.0.0 as specified earlier
-
                 else {
-                    $ubuntuBuild = $azpkg.vhdVersion
-                    #Invoke-Webrequest "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip" -OutFile "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction Stop -UseBasicParsing
                     $ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-                    $ubuntuDownloadLocation = "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip"
-                    DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
                 }
+                $ubuntuDownloadLocation = "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
        
                 Expand-Archive -Path "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -DestinationPath $ASDKpath -Force -ErrorAction Stop
                 $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
@@ -1019,12 +1009,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # If the user has chosen to register the ASDK, the script will NOT create a gallery item as part of the image upload
 
             if ($registerASDK) {
-                Add-AzsVMImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -osType $azpkg.osVersion -osDiskLocalPath "$UbuntuServerVHD" -CreateGalleryItem $False
+                Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$UbuntuServerVHD" -CreateGalleryItem $False
             }
             else {
-                Add-AzsVMImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -osType $azpkg.osVersion -osDiskLocalPath "$UbuntuServerVHD"
+                Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$UbuntuServerVHD"
             }
-            if ($(Get-AzsVMImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
+            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).Properties.ProvisioningState -eq 'Succeeded') {
                 Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                 Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP "
                 Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Remove-Item -Force
