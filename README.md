@@ -1,14 +1,14 @@
-Azure Stack Development Kit Configurator 3.1
+Azure Stack Development Kit Configurator 1804
 ==============
 
 Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
-* ASDK build **20180329.1**
-* Azure Stack PowerShell Module **1.2.11**
+* ASDK build **20180513.1 (1804)**
+* Azure Stack PowerShell Module **1.3.0**
 * Azure Stack PowerShell Tools forked to <https://github.com/mattmcspirit/AzureStack-Tools>
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has not been tested with ASDK build 1804, or PowerShell 1.3. A version that supports the newer ASDK builds (post 1804) and PowerShell versions is currently in development.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1804, and Azure Stack PowerShell 1.3.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
@@ -47,9 +47,7 @@ Additionally, if you encounter an issue, try rerunning the script with the same 
 
 Important Considerations
 ------------
-The current version of the ConfigASDK.ps1 script **relies** on your ASDK host having an internet connection. During the execution, the script will download a number of
-files from the internet, including the Azure Stack Tools, Ubuntu Server 16.04 VHD, Windows Updates for the Windows Server image creation process, and more. Future versions
-of the ConfigASDK.ps1 script may include complete offline support.
+The current version of the ConfigASDK.ps1 script **relies** on your ASDK host having an internet connection. During the execution, the script will download a number of files from the internet, including the Azure Stack Tools, Ubuntu Server 16.04 VHD, Windows Updates for the Windows Server image creation process, and more. Future versions of the ConfigASDK.ps1 script may include complete offline support.
 
 Instructions
 ------------
@@ -60,14 +58,16 @@ Instructions
 
 ```PowerShell
 Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
-Get-Module -ListAvailable | where-Object {$_.Name -like “Azure*”} | Uninstall-Module
+Uninstall-Module AzureRM.AzureStackAdmin -Force
+Uninstall-Module AzureRM.AzureStackStorage -Force
+Uninstall-Module -Name AzureStack -Force
 
 # Install the AzureRM.Bootstrapper module. Select Yes when prompted to install NuGet.
 Install-Module -Name AzureRm.BootStrapper
 
 # Install and import the API Version Profile required by Azure Stack into the current PowerShell session.
 Use-AzureRmProfile -Profile 2017-03-09-profile -Force
-Install-Module -Name AzureStack -RequiredVersion 1.2.11
+Install-Module -Name AzureStack -RequiredVersion 1.3.0
 ```
 
 * Detailed instructions for installing the PowerShell for Azure Stack can be found here: <https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install>
