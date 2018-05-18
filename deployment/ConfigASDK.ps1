@@ -850,6 +850,29 @@ $azsLocation = (Get-AzsLocation).Name
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
 ##############################################################################################################################################################
 
+# Create RG
+$asdkImagesRGName = "azurestack-images"
+$asdkImagesStorageAccountName = "asdkimagesstor"
+$asdkImagesContainerName = "asdkimagescontainer"
+
+# Test/Create RG
+if (-not (Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
+    New-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+}
+
+# Test/Create Storage Account
+$asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName -ErrorAction SilentlyContinue
+if (-not ($asdkStorageAccount)) {
+    $asdkStorageAccount = New-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -Location $azsLocation -ResourceGroupName $asdkImagesRGName -Type Standard_LRS -ErrorAction Stop
+}
+Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName 
+
+# Test/Create Container
+$asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
+if (-not ($asdkContainer)) {
+    $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -ErrorAction Stop
+}       
+
 $RowIndex = [array]::IndexOf($progress.Stage, "UbuntuImage")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
@@ -1000,16 +1023,47 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
        
                 Expand-Archive -Path "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -DestinationPath $ASDKpath -Force -ErrorAction Stop
-                $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
+                $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath" -Filter *disk1.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
             }
 
             # Upload the image to the Azure Stack Platform Image Repository
             Write-Verbose "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
+            
+            # Upload VHD to Storage Account
+            $asdkStorageAccount.PrimaryEndpoints.Blob
+            $ubuntuServerURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $UbuntuServerVHD.Name
 
-            # If the user has chosen to register the ASDK, the script will NOT create a gallery item as part of the image upload
+            # Check there's not a VHD already uploaded to storage
+            if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name) -and ($ubuntuUploadSuccess)) {
+                Write-Verbose "You already have an upload of $($UbuntuServerVHD.Name) within your Storage Account. No need to re-upload."
+            }
+            elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name) -and (!$ubuntuUploadSuccess)) {
+                Try {
+                    Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                    $ubuntuUploadSuccess = $true
+                }
+                catch {
+                    $ubuntuUploadSuccess = $false
+                    Write-Verbose $_.Exception.Message -ErrorAction Stop
+                    Set-Location $ScriptLocation
+                    return
+                }
+            }
+            else {
+                Try {
+                    Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -Verbose -ErrorAction Stop
+                    $ubuntuUploadSuccess = $true
+                }
+                catch {
+                    $ubuntuUploadSuccess = $false
+                    Write-Verbose $_.Exception.Message -ErrorAction Stop
+                    Set-Location $ScriptLocation
+                    return
+                }
+            }
 
             if ($registerASDK) {
-                Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$UbuntuServerVHD" -CreateGalleryItem $False
+                Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$UbuntuServerVHD" -CreateGalleryItem $False -Force -Confirm: $false
             }
             else {
                 Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$UbuntuServerVHD"
@@ -1023,26 +1077,33 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         ### If the user has chosen to register the ASDK as part of the process, the script will side load an AZPKG from the Azure Stack Marketplace ###
 
-        if ($registerASDK) {
-            # Upload AZPKG package
-            Write-Verbose "Checking for the following packages: $($azpkg.name)"
-            if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
-                Write-Verbose "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
+        # Upload AZPKG package
+        Write-Verbose "Checking for the following packages: $($azpkg.name)"
+        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
+            Write-Verbose "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
+        }
+        else {
+            Write-Verbose "Didn't find this package: $($azpkg.name)"
+            Write-Verbose "Will need to side load it in to the gallery"
+                
+            if ($registerASDK) {
+                $galleryItemUri = $($azpkg.azpkgPath)
+                Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
+                $galleryItemUri = $($azpkg.azpkgPath)
             }
             else {
-                Write-Verbose "Didn't find this package: $($azpkg.name)"
-                Write-Verbose "Will need to side load it in to the gallery"
-                Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
+                $galleryItemUri = #Insert Github Link
+                Write-Verbose "Uploading $($azpkg.name) from $galleryItemUri"
+            }
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -ErrorAction Stop
+            Start-Sleep -Seconds 5
+            $Retries = 0
+            # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+            While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+                Write-Verbose "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                Write-Verbose "Uploading $($azpkg.name) from $galleryItemUri"
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -ErrorAction Stop
                 Start-Sleep -Seconds 5
-                $Retries = 0
-                # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-                While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-                    Write-Verbose "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                    Write-Verbose "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
-                    $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
-                    Start-Sleep -Seconds 5
-                }
             }
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
