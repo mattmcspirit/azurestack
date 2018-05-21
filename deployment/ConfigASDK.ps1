@@ -1576,9 +1576,29 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 $RowIndex = [array]::IndexOf($progress.Stage, "ScaleSetGalleryItem")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-        # Create VM Scale Set Marketplace item
-        Write-Verbose "Creating VM Scale Set Marketplace Item"
-        Add-AzsVMSSGalleryItem -Location $azsLocation
+        ### Login to Azure Stack, then confirm if the VM Scale Set Gallery Item is already present ###
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        $VMSSPackageName = "microsoft.vmss.1.3.6"
+        $VMSSPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/VMSS/microsoft.vmss.1.3.6.azpkg"
+        Write-Verbose "Checking for the VM Scale Set gallery item"
+        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$VMSSPackageName*"}) {
+            Write-Verbose "Found a suitable VM Scale Set Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
+        }
+        else {
+            Write-Verbose "Didn't find this package: $VMSSPackageName"
+            Write-Verbose "Will need to side load it in to the gallery"
+            Write-Verbose "Uploading $VMSSPackageName"
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $VMSSPackageURL -Force -Confirm:$false -ErrorAction Stop
+            Start-Sleep -Seconds 5
+            $Retries = 0
+            # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+            While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+                Write-Verbose "$VMSSPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                Write-Verbose "Uploading $VMSSPackageName from $VMSSPackageURL"
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $VMSSPackageURL -Force -Confirm:$false -ErrorAction Stop
+                Start-Sleep -Seconds 5
+            }
+        }
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
