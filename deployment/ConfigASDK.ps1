@@ -1190,7 +1190,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             # Mount the ISO, check the image for the version, then dismount
             Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
-            $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath
+            $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath -StorageType ISO -PassThru
             $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
             $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
             $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version").ToString().Split(".")[2].Trim()
@@ -1273,34 +1273,14 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop
                 }
 
-                if ($serverCoreVMImageAlreadyAvailable -eq $false) {
-                    # Load (aka dot-source) the Function 
-                    . .\Convert-WindowsImage.ps1 
+                ### If required, build the Server Core Image ###
 
-                    # Prepare all the variables
-                    $ConvertWindowsImageParam = @{  
-                        SourcePath          = "$ISOpath"
-                        RemoteDesktopEnable = $false
-                        Passthru            = $true
-                        WorkingDirectory    = "$ASDKpath"
-                        SizeBytes           = 40GB
-                        DiskType            = "Fixed"
-                        VHDFormat           = "VHD"
-                        VHDPartitionStyle   = "MBR"
-                        VHDPath             = "$ASDKpath\ServerCore.vhd"
-                        Feature             = @(  
-                            "NetFx3"
-                        )
-                        Package             = @(  
-                            "$target"
-                        )
-                        Edition             = @(       
-                            "ServerDatacenterCore" 
-                        )  
-                    }  
-                    # Produce the image 
-                    $VHD = Convert-WindowsImage @ConvertWindowsImageParam
-                    $serverCoreVHD = Get-ChildItem -Path "$ASDKpath" -Filter *ServerCore.vhd
+                if ($serverCoreVMImageAlreadyAvailable -eq $false) {
+                    $CoreEdition = 'Windows Server 2016 SERVERDATACENTERCORE'
+                    $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$CoreEdition" -VHDPath "$ASDKpath\ServerCore.vhd" `
+                        -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+
+                    $serverCoreVHD = Get-ChildItem -Path "$ASDKpath" -Filter "*ServerCore.vhd"
 
                     # Upload VHD to Storage Account
                     $asdkStorageAccount.PrimaryEndpoints.Blob
@@ -1351,6 +1331,64 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     }
                 }
 
+                ### If required, build the Server Full Image ###
+
+                if ($serverFullVMImageAlreadyAvailable -eq $false) {
+                    $FullEdition = 'Windows Server 2016 SERVERDATACENTER'
+                    $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$FullEdition" -VHDPath "$ASDKpath\ServerFull.vhd" `
+                        -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+
+                    $serverFullVHD = Get-ChildItem -Path "$ASDKpath" -Filter "*ServerFull.vhd"
+
+                    # Upload VHD to Storage Account
+                    $asdkStorageAccount.PrimaryEndpoints.Blob
+                    $serverFullURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $serverFullVHD.Name
+
+                    # Check there's not a VHD already uploaded to storage
+                    if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($serverFullUploadSuccess)) {
+                        Write-Verbose "You already have an upload of $($serverFullVHD.Name) within your Storage Account. No need to re-upload."
+                    }
+                    elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess)) {
+                        Try {
+                            Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            $serverFullUploadSuccess = $true
+                        }
+                        catch {
+                            $serverFullUploadSuccess = $false
+                            Write-Verbose $_.Exception.Message -ErrorAction Stop
+                            Set-Location $ScriptLocation
+                            return
+                        }
+                    }
+                    else {
+                        Try {
+                            Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -Verbose -ErrorAction Stop
+                            $serverFullUploadSuccess = $true
+                        }
+                        catch {
+                            $serverFullUploadSuccess = $false
+                            Write-Verbose $_.Exception.Message -ErrorAction Stop
+                            Set-Location $ScriptLocation
+                            return
+                        }
+                    }
+                    Add-AzsPlatformImage -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -OsType "Windows" -OsUri "$serverFullURI" -Force -Confirm: $false
+
+                    if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+                        Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f "MicrosoftWindowsServer", "WindowsServer", "2016-Datacenter", "1.0.0") -ErrorAction SilentlyContinue
+                        Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
+                        Get-ChildItem -Path "$ASDKpath" -Filter *ServerFull.vhd | Remove-Item -Force
+                        Write-Verbose "Cleaning up VHD from storage account"
+                        Remove-AzureStorageBlob -Blob $serverFullVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
+                    }
+                    elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
+                        throw "Adding VM image failed"
+                    }
+                    elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Canceled') {
+                        throw "Adding VM image was canceled"
+                    }
+                }
+
                 Get-ChildItem -Path "$ASDKpath\*" -Include *.msu, *.cab | Remove-Item -Force
             }
             Catch {
@@ -1360,33 +1398,40 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
         }
 
-        ### Now check for and create (if required) AZPKG files for sideloading ###
-        # If the user chose not to register the ASDK, the previous step should have created default gallery items, but this section of the script
-        # ensures that if they are missing, they will be recreated
+        ### PACKAGES ###
+        # Now check for and create (if required) AZPKG files for sideloading
+        # If the user chose not to register the ASDK, the step below will grab an azpkg file from Github
         if (!$registerASDK) {
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
             $packageArray = @()
             $packageArray.Clear()
-            $packageArray = "*WindowsServer2016-Datacenter.*", "*WindowsServer2016-Datacenter-Server-Core.*"
-            Write-Verbose "You chose not to register your Azure Stack to Azure. Your default AZPKG packages should have already been created when your Windows Server images were added to the PIR. Checking:"
+            $packageArray = "*WindowsServer2016Datacenter-ARM*", "*WindowsServer2016DatacenterServerCore-ARM*"
+            Write-Verbose "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
 
             foreach ($package in $packageArray) {
                 $wsPackage = $null
-                $wsPackage = (Get-AzsGalleryItem | Where-Object {$_.name -like "$package"})
+                $wsPackage = (Get-AzsGalleryItem | Where-Object {$_.name -like "$package"} | Sort-Object CreatedTime -Descending | Select-Object -First 1)
                 if ($wsPackage) {
-                    Write-Verbose "Found the following existing package in your gallery: $($wsPackage.Name) - No need to upload a new one"
+                    Write-Verbose "Found the following existing package in your gallery: $($wsPackage.Identity) - No need to upload a new one"
                 }
                 else {
                     $wsPackage = $package -replace '[*.]', ''
                     Write-Verbose "Didn't find this package: $wsPackage"
                     Write-Verbose "Will need to sideload it in to the gallery"
-                    if ($wsPackage -eq "WindowsServer2016-Datacenter") {
-                        New-AzsServer2016VMImage -Version Full -ISOPath $ISOpath -Location "$azsLocation"
-                    }
-                    elseif ($wsPackage -eq "WindowsServer2016-Datacenter-Server-Core") {
-                        New-AzsServer2016VMImage -Version Core -ISOPath $ISOpath -Location "$azsLocation"
-                    }
+                    $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/Microsoft.$wsPackage.1.0.0.azpkg"
+                    Write-Verbose "Uploading $wsPackage from $galleryItemUri"
                 }
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
+                Start-Sleep -Seconds 5
+                $Retries = 0
+                # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+                While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+                    Write-Verbose "$($wsPackage.ItemName) wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                    Write-Verbose "Uploading $($wsPackage.Identity) from $galleryItemUri"
+                    $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
+                    Start-Sleep -Seconds 5
+                }    
             }
         }
 
@@ -1493,14 +1538,14 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     Write-Verbose "Didn't find this package: $($azpkg.name)"
                     Write-Verbose "Will need to side load it in to the gallery"
                     Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
-                    $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
+                    $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction Stop
                     Start-Sleep -Seconds 5
                     $Retries = 0
                     # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
                     While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
                         Write-Verbose "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
                         Write-Verbose "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
-                        $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath)
+                        $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction Stop
                         Start-Sleep -Seconds 5
                     }
                 }
