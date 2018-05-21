@@ -1,0 +1,12 @@
+{
+	"displayName": "Windows Server 2016 Datacenter - Pay-as-you-use",
+	"publisherDisplayName": "Microsoft",
+	"publisherLegalName": "Microsoft",
+	"summary": "A comprehensive server operating system designed to run the applications and infrastructure that power your business.",
+	"longSummary": "A comprehensive server operating system designed to run the applications and infrastructure that power your business.",
+	"description": "Windows Server 2016 is a comprehensive server operating system designed to run the applications and infrastructure that power your business. It includes built-in layers of security and innovation to help you run traditional and cloud-native applications with confidence. This Server with Desktop Experience image includes all roles including the graphical user interface (GUI).",
+	"linkDisplayName0": "Documentation",
+	"linkDisplayName1": "Introducing Windows Server 2016",
+	"linkDisplayName2": "What's New in 2016",
+	"linkDisplayName3": "Learn more"
+}
