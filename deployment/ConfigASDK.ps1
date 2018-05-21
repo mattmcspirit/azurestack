@@ -1636,14 +1636,14 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Write-Verbose "Didn't find this package: $mySQLPackageName"
             Write-Verbose "Will need to side load it in to the gallery"
             Write-Verbose "Uploading $mySQLPackageName"
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
                 Write-Verbose "$mySQLPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
                 Write-Verbose "Uploading $mySQLPackageName from $mySQLPackageURL"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL -Force -Confirm:$false -ErrorAction Stop
                 Start-Sleep -Seconds 5
             }
         }
@@ -1684,14 +1684,14 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Write-Verbose "Didn't find this package: $MSSQLPackageName"
             Write-Verbose "Will need to side load it in to the gallery"
             Write-Verbose "Uploading $MSSQLPackageName"
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $MSSQLPackageURL
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $MSSQLPackageURL -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
                 Write-Verbose "$MSSQLPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
                 Write-Verbose "Uploading $MSSQLPackageName from $MSSQLPackageURL"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $MSSQLPackageURL
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $MSSQLPackageURL -Force -Confirm:$false -ErrorAction Stop
                 Start-Sleep -Seconds 5
             }
         }
