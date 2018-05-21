@@ -1150,10 +1150,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
         $sku = "2016-Datacenter-Server-Core"
-        $platformImageCore = Get-AzsVMImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
+        $platformImageCore = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverCoreVMImageAlreadyAvailable = $false
 
-        if ($platformImageCore -ne $null -and $platformImageCore.Properties.ProvisioningState -eq 'Succeeded') {
+        if ($platformImageCore -ne $null -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
             Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverCoreVMImageAlreadyAvailable = $true
         }
@@ -1161,10 +1161,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Pre-validate that the Windows Server 2016 Full Image is not already available
         Remove-Variable -Name platformImageFull -Force -ErrorAction SilentlyContinue
         $sku = "2016-Datacenter"
-        $platformImageFull = Get-AzsVMImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
+        $platformImageFull = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverFullVMImageAlreadyAvailable = $false
 
-        if ($platformImageFull -ne $null -and $platformImageFull.Properties.ProvisioningState -eq 'Succeeded') {
+        if ($platformImageFull -ne $null -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
             Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverFullVMImageAlreadyAvailable = $true
         }
@@ -1227,7 +1227,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
             }
 
-            # Download the corresponding Windows Server 2016 (Build 14393) Cumulative Update
+            # Download the corresponding Windows Server 2016 Cumulative Update
             ForEach ( $Url in $Urls ) {
                 $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
                 $target = "$((Get-Item $ASDKpath).FullName)\$filename"
@@ -1235,7 +1235,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Write-Verbose "These are generally larger than 1GB, so may take a few minutes."
                 If (!(Test-Path -Path $target)) {
                     DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
-                    #Invoke-WebRequest -Uri $Url -OutFile $target -UseBasicParsing
                 }
                 Else {
                     Write-Verbose "File exists: $target. Skipping download."
@@ -1247,15 +1246,111 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # the gallery item, and instead, the azpkg files will be pulled from the marketplace later
             # If the user chose not to register the ASDK, the New-AzsServer2016VMImage will create a default gallery item
             try {
-                if ($registerASDK) {
-                    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -CreateGalleryItem $false -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "$azsLocation"
+                # Download Convert-WindowsImage.ps1
+                $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/1804/deployment/scripts/Convert-WindowsImage.ps1"
+                $convertWindowsDownloadLocation = "$ASDKpath\Convert-WindowsImage.ps1"
+                Write-Verbose "Downloading Convert-WindowsImage.ps1 to create the VHD from the ISO"
+                Write-Verbose "The download will be stored in $ASDKpath."
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                DownloadWithRetry -downloadURI "$convertWindowsURI" -downloadLocation "$convertWindowsDownloadLocation" -retries 10
+                Set-Location $ASDKpath
+
+                # Test/Create RG
+                if (-not (Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                    New-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
                 }
-                elseif (!$registerASDK) {
-                    New-AzsServer2016VMImage -Version Both -ISOPath $ISOpath -Net35 $true -CUPath $target -VHDSizeInMB "40960" -Location "$azsLocation"
+
+                # Test/Create Storage
+                $asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName -ErrorAction SilentlyContinue
+                if (-not ($asdkStorageAccount)) {
+                    $asdkStorageAccount = New-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -Location $azsLocation -ResourceGroupName $asdkImagesRGName -Type Standard_LRS -ErrorAction Stop
                 }
-                # Cleanup the VHD, MSU and Cab files
-                $computeAdminPath = "$modulePath\ComputeAdmin"
-                Get-ChildItem -Path "$computeAdminPath" -Filter *.vhd | Remove-Item -Force
+                Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName 
+
+                # Test/Create Container
+                $asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
+                if (-not ($asdkContainer)) {
+                    $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop
+                }
+
+                if ($serverCoreVMImageAlreadyAvailable -eq $false) {
+                    # Load (aka dot-source) the Function 
+                    . .\Convert-WindowsImage.ps1 
+
+                    # Prepare all the variables
+                    $ConvertWindowsImageParam = @{  
+                        SourcePath          = "$ISOpath"
+                        RemoteDesktopEnable = $false
+                        Passthru            = $true
+                        WorkingDirectory    = "$ASDKpath"
+                        SizeBytes           = 40GB
+                        DiskType            = "Fixed"
+                        VHDFormat           = "VHD"
+                        VHDPartitionStyle   = "MBR"
+                        VHDPath             = "$ASDKpath\ServerCore.vhd"
+                        Feature             = @(  
+                            "NetFx3"
+                        )
+                        Package             = @(  
+                            "$target"
+                        )
+                        Edition             = @(       
+                            "ServerDatacenterCore" 
+                        )  
+                    }  
+                    # Produce the image 
+                    $VHD = Convert-WindowsImage @ConvertWindowsImageParam
+                    $serverCoreVHD = Get-ChildItem -Path "$ASDKpath" -Filter *ServerCore.vhd
+
+                    # Upload VHD to Storage Account
+                    $asdkStorageAccount.PrimaryEndpoints.Blob
+                    $serverCoreURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $serverCoreVHD.Name
+
+                    # Check there's not a VHD already uploaded to storage
+                    if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($serverCoreUploadSuccess)) {
+                        Write-Verbose "You already have an upload of $($serverCoreVHD.Name) within your Storage Account. No need to re-upload."
+                    }
+                    elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverCoreUploadSuccess)) {
+                        Try {
+                            Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            $serverCoreUploadSuccess = $true
+                        }
+                        catch {
+                            $serverCoreUploadSuccess = $false
+                            Write-Verbose $_.Exception.Message -ErrorAction Stop
+                            Set-Location $ScriptLocation
+                            return
+                        }
+                    }
+                    else {
+                        Try {
+                            Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -Verbose -ErrorAction Stop
+                            $serverCoreUploadSuccess = $true
+                        }
+                        catch {
+                            $serverCoreUploadSuccess = $false
+                            Write-Verbose $_.Exception.Message -ErrorAction Stop
+                            Set-Location $ScriptLocation
+                            return
+                        }
+                    }
+                    Add-AzsPlatformImage -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -OsType "Windows" -OsUri "$serverCoreURI" -Force -Confirm: $false
+
+                    if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+                        Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f "MicrosoftWindowsServer", "WindowsServer", "2016-Datacenter-Server-Core", "1.0.0") -ErrorAction SilentlyContinue
+                        Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
+                        Get-ChildItem -Path "$ASDKpath" -Filter *ServerCore.vhd | Remove-Item -Force
+                        Write-Verbose "Cleaning up VHD from storage account"
+                        Remove-AzureStorageBlob -Blob $serverCoreVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
+                    }
+                    elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
+                        throw "Adding VM image failed"
+                    }
+                    elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Canceled') {
+                        throw "Adding VM image was canceled"
+                    }
+                }
+
                 Get-ChildItem -Path "$ASDKpath\*" -Include *.msu, *.cab | Remove-Item -Force
             }
             Catch {
