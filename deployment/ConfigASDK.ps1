@@ -2200,11 +2200,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 $RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Configure a simple base plan and offer for IaaS
-        Import-Module "$modulePath\Connect\AzureStack.Connect.psm1"
-        Import-Module "$modulePath\ServiceAdmin\AzureStack.ServiceAdmin.psm1"
-
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
         Clear-AzureRmContext -Scope CurrentUser -Force
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
@@ -2214,6 +2210,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $OfferName = "BaseOffer"
         $RGName = "azurestack-plansandoffers"
 
+        $computeParams = $null
         $computeParams = @{
             Name                 = "compute_default"
             CoresLimit           = 200
@@ -2223,18 +2220,20 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Location             = $azsLocation
         }
 
+        $netParams = $null
         $netParams = @{
-            Name                          = "network_default"
-            PublicIpsPerSubscription      = 500
-            VNetsPerSubscription          = 500
-            GatewaysPerSubscription       = 10
-            ConnectionsPerSubscription    = 20
-            LoadBalancersPerSubscription  = 500
-            NicsPerSubscription           = 1000
-            SecurityGroupsPerSubscription = 500
-            Location                      = $azsLocation
+            Name                                               = "network_default"
+            MaxPublicIpsPerSubscription                        = 500
+            MaxVNetsPerSubscription                            = 500
+            MaxVirtualNetworkGatewaysPerSubscription           = 10
+            MaxVirtualNetworkGatewayConnectionsPerSubscription = 20
+            MaxLoadBalancersPerSubscription                    = 500
+            MaxNicsPerSubscription                             = 1000
+            MaxSecurityGroupsPerSubscription                   = 500
+            Location                                           = $azsLocation
         }
 
+        $storageParams = $null
         $storageParams = @{
             Name                    = "storage_default"
             NumberOfStorageAccounts = 200
@@ -2242,19 +2241,22 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Location                = $azsLocation
         }
 
+        $kvParams = $null
         $kvParams = @{
             Location = $azsLocation
         }
 
+        $quotaIDs = $null
         $quotaIDs = @()
         $quotaIDs += (New-AzsNetworkQuota @netParams).ID
         $quotaIDs += (New-AzsComputeQuota @computeParams).ID
         $quotaIDs += (New-AzsStorageQuota @storageParams).ID
-        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams)
+        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams).ID
 
         New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
-        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -ArmLocation $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
-        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -ArmLocation $azsLocation
+        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
+        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
+        Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
