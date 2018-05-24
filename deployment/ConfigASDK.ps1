@@ -1197,7 +1197,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath -StorageType ISO -PassThru
             $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
             $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
-            $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version").ToString().Split(".")[2].Trim()
+            $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
             Dismount-DiskImage -ImagePath $ISOPath
 
             Write-Verbose "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
