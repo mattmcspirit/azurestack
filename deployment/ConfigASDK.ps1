@@ -1526,7 +1526,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 }
             }
 
-            ### With all the information stored in the arrays, log back into Azure Stack to check for existing images and push new ones if required ###
+            ### With all the information stored in the arrays, log back into Azure Stack to check for existing gallery items and push new ones if required ###
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
             foreach ($azpkg in $azpkgArray) {

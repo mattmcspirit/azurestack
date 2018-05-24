@@ -58,9 +58,9 @@ Instructions
 
 ```PowerShell
 Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
-Uninstall-Module AzureRM.AzureStackAdmin -Force
-Uninstall-Module AzureRM.AzureStackStorage -Force
-Uninstall-Module -Name AzureStack -Force
+Uninstall-Module AzureRM.AzureStackAdmin -Force -ErrorAction Continue
+Uninstall-Module AzureRM.AzureStackStorage -Force -ErrorAction Continue
+Uninstall-Module -Name AzureStack -Force -ErrorAction Continue
 
 # Install the AzureRM.Bootstrapper module. Select Yes when prompted to install NuGet.
 Install-Module -Name AzureRm.BootStrapper
