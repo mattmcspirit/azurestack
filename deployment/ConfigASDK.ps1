@@ -1246,9 +1246,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
             Write-Verbose "Creating Windows Server 2016 Evaluation images..."
 
-            # In this try/catch, if the user has chosen to register the ASDK as part of the script, the New-AzsServer2016VMImage will NOT create
-            # the gallery item, and instead, the azpkg files will be pulled from the marketplace later
-            # If the user chose not to register the ASDK, the New-AzsServer2016VMImage will create a default gallery item
             try {
                 # Download Convert-WindowsImage.ps1
                 $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/1804/deployment/scripts/Convert-WindowsImage.ps1"
