@@ -1727,7 +1727,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Cleanup old folder
         Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
         # Download and Expand the MySQL RP files
-        $mySqlRpURI = "https://aka.ms/azurestackmysqlrp"
+        $mySqlRpURI = "https://aka.ms/azurestackmysqlrp1804"
         $mySqlRpDownloadLocation = "$ASDKpath\MySQL.zip"
         DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
         Set-Location $ASDKpath
@@ -1768,7 +1768,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
         # Download and Expand the SQL Server RP files
-        $sqlRpURI = "https://aka.ms/azurestacksqlrp"
+        $sqlRpURI = "https://aka.ms/azurestacksqlrp1804"
         $sqlRpDownloadLocation = "$ASDKpath\SQL.zip"
         DownloadWithRetry -downloadURI "$sqlRpURI" -downloadLocation "$sqlRpDownloadLocation" -retries 10
         Set-Location $ASDKpath
@@ -1853,7 +1853,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         # Login to Azure Stack and populate variables
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $sub = Get-AzureRmSubscription
+        $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
         $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
         $subID = $azureContext.Subscription.Id
         $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
@@ -1968,7 +1968,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         # Login to Azure Stack and populate variables
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $sub = Get-AzureRmSubscription
+        $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
         $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
         $subID = $azureContext.Subscription.Id
         $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
