@@ -637,8 +637,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         ### DOWNLOAD & EXTRACT TOOLS ###
         # Download the tools archive using a function incase the download fails or is interrupted.
-        # Download points to my fork of the tools, to ensure compatibility - this will be updated accordingly.
-        $toolsURI = "https://github.com/mattmcspirit/AzureStack-Tools/archive/master.zip"
+        $toolsURI = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
         $toolsDownloadLocation = "$ASDKpath\master.zip"
         Write-Verbose "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
         Write-Verbose "The download will be stored in $ASDKpath."
@@ -734,17 +733,20 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 # Register an AzureRM environment that targets your administrative Azure Stack instance
 $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+$ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority
 
 if ($authenticationType.ToString() -like "AzureAd") {
     try {
         # Login to Azure Stack
         Write-Verbose ("Testing Azure Stack login with Azure Active Directory")
-        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
         Write-Verbose ("Setting GraphEndpointResourceId value for Azure AD")
+        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
         Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
-        $TenantID = Get-AzsDirectoryTenantId -AADTenantName $azureDirectoryTenantName -EnvironmentName "AzureStackAdmin"
-        Write-Verbose "Logging in with your Azure Stack Administrator Account used with Azure Active Directory"
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop
+        $endpt = "{0}{1}/.well-known/openid-configuration" -f $ADauth, $azureDirectoryTenantName
+        $OauthMetadata = (Invoke-WebRequest -UseBasicParsing $endpt).Content | ConvertFrom-Json
+        $TenantID = $OauthMetadata.Issuer.Split('/')[3]
+        Write-Verbose "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
     }
     catch {
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -756,12 +758,13 @@ elseif ($authenticationType.ToString() -like "ADFS") {
     try {
         # Login to Azure Stack
         Write-Verbose ("Testing Azure Stack login with ADFS")
-        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
         Write-Verbose ("Setting GraphEndpointResourceId value for ADFS")
+        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
         Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
         $TenantID = Get-AzsDirectoryTenantId -ADFS -EnvironmentName "AzureStackAdmin"
+        # $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
         Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
     }
     catch {
         Write-Verbose $_.Exception.Message -ErrorAction Stop
@@ -824,21 +827,24 @@ elseif (!$registerASDK) {
 # Add GraphEndpointResourceId value for Azure AD or ADFS and obtain Tenant ID, then login to Azure Stack
 if ($authenticationType.ToString() -like "AzureAd") {
     Write-Verbose ("Azure Active Directory selected by Administrator")
-    Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
     Write-Verbose ("Setting GraphEndpointResourceId value for Azure AD")
+    Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
     Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
-    $TenantID = Get-AzsDirectoryTenantId -AADTenantName $azureDirectoryTenantName -EnvironmentName "AzureStackAdmin"
-    Write-Verbose "Logging in with your Azure Stack Administrator Account used with Azure Active Directory"
-    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop
+    $endpt = "{0}{1}/.well-known/openid-configuration" -f $ADauth, $azureDirectoryTenantName
+    $OauthMetadata = (Invoke-WebRequest -UseBasicParsing $endpt).Content | ConvertFrom-Json
+    $TenantID = $OauthMetadata.Issuer.Split('/')[3]
+    Write-Verbose "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
+    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
 }
 elseif ($authenticationType.ToString() -like "ADFS") {
     Write-Verbose ("Active Directory Federation Services selected by Administrator")
-    Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
     Write-Verbose ("Setting GraphEndpointResourceId value for ADFS")
+    Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
     Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
     $TenantID = Get-AzsDirectoryTenantId -ADFS -EnvironmentName "AzureStackAdmin"
+    # $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
     Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
-    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop
+    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
 }
 else {
     Write-Verbose ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
