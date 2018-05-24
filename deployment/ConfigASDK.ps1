@@ -676,7 +676,6 @@ $modulePath = "C:\AzureStack-Tools-master"
 Set-Location $modulePath
 
 # Import the Azure Stack Connect Module
-Import-Module $modulePath\Connect\AzureStack.Connect.psm1
 Disable-AzureRmDataCollection -WarningAction SilentlyContinue
 Write-Verbose "Azure Stack Connect module imported successfully" 
 
@@ -762,8 +761,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
         Write-Verbose ("Setting GraphEndpointResourceId value for ADFS")
         Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
         Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
-        $TenantID = Get-AzsDirectoryTenantId -ADFS -EnvironmentName "AzureStackAdmin"
-        # $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
+        $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
         Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
     }
@@ -842,8 +840,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
     Write-Verbose ("Setting GraphEndpointResourceId value for ADFS")
     Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
     Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
-    $TenantID = Get-AzsDirectoryTenantId -ADFS -EnvironmentName "AzureStackAdmin"
-    # $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
+    $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
     Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
 }
