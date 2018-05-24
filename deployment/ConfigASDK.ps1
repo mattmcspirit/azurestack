@@ -32,6 +32,7 @@
 
 .VERSION
 
+    1804 Updated with support for ASDK 1804 and PowerShell 1.3.0, bug fixes, reduced number of modules imported from GitHub tools repo
     3.1  Update added App Service automation, bug fixes, MySQL Root account fix.
     3.0  major update for ASDK release 20180329.1
     2.0  update for release 1.0.280917.3 
