@@ -145,9 +145,9 @@ $ScriptLocation = Get-Location
 ### SET ERCS IP Address - same for all default ASDKs ###
 $ERCSip = "AzS-ERCS01"
 
-# Define Regex for Password Complexity - needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character
+# Define Regex for Password Complexity - needs to be at least 12 characters, with at least 1 upper case, 1 lower case, 1 number and 1 special character
 $regex = @"
-^.*(?=.{8,})(?=.*[A-Z])(?=.*[a-z])(?=.*[@#$%^&£*\-_+=[\]{}|\\:',?/`~"();!]).*$
+(?=^.{12,123}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*
 "@
 
 $emailRegex = @"
@@ -281,8 +281,9 @@ if ($VMpwd -cmatch $regex -eq $true) {
 }
 
 elseif ($VMpwd -cmatch $regex -eq $false) {
-    Write-Verbose "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 8 characters, with at least 1 upper case, 1 lower case and 1 special character."
-    Write-Verbose "App Service installation requires a strong password." 
+    Write-Verbose "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 12 characters in length."
+    Write-Verbose "Your password should also have at least 3 of the following 4 options: 1 upper case, 1 lower case, 1 number, 1 special character."
+    Write-Verbose "The App Service installation requires a password of this strength. An Example would be p@ssw0rd123!" 
     # Obtain new password and store as a secure string
     $secureVMpwd = Read-Host -AsSecureString "Enter VM password again"
     # Convert to plain text to test regex complexity
