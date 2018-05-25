@@ -96,8 +96,8 @@ as you used when you deployed your ASDK.
 
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd! `
--VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd! `
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
+-VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123! `
 -registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -106,7 +106,7 @@ as you used when you deployed your ASDK.
 * For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files
 * **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
 * **-azureStackAdminPwd** is the password you used when deploying your ASDK
-* **-VMpwd** is the password assigned to all VMs created by the script. **Important** - it needs to be a strong password, with at least 1 upper, lower and special character, minimum of 8 characters long
+* **-VMpwd** is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
 * **-azureAdUsername** and **-azureAdPwd** are the *Service Administrator* credentials you used when you deployed your ASDK host (in Azure AD connected mode)
 * Use the **-registerASDK** flag to instruct the script to register your ASDK to Azure
 * Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK
@@ -116,9 +116,9 @@ as you used when you deployed your ASDK.
 
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd! `
--VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd! `
--registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd! `
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
+-VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123! `
+-registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd123! `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -129,8 +129,8 @@ as you used when you deployed your ASDK.
 
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd! `
--VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd!
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
+-VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123!
 ```
 
 
@@ -138,8 +138,8 @@ as you used when you deployed your ASDK.
 
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd P@ssw0rd! -VMpwd P@ssw0rd! -registerASDK `
--azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd! `
+-azureStackAdminPwd P@ssw0rd123! -VMpwd P@ssw0rd123! -registerASDK `
+-azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd123! `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -148,7 +148,7 @@ as you used when you deployed your ASDK.
 
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd P@ssw0rd! -VMpwd P@ssw0rd!
+-azureStackAdminPwd P@ssw0rd123! -VMpwd P@ssw0rd123!
 ```
 
 

@@ -5,6 +5,7 @@
     The purpose of this script is to automate as much as possible post deployment tasks in Azure Stack Development Kit
     This includes:
         * Validates all input parameters
+        * Ensures password for VMs meets complexity required for App Service installation
         * Updated password expiration (180 days)
         * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
         * Tools installation (Azure Stack Tools)
