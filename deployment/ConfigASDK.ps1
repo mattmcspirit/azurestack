@@ -137,7 +137,7 @@ $ProgressPreference = 'SilentlyContinue'
 try {Stop-Transcript | Out-Null} catch {}
 
 ### GET START TIME ###
-$startTime = $(Get-Date).ToLocalTime()
+$startTime = Get-Date -Format g
 $sw = [Diagnostics.Stopwatch]::StartNew()
 
 ### SET LOCATION ###
@@ -186,7 +186,7 @@ elseif ($validDownloadPath -eq $false) {
 }
 
 ### Start Logging ###
-$logTime = $startTime.ToString("MMdd-HHmmss")
+$logTime = $(Get-Date).ToString("MMdd-HHmmss")
 Start-Transcript -Path "$downloadPath\ConfigASDKLog$logTime.txt" -Append
 
 ### Check if ConfigASDKProgressLog.csv exists ###
@@ -2864,7 +2864,7 @@ Write-Verbose "Setting Execution Policy back to RemoteSigned"
 Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
 
 # Calculate completion time
-$endTime = $(Get-Date).ToLocalTime()
+$endTime = Get-Date -Format g
 $sw.Stop()
 $Hrs = $sw.Elapsed.Hours
 $Mins = $sw.Elapsed.Minutes
