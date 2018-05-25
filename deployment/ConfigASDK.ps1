@@ -2852,8 +2852,8 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Verbose "Congratulations - all steps completed successfully:`r`n"
     $progress
     Write-Verbose "Cleaning up ASDK Folder and Progress CSV file"
-    Remove-Item "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-    Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
+    Remove-Item "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+    Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue
 }
 else {
     Write-Verbose "Script hasn't completed successfully"
