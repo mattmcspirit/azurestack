@@ -2720,11 +2720,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateOutput")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-        Write-Host -ForegroundColor Green "The ASDK configuration is complete....well, almost"
-        Write-Host -ForegroundColor Green "Please copy the following application ID: $identityApplicationID and review the documentation to finish the process"
-
         ### Create Output Document ###
-
         $txtPath = "$downloadPath\ConfigASDKOutput.txt"
         Remove-Item -Path $txtPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
         New-Item "$txtPath" -ItemType file -Force
@@ -2750,7 +2746,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         if ($useAzureCredsForRegistration -and $registerASDK) {
             Write-Output "Your Azure Stack was registered to Azure with the following username: $azureAdUsername" >> $txtPath
         }
-        elseif (!$useAzureCredsForRegistration -and $registerASDK) {
+        elseif ($authenticationType.ToString() -like "AzureAd" -and !$useAzureCredsForRegistration -and $registerASDK) {
             Write-Output "Your Azure Stack was registered to Azure with the following username: $azureRegUsername" >> $txtPath
         }
 
@@ -2854,6 +2850,9 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Verbose "Cleaning up ASDK Folder and Progress CSV file"
     Remove-Item "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue
+    Write-Verbose "Cleaning up Resource Group used for Image Upload"
+    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+    Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
 }
 else {
     Write-Verbose "Script hasn't completed successfully"
