@@ -1250,7 +1250,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             try {
                 # Download Convert-WindowsImage.ps1
-                $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/1804/deployment/scripts/Convert-WindowsImage.ps1"
+                $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
                 $convertWindowsDownloadLocation = "$ASDKpath\Convert-WindowsImage.ps1"
                 Write-Verbose "Downloading Convert-WindowsImage.ps1 to create the VHD from the ISO"
                 Write-Verbose "The download will be stored in $ASDKpath."
