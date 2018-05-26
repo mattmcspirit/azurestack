@@ -6,7 +6,6 @@ Version Compatibility
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
 * ASDK build **20180513.1 (1804)**
 * Azure Stack PowerShell Module **1.3.0**
-* Azure Stack PowerShell Tools forked to <https://github.com/mattmcspirit/AzureStack-Tools>
 
 **IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1804, and Azure Stack PowerShell 1.3.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
@@ -85,7 +84,7 @@ Set-Location "C:\ConfigASDK"
 
 # Download the ConfigASDK Script.
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-Webrequest https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/ConfigASDK.ps1 `
+Invoke-Webrequest http://bit.ly/configasdk -UseBasicParsing `
 -OutFile ConfigASDK.ps1
 ```
 
