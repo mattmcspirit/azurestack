@@ -2857,6 +2857,9 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Verbose "Cleaning up Resource Group used for Image Upload"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
+    # Increment run counter to track successful run
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri "http://bit.ly/asdksuccessrun" -UseBasicParsing -ErrorAction SilentlyContinue -DisableKeepAlive | Out-Null
 }
 else {
     Write-Verbose "Script hasn't completed successfully"
