@@ -1,14 +1,14 @@
-Azure Stack Development Kit Configurator 1804
+Azure Stack Development Kit Configurator 3.1
 ==============
 
 Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
-* ASDK build **20180513.1 (1804)**
-* Azure Stack PowerShell Module **1.3.0**
+* ASDK build **20180329.1**
+* Azure Stack PowerShell Module **1.2.11**
 * Azure Stack PowerShell Tools forked to <https://github.com/mattmcspirit/AzureStack-Tools>
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1804, and Azure Stack PowerShell 1.3.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has not been tested with ASDK build 1804, or PowerShell 1.3. A version that supports the newer ASDK builds (post 1804) and PowerShell versions is currently in development.
 
 Description
 -----------
@@ -18,7 +18,6 @@ The purpose of this ConfigASDK.ps1 script is to automate as much as possible, th
 
 This includes:
 * Validates all input parameters
-* Ensures password for VMs meets complexity required for App Service installation
 * Updated password expiration (180 days)
 * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
 * Tools installation (Azure Stack Tools)
@@ -48,7 +47,9 @@ Additionally, if you encounter an issue, try rerunning the script with the same 
 
 Important Considerations
 ------------
-The current version of the ConfigASDK.ps1 script **relies** on your ASDK host having an internet connection. During the execution, the script will download a number of files from the internet, including the Azure Stack Tools, Ubuntu Server 16.04 VHD, Windows Updates for the Windows Server image creation process, and more. Future versions of the ConfigASDK.ps1 script may include complete offline support.
+The current version of the ConfigASDK.ps1 script **relies** on your ASDK host having an internet connection. During the execution, the script will download a number of
+files from the internet, including the Azure Stack Tools, Ubuntu Server 16.04 VHD, Windows Updates for the Windows Server image creation process, and more. Future versions
+of the ConfigASDK.ps1 script may include complete offline support.
 
 Instructions
 ------------
@@ -59,16 +60,14 @@ Instructions
 
 ```PowerShell
 Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
-Uninstall-Module AzureRM.AzureStackAdmin -Force -ErrorAction Continue
-Uninstall-Module AzureRM.AzureStackStorage -Force -ErrorAction Continue
-Uninstall-Module -Name AzureStack -Force -ErrorAction Continue
+Get-Module -ListAvailable | where-Object {$_.Name -like “Azure*”} | Uninstall-Module
 
 # Install the AzureRM.Bootstrapper module. Select Yes when prompted to install NuGet.
 Install-Module -Name AzureRm.BootStrapper
 
 # Install and import the API Version Profile required by Azure Stack into the current PowerShell session.
 Use-AzureRmProfile -Profile 2017-03-09-profile -Force
-Install-Module -Name AzureStack -RequiredVersion 1.3.0
+Install-Module -Name AzureStack -RequiredVersion 1.2.11
 ```
 
 * Detailed instructions for installing the PowerShell for Azure Stack can be found here: <https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install>
@@ -97,8 +96,8 @@ as you used when you deployed your ASDK.
 
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
--VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123! `
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd! `
+-VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd! `
 -registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -107,7 +106,7 @@ as you used when you deployed your ASDK.
 * For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files
 * **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
 * **-azureStackAdminPwd** is the password you used when deploying your ASDK
-* **-VMpwd** is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
+* **-VMpwd** is the password assigned to all VMs created by the script. **Important** - it needs to be a strong password, with at least 1 upper, lower and special character, minimum of 8 characters long
 * **-azureAdUsername** and **-azureAdPwd** are the *Service Administrator* credentials you used when you deployed your ASDK host (in Azure AD connected mode)
 * Use the **-registerASDK** flag to instruct the script to register your ASDK to Azure
 * Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK
@@ -117,9 +116,9 @@ as you used when you deployed your ASDK.
 
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
--VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123! `
--registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd123! `
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd! `
+-VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd! `
+-registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd! `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -130,8 +129,8 @@ as you used when you deployed your ASDK.
 
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
--VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123!
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd! `
+-VMpwd P@ssw0rd! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd!
 ```
 
 
@@ -139,8 +138,8 @@ as you used when you deployed your ASDK.
 
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd P@ssw0rd123! -VMpwd P@ssw0rd123! -registerASDK `
--azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd123! `
+-azureStackAdminPwd P@ssw0rd! -VMpwd P@ssw0rd! -registerASDK `
+-azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd! `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -149,7 +148,7 @@ as you used when you deployed your ASDK.
 
 ```PowerShell
 .\ConfigASDK.ps1 -ASDK -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd P@ssw0rd123! -VMpwd P@ssw0rd123!
+-azureStackAdminPwd P@ssw0rd! -VMpwd P@ssw0rd!
 ```
 
 
