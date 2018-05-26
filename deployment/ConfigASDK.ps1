@@ -587,6 +587,10 @@ if ($registerASDK) {
     }
 }
 
+# Increment run counter to track usage
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Invoke-WebRequest -Uri "https://mattmcspirit.github.io/azurestack/counter.html" -UseBasicParsing -ErrorAction SilentlyContinue -DisableKeepAlive | Out-Null
+
 ### DOWNLOADER FUNCTION #####################################################################################################################################
 #############################################################################################################################################################
 
