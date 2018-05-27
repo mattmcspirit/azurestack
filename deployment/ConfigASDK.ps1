@@ -126,7 +126,7 @@ param (
     [parameter(Mandatory = $false)]
     [string]$azureRegPwd,
 
-    # Password for Azure Subscription Login for registering Azure Stack
+    # Azure Subscription to be used for registering Azure Stack
     [parameter(Mandatory = $false)]
     [string]$azureRegSubId
 )
@@ -895,6 +895,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Import-Module C:\AzureStack-Tools-master\Syndication\AzureStack.MarketplaceSyndication.psm1
             Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             $sub = Get-AzureRmSubscription
+            # This step is failing with the following error if you have multiple Azure Subscriptions. The parameter $azureRegSubId could be used here to specify a particular Azure Subscription ID. 
+            # TerminatingError(Get-AzureRmSubscription): "Cannot convert 'System.Object[]' to the type 'System.String' required by parameter 'SubscriptionId'. Specified method is not supported."
             $sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             $AzureContext = Get-AzureRmContext
             $subID = $AzureContext.Subscription.Id
