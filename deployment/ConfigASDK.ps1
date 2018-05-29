@@ -893,9 +893,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             ### Login to Azure to get all the details about the syndicated Ubuntu Server 16.04 marketplace offering ###
             Import-Module C:\AzureStack-Tools-master\Syndication\AzureStack.MarketplaceSyndication.psm1
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription
-            $sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription -SubscriptionId $azureRegSubId | Select-AzureRmSubscription
             $AzureContext = Get-AzureRmContext
             $subID = $AzureContext.Subscription.Id
             $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $azureRegCreds
@@ -1450,12 +1449,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
             Clear-AzureRmContext -Scope CurrentUser -Force
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription
-            $sub = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription -SubscriptionId $azureRegSubId | Select-AzureRmSubscription
             $AzureContext = Get-AzureRmContext
             $subID = $AzureContext.Subscription.Id
-
             $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $azureRegCreds
             $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
             $resources = Get-AzureRmResource
