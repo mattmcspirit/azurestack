@@ -126,7 +126,7 @@ param (
     [parameter(Mandatory = $false)]
     [string]$azureRegPwd,
 
-    # Password for Azure Subscription Login for registering Azure Stack
+    # Azure Subscription to be used for registering Azure Stack 
     [parameter(Mandatory = $false)]
     [string]$azureRegSubId
 )
