@@ -350,16 +350,18 @@ if ($authenticationType.ToString() -like "AzureAd") {
 
     Write-Verbose "Checking to see if Azure AD Service Administrator (Used for ASDK Deployment) username is correctly formatted..."
 
-    if ($azureAdUsername -cmatch $emailRegex -eq $true) {
-        Write-Verbose "Azure AD Service Administrator username (Used for ASDK Deployment) is correctly formatted." 
+    if ($azureAdUsername.ToLower() -cmatch $emailRegex -eq $true) {
+        Write-Verbose "Azure AD Service Administrator username (Used for ASDK Deployment) is correctly formatted."
+        $azureAdUsername = $azureAdUsername.ToLower()
         Write-Verbose "$azureAdUsername will be used to connect to Azure." 
     }
 
-    elseif ($azureAdUsername -cmatch $emailRegex -eq $false) {
+    elseif ($azureAdUsername.ToLower() -cmatch $emailRegex -eq $false) {
         Write-Verbose "Azure AD Service Administrator Username (Used for ASDK Deployment) isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
         # Obtain new username
-        $azureAdUsername = Read-Host "Enter Azure AD Service Administrator Username (Used for ASDK Deployment) again"
-        if ($azureAdUsername -cmatch $emailRegex -eq $true) {
+        $azureAdUsername = Read-Host "Enter Azure AD Service Administrator Username (Used for ASDK Deployment) again" -ErrorAction Stop
+        if ($azureAdUsername.ToLower() -cmatch $emailRegex -eq $true) {
+            $azureAdUsername = $azureAdUsername.ToLower()
             Write-Verbose "Azure AD Service Administrator Username (Used for ASDK Deployment) is correctly formatted." 
             Write-Verbose "$azureAdUsername will be used to connect to Azure." 
         }
@@ -2643,7 +2645,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Deploy App Service EXE
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
         $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-        $appServiceLogPath = "$AppServicePath\AppServiceLog.txt"
+        $appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
+        $appServiceLogPath = "$AppServicePath\AppServiceLog$appServiceLogTime.txt"
         Set-Location "$AppServicePath"
         Write-Verbose "Starting deployment of the App Service"
         Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
