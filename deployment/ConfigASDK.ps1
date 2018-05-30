@@ -1080,6 +1080,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
             elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess)) {
                 Try {
+                    # Logging in again to ensure login hasn't timed out
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                     $ubuntuUploadSuccess = $true
                 }
@@ -1092,6 +1094,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
             else {
                 Try {
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -Verbose -ErrorAction Stop
                     $ubuntuUploadSuccess = $true
                 }
@@ -1328,6 +1331,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     }
                     elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverCoreUploadSuccess)) {
                         Try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             $serverCoreUploadSuccess = $true
                         }
@@ -1340,6 +1345,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     }
                     else {
                         Try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -Verbose -ErrorAction Stop
                             $serverCoreUploadSuccess = $true
                         }
@@ -1386,6 +1393,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     }
                     elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess)) {
                         Try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             $serverFullUploadSuccess = $true
                         }
@@ -1398,6 +1407,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     }
                     else {
                         Try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -Verbose -ErrorAction Stop
                             $serverFullUploadSuccess = $true
                         }
