@@ -555,31 +555,15 @@ if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
 if ($registerASDK) {
 
     Write-Verbose "Checking for a valid Azure subscription ID that will be used to register the Azure Stack to Azure"
-
     ### Validate Azure Subscription ID for Registration ###
-    
     if ([string]::IsNullOrEmpty($azureRegSubId)) {
         Write-Verbose "You didn't enter a subscription ID for registering your Azure Stack in Azure."
         $azureRegSubId = Read-Host "Please enter a valid Azure subscription ID" -ErrorAction Stop
-    }
-            
+    }      
     if ($azureRegSubId) {
         Write-Verbose "Azure subscription ID has been provided."
         Write-Verbose "$azureRegSubId will be used to register this Azure Stack with Azure."
-        Write-Verbose "Testing Azure Login..."
-        #Test Azure Login
-        try {
-            Login-AzureRmAccount -SubscriptionId $azureRegSubId -Credential $azureRegCreds
-            Write-Verbose "Azure Login Succeeded - this account will be used for registration of your Azure Stack:" 
-            Get-AzureRmSubscription
-        }
-        catch {
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-        
+    }   
     elseif ([string]::IsNullOrEmpty($azureRegSubId)) {
         Write-Verbose "No valid Azure subscription ID was entered again. Exiting process..." -ErrorAction Stop
         Set-Location $ScriptLocation
@@ -587,7 +571,105 @@ if ($registerASDK) {
     }
 }
 
-# Increment run counter to track usage
+### TEST ALL LOGINS #########################################################################################################################################
+#############################################################################################################################################################
+
+# Clear all logins
+Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+Clear-AzureRmContext -Scope CurrentUser -Force
+
+# Register an AzureRM environment that targets your administrative Azure Stack instance
+Write-Verbose "ASDK Configurator will now test all logins"
+$ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+$ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority
+
+if ($authenticationType.ToString() -like "AzureAd") {
+    try {
+        ### TEST AZURE LOGIN - Login to Azure Cloud (used for App Service App creation)
+        Write-Verbose "Testing Azure login with Azure Active Directory"
+        Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId "$azureDirectoryTenantName" -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        $testAzureSub = Get-AzureRmContext
+        Write-Verbose "Selected Azure Subscription is:"
+        $testAzureSub
+        Start-Sleep -Seconds 5
+        # Clear Azure login
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Clear-AzureRmContext -Scope CurrentUser -Force
+
+        ### TEST AZURE STACK LOGIN - Login to Azure Stack
+        Write-Verbose ("Testing Azure Stack login with Azure Active Directory")
+        Write-Verbose ("Setting GraphEndpointResourceId value for Azure AD")
+        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
+        Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
+        $endpt = "{0}{1}/.well-known/openid-configuration" -f $ADauth, $azureDirectoryTenantName
+        $OauthMetadata = (Invoke-WebRequest -UseBasicParsing $endpt).Content | ConvertFrom-Json
+        $TenantID = $OauthMetadata.Issuer.Split('/')[3]
+        Write-Verbose "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
+        # Clear Azure login
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Clear-AzureRmContext -Scope CurrentUser -Force
+    }
+    catch {
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif ($authenticationType.ToString() -like "ADFS") {
+    try {
+        ### TEST AZURE STACK LOGIN with ADFS - Login to Azure Stack
+        Write-Verbose ("Testing Azure Stack login with ADFS")
+        Write-Verbose ("Setting GraphEndpointResourceId value for ADFS")
+        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
+        Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
+        $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
+        Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
+        # Clean up current logins
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Clear-AzureRmContext -Scope CurrentUser -Force
+    }
+    catch {
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+if ($registerASDK) {
+    try {
+        ### OPTIONAL - TEST AZURE REGISTRATION CREDS
+        Write-Verbose "Testing Azure login for registration with Azure Active Directory"
+        Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+        $testAzureRegSub = Get-AzureRmContext
+        Write-Verbose "Selected Azure Subscription used for registration is:"
+        $testAzureRegSub
+        Start-Sleep -Seconds 5
+        # Clear Azure login
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Clear-AzureRmContext -Scope CurrentUser -Force
+    }
+    catch {
+        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif (!$registerASDK) {
+    Write-Verbose "User has chosen to not register the ASDK with Azure"
+    Write-Verbose "No need to test login for registration"
+}
+
+# Clean up current logins
+Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+Clear-AzureRmContext -Scope CurrentUser -Force
+
+### Run Counter #############################################################################################################################################
+#############################################################################################################################################################
+
+# Once logins have been successfully tested, increment run counter to track usage
+# This is used to understand how many times the ConfigASDK.ps1 script has been run
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Invoke-WebRequest -Uri "http://bit.ly/asdkcounter" -UseBasicParsing -ErrorAction SilentlyContinue -DisableKeepAlive | Out-Null
 
@@ -680,10 +762,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 Write-Verbose "Changing Directory"
 $modulePath = "C:\AzureStack-Tools-master"
 Set-Location $modulePath
-
-# Import the Azure Stack Connect Module
 Disable-AzureRmDataCollection -WarningAction SilentlyContinue
-Write-Verbose "Azure Stack Connect module imported successfully" 
 
 ### CONFIGURE THE AZURE STACK HOST & INFRA VIRTUAL MACHINES ############################################################################################
 ########################################################################################################################################################
@@ -732,55 +811,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
-
-### TEST LOGINS #############################################################################################################################################
-#############################################################################################################################################################
-
-# Register an AzureRM environment that targets your administrative Azure Stack instance
-$ArmEndpoint = "https://adminmanagement.local.azurestack.external"
-Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-$ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority
-
-if ($authenticationType.ToString() -like "AzureAd") {
-    try {
-        # Login to Azure Stack
-        Write-Verbose ("Testing Azure Stack login with Azure Active Directory")
-        Write-Verbose ("Setting GraphEndpointResourceId value for Azure AD")
-        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
-        Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
-        $endpt = "{0}{1}/.well-known/openid-configuration" -f $ADauth, $azureDirectoryTenantName
-        $OauthMetadata = (Invoke-WebRequest -UseBasicParsing $endpt).Content | ConvertFrom-Json
-        $TenantID = $OauthMetadata.Issuer.Split('/')[3]
-        Write-Verbose "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-    }
-    catch {
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($authenticationType.ToString() -like "ADFS") {
-    try {
-        # Login to Azure Stack
-        Write-Verbose ("Testing Azure Stack login with ADFS")
-        Write-Verbose ("Setting GraphEndpointResourceId value for ADFS")
-        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
-        Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
-        $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
-        Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-    }
-    catch {
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-
-# Clean up current logins
-Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-Clear-AzureRmContext -Scope CurrentUser -Force
 
 ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
 ##############################################################################################################################################################
@@ -892,7 +922,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Clear-AzureRmContext -Scope CurrentUser -Force
 
             ### Login to Azure to get all the details about the syndicated Ubuntu Server 16.04 marketplace offering ###
-            Import-Module C:\AzureStack-Tools-master\Syndication\AzureStack.MarketplaceSyndication.psm1
+            Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
             Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             $sub = Get-AzureRmSubscription -SubscriptionId $azureRegSubId | Select-AzureRmSubscription
             $AzureContext = Get-AzureRmContext
