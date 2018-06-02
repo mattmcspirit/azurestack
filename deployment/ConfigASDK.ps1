@@ -790,8 +790,22 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         foreach ($vm in $AZSvms) {
             Invoke-Command -VMName $vm.name -ScriptBlock $scriptblock -Credential $azureStackAdminCreds
         }
-        # Disable Windows Update and DNS Server on Host
-        Get-Service -Name wuauserv, DNS | Stop-Service -Force -PassThru | Set-Service -StartupType disabled -Confirm:$false
+
+        # Disable Windows Update and DNS Server on Host - using foreach loop as ASDK on Azure solution doesn't have DNS Server.
+        $serviceArray = @()
+        $serviceArray.Clear()
+        $serviceArray = "wuauserv", "DNS"
+        foreach ($service in $serviceArray) {
+            if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
+                Write-Verbose "Stopping Service: $service"
+                Stop-Service -Name $service -Force -PassThru
+                Write-Verbose "Disabling Service: $service at startup"
+                Set-Service -Name $service -StartupType disabled -Confirm:$false
+            }
+            else {
+                Write-Verbose "Service: $service not found, continuing process..."
+            }
+        }
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
