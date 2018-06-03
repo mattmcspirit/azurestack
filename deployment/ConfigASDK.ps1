@@ -78,9 +78,6 @@
 
 [CmdletBinding()]
 param (
-    # For ASDK deployment - this switch may be expanded in future for Multinode deployments
-    [switch]$ASDK,
-
     [Parameter(Mandatory = $false)]
     [String] $azureDirectoryTenantName,
 
@@ -128,7 +125,23 @@ param (
 
     # Azure Subscription to be used for registering Azure Stack 
     [parameter(Mandatory = $false)]
-    [string]$azureRegSubId
+    [string]$azureRegSubId,
+
+    # If you don't want to install the MySQL Resource Provider and Hosting Server set this flag
+    [switch]$skipMySQL,
+
+    # If you don't want to install the SQL Server Resource Provider and Hosting Server set this flag
+    [switch]$skipMSSQL,
+
+    # If you don't want to install the App Service and pre-requisites set this flag
+    [switch]$skipAppService,
+
+    # If you don't want to customize the ASDK host with useful apps such as Chrome, Azure CLI, VS Code etc. set this flag
+    [switch]$skipCustomizeHost,
+
+    # Offline installation package path for all key components
+    [parameter(Mandatory = $false)]
+    [string]$configAsdkOfflinePath
 )
 
 $VerbosePreference = "Continue"
@@ -1779,84 +1792,102 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLRP")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Login to Azure Stack
-        Write-Verbose "Downloading and installing MySQL Resource Provider"
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+if (!$skipMySQL) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            # Login to Azure Stack
+            Write-Verbose "Downloading and installing MySQL Resource Provider"
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
-        # Cleanup old folder
-        Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-        # Download and Expand the MySQL RP files
-        $mySqlRpURI = "https://aka.ms/azurestackmysqlrp1804"
-        $mySqlRpDownloadLocation = "$ASDKpath\MySQL.zip"
-        DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
-        Set-Location $ASDKpath
-        Expand-Archive "$ASDKpath\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
-        Set-Location "$ASDKpath\MySQL"
+            # Cleanup old folder
+            Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+            # Download and Expand the MySQL RP files
+            $mySqlRpURI = "https://aka.ms/azurestackmysqlrp1804"
+            $mySqlRpDownloadLocation = "$ASDKpath\MySQL.zip"
+            DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
+            Set-Location $ASDKpath
+            Expand-Archive "$ASDKpath\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
+            Set-Location "$ASDKpath\MySQL"
 
-        # Define the additional credentials for the local virtual machine username/password and certificates password
-        $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
-        .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
+            # Define the additional credentials for the local virtual machine username/password and certificates password
+            $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
+            .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
 
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
     }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipMySQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip MySQL Resource Provider Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### INSTALL SQL SERVER RESOURCE PROVIDER ####################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerRP")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Login to Azure Stack
-        Write-Verbose "Downloading and installing SQL Server Resource Provider"
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+if (!$skipMSSQL) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            # Login to Azure Stack
+            Write-Verbose "Downloading and installing SQL Server Resource Provider"
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
-        # Download and Expand the SQL Server RP files
-        $sqlRpURI = "https://aka.ms/azurestacksqlrp1804"
-        $sqlRpDownloadLocation = "$ASDKpath\SQL.zip"
-        DownloadWithRetry -downloadURI "$sqlRpURI" -downloadLocation "$sqlRpDownloadLocation" -retries 10
-        Set-Location $ASDKpath
-        Expand-Archive "$ASDKpath\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
-        Set-Location "$ASDKpath\SQL"
+            # Download and Expand the SQL Server RP files
+            $sqlRpURI = "https://aka.ms/azurestacksqlrp1804"
+            $sqlRpDownloadLocation = "$ASDKpath\SQL.zip"
+            DownloadWithRetry -downloadURI "$sqlRpURI" -downloadLocation "$sqlRpDownloadLocation" -retries 10
+            Set-Location $ASDKpath
+            Expand-Archive "$ASDKpath\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
+            Set-Location "$ASDKpath\SQL"
 
-        # Define the additional credentials for the local virtual machine username/password and certificates password
-        $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
-        .\DeploySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd
+            # Define the additional credentials for the local virtual machine username/password and certificates password
+            $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
+            .\DeploySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd
 
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
     }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipMSSQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip SQL Server Resource Provider Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
@@ -1894,365 +1925,419 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLSKUQuota")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Logout to clean up
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-        Clear-AzureRmContext -Scope CurrentUser -Force
+if (!$skipMySQL) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            # Logout to clean up
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Clear-AzureRmContext -Scope CurrentUser -Force
 
-        # Set the variables and gather token for creating the SKU & Quota
-        $mySqlSkuFamily = "MySQL"
-        $mySqlSkuName = "MySQL57"
-        $mySqlSkuTier = "Standalone"
-        $mySqlLocation = "$azsLocation"
-        $mySqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
-        $mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
-        $mySqlApiVersion = "2017-08-28"
-        $mySqlQuotaName = "mysqldefault"
-        $mySqlQuotaResourceCount = "10"
-        $mySqlQuotaResourceSizeMB = "1024"
+            # Set the variables and gather token for creating the SKU & Quota
+            $mySqlSkuFamily = "MySQL"
+            $mySqlSkuName = "MySQL57"
+            $mySqlSkuTier = "Standalone"
+            $mySqlLocation = "$azsLocation"
+            $mySqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
+            $mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
+            $mySqlApiVersion = "2017-08-28"
+            $mySqlQuotaName = "mysqldefault"
+            $mySqlQuotaResourceCount = "10"
+            $mySqlQuotaResourceSizeMB = "1024"
 
-        # Login to Azure Stack and populate variables
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
-        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-        $subID = $azureContext.Subscription.Id
-        $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
+            # Login to Azure Stack and populate variables
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+            $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
 
-        # Fetch the tokens
-        $mySqlToken = $null
-        $mySqlTokens = $null
-        $mySqlTokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-        $mySqlToken = $mySqlTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $AzureContext.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+            # Fetch the tokens
+            $mySqlToken = $null
+            $mySqlTokens = $null
+            $mySqlTokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
+            $mySqlToken = $mySqlTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $AzureContext.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
 
-        # Build the header for authorization
-        $mySqlHeaders = @{ 'authorization' = "Bearer $($mySqlToken.AccessToken)"}
+            # Build the header for authorization
+            $mySqlHeaders = @{ 'authorization' = "Bearer $($mySqlToken.AccessToken)"}
 
-        # Build the URIs
-        $skuUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/skus/{4}?api-version={5}' -f $mySqlArmEndpoint, $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlSkuName, $mySqlApiVersion)
-        $quotaUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/quotas/{4}?api-version={5}' -f $mySqlArmEndpoint, $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName, $mySqlApiVersion)
+            # Build the URIs
+            $skuUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/skus/{4}?api-version={5}' -f $mySqlArmEndpoint, $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlSkuName, $mySqlApiVersion)
+            $quotaUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/quotas/{4}?api-version={5}' -f $mySqlArmEndpoint, $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName, $mySqlApiVersion)
 
-        # Create the request body for SKU
-        $skuTenantNamespace = $mySqlDatabaseAdapterNamespace.TrimEnd(".Admin");
-        $skuResourceType = '{0}/databases' -f $skuTenantNamespace
-        $skuIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/skus/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlSkuName
-        $skuRequestBody = @{
-            properties = @{
-                resourceType = $skuResourceType
-                sku          = @{
-                    family = $mySqlSkuFamily
-                    name   = $mySqlSkuName
-                    tier   = $mySqlSkuTier
+            # Create the request body for SKU
+            $skuTenantNamespace = $mySqlDatabaseAdapterNamespace.TrimEnd(".Admin");
+            $skuResourceType = '{0}/databases' -f $skuTenantNamespace
+            $skuIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/skus/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlSkuName
+            $skuRequestBody = @{
+                properties = @{
+                    resourceType = $skuResourceType
+                    sku          = @{
+                        family = $mySqlSkuFamily
+                        name   = $mySqlSkuName
+                        tier   = $mySqlSkuTier
+                    }
                 }
+                id         = $skuIdForRequestBody
+                name       = $mySqlSkuName
             }
-            id         = $skuIdForRequestBody
-            name       = $mySqlSkuName
-        }
-        $skuRequestBodyJson = $skuRequestBody | ConvertTo-Json
+            $skuRequestBodyJson = $skuRequestBody | ConvertTo-Json
 
-        # Create the request body for Quota
-        $quotaIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
-        $quotaRequestBody = @{
-            properties = @{
-                resourceCount       = $mySqlQuotaResourceCount
-                totalResourceSizeMB = $mySqlQuotaResourceSizeMB
+            # Create the request body for Quota
+            $quotaIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
+            $quotaRequestBody = @{
+                properties = @{
+                    resourceCount       = $mySqlQuotaResourceCount
+                    totalResourceSizeMB = $mySqlQuotaResourceSizeMB
+                }
+                id         = $quotaIdForRequestBody
+                name       = $mySqlQuotaName
             }
-            id         = $quotaIdForRequestBody
-            name       = $mySqlQuotaName
-        }
-        $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
+            $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
 
-        # Create the SKU
-        Write-Verbose -Message "Creating new MySQL Resource Provider SKU with name: $($mySqlSkuName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
-        try {
-            # Make the REST call
-            $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $mySqlHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
-            $skuResponse
+            # Create the SKU
+            Write-Verbose -Message "Creating new MySQL Resource Provider SKU with name: $($mySqlSkuName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
+            try {
+                # Make the REST call
+                $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $mySqlHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
+                $skuResponse
+            }
+            catch {
+                $message = $_.Exception.Message
+                Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create MySQL Resource Provider SKU with name {0}, failed with error: {1}" -f $mySqlSkuName, $message) 
+            }
+
+            # Create the Quota
+            Write-Verbose -Message "Creating new MySQL Resource Provider Quota with name: $($mySqlQuotaName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
+            try {
+                # Make the REST call
+                $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $mySqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing
+                $quotaResponse
+            }
+            catch {
+                $message = $_.Exception.Message
+                Write-Error -Message ("Failed to create MySQL Resource Provider Quota with name {0}, failed with error: {1}" -f $mySqlQuotaName, $message) 
+            }
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
         }
         catch {
-            $message = $_.Exception.Message
-            Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create MySQL Resource Provider SKU with name {0}, failed with error: {1}" -f $mySqlSkuName, $message) 
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
         }
-
-        # Create the Quota
-        Write-Verbose -Message "Creating new MySQL Resource Provider Quota with name: $($mySqlQuotaName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
-        try {
-            # Make the REST call
-            $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $mySqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing
-            $quotaResponse
-        }
-        catch {
-            $message = $_.Exception.Message
-            Write-Error -Message ("Failed to create MySQL Resource Provider Quota with name {0}, failed with error: {1}" -f $mySqlQuotaName, $message) 
-        }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
     }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipMySQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip MySQL Quota and SKU Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### ADD SQL SERVER SKU & QUOTA ##############################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerSKUQuota")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Logout to clean up
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-        Clear-AzureRmContext -Scope CurrentUser -Force
+if (!$skipMSSQL) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            # Logout to clean up
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Clear-AzureRmContext -Scope CurrentUser -Force
 
-        # Set the variables and gather token for creating the SKU & Quota
-        $sqlSkuFamily = "SQLServer"
-        $sqlSkuEdition = "Evaluation"
-        $sqlSkuName = "MSSQL2017"
-        $sqlSkuTier = "Standalone"
-        $sqlLocation = "$azsLocation"
-        $sqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
-        $sqlDatabaseAdapterNamespace = "Microsoft.SQLAdapter.Admin"
-        $sqlApiVersion = "2017-08-28"
-        $sqlQuotaName = "sqldefault"
-        $sqlQuotaResourceCount = "10"
-        $sqlQuotaResourceSizeMB = "1024"
+            # Set the variables and gather token for creating the SKU & Quota
+            $sqlSkuFamily = "SQLServer"
+            $sqlSkuEdition = "Evaluation"
+            $sqlSkuName = "MSSQL2017"
+            $sqlSkuTier = "Standalone"
+            $sqlLocation = "$azsLocation"
+            $sqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
+            $sqlDatabaseAdapterNamespace = "Microsoft.SQLAdapter.Admin"
+            $sqlApiVersion = "2017-08-28"
+            $sqlQuotaName = "sqldefault"
+            $sqlQuotaResourceCount = "10"
+            $sqlQuotaResourceSizeMB = "1024"
 
-        # Login to Azure Stack and populate variables
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
-        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-        $subID = $azureContext.Subscription.Id
-        $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
+            # Login to Azure Stack and populate variables
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+            $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
 
-        # Fetch the tokens
-        $sqlToken = $null
-        $sqlTokens = $null
-        $sqlTokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-        $sqlToken = $sqlTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $AzureContext.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+            # Fetch the tokens
+            $sqlToken = $null
+            $sqlTokens = $null
+            $sqlTokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
+            $sqlToken = $sqlTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $AzureContext.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
 
-        # Build the header for authorization
-        $sqlHeaders = @{ 'authorization' = "Bearer $($sqlToken.AccessToken)"}
+            # Build the header for authorization
+            $sqlHeaders = @{ 'authorization' = "Bearer $($sqlToken.AccessToken)"}
 
-        # Build the URIs
-        $skuUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/skus/{4}?api-version={5}' -f $sqlArmEndpoint, $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlSkuName, $sqlApiVersion)
-        $quotaUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/quotas/{4}?api-version={5}' -f $sqlArmEndpoint, $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlQuotaName, $sqlApiVersion)
+            # Build the URIs
+            $skuUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/skus/{4}?api-version={5}' -f $sqlArmEndpoint, $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlSkuName, $sqlApiVersion)
+            $quotaUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/quotas/{4}?api-version={5}' -f $sqlArmEndpoint, $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlQuotaName, $sqlApiVersion)
 
-        # Create the request body for SKU
-        $skuTenantNamespace = $sqlDatabaseAdapterNamespace.TrimEnd(".Admin");
-        $skuResourceType = '{0}/databases' -f $skuTenantNamespace
-        $skuIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/skus/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlSkuName
-        $skuRequestBody = @{
-            properties = @{
-                resourceType = $skuResourceType
-                sku          = @{
-                    family = $sqlSkuFamily
-                    kind   = $sqlSkuEdition
-                    name   = $sqlSkuName
-                    tier   = $sqlSkuTier
+            # Create the request body for SKU
+            $skuTenantNamespace = $sqlDatabaseAdapterNamespace.TrimEnd(".Admin");
+            $skuResourceType = '{0}/databases' -f $skuTenantNamespace
+            $skuIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/skus/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlSkuName
+            $skuRequestBody = @{
+                properties = @{
+                    resourceType = $skuResourceType
+                    sku          = @{
+                        family = $sqlSkuFamily
+                        kind   = $sqlSkuEdition
+                        name   = $sqlSkuName
+                        tier   = $sqlSkuTier
+                    }
                 }
+                id         = $skuIdForRequestBody
+                name       = $sqlSkuName
             }
-            id         = $skuIdForRequestBody
-            name       = $sqlSkuName
-        }
-        $skuRequestBodyJson = $skuRequestBody | ConvertTo-Json
+            $skuRequestBodyJson = $skuRequestBody | ConvertTo-Json
 
-        # Create the request body for Quota
-        $quotaIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlQuotaName
-        $quotaRequestBody = @{
-            properties = @{
-                resourceCount       = $sqlQuotaResourceCount
-                totalResourceSizeMB = $sqlQuotaResourceSizeMB
+            # Create the request body for Quota
+            $quotaIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlQuotaName
+            $quotaRequestBody = @{
+                properties = @{
+                    resourceCount       = $sqlQuotaResourceCount
+                    totalResourceSizeMB = $sqlQuotaResourceSizeMB
+                }
+                id         = $quotaIdForRequestBody
+                name       = $sqlQuotaName
             }
-            id         = $quotaIdForRequestBody
-            name       = $sqlQuotaName
-        }
-        $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
+            $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
 
-        # Create the SKU
-        Write-Verbose -Message "Creating new SQL Server Resource Provider SKU with name: $($sqlSkuName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
-        try {
-            # Make the REST call
-            $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $sqlHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
-            $skuResponse
+            # Create the SKU
+            Write-Verbose -Message "Creating new SQL Server Resource Provider SKU with name: $($sqlSkuName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
+            try {
+                # Make the REST call
+                $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $sqlHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
+                $skuResponse
+            }
+            catch {
+                $message = $_.Exception.Message
+                Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create SQL Server Resource Provider SKU with name {0}, failed with error: {1}" -f $sqlSkuName, $message) 
+            }
+
+            # Create the Quota
+            Write-Verbose -Message "Creating new SQL Server Resource Provider Quota with name: $($sqlQuotaName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
+            try {
+                # Make the REST call
+                $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $sqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing
+                $quotaResponse
+            }
+            catch {
+                $message = $_.Exception.Message
+                Write-Error -Message ("Failed to create SQL Server Resource Provider Quota with name {0}, failed with error: {1}" -f $sqlQuotaName, $message) 
+            }
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
         }
         catch {
-            $message = $_.Exception.Message
-            Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create SQL Server Resource Provider SKU with name {0}, failed with error: {1}" -f $sqlSkuName, $message) 
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
         }
-
-        # Create the Quota
-        Write-Verbose -Message "Creating new SQL Server Resource Provider Quota with name: $($sqlQuotaName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
-        try {
-            # Make the REST call
-            $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $sqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing
-            $quotaResponse
-        }
-        catch {
-            $message = $_.Exception.Message
-            Write-Error -Message ("Failed to create SQL Server Resource Provider Quota with name {0}, failed with error: {1}" -f $sqlQuotaName, $message) 
-        }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
     }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipMSSQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip SQL Server Quota and SKU Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### DEPLOY MySQL VM TO HOST USER DATABASES ##################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLDBVM")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        Write-Verbose "Creating a dedicated Resource Group for all database hosting assets"
-        New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
+if (!$skipMySQL) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            Write-Verbose "Creating a dedicated Resource Group for all database hosting assets"
+            New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
 
-        # Deploy a MySQL VM for hosting tenant db
-        Write-Verbose "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
-        New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json `
-            -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
-            -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+            # Deploy a MySQL VM for hosting tenant db
+            Write-Verbose "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
+            New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json `
+                -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
+                -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
     }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipMySQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip MySQL Hosting Server Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### DEPLOY SQL SERVER VM TO HOST USER DATABASES #############################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerDBVM")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Deploy a SQL Server 2017 on Ubuntu VM for hosting tenant db
-        Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
-        New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
-            -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
-            -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+if (!$skipMSSQL) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            # Deploy a SQL Server 2017 on Ubuntu VM for hosting tenant db
+            Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
+            New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
+                -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
+                -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
     }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipMSSQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip MySQL Hosting Server Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### ADD MYSQL HOSTING SERVER ################################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLAddHosting")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
+if (!$skipMySQL) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            # Get the FQDN of the VM
+            $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
+
+            # Add host server to MySQL RP
+            Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
+            New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
+                -username "root" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
+
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
         # Get the FQDN of the VM
         $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
-
-        # Add host server to MySQL RP
-        Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
-        New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
-            -username "root" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-    }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    # Get the FQDN of the VM
-    $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipMySQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip MySQL Hosting Server Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### ADD SQL SERVER HOSTING SERVER ###########################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerAddHosting")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
+if (!$skipMSSQL) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            # Get the FQDN of the VM
+            $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
+
+            # Add host server to SQL Server RP
+            Write-Verbose "Attaching SQL Server 2017 hosting server to SQL Server resource provider"
+            New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json `
+                -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 10240 -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
+
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
         # Get the FQDN of the VM
         $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
-
-        # Add host server to SQL Server RP
-        Write-Verbose "Attaching SQL Server 2017 hosting server to SQL Server resource provider"
-        New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json `
-            -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 10240 -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-    }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    # Get the FQDN of the VM
-    $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipMSSQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip SQL Server Hosting Server Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
@@ -2342,230 +2427,113 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceFileServer")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        ### Deploy File Server ###
-        Write-Verbose "Deploying Windows Server 2016 File Server"
-        New-AzureRmResourceGroup -Name "appservice-fileshare" -Location $azsLocation -Force
-        New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json `
-            -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
+if (!$skipAppService) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            ### Deploy File Server ###
+            Write-Verbose "Deploying Windows Server 2016 File Server"
+            New-AzureRmResourceGroup -Name "appservice-fileshare" -Location $azsLocation -Force
+            New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json `
+                -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
 
+            # Get the FQDN of the VM
+            $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
+
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
         # Get the FQDN of the VM
         $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-    }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    # Get the FQDN of the VM
-    $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip App Service Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### DEPLOY APP SERVICE SQL SERVER ###########################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceSQLServer")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Deploy a SQL Server 2017 on Ubuntu VM for App Service
-        Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu Server 16.04 LTS for App Service"
-        New-AzureRmResourceGroup -Name "appservice-sql" -Location $azsLocation -Force
-        New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
-            -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
-            -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+if (!$skipAppService) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            # Deploy a SQL Server 2017 on Ubuntu VM for App Service
+            Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu Server 16.04 LTS for App Service"
+            New-AzureRmResourceGroup -Name "appservice-sql" -Location $azsLocation -Force
+            New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
+                -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
+                -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
+            # Get the FQDN of the VM
+            $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
+
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
         # Get the FQDN of the VM
         $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-    }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    # Get the FQDN of the VM
-    $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip App Service Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### DOWNLOAD APP SERVICE ####################################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "DownloadAppService")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Install App Service To be added
-        Write-Verbose "Downloading App Service Installer"
-        Set-Location $ASDKpath
-        # Clean up old App Service Path if it exists
-        Remove-Item "$asdkPath\AppService" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-        $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
-        $appServiceHelperDownloadLocation = "$ASDKpath\appservicehelper.zip"
-        DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
-        Expand-Archive $ASDKpath\appservicehelper.zip -DestinationPath "$ASDKpath\AppService\" -Force
-        $appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
-        $appServiceExeDownloadLocation = "$ASDKpath\AppService\appservice.exe"
-        DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-    }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-
-$AppServicePath = "$ASDKpath\AppService"
-
-#### GENERATE APP SERVICE CERTS ##############################################################################################################################
-##############################################################################################################################################################
-
-$RowIndex = [array]::IndexOf($progress.Stage, "GenerateAppServiceCerts")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        Write-Verbose "Generating Certificates"
-        Set-Location "$AppServicePath"
-        .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName "local.azurestack.external"
-        .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $cloudAdminCreds
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-    }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-
-#### CREATE AD SERVICE PRINCIPAL #############################################################################################################################
-##############################################################################################################################################################
-
-$RowIndex = [array]::IndexOf($progress.Stage, "CreateServicePrincipal")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Create Azure AD or ADFS Service Principal
-        if ($authenticationType.ToString() -like "AzureAd") {
-            # Logout to clean up
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-            Clear-AzureRmContext -Scope CurrentUser -Force
-
-            # Grant permissions to Azure AD Service Principal
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId "$azureDirectoryTenantName" -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            Set-Location "$AppServicePath"
-            $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
-                -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
-            $appIdPath = "$AppServicePath\ApplicationID.txt"
-            $identityApplicationID = $applicationId
-            New-Item $appIdPath -ItemType file -Force
-            Write-Output $identityApplicationID > $appIdPath
-            Start-Sleep -Seconds 20
-        }
-        elseif ($authenticationType.ToString() -like "ADFS") {
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            Set-Location "$AppServicePath"
-            $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
-                -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds
-            $appIdPath = "$AppServicePath\ApplicationID.txt"
-            $identityApplicationID = $appID
-            New-Item $appIdPath -ItemType file -Force
-            Write-Output $identityApplicationID > $appIdPath
-        }
-        else {
-            Write-Verbose ("No valid application was created, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
-        }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-    }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-
-if (!$identityApplicationID) {
-    $identityApplicationID = Get-Content -Path "$AppServicePath\ApplicationID.txt"
-}
-
-#### GRANT AZURE AD APP PERMISSION ###########################################################################################################################
-##############################################################################################################################################################
-
-$RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
-if ($authenticationType.ToString() -like "AzureAd") {
+if (!$skipAppService) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-
         try {
-            # Logout to clean up
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-            Clear-AzureRmContext -Scope CurrentUser -Force
-            # Grant permissions to Azure AD Service Principal
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $azureDirectoryTenantName -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $context = Get-AzureRmContext
-            $tenantId = $context.Tenant.Id
-            $refreshToken = $context.TokenCache.ReadItems().RefreshToken
-            $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
-            $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
-            $header = @{
-                'Authorization'          = 'Bearer ' + $apiToken.access_token
-                'X-Requested-With'       = 'XMLHttpRequest'
-                'x-ms-client-request-id' = [guid]::NewGuid()
-                'x-ms-correlation-id'    = [guid]::NewGuid()
-            }
-            $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
-            Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction SilentlyContinue
+            # Install App Service To be added
+            Write-Verbose "Downloading App Service Installer"
+            Set-Location $ASDKpath
+            # Clean up old App Service Path if it exists
+            Remove-Item "$asdkPath\AppService" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+            $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
+            $appServiceHelperDownloadLocation = "$ASDKpath\appservicehelper.zip"
+            DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
+            Expand-Archive $ASDKpath\appservicehelper.zip -DestinationPath "$ASDKpath\AppService\" -Force
+            $appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
+            $appServiceExeDownloadLocation = "$ASDKpath\AppService\appservice.exe"
+            DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
+
             # Update the ConfigASDKProgressLog.csv file with successful completion
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
@@ -2585,8 +2553,178 @@ if ($authenticationType.ToString() -like "AzureAd") {
         Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($authenticationType.ToString() -like "ADFS") {
-    Write-Verbose "Skipping Azure AD App Permissions, as this is an ADFS deployment"
+elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip App Service Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
+}
+
+$AppServicePath = "$ASDKpath\AppService"
+
+#### GENERATE APP SERVICE CERTS ##############################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "GenerateAppServiceCerts")
+if (!$skipAppService) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            Write-Verbose "Generating Certificates"
+            Set-Location "$AppServicePath"
+            .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName "local.azurestack.external"
+            .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $cloudAdminCreds
+
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    }
+}
+elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip App Service Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
+}
+
+#### CREATE AD SERVICE PRINCIPAL #############################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "CreateServicePrincipal")
+if (!$skipAppService) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            # Create Azure AD or ADFS Service Principal
+            if ($authenticationType.ToString() -like "AzureAd") {
+                # Logout to clean up
+                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+                Clear-AzureRmContext -Scope CurrentUser -Force
+
+                # Grant permissions to Azure AD Service Principal
+                Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId "$azureDirectoryTenantName" -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Set-Location "$AppServicePath"
+                $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
+                    -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
+                $appIdPath = "$AppServicePath\ApplicationID.txt"
+                $identityApplicationID = $applicationId
+                New-Item $appIdPath -ItemType file -Force
+                Write-Output $identityApplicationID > $appIdPath
+                Start-Sleep -Seconds 20
+            }
+            elseif ($authenticationType.ToString() -like "ADFS") {
+                Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Set-Location "$AppServicePath"
+                $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
+                    -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds
+                $appIdPath = "$AppServicePath\ApplicationID.txt"
+                $identityApplicationID = $appID
+                New-Item $appIdPath -ItemType file -Force
+                Write-Output $identityApplicationID > $appIdPath
+            }
+            else {
+                Write-Verbose ("No valid application was created, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
+            }
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    }
+}
+elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip App Service Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
+}
+
+if (!$identityApplicationID) {
+    $identityApplicationID = Get-Content -Path "$AppServicePath\ApplicationID.txt"
+}
+
+#### GRANT AZURE AD APP PERMISSION ###########################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
+if (!$skipAppService) {
+    if ($authenticationType.ToString() -like "AzureAd") {
+        if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+            try {
+                # Logout to clean up
+                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+                Clear-AzureRmContext -Scope CurrentUser -Force
+                # Grant permissions to Azure AD Service Principal
+                Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $azureDirectoryTenantName -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                $context = Get-AzureRmContext
+                $tenantId = $context.Tenant.Id
+                $refreshToken = $context.TokenCache.ReadItems().RefreshToken
+                $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
+                $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
+                $header = @{
+                    'Authorization'          = 'Bearer ' + $apiToken.access_token
+                    'X-Requested-With'       = 'XMLHttpRequest'
+                    'x-ms-client-request-id' = [guid]::NewGuid()
+                    'x-ms-correlation-id'    = [guid]::NewGuid()
+                }
+                $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
+                Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction SilentlyContinue
+                # Update the ConfigASDKProgressLog.csv file with successful completion
+                $progress[$RowIndex].Status = "Complete"
+                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+                Write-Output $progress
+            }
+            catch {
+                Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+                $progress[$RowIndex].Status = "Failed"
+                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+                Write-Output $progress
+                Write-Verbose $_.Exception.Message -ErrorAction Stop
+                Set-Location $ScriptLocation
+                return
+            }
+        }
+        elseif ($progress[$RowIndex].Status -eq "Complete") {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        }
+    }
+    elseif ($authenticationType.ToString() -like "ADFS") {
+        Write-Verbose "Skipping Azure AD App Permissions, as this is an ADFS deployment"
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Skipped"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress
+    }
+}
+elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip App Service Deployment"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
@@ -2597,180 +2735,198 @@ elseif ($authenticationType.ToString() -like "ADFS") {
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        Write-Verbose "Checking variables are present before creating JSON"
-        # Check Variables #
-        if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -ne $null)) {
-            Write-Verbose "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
-        }
-        elseif ($authenticationType.ToString() -like "ADFS") {
-            Write-Verbose "ADFS deployment, no need for Azure Directory Tenant Name"
-        }
-        elseif (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -eq $null)) {
-            throw "Missing Azure Directory Tenant Name - Exiting process"
-        }
-        if ($fileServerFqdn -ne $null) {
-            Write-Verbose "File Server FQDN is present: $fileServerFqdn"
-        }
-        else {
-            throw "Missing File Server FQDN - Exiting process"
-        }
-        if ($VMpwd -ne $null) {
-            Write-Verbose "Virtual Machine password is present: $VMpwd"
-        }
-        else {
-            throw "Missing Virtual Machine password - Exiting process"
-        }
-        if ($sqlAppServerFqdn -ne $null) {
-            Write-Verbose "SQL Server FQDN is present: $sqlAppServerFqdn"
-        }
-        else {
-            throw "Missing SQL Server FQDN - Exiting process"
-        }
-        if ($identityApplicationID -ne $null) {
-            Write-Verbose "Identity Application ID present: $identityApplicationID"
-        }
-        else {
-            throw "Missing Identity Application ID - Exiting process"
-        }
+if (!$skipAppService) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            Write-Verbose "Checking variables are present before creating JSON"
+            # Check Variables #
+            if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -ne $null)) {
+                Write-Verbose "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
+            }
+            elseif ($authenticationType.ToString() -like "ADFS") {
+                Write-Verbose "ADFS deployment, no need for Azure Directory Tenant Name"
+            }
+            elseif (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -eq $null)) {
+                throw "Missing Azure Directory Tenant Name - Exiting process"
+            }
+            if ($fileServerFqdn -ne $null) {
+                Write-Verbose "File Server FQDN is present: $fileServerFqdn"
+            }
+            else {
+                throw "Missing File Server FQDN - Exiting process"
+            }
+            if ($VMpwd -ne $null) {
+                Write-Verbose "Virtual Machine password is present: $VMpwd"
+            }
+            else {
+                throw "Missing Virtual Machine password - Exiting process"
+            }
+            if ($sqlAppServerFqdn -ne $null) {
+                Write-Verbose "SQL Server FQDN is present: $sqlAppServerFqdn"
+            }
+            else {
+                throw "Missing SQL Server FQDN - Exiting process"
+            }
+            if ($identityApplicationID -ne $null) {
+                Write-Verbose "Identity Application ID present: $identityApplicationID"
+            }
+            else {
+                throw "Missing Identity Application ID - Exiting process"
+            }
         
-        Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json" -UseBasicParsing -ErrorAction Stop
-        $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
-        #Create the JSON from deployment
+            Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json" -UseBasicParsing -ErrorAction Stop
+            $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
+            #Create the JSON from deployment
 
-        if ($authenticationType.ToString() -like "AzureAd") {
-            $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $azureDirectoryTenantName)
-        }
-        elseif ($authenticationType.ToString() -like "ADFS") {
-            $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", "adfs")
-        }
+            if ($authenticationType.ToString() -like "AzureAd") {
+                $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $azureDirectoryTenantName)
+            }
+            elseif ($authenticationType.ToString() -like "ADFS") {
+                $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", "adfs")
+            }
 
-        $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $fileServerFqdn)
-        $JsonConfig = $JsonConfig.Replace("<<Password>>", $VMpwd)
-        $CertPathDoubleSlash = $AppServicePath.Replace("\", "\\")
-        $JsonConfig = $JsonConfig.Replace("<<CertPathDoubleSlash>>", $CertPathDoubleSlash)
-        $JsonConfig = $JsonConfig.Replace("<<SQLServerName>>", $sqlAppServerFqdn)
-        $SQLServerUser = "sa"
-        $JsonConfig = $JsonConfig.Replace("<<SQLServerUser>>", $SQLServerUser)
-        $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $identityApplicationID)
-        Out-File -FilePath "$AppServicePath\AppServiceDeploymentSettings.json" -InputObject $JsonConfig
+            $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $fileServerFqdn)
+            $JsonConfig = $JsonConfig.Replace("<<Password>>", $VMpwd)
+            $CertPathDoubleSlash = $AppServicePath.Replace("\", "\\")
+            $JsonConfig = $JsonConfig.Replace("<<CertPathDoubleSlash>>", $CertPathDoubleSlash)
+            $JsonConfig = $JsonConfig.Replace("<<SQLServerName>>", $sqlAppServerFqdn)
+            $SQLServerUser = "sa"
+            $JsonConfig = $JsonConfig.Replace("<<SQLServerUser>>", $SQLServerUser)
+            $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $identityApplicationID)
+            Out-File -FilePath "$AppServicePath\AppServiceDeploymentSettings.json" -InputObject $JsonConfig
 
-        # Deploy App Service EXE
-        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
-        $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-        $appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
-        $appServiceLogPath = "$AppServicePath\AppServiceLog$appServiceLogTime.txt"
-        Set-Location "$AppServicePath"
-        Write-Verbose "Starting deployment of the App Service"
-        Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
+            # Deploy App Service EXE
+            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
+            $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+            $appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
+            $appServiceLogPath = "$AppServicePath\AppServiceLog$appServiceLogTime.txt"
+            Set-Location "$AppServicePath"
+            Write-Verbose "Starting deployment of the App Service"
+            Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
 
-        while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-            Write-Verbose "App Service is deploying. Checking in 10 seconds"
-            Start-Sleep -Seconds 10
-        }
+            while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
+                Write-Verbose "App Service is deploying. Checking in 10 seconds"
+                Start-Sleep -Seconds 10
+            }
             
-        if (!(Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-            Write-Verbose "App Service deployment has finished executing."
-        }
+            if (!(Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
+                Write-Verbose "App Service deployment has finished executing."
+            }
 
-        $appServiceErrorCode = "Exit code: 0xffffffff"
-        Write-Verbose "Checking App Service log file for issues"
-        if ($(Select-String -Path $appServiceLogPath -Pattern "$appServiceErrorCode" -SimpleMatch -Quiet) -eq "True") {
-            Write-Verbose "App Service install failed with $appServiceErrorCode"
-            Write-Verbose "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
-            throw "App Service install failed with $appServiceErrorCode. Please check the App Service logs at $appServiceLogPath"
-        }
-        else {
-            Write-Verbose "App Service log file indicates successful deployment"
-        }
-        Write-Verbose "Checking App Service resource group for successful deployment"
-        # Ensure logged into Azure Stack
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-        Clear-AzureRmContext -Scope CurrentUser -Force
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
-        if ($appServiceRgCheck.ProvisioningState -ne 'Succeeded') {
-            Write-Verbose "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
-            throw "$($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState). Please check the App Service logs at $appServiceLogPath"
-        }
-        else {
-            Write-Verbose "App Service deployment with name: $($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState)"
-        }
+            $appServiceErrorCode = "Exit code: 0xffffffff"
+            Write-Verbose "Checking App Service log file for issues"
+            if ($(Select-String -Path $appServiceLogPath -Pattern "$appServiceErrorCode" -SimpleMatch -Quiet) -eq "True") {
+                Write-Verbose "App Service install failed with $appServiceErrorCode"
+                Write-Verbose "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
+                throw "App Service install failed with $appServiceErrorCode. Please check the App Service logs at $appServiceLogPath"
+            }
+            else {
+                Write-Verbose "App Service log file indicates successful deployment"
+            }
+            Write-Verbose "Checking App Service resource group for successful deployment"
+            # Ensure logged into Azure Stack
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Clear-AzureRmContext -Scope CurrentUser -Force
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
+            if ($appServiceRgCheck.ProvisioningState -ne 'Succeeded') {
+                Write-Verbose "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
+                throw "$($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState). Please check the App Service logs at $appServiceLogPath"
+            }
+            else {
+                Write-Verbose "App Service deployment with name: $($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState)"
+            }
 
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
     }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip App Service Deployment"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### CUSTOMIZE ASDK HOST #####################################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallHostApps")
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Install useful ASDK Host Apps via Chocolatey
-        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+if (!$skipCustomizeHost) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            # Install useful ASDK Host Apps via Chocolatey
+            Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
-        # Enable Choco Global Confirmation
-        Write-Verbose "Enabling global confirmation to streamline installs"
-        choco feature enable -n allowGlobalConfirmation
+            # Enable Choco Global Confirmation
+            Write-Verbose "Enabling global confirmation to streamline installs"
+            choco feature enable -n allowGlobalConfirmation
 
-        # Visual Studio Code
-        Write-Verbose "Installing VS Code with Chocolatey"
-        choco install visualstudiocode
+            # Visual Studio Code
+            Write-Verbose "Installing VS Code with Chocolatey"
+            choco install visualstudiocode
 
-        # Putty
-        Write-Verbose "Installing Putty with Chocolatey"
-        choco install putty.install
+            # Putty
+            Write-Verbose "Installing Putty with Chocolatey"
+            choco install putty.install
 
-        # WinSCP
-        Write-Verbose "Installing WinSCP with Chocolatey"
-        choco install winscp.install 
+            # WinSCP
+            Write-Verbose "Installing WinSCP with Chocolatey"
+            choco install winscp.install 
 
-        # Chrome
-        Write-Verbose "Installing Chrome with Chocolatey"
-        choco install googlechrome
+            # Chrome
+            Write-Verbose "Installing Chrome with Chocolatey"
+            choco install googlechrome
 
-        # WinDirStat
-        Write-Verbose "Installing WinDirStat with Chocolatey"
-        choco install windirstat
+            # WinDirStat
+            Write-Verbose "Installing WinDirStat with Chocolatey"
+            choco install windirstat
 
-        # Azure CLI
-        Write-Verbose "Installing latest version of Azure CLI with Chocolatey"
-        choco install azure-cli
+            # Azure CLI
+            Write-Verbose "Installing latest version of Azure CLI with Chocolatey"
+            choco install azure-cli
 
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+        }
+        catch {
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress
+            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
     }
-    catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($skipCustomizeHost -or ($progress[$RowIndex].Status -eq "Skipped")) {
+    Write-Verbose "Operator chose to skip ASDK Host Customization"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress
 }
 
 #### GENERATE OUTPUT #########################################################################################################################################
@@ -2815,70 +2971,76 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         Write-Output "`r`nThe Azure Stack PowerShell tools have been downloaded to: $modulePath" >> $txtPath
         Write-Output "All other downloads have been stored here: $ASDKpath" >> $txtPath
+
         Write-Output "`r`nSQL & MySQL Resource Provider Information:" >> $txtPath
-        Write-Output "MySQL Resource Provider VM Credentials = mysqlrpadmin | $VMpwd" >> $txtPath
-        Write-Output "MySQL Database Hosting VM FQDN: $mySqlFqdn" >> $txtPath
-        Write-Output "MySQL Database Hosting VM Credentials = mysqladmin | $VMpwd" >> $txtPath
-        Write-Output "SQL Server Resource Provider VM Credentials = sqlrpadmin | $VMpwd" >> $txtPath
-        Write-Output "SQL Server Database Hosting VM FQDN: $sqlFqdn" >> $txtPath
-        Write-Output "SQL Server Database Hosting VM Credentials = sqladmin | $VMpwd" >> $txtPath
-        Write-Output "`r`nApp Service Resource Provider Information:" >> $txtPath
-        Write-Output "App Service File Server VM FQDN: $fileServerFqdn" >> $txtPath
-        Write-Output "App Service File Server VM Credentials = fileshareowner or fileshareuser | $VMpwd" >> $txtPath
-        Write-Output "App Service SQL Server VM FQDN: $sqlAppServerFqdn" >> $txtPath
-        Write-Output "App Service SQL Server VM Credentials = sqladmin | $VMpwd" >> $txtPath
-        Write-Output "App Service SQL Server SA Credentials = sa | $VMpwd" >> $txtPath
-
-        if ($authenticationType.ToString() -like "AzureAd") {
-            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
-            Write-Output "Sign in to the Azure portal as Azure Active Directory Service Admin ($azureAdUsername) -> Search for Application Id and grant permissions." >> $txtPath
-            Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application" >> $txtPath
+        if (!$skipMySQL) {
+            Write-Output "MySQL Resource Provider VM Credentials = mysqlrpadmin | $VMpwd" >> $txtPath
+            Write-Output "MySQL Database Hosting VM FQDN: $mySqlFqdn" >> $txtPath
+            Write-Output "MySQL Database Hosting VM Credentials = mysqladmin | $VMpwd" >> $txtPath
         }
-        elseif ($authenticationType.ToString() -like "ADFS") {
-            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
-            Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application" >> $txtPath
+        if (!$skipMSSQL) {
+            Write-Output "SQL Server Resource Provider VM Credentials = sqlrpadmin | $VMpwd" >> $txtPath
+            Write-Output "SQL Server Database Hosting VM FQDN: $sqlFqdn" >> $txtPath
+            Write-Output "SQL Server Database Hosting VM Credentials = sqladmin | $VMpwd" >> $txtPath
         }
+        if (!$skipAppService) {
+            Write-Output "`r`nApp Service Resource Provider Information:" >> $txtPath
+            Write-Output "App Service File Server VM FQDN: $fileServerFqdn" >> $txtPath
+            Write-Output "App Service File Server VM Credentials = fileshareowner or fileshareuser | $VMpwd" >> $txtPath
+            Write-Output "App Service SQL Server VM FQDN: $sqlAppServerFqdn" >> $txtPath
+            Write-Output "App Service SQL Server VM Credentials = sqladmin | $VMpwd" >> $txtPath
+            Write-Output "App Service SQL Server SA Credentials = sa | $VMpwd" >> $txtPath
 
-        Write-Output "`r`nYou'll now need to run the appservice.exe located in your $AppServicePath folder" >> $txtPath
-        Write-Output "Documentation can be found here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-deploy" >> $txtPath
-        Write-Output "Use the following values to populate the wizard:" >> $txtPath
-        Write-Output "`r`nAzure Stack Admin ARM Endpoint: adminmanagement.local.azurestack.external" >> $txtPath
-        Write-Output "Azure Stack Tenant ARM Endpoint: management.local.azurestack.external" >> $txtPath
-        Write-Output "Azure Directory Tenant Name: $azureDirectoryTenantName" >> $txtPath
-        Write-Output "`r`nOn the next screen, click Connect, login, and then choose your subscription and location (local)" >> $txtPath
-        Write-Output "`r`nOn the next screen, replace your Resource Group Name with appservice-infra" >> $txtPath
-        Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
-        Write-Output "File Share UNC Path: \\appservicefileshare.local.cloudapp.azurestack.external\websites" >> $txtPath
-        Write-Output "File Share Owner: fileshareowner" >> $txtPath
-        Write-Output "File Share Owner Password: $VMpwd" >> $txtPath
-        Write-Output "File Share User: fileshareuser" >> $txtPath
-        Write-Output "File Share User Password: $VMpwd" >> $txtPath
-        Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
-        Write-Output "Identity Application ID: $identityApplicationID" >> $txtPath
-        Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.local.azurestack.external.pfx" >> $txtPath
-        Write-Output "Identity Application Certificate (*.pfx) password: $VMpwd" >> $txtPath
-        Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority.cer" >> $txtPath
-        Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
-        Write-Output "App Service default SSL certificate file (*.pfx): $AppServicePath\_.appservice.local.AzureStack.external.pfx" >> $txtPath
-        Write-Output "App Service default SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
-        Write-Output "App Service API SSL certificate file (*.pfx): $AppServicePath\api.appservice.local.AzureStack.external.pfx" >> $txtPath
-        Write-Output "App Service API SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
-        Write-Output "App Service Publisher SSL certificate file (*.pfx): $AppServicePath\ftp.appservice.local.AzureStack.external.pfx" >> $txtPath
-        Write-Output "App Service Publisher SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
-        Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
-        Write-Output "SQL Server Name: $sqlAppServerFqdn" >> $txtPath
-        Write-Output "SQL sysadmin login: sa" >> $txtPath
-        Write-Output "SQL sysadmin password: $VMpwd" >> $txtPath
-        Write-Output "`r`nOn the next screen, accept the defaults for the instances and click Next:" >> $txtPath
-        Write-Output "`r`nOn the next screen, accept the default for the Platform Image and click Next:" >> $txtPath
-        Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
-        Write-Output "Worker Role Virtual Machine(s) Admin: workeradmin" >> $txtPath
-        Write-Output "Worker Role Virtual Machine(s) Password: $VMpwd" >> $txtPath
-        Write-Output "Confirm Password: $VMpwd" >> $txtPath
-        Write-Output "Other Roles Virtual Machine(s) Admin: roleadmin" >> $txtPath
-        Write-Output "Other Roles Virtual Machine(s) Password: $VMpwd" >> $txtPath
-        Write-Output "Confirm Password: $VMpwd" >> $txtPath
+            if ($authenticationType.ToString() -like "AzureAd") {
+                Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
+                Write-Output "Sign in to the Azure portal as Azure Active Directory Service Admin ($azureAdUsername) -> Search for Application Id and grant permissions." >> $txtPath
+                Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application" >> $txtPath
+            }
+            elseif ($authenticationType.ToString() -like "ADFS") {
+                Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
+                Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application" >> $txtPath
+            }
 
+            Write-Output "`r`nYou'll now need to run the appservice.exe located in your $AppServicePath folder" >> $txtPath
+            Write-Output "Documentation can be found here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-deploy" >> $txtPath
+            Write-Output "Use the following values to populate the wizard:" >> $txtPath
+            Write-Output "`r`nAzure Stack Admin ARM Endpoint: adminmanagement.local.azurestack.external" >> $txtPath
+            Write-Output "Azure Stack Tenant ARM Endpoint: management.local.azurestack.external" >> $txtPath
+            Write-Output "Azure Directory Tenant Name: $azureDirectoryTenantName" >> $txtPath
+            Write-Output "`r`nOn the next screen, click Connect, login, and then choose your subscription and location (local)" >> $txtPath
+            Write-Output "`r`nOn the next screen, replace your Resource Group Name with appservice-infra" >> $txtPath
+            Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
+            Write-Output "File Share UNC Path: \\appservicefileshare.local.cloudapp.azurestack.external\websites" >> $txtPath
+            Write-Output "File Share Owner: fileshareowner" >> $txtPath
+            Write-Output "File Share Owner Password: $VMpwd" >> $txtPath
+            Write-Output "File Share User: fileshareuser" >> $txtPath
+            Write-Output "File Share User Password: $VMpwd" >> $txtPath
+            Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
+            Write-Output "Identity Application ID: $identityApplicationID" >> $txtPath
+            Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.local.azurestack.external.pfx" >> $txtPath
+            Write-Output "Identity Application Certificate (*.pfx) password: $VMpwd" >> $txtPath
+            Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority.cer" >> $txtPath
+            Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
+            Write-Output "App Service default SSL certificate file (*.pfx): $AppServicePath\_.appservice.local.AzureStack.external.pfx" >> $txtPath
+            Write-Output "App Service default SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
+            Write-Output "App Service API SSL certificate file (*.pfx): $AppServicePath\api.appservice.local.AzureStack.external.pfx" >> $txtPath
+            Write-Output "App Service API SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
+            Write-Output "App Service Publisher SSL certificate file (*.pfx): $AppServicePath\ftp.appservice.local.AzureStack.external.pfx" >> $txtPath
+            Write-Output "App Service Publisher SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
+            Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
+            Write-Output "SQL Server Name: $sqlAppServerFqdn" >> $txtPath
+            Write-Output "SQL sysadmin login: sa" >> $txtPath
+            Write-Output "SQL sysadmin password: $VMpwd" >> $txtPath
+            Write-Output "`r`nOn the next screen, accept the defaults for the instances and click Next:" >> $txtPath
+            Write-Output "`r`nOn the next screen, accept the default for the Platform Image and click Next:" >> $txtPath
+            Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
+            Write-Output "Worker Role Virtual Machine(s) Admin: workeradmin" >> $txtPath
+            Write-Output "Worker Role Virtual Machine(s) Password: $VMpwd" >> $txtPath
+            Write-Output "Confirm Password: $VMpwd" >> $txtPath
+            Write-Output "Other Roles Virtual Machine(s) Admin: roleadmin" >> $txtPath
+            Write-Output "Other Roles Virtual Machine(s) Password: $VMpwd" >> $txtPath
+            Write-Output "Confirm Password: $VMpwd" >> $txtPath
+        }
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
