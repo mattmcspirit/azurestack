@@ -183,11 +183,14 @@ function Write-LogMessage {
 #############################################################################################################################################################
 #############################################################################################################################################################
 
-Write-Verbose "Validating if running under Admin Privileges"
+Write-LogMessage -Message "Validating if running under Admin Privileges"
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if (!($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))) {
-    Write-Verbose "User is not administrator - please ensure you're running as Administrator (right-click, Run as administrator)" 
+    Write-LogMessage -Message "User is not administrator - please ensure you're running as Administrator (right-click, Run as administrator)" 
     exit
+}
+else {
+    Write-LogMessage -Message "User is an administrator. Continuing process."
 }
 
 ### GET START TIME ###
@@ -215,26 +218,26 @@ $emailRegex = @"
 ### Validate Download Path ###
 
 Clear-Host
-Write-Verbose "Selected identity provider is $authenticationType"
-Write-Verbose "Checking to see if the Download Path exists"
+Write-LogMessage -Message "Selected identity provider is $authenticationType"
+Write-LogMessage -Message "Checking to see if the Download Path exists"
 
 $validDownloadPath = [System.IO.Directory]::Exists($downloadPath)
 If ($validDownloadPath -eq $true) {
-    Write-Verbose "Download path exists and is valid" 
-    Write-Verbose "Files will be stored at $downloadPath" 
+    Write-LogMessage -Message "Download path exists and is valid" 
+    Write-LogMessage -Message "Files will be stored at $downloadPath" 
     $downloadPath = Set-Location -Path "$downloadPath" -PassThru
 }
 elseif ($validDownloadPath -eq $false) {
     $downloadPath = Read-Host "Download path is invalid - please enter a valid path to store your downloads"
     $validDownloadPath = [System.IO.Directory]::Exists($downloadPath)
     if ($validDownloadPath -eq $false) {
-        Write-Verbose "No valid folder path was entered again. Exiting process..." -ErrorAction Stop
+        Write-LogMessage -Message "No valid folder path was entered again. Exiting process..." -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
     elseif ($validDownloadPath -eq $true) {
-        Write-Verbose "Download path exists and is valid" 
-        Write-Verbose "Files will be stored at $downloadPath" 
+        Write-LogMessage -Message "Download path exists and is valid" 
+        Write-LogMessage -Message "Files will be stored at $downloadPath" 
         $downloadPath = Set-Location -Path "$downloadPath" -PassThru
     }
 }
@@ -247,14 +250,14 @@ Start-Transcript -Path "$downloadPath\ConfigASDKLog$logTime.txt" -Append
 $ConfigASDKProgressLogPath = "$downloadPath\ConfigASDKProgressLog.csv"
 $validConfigASDKProgressLogPath = [System.IO.File]::Exists($ConfigASDKProgressLogPath)
 If ($validConfigASDKProgressLogPath -eq $true) {
-    Write-Verbose "ConfigASDkProgressLog.csv exists - this must be a rerun"
-    Write-Verbose "Starting from previous failed step"
+    Write-LogMessage -Message "ConfigASDkProgressLog.csv exists - this must be a rerun"
+    Write-LogMessage -Message "Starting from previous failed step"
     $progress = Import-Csv $ConfigASDKProgressLogPath
     Write-Output $progress
 }
 elseif ($validConfigASDKProgressLogPath -eq $false) {
-    Write-Verbose "No ConfigASDkProgressLog.csv exists - this must be a fresh deployment"
-    Write-Verbose "Creating ConfigASDKProgressLog.csv"
+    Write-LogMessage -Message "No ConfigASDkProgressLog.csv exists - this must be a fresh deployment"
+    Write-LogMessage -Message "Creating ConfigASDKProgressLog.csv"
     Add-Content -Path $ConfigASDKProgressLogPath -Value '"Stage","Status"' -Force -Confirm:$false
     $ConfigASDKprogress = @(
         '"DownloadTools","Incomplete"'
@@ -292,67 +295,67 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
 
 ### Validate path to ISO File ###
 
-Write-Verbose "Checking to see if the path to the ISO exists"
+Write-LogMessage -Message "Checking to see if the path to the ISO exists"
 
 $validISOPath = [System.IO.File]::Exists($ISOPath)
 $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
 
 If ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
-    Write-Verbose "Found path to valid ISO file" 
+    Write-LogMessage -Message "Found path to valid ISO file" 
     $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
-    Write-Verbose "The Windows Server 2016 Eval found at $ISOPath will be used" 
+    Write-LogMessage -Message "The Windows Server 2016 Eval found at $ISOPath will be used" 
 }
 elseif ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
     $ISOPath = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2016 ISO"
     $validISOPath = [System.IO.File]::Exists($ISOPath)
     $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
     if ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
-        Write-Verbose "No valid path to a Windows Server 2016 ISO was entered again. Exiting process..." -ErrorAction Stop
+        Write-LogMessage -Message "No valid path to a Windows Server 2016 ISO was entered again. Exiting process..." -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
     elseif ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
-        Write-Verbose "Found path to valid ISO file" 
+        Write-LogMessage -Message "Found path to valid ISO file" 
         $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
-        Write-Verbose "The Windows Server 2016 Eval found at $ISOPath will be used" 
+        Write-LogMessage -Message "The Windows Server 2016 Eval found at $ISOPath will be used" 
     }
 }
 
 ### Validate Virtual Machine (To be created) Password ###
 
 if ([string]::IsNullOrEmpty($VMpwd)) {
-    Write-Verbose "You didn't enter a password for the virtual machines that the ASDK configurator will create." 
+    Write-LogMessage -Message "You didn't enter a password for the virtual machines that the ASDK configurator will create." 
     $secureVMpwd = Read-Host "Please enter a password for the virtual machines that will be created during this process" -AsSecureString -ErrorAction Stop
     $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureVMpwd)            
     $VMpwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
 }
 
-Write-Verbose "Checking to see if Virtual Machine password is strong..."
+Write-LogMessage -Message "Checking to see if Virtual Machine password is strong..."
 
 if ($VMpwd -cmatch $regex -eq $true) {
-    Write-Verbose "Virtual Machine password meets desired complexity level" 
+    Write-LogMessage -Message "Virtual Machine password meets desired complexity level" 
     # Convert plain text password to a secure string
     $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
 }
 
 elseif ($VMpwd -cmatch $regex -eq $false) {
-    Write-Verbose "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 12 characters in length."
-    Write-Verbose "Your password should also have at least 3 of the following 4 options: 1 upper case, 1 lower case, 1 number, 1 special character."
-    Write-Verbose "The App Service installation requires a password of this strength. An Example would be p@ssw0rd123!" 
+    Write-LogMessage -Message "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 12 characters in length."
+    Write-LogMessage -Message "Your password should also have at least 3 of the following 4 options: 1 upper case, 1 lower case, 1 number, 1 special character."
+    Write-LogMessage -Message "The App Service installation requires a password of this strength. An Example would be p@ssw0rd123!" 
     # Obtain new password and store as a secure string
     $secureVMpwd = Read-Host -AsSecureString "Enter VM password again"
     # Convert to plain text to test regex complexity
     $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureVMpwd)            
     $VMpwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
     if ($VMpwd -cmatch $regex -eq $true) {
-        Write-Verbose "Virtual Machine password matches desired complexity" 
+        Write-LogMessage -Message "Virtual Machine password matches desired complexity" 
         # Convert plain text password to a secure string
         $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
         # Clean up unused variable
         Remove-Variable -Name VMpwd -ErrorAction SilentlyContinue
     }
     else {
-        Write-Verbose "No valid password was entered again. Exiting process..." -ErrorAction Stop 
+        Write-LogMessage -Message "No valid password was entered again. Exiting process..." -ErrorAction Stop 
         Set-Location $ScriptLocation
         return
     }
@@ -361,17 +364,17 @@ elseif ($VMpwd -cmatch $regex -eq $false) {
 ### Validate Azure Stack Development Kit Deployment Credentials ###
 
 if ([string]::IsNullOrEmpty($azureStackAdminPwd)) {
-    Write-Verbose "You didn't enter the Azure Stack Development Kit Deployment password." 
+    Write-LogMessage -Message "You didn't enter the Azure Stack Development Kit Deployment password." 
     $secureAzureStackAdminPwd = Read-Host "Please enter the password used for the Azure Stack Development Kit Deployment, for account AzureStack\AzureStackAdmin" -AsSecureString -ErrorAction Stop
     $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureStackAdminPwd)            
     $azureStackAdminPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
 }
 
-Write-Verbose "Checking to see Azure Stack Admin password is strong..."
+Write-LogMessage -Message "Checking to see Azure Stack Admin password is strong..."
 
 $azureStackAdminUsername = "AzureStack\AzureStackAdmin"
 if ($azureStackAdminPwd -cmatch $regex -eq $true) {
-    Write-Verbose "Azure Stack Development Kit Deployment password for AzureStack\AzureStackAdmin, meets desired complexity level" 
+    Write-LogMessage -Message "Azure Stack Development Kit Deployment password for AzureStack\AzureStackAdmin, meets desired complexity level" 
     # Convert plain text password to a secure string
     $secureAzureStackAdminPwd = ConvertTo-SecureString -AsPlainText $azureStackAdminPwd -Force
     $azureStackAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $azureStackAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
@@ -398,29 +401,29 @@ if ($authenticationType.ToString() -like "AzureAd") {
     ### Validate Azure AD Service Administrator Username (Used for ASDK Deployment) ###
 
     if ([string]::IsNullOrEmpty($azureAdUsername)) {
-        Write-Verbose "You didn't enter a username for the Azure AD login." 
+        Write-LogMessage -Message "You didn't enter a username for the Azure AD login." 
         $azureAdUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
     }
 
-    Write-Verbose "Checking to see if Azure AD Service Administrator (Used for ASDK Deployment) username is correctly formatted..."
+    Write-LogMessage -Message "Checking to see if Azure AD Service Administrator (Used for ASDK Deployment) username is correctly formatted..."
 
     if ($azureAdUsername.ToLower() -cmatch $emailRegex -eq $true) {
-        Write-Verbose "Azure AD Service Administrator username (Used for ASDK Deployment) is correctly formatted."
+        Write-LogMessage -Message "Azure AD Service Administrator username (Used for ASDK Deployment) is correctly formatted."
         $azureAdUsername = $azureAdUsername.ToLower()
-        Write-Verbose "$azureAdUsername will be used to connect to Azure." 
+        Write-LogMessage -Message "$azureAdUsername will be used to connect to Azure." 
     }
 
     elseif ($azureAdUsername.ToLower() -cmatch $emailRegex -eq $false) {
-        Write-Verbose "Azure AD Service Administrator Username (Used for ASDK Deployment) isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
+        Write-LogMessage -Message "Azure AD Service Administrator Username (Used for ASDK Deployment) isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
         # Obtain new username
         $azureAdUsername = Read-Host "Enter Azure AD Service Administrator Username (Used for ASDK Deployment) again" -ErrorAction Stop
         if ($azureAdUsername.ToLower() -cmatch $emailRegex -eq $true) {
             $azureAdUsername = $azureAdUsername.ToLower()
-            Write-Verbose "Azure AD Service Administrator Username (Used for ASDK Deployment) is correctly formatted." 
-            Write-Verbose "$azureAdUsername will be used to connect to Azure." 
+            Write-LogMessage -Message "Azure AD Service Administrator Username (Used for ASDK Deployment) is correctly formatted." 
+            Write-LogMessage -Message "$azureAdUsername will be used to connect to Azure." 
         }
         else {
-            Write-Verbose "No valid Azure AD Service Administrator Username (Used for ASDK Deployment) was entered again. Exiting process..." -ErrorAction Stop 
+            Write-LogMessage -Message "No valid Azure AD Service Administrator Username (Used for ASDK Deployment) was entered again. Exiting process..." -ErrorAction Stop 
             Set-Location $ScriptLocation
             return
         }
@@ -429,16 +432,16 @@ if ($authenticationType.ToString() -like "AzureAd") {
     ### Validate Azure AD Service Administrator (Used for ASDK Deployment) Password ###
 
     if ([string]::IsNullOrEmpty($azureAdPwd)) {
-        Write-Verbose "You didn't enter the Azure AD Service Administrator account (Used for ASDK Deployment) password." 
+        Write-LogMessage -Message "You didn't enter the Azure AD Service Administrator account (Used for ASDK Deployment) password." 
         $secureAzureAdPwd = Read-Host "Please enter the password for the Azure AD Service Administrator account used to deploy the ASDK. It should be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureAdPwd)            
         $azureAdPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
     }
 
-    Write-Verbose "Checking to see if password for the Azure AD Service Administrator used to deploy the ASDK, is strong..."
+    Write-LogMessage -Message "Checking to see if password for the Azure AD Service Administrator used to deploy the ASDK, is strong..."
 
     if ($azureAdPwd -cmatch $regex -eq $true) {
-        Write-Verbose "Password for the Azure AD Service Administrator account used to deploy the ASDK meets desired complexity level" 
+        Write-LogMessage -Message "Password for the Azure AD Service Administrator account used to deploy the ASDK meets desired complexity level" 
         # Convert plain text password to a secure string
         $secureAzureAdPwd = ConvertTo-SecureString -AsPlainText $azureAdPwd -Force
         $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
@@ -467,27 +470,27 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
     elseif (!$useAzureCredsForRegistration -and $registerASDK) {
         
         if ([string]::IsNullOrEmpty($azureRegUsername)) {
-            Write-Verbose "You didn't enter a username for Azure account you'll use to register the Azure Stack to." 
+            Write-LogMessage -Message "You didn't enter a username for Azure account you'll use to register the Azure Stack to." 
             $azureRegUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
         }
     
-        Write-Verbose "Checking to see if the Azure AD username is correctly formatted..."
+        Write-LogMessage -Message "Checking to see if the Azure AD username is correctly formatted..."
     
         if ($azureRegUsername -cmatch $emailRegex -eq $true) {
-            Write-Verbose "Azure AD username is correctly formatted." 
-            Write-Verbose "$azureRegUsername will be used to connect to Azure." 
+            Write-LogMessage -Message "Azure AD username is correctly formatted." 
+            Write-LogMessage -Message "$azureRegUsername will be used to connect to Azure." 
         }
     
         elseif ($azureRegUsername -cmatch $emailRegex -eq $false) {
-            Write-Verbose "Azure AD username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
+            Write-LogMessage -Message "Azure AD username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
             # Obtain new username
             $azureRegUsername = Read-Host "Enter Azure AD username again"
             if ($azureRegUsername -cmatch $emailRegex -eq $true) {
-                Write-Verbose "Azure AD username is correctly formatted." 
-                Write-Verbose "$azureRegUsername will be used to connect to Azure." 
+                Write-LogMessage -Message "Azure AD username is correctly formatted." 
+                Write-LogMessage -Message "$azureRegUsername will be used to connect to Azure." 
             }
             else {
-                Write-Verbose "No valid Azure AD username was entered again. Exiting process..." -ErrorAction Stop 
+                Write-LogMessage -Message "No valid Azure AD username was entered again. Exiting process..." -ErrorAction Stop 
                 Set-Location $ScriptLocation
                 return
             }
@@ -496,16 +499,16 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
         ### Validate Azure AD Registration Password ###
     
         if ([string]::IsNullOrEmpty($azureRegPwd)) {
-            Write-Verbose "You didn't enter the Azure AD password that you want to use for registration." 
+            Write-LogMessage -Message "You didn't enter the Azure AD password that you want to use for registration." 
             $secureAzureRegPwd = Read-Host "Please enter the Azure AD password you wish to use for registration. It should ideally be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
             $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
         }
     
-        Write-Verbose "Checking to see if Azure AD password is strong..."
+        Write-LogMessage -Message "Checking to see if Azure AD password is strong..."
     
         if ($azureRegPwd -cmatch $regex -eq $true) {
-            Write-Verbose "Azure AD password meets desired complexity level" 
+            Write-LogMessage -Message "Azure AD password meets desired complexity level" 
             # Convert plain text password to a secure string
             $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
             $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
@@ -547,34 +550,34 @@ if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
     Remove-Variable -Name azureAdPwd -Force -ErrorAction SilentlyContinue
     Remove-Variable -Name azureAdUsername -Force -ErrorAction SilentlyContinue
 
-    Write-Verbose "Checking for an Azure AD username - this account will be used to register the ADFS-based ASDK to Azure..."
+    Write-LogMessage -Message "Checking for an Azure AD username - this account will be used to register the ADFS-based ASDK to Azure..."
             
     if ([string]::IsNullOrEmpty($azureRegUsername)) {
-        Write-Verbose "You didn't enter a username for Azure account you'll use to register the Azure Stack to." 
+        Write-LogMessage -Message "You didn't enter a username for Azure account you'll use to register the Azure Stack to." 
         $azureRegUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
     }
     else {
-        Write-Verbose "Found an Azure AD username that will be used for registering this ADFS-based Azure Stack to Azure" 
-        Write-Verbose "Account username is $azureRegUsername"
+        Write-LogMessage -Message "Found an Azure AD username that will be used for registering this ADFS-based Azure Stack to Azure" 
+        Write-LogMessage -Message "Account username is $azureRegUsername"
     }
         
-    Write-Verbose "Checking to see if the Azure AD username, that will be used for Azure Stack registration to Azure, is correctly formatted..."
+    Write-LogMessage -Message "Checking to see if the Azure AD username, that will be used for Azure Stack registration to Azure, is correctly formatted..."
         
     if ($azureRegUsername -cmatch $emailRegex -eq $true) {
-        Write-Verbose "Azure AD username is correctly formatted."
-        Write-Verbose "$azureRegUsername will be used to register this ADFS-based Azure Stack to Azure."
+        Write-LogMessage -Message "Azure AD username is correctly formatted."
+        Write-LogMessage -Message "$azureRegUsername will be used to register this ADFS-based Azure Stack to Azure."
     }
         
     elseif ($azureRegUsername -cmatch $emailRegex -eq $false) {
-        Write-Verbose "Azure AD username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
+        Write-LogMessage -Message "Azure AD username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
         # Obtain new username
         $azureRegUsername = Read-Host "Enter Azure AD username again"
         if ($azureRegUsername -cmatch $emailRegex -eq $true) {
-            Write-Verbose "Azure AD username is correctly formatted."
-            Write-Verbose "$azureRegUsername will be used to register this ADFS-based Azure Stack to Azure."
+            Write-LogMessage -Message "Azure AD username is correctly formatted."
+            Write-LogMessage -Message "$azureRegUsername will be used to register this ADFS-based Azure Stack to Azure."
         }
         else {
-            Write-Verbose "No valid Azure AD username was entered again. Exiting process..." -ErrorAction Stop
+            Write-LogMessage -Message "No valid Azure AD username was entered again. Exiting process..." -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
@@ -582,19 +585,19 @@ if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
         
     ### Validate Azure AD Registration Password ADFS-based Azure Stack ###
 
-    Write-Verbose "Checking for an Azure AD password - this account will be used to register the ADFS-based ASDK to Azure..."
+    Write-LogMessage -Message "Checking for an Azure AD password - this account will be used to register the ADFS-based ASDK to Azure..."
         
     if ([string]::IsNullOrEmpty($azureRegPwd)) {
-        Write-Verbose "You didn't enter the Azure AD password that you want to use for registration." 
+        Write-LogMessage -Message "You didn't enter the Azure AD password that you want to use for registration." 
         $secureAzureRegPwd = Read-Host "Please enter the Azure AD password you wish to use for registration. It should ideally be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureRegPwd)            
         $azureRegPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
     }
 
-    Write-Verbose "Checking to see if Azure AD password for registration is strong..."
+    Write-LogMessage -Message "Checking to see if Azure AD password for registration is strong..."
 
     if ($azureRegPwd -cmatch $regex -eq $true) {
-        Write-Verbose "Azure AD password meets desired complexity level" 
+        Write-LogMessage -Message "Azure AD password meets desired complexity level" 
         # Convert plain text password to a secure string
         $secureAzureRegPwd = ConvertTo-SecureString -AsPlainText $azureRegPwd -Force
         $azureRegCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureRegUsername, $secureAzureRegPwd) -ErrorAction Stop
@@ -610,18 +613,18 @@ if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
 
 if ($registerASDK) {
 
-    Write-Verbose "Checking for a valid Azure subscription ID that will be used to register the Azure Stack to Azure"
+    Write-LogMessage -Message "Checking for a valid Azure subscription ID that will be used to register the Azure Stack to Azure"
     ### Validate Azure Subscription ID for Registration ###
     if ([string]::IsNullOrEmpty($azureRegSubId)) {
-        Write-Verbose "You didn't enter a subscription ID for registering your Azure Stack in Azure."
+        Write-LogMessage -Message "You didn't enter a subscription ID for registering your Azure Stack in Azure."
         $azureRegSubId = Read-Host "Please enter a valid Azure subscription ID" -ErrorAction Stop
     }      
     if ($azureRegSubId) {
-        Write-Verbose "Azure subscription ID has been provided."
-        Write-Verbose "$azureRegSubId will be used to register this Azure Stack with Azure."
+        Write-LogMessage -Message "Azure subscription ID has been provided."
+        Write-LogMessage -Message "$azureRegSubId will be used to register this Azure Stack with Azure."
     }   
     elseif ([string]::IsNullOrEmpty($azureRegSubId)) {
-        Write-Verbose "No valid Azure subscription ID was entered again. Exiting process..." -ErrorAction Stop
+        Write-LogMessage -Message "No valid Azure subscription ID was entered again. Exiting process..." -ErrorAction Stop
         Set-Location $ScriptLocation
         return    
     }
@@ -635,7 +638,7 @@ Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"}
 Clear-AzureRmContext -Scope CurrentUser -Force
 
 # Register an AzureRM environment that targets your administrative Azure Stack instance
-Write-Verbose "ASDK Configurator will now test all logins"
+Write-LogMessage -Message "ASDK Configurator will now test all logins"
 $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
 $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority
@@ -643,10 +646,10 @@ $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthor
 if ($authenticationType.ToString() -like "AzureAd") {
     try {
         ### TEST AZURE LOGIN - Login to Azure Cloud (used for App Service App creation)
-        Write-Verbose "Testing Azure login with Azure Active Directory"
+        Write-LogMessage -Message "Testing Azure login with Azure Active Directory"
         Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId "$azureDirectoryTenantName" -Credential $asdkCreds -ErrorAction Stop | Out-Null
         $testAzureSub = Get-AzureRmContext
-        Write-Verbose "Selected Azure Subscription is:"
+        Write-LogMessage -Message "Selected Azure Subscription is:"
         $testAzureSub
         Start-Sleep -Seconds 5
         # Clear Azure login
@@ -654,21 +657,21 @@ if ($authenticationType.ToString() -like "AzureAd") {
         Clear-AzureRmContext -Scope CurrentUser -Force
 
         ### TEST AZURE STACK LOGIN - Login to Azure Stack
-        Write-Verbose ("Testing Azure Stack login with Azure Active Directory")
-        Write-Verbose ("Setting GraphEndpointResourceId value for Azure AD")
+        Write-LogMessage -Message "Testing Azure Stack login with Azure Active Directory"
+        Write-LogMessage -Message "Setting GraphEndpointResourceId value for Azure AD"
         Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
-        Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
+        Write-LogMessage -Message "Getting Tenant ID for Login to Azure Stack"
         $endpt = "{0}{1}/.well-known/openid-configuration" -f $ADauth, $azureDirectoryTenantName
         $OauthMetadata = (Invoke-WebRequest -UseBasicParsing $endpt).Content | ConvertFrom-Json
         $TenantID = $OauthMetadata.Issuer.Split('/')[3]
-        Write-Verbose "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
+        Write-LogMessage -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Clear Azure login
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
         Clear-AzureRmContext -Scope CurrentUser -Force
     }
     catch {
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-LogMessage -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
@@ -676,19 +679,19 @@ if ($authenticationType.ToString() -like "AzureAd") {
 elseif ($authenticationType.ToString() -like "ADFS") {
     try {
         ### TEST AZURE STACK LOGIN with ADFS - Login to Azure Stack
-        Write-Verbose ("Testing Azure Stack login with ADFS")
-        Write-Verbose ("Setting GraphEndpointResourceId value for ADFS")
+        Write-LogMessage -Message "Testing Azure Stack login with ADFS"
+        Write-LogMessage -Message "Setting GraphEndpointResourceId value for ADFS"
         Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
-        Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
+        Write-LogMessage -Message "Getting Tenant ID for Login to Azure Stack"
         $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
-        Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
+        Write-LogMessage -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Clean up current logins
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
         Clear-AzureRmContext -Scope CurrentUser -Force
     }
     catch {
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-LogMessage -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
@@ -696,10 +699,10 @@ elseif ($authenticationType.ToString() -like "ADFS") {
 if ($registerASDK) {
     try {
         ### OPTIONAL - TEST AZURE REGISTRATION CREDS
-        Write-Verbose "Testing Azure login for registration with Azure Active Directory"
+        Write-LogMessage -Message "Testing Azure login for registration with Azure Active Directory"
         Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
         $testAzureRegSub = Get-AzureRmContext
-        Write-Verbose "Selected Azure Subscription used for registration is:"
+        Write-LogMessage -Message "Selected Azure Subscription used for registration is:"
         $testAzureRegSub
         Start-Sleep -Seconds 5
         # Clear Azure login
@@ -707,14 +710,14 @@ if ($registerASDK) {
         Clear-AzureRmContext -Scope CurrentUser -Force
     }
     catch {
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-LogMessage -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
 }
 elseif (!$registerASDK) {
-    Write-Verbose "User has chosen to not register the ASDK with Azure"
-    Write-Verbose "No need to test login for registration"
+    Write-LogMessage -Message "User has chosen to not register the ASDK with Azure"
+    Write-LogMessage -Message "No need to test login for registration"
 }
 
 # Clean up current logins
