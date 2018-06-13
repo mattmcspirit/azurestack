@@ -151,6 +151,38 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 try {Stop-Transcript | Out-Null} catch {}
 
+### LOG MESSAGE FUNCTION ####################################################################################################################################
+#############################################################################################################################################################
+function Write-LogMessage {
+    [cmdletbinding()]
+    param
+    (
+        [string]$SystemName = "ASDK-CONFIGURATOR",
+        [parameter(Mandatory = $false)]
+        [string]$Message = '',
+        [parameter(Mandatory = $false)]
+        [boolean]$NoNewLine
+    )
+    begin {}
+    process {
+        Write-Verbose "Writing log message"
+        # Function for displaying formatted log messages.  Also displays time in minutes since the script was started
+        Write-Host (Get-Date).ToShortTimeString() -ForegroundColor Cyan -NoNewline;
+        Write-Host ' - [' -ForegroundColor White -NoNewline;
+        Write-Host $systemName -ForegroundColor Yellow -NoNewline;  
+        if ($NoNewLine) {
+            write-Host "]::$($message)" -ForegroundColor White -NoNewline;
+        }
+        else {
+            write-Host "]::$($message)" -ForegroundColor White;
+        }
+    }
+    end {}
+}
+
+#############################################################################################################################################################
+#############################################################################################################################################################
+
 Write-Verbose "Validating if running under Admin Privileges"
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if (!($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))) {
@@ -699,7 +731,6 @@ Invoke-WebRequest -Uri "http://bit.ly/asdkcounter" -UseBasicParsing -ErrorAction
 
 ### DOWNLOADER FUNCTION #####################################################################################################################################
 #############################################################################################################################################################
-
 function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
     while ($true) {
         try {
