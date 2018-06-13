@@ -1324,7 +1324,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Write-CustomVerbose -Message "Found ID: KB$($kbID.articleID)"
             $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($kbID.articleID)" -UseBasicParsing
             $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-            $Available_kbIDs | Out-String | Write-CustomVerbose -Message
+            $Available_kbIDs | Out-String | Write-Verbose
             $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
 
             # If innerHTML is empty or does not exist, use outerHTML instead
@@ -1844,6 +1844,14 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLRP")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipMySQL) {
+    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
+    if ($progress[$RowIndex].Status -eq "Skipped") {
+        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Incomplete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        $RowIndex = [array]::IndexOf($progress.Stage, "MySQLRP")
+    }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Login to Azure Stack
@@ -1884,7 +1892,7 @@ if (!$skipMySQL) {
         Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
-elseif ($skipMySQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
+elseif ($skipMySQL) {
     Write-CustomVerbose -Message "Operator chose to skip MySQL Resource Provider Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
