@@ -165,7 +165,7 @@ function Write-CustomVerbose {
     process {
         $verboseTime = (Get-Date).ToShortTimeString()
         # Function for displaying formatted log messages.  Also displays time in minutes since the script was started
-        Write-CustomVerbose -Message "[$verboseTime]::[$scriptStep]:: $Message"
+        Write-Verbose -Message "[$verboseTime]::[$scriptStep]:: $Message"
     }
     end {}
 }
