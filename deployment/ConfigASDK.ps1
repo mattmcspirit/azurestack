@@ -165,7 +165,7 @@ function Write-CustomVerbose {
     process {
         $verboseTime = (Get-Date).ToShortTimeString()
         # Function for displaying formatted log messages.  Also displays time in minutes since the script was started
-        Write-Verbose -Message "[$verboseTime]::[$scriptStep]:: $Message"
+        Write-CustomVerbose -Message "[$verboseTime]::[$scriptStep]:: $Message"
     }
     end {}
 }
@@ -232,20 +232,21 @@ elseif ($validDownloadPath -eq $false) {
 
 ### Start Logging ###
 $logTime = $(Get-Date).ToString("MMdd-HHmmss")
-Start-Transcript -Path "$downloadPath\ConfigASDKLog$logTime.txt" -Append
+$logStart = Start-Transcript -Path "$downloadPath\ConfigASDKLog$logTime.txt" -Append
+Write-CustomVerbose -Message $logStart
 
 ### Check if ConfigASDKProgressLog.csv exists ###
 $ConfigASDKProgressLogPath = "$downloadPath\ConfigASDKProgressLog.csv"
 $validConfigASDKProgressLogPath = [System.IO.File]::Exists($ConfigASDKProgressLogPath)
 If ($validConfigASDKProgressLogPath -eq $true) {
     Write-CustomVerbose -Message "ConfigASDkProgressLog.csv exists - this must be a rerun"
-    Write-CustomVerbose -Message "Starting from previous failed step"
+    Write-CustomVerbose -Message "Starting from previous failed step`r`n"
     $progress = Import-Csv $ConfigASDKProgressLogPath
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 elseif ($validConfigASDKProgressLogPath -eq $false) {
     Write-CustomVerbose -Message "No ConfigASDkProgressLog.csv exists - this must be a fresh deployment"
-    Write-CustomVerbose -Message "Creating ConfigASDKProgressLog.csv"
+    Write-CustomVerbose -Message "Creating ConfigASDKProgressLog.csv`r`n"
     Add-Content -Path $ConfigASDKProgressLogPath -Value '"Stage","Status"' -Force -Confirm:$false
     $ConfigASDKprogress = @(
         '"DownloadTools","Incomplete"'
@@ -278,7 +279,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
     )
     $ConfigASDKprogress | ForEach-Object { Add-Content -Path $ConfigASDKProgressLogPath -Value $_ }
     $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-    Write-Output "`r`n $progress"
+    Write-Output $progress | Out-Host
 }
 
 ### Validate path to ISO File ###
@@ -636,10 +637,10 @@ $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthor
 if ($authenticationType.ToString() -like "AzureAd") {
     try {
         ### TEST AZURE LOGIN - Login to Azure Cloud (used for App Service App creation)
-        Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory"
+        Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r`n"
         Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId "$azureDirectoryTenantName" -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $testAzureSub = Get-AzureRmContext
-        Write-CustomVerbose -Message "Selected Azure Subscription is:"
+        $testAzureSub = Get-AzureRmContext | Out-Null
+        Write-CustomVerbose -Message "Selected Azure Subscription is:`r`n`r`n"
         Write-Output $testAzureSub
         Start-Sleep -Seconds 5
         # Clear Azure login
@@ -648,13 +649,13 @@ if ($authenticationType.ToString() -like "AzureAd") {
 
         ### TEST AZURE STACK LOGIN - Login to Azure Stack
         Write-CustomVerbose -Message "Testing Azure Stack login with Azure Active Directory"
-        Write-CustomVerbose -Message "Setting GraphEndpointResourceId value for Azure AD"
+        Write-CustomVerbose -Message "Setting GraphEndpointResourceId value for Azure AD`r`n`r`n"
         Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
         Write-CustomVerbose -Message "Getting Tenant ID for Login to Azure Stack"
         $endpt = "{0}{1}/.well-known/openid-configuration" -f $ADauth, $azureDirectoryTenantName
         $OauthMetadata = (Invoke-WebRequest -UseBasicParsing $endpt).Content | ConvertFrom-Json
         $TenantID = $OauthMetadata.Issuer.Split('/')[3]
-        Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
+        Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory`r`n`r`n"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Clear Azure login
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
@@ -670,11 +671,11 @@ elseif ($authenticationType.ToString() -like "ADFS") {
     try {
         ### TEST AZURE STACK LOGIN with ADFS - Login to Azure Stack
         Write-CustomVerbose -Message "Testing Azure Stack login with ADFS"
-        Write-CustomVerbose -Message "Setting GraphEndpointResourceId value for ADFS"
+        Write-CustomVerbose -Message "Setting GraphEndpointResourceId value for ADFS`r`n`r`n"
         Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
         Write-CustomVerbose -Message "Getting Tenant ID for Login to Azure Stack"
         $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
-        Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
+        Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS`r`n`r`n"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Clean up current logins
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
@@ -689,10 +690,10 @@ elseif ($authenticationType.ToString() -like "ADFS") {
 if ($registerASDK) {
     try {
         ### OPTIONAL - TEST AZURE REGISTRATION CREDS
-        Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory"
+        Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory`r`n"
         Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-        $testAzureRegSub = Get-AzureRmContext
-        Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:"
+        $testAzureRegSub = Get-AzureRmContext | Out-Null
+        Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:`r`n`r`n"
         Write-Output $testAzureRegSub
         Start-Sleep -Seconds 5
         # Clear Azure login
@@ -714,7 +715,7 @@ elseif (!$registerASDK) {
 Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
 Clear-AzureRmContext -Scope CurrentUser -Force
 
-<### Run Counter #############################################################################################################################################
+### Run Counter #############################################################################################################################################
 #############################################################################################################################################################
 
 # Once logins have been successfully tested, increment run counter to track usage
@@ -732,10 +733,10 @@ function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [i
         }
         catch {
             $exceptionMessage = $_.Exception.Message
-            Write-Verbose "Failed to download '$downloadURI': $exceptionMessage"
+            Write-CustomVerbose -Message "Failed to download '$downloadURI': $exceptionMessage"
             if ($retries -gt 0) {
                 $retries--
-                Write-Verbose "Waiting 10 seconds before retrying. Retries left: $retries"
+                Write-CustomVerbose -Message "Waiting 10 seconds before retrying. Retries left: $retries"
                 Start-Sleep -Seconds 10
             }
             else {
@@ -753,21 +754,22 @@ function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [i
 
 $ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
 If ($ASDKpath -eq $true) {
-    Write-Verbose "ASDK folder exists at $downloadPath - no need to create it."
-    Write-Verbose "Download files will be placed in $downloadPath\ASDK"
+    Write-CustomVerbose -Message "ASDK folder exists at $downloadPath - no need to create it."
+    Write-CustomVerbose -Message "Download files will be placed in $downloadPath\ASDK"
     $ASDKpath = "$downloadPath\ASDK"
-    Write-Verbose "ASDK folder full path is $ASDKpath"
+    Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
 }
 elseif ($ASDKpath -eq $false) {
     # Create the ASDK folder.
-    Write-Verbose "ASDK folder doesn't exist within $downloadPath, creating it"
+    Write-CustomVerbose -Message "ASDK folder doesn't exist within $downloadPath, creating it"
     mkdir "$downloadPath\ASDK" -Force | Out-Null
     $ASDKpath = "$downloadPath\ASDK"
-    Write-Verbose "ASDK folder full path is $ASDKpath"
+    Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
 }
 
 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "DownloadTools")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
 
@@ -776,38 +778,39 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Download the tools archive using a function incase the download fails or is interrupted.
         $toolsURI = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
         $toolsDownloadLocation = "$ASDKpath\master.zip"
-        Write-Verbose "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
-        Write-Verbose "The download will be stored in $ASDKpath."
+        Write-CustomVerbose -Message "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
+        Write-CustomVerbose -Message "The download will be stored in $ASDKpath."
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         DownloadWithRetry -downloadURI "$toolsURI" -downloadLocation "$toolsDownloadLocation" -retries 10
 
         # Expand the downloaded files
-        Write-Verbose "Expanding Archive"
-        expand-archive "$toolsDownloadLocation" -DestinationPath "C:\" -Force
-        Write-Verbose "Archive expanded. Cleaning up."
+        Write-CustomVerbose -Message "Expanding Archive"
+        Expand-Archive "$toolsDownloadLocation" -DestinationPath "C:\" -Force
+        Write-CustomVerbose -Message "Archive expanded. Cleaning up."
         Remove-Item "$toolsDownloadLocation" -Force -ErrorAction Stop
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+        Write-Output $progress | Out-Host
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return        
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 # Change to the tools directory
-Write-Verbose "Changing Directory"
+Write-CustomVerbose -Message "Changing Directory"
 $modulePath = "C:\AzureStack-Tools-master"
 Set-Location $modulePath
 Disable-AzureRmDataCollection -WarningAction SilentlyContinue
@@ -816,19 +819,20 @@ Disable-AzureRmDataCollection -WarningAction SilentlyContinue
 ########################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "HostConfiguration")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         # Set password expiration to 180 days
-        Write-Verbose "Configuring password expiration policy"
+        Write-CustomVerbose -Message "Configuring password expiration policy"
         Set-ADDefaultDomainPasswordPolicy -MaxPasswordAge 180.00:00:00 -Identity azurestack.local
         Get-ADDefaultDomainPasswordPolicy
 
         # Set Power Policy
-        Write-Verbose "Optimizing power policy for high performance"
+        Write-CustomVerbose -Message "Optimizing power policy for high performance"
         POWERCFG.EXE /S SCHEME_MIN
 
         # Disable Windows Update on infrastructure VMs
-        Write-Verbose "Disabling Windows Update on Infrastructure VMs and ASDK Host`r`n"
+        Write-CustomVerbose -Message "Disabling Windows Update on Infrastructure VMs and ASDK Host`r`n"
         $AZSvms = Get-VM -Name AZS*
         $scriptblock = {
             Get-Service -Name wuauserv | Stop-Service -Force -PassThru | Set-Service -StartupType disabled -Confirm:$false
@@ -843,45 +847,46 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $serviceArray = "wuauserv", "DNS"
         foreach ($service in $serviceArray) {
             if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
-                Write-Verbose "Stopping Service: $service"
+                Write-CustomVerbose -Message "Stopping Service: $service"
                 Stop-Service -Name $service -Force -PassThru
-                Write-Verbose "Disabling Service: $service at startup"
+                Write-CustomVerbose -Message "Disabling Service: $service at startup"
                 Set-Service -Name $service -StartupType disabled -Confirm:$false
             }
             else {
-                Write-Verbose "Service: $service not found, continuing process..."
+                Write-CustomVerbose -Message "Service: $service not found, continuing process..."
             }
         }
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-
-        Write-Verbose "`r`nHost configuration is now complete."
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "`r`nHost configuration is now complete."
     }
     Catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "Registration")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($registerASDK) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
-            Write-Verbose "Starting Azure Stack registration to Azure"
+            Write-CustomVerbose -Message "Starting Azure Stack registration to Azure"
             # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
             Add-AzureRmAccount -EnvironmentName "AzureCloud" -Subscription $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
             # Register the Azure Stack resource provider in your Azure subscription
@@ -892,58 +897,59 @@ if ($registerASDK) {
             $AzureContext = Get-AzureRmContext
             Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ErrorAction Stop
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif (!$registerASDK) {
-    Write-Verbose "Skipping Azure Stack registration to Azure"
+    Write-CustomVerbose -Message "Skipping Azure Stack registration to Azure`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 ### CONNECT TO AZURE STACK #############################################################################################################################
 ########################################################################################################################################################
-
+$scriptStep = "CONNECTING"
 # Add GraphEndpointResourceId value for Azure AD or ADFS and obtain Tenant ID, then login to Azure Stack
 if ($authenticationType.ToString() -like "AzureAd") {
-    Write-Verbose ("Azure Active Directory selected by Administrator")
-    Write-Verbose ("Setting GraphEndpointResourceId value for Azure AD")
+    Write-CustomVerbose -Message "Azure Active Directory selected by Administrator"
+    Write-CustomVerbose -Message "Setting GraphEndpointResourceId value for Azure AD"
     Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
-    Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
+    Write-CustomVerbose -Message "Getting Tenant ID for Login to Azure Stack"
     $endpt = "{0}{1}/.well-known/openid-configuration" -f $ADauth, $azureDirectoryTenantName
     $OauthMetadata = (Invoke-WebRequest -UseBasicParsing $endpt).Content | ConvertFrom-Json
     $TenantID = $OauthMetadata.Issuer.Split('/')[3]
-    Write-Verbose "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
+    Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
 }
 elseif ($authenticationType.ToString() -like "ADFS") {
-    Write-Verbose ("Active Directory Federation Services selected by Administrator")
-    Write-Verbose ("Setting GraphEndpointResourceId value for ADFS")
+    Write-CustomVerbose -Message "Active Directory Federation Services selected by Administrator"
+    Write-CustomVerbose -Message "Setting GraphEndpointResourceId value for ADFS"
     Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.local.azurestack.external/" -EnableAdfsAuthentication:$true
-    Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
+    Write-CustomVerbose -Message "Getting Tenant ID for Login to Azure Stack"
     $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
-    Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
+    Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
 }
 else {
-    Write-Verbose ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
+    Write-CustomVerbose -Message ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
 }
 
 # Get Azure Stack location
@@ -952,12 +958,14 @@ $azsLocation = (Get-AzsLocation).Name
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
 ##############################################################################################################################################################
 
+$RowIndex = [array]::IndexOf($progress.Stage, "UbuntuImage")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+
 # Create RG
 $asdkImagesRGName = "azurestack-images"
 $asdkImagesStorageAccountName = "asdkimagesstor"
 $asdkImagesContainerName = "asdkimagescontainer"
 
-$RowIndex = [array]::IndexOf($progress.Stage, "UbuntuImage")
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
 
@@ -1072,43 +1080,43 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         ### Log back into Azure Stack to check for existing images and push new ones if required ###
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
-        Write-Verbose "Checking to see if an Ubuntu Server 16.04-LTS VM Image is present in your Azure Stack Platform Image Repository"
+        Write-CustomVerbose -Message "Checking to see if an Ubuntu Server 16.04-LTS VM Image is present in your Azure Stack Platform Image Repository"
         if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-            Write-Verbose "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
-            Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
+            Write-CustomVerbose -Message "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
+            Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
         }
 
         else {
-            Write-Verbose "No existing suitable Ubuntu Server 1604-LTS VM image exists." 
-            Write-Verbose "The Ubuntu Server VM Image in the Azure Stack Platform Image Repository must have the following properties:"
-            Write-Verbose "Publisher Name = $($azpkg.publisher)"
-            Write-Verbose "Offer = $($azpkg.offer)"
-            Write-Verbose "SKU = $($azpkg.sku)"
-            Write-Verbose "Version = $($azpkg.vhdVersion)"
-            Write-Verbose "Unfortunately, no image was found with these properties."
-            Write-Verbose "Checking to see if the Ubuntu Server VHD already exists in ASDK Configurator folder"
+            Write-CustomVerbose -Message "No existing suitable Ubuntu Server 1604-LTS VM image exists." 
+            Write-CustomVerbose -Message "The Ubuntu Server VM Image in the Azure Stack Platform Image Repository must have the following properties:"
+            Write-CustomVerbose -Message "Publisher Name = $($azpkg.publisher)"
+            Write-CustomVerbose -Message "Offer = $($azpkg.offer)"
+            Write-CustomVerbose -Message "SKU = $($azpkg.sku)"
+            Write-CustomVerbose -Message "Version = $($azpkg.vhdVersion)"
+            Write-CustomVerbose -Message "Unfortunately, no image was found with these properties."
+            Write-CustomVerbose -Message "Checking to see if the Ubuntu Server VHD already exists in ASDK Configurator folder"
 
             $validDownloadPathVHD = [System.IO.File]::Exists("$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).vhd")
             $validDownloadPathZIP = [System.IO.File]::Exists("$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip")
 
             if ($validDownloadPathVHD -eq $true) {
-                Write-Verbose "Located Ubuntu Server VHD in this folder. No need to download again..."
+                Write-CustomVerbose -Message "Located Ubuntu Server VHD in this folder. No need to download again..."
                 $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).vhd"
-                Write-Verbose "Ubuntu Server VHD located at $UbuntuServerVHD"
+                Write-CustomVerbose -Message "Ubuntu Server VHD located at $UbuntuServerVHD"
             }
             elseif ($validDownloadPathZIP -eq $true) {
-                Write-Verbose "Cannot find a previously extracted Ubuntu Server VHD with name $($azpkg.offer)$($azpkg.vhdVersion).vhd"
-                Write-Verbose "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
+                Write-CustomVerbose -Message "Cannot find a previously extracted Ubuntu Server VHD with name $($azpkg.offer)$($azpkg.vhdVersion).vhd"
+                Write-CustomVerbose -Message "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
                 $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip"
-                Write-Verbose "Ubuntu Server ZIP located at $UbuntuServerZIP"
+                Write-CustomVerbose -Message "Ubuntu Server ZIP located at $UbuntuServerZIP"
                 Expand-Archive -Path $UbuntuServerZIP -DestinationPath $ASDKpath -Force -ErrorAction Stop
                 $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
             }
             else {
                 # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
                 # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
-                Write-Verbose "Cannot find a previously extracted Ubuntu Server download or ZIP file"
-                Write-Verbose "Begin download of correct Ubuntu Server ZIP and extraction of VHD into $ASDKpath"
+                Write-CustomVerbose -Message "Cannot find a previously extracted Ubuntu Server download or ZIP file"
+                Write-CustomVerbose -Message "Begin download of correct Ubuntu Server ZIP and extraction of VHD into $ASDKpath"
 
                 if ($registerASDK) {
                     $ubuntuBuild = $azpkg.vhdVersion
@@ -1128,7 +1136,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
 
             # Upload the image to the Azure Stack Platform Image Repository
-            Write-Verbose "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
+            Write-CustomVerbose -Message "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
 
             # If the user has chosen to register the ASDK, the script will NOT create a gallery item as part of the image upload
             
@@ -1138,7 +1146,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             # Check there's not a VHD already uploaded to storage
             if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($ubuntuUploadSuccess)) {
-                Write-Verbose "You already have an upload of $($UbuntuServerVHD.Name) within your Storage Account. No need to re-upload."
+                Write-CustomVerbose -Message "You already have an upload of $($UbuntuServerVHD.Name) within your Storage Account. No need to re-upload."
             }
             elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess)) {
                 Try {
@@ -1149,7 +1157,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 }
                 catch {
                     $ubuntuUploadSuccess = $false
-                    Write-Verbose $_.Exception.Message -ErrorAction Stop
+                    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
                     Set-Location $ScriptLocation
                     return
                 }
@@ -1162,7 +1170,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 }
                 catch {
                     $ubuntuUploadSuccess = $false
-                    Write-Verbose $_.Exception.Message -ErrorAction Stop
+                    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
                     Set-Location $ScriptLocation
                     return
                 }
@@ -1175,10 +1183,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$ubuntuServerURI" -Force -Confirm: $false
             }
             if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-                Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
-                Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
+                Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
+                Write-CustomVerbose -Message "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
                 Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Remove-Item -Force
-                Write-Verbose "Cleaning up VHD from storage account"
+                Write-CustomVerbose -Message "Cleaning up VHD from storage account"
                 Remove-AzureStorageBlob -Blob $UbuntuServerVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
             }
             elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
@@ -1192,64 +1200,66 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         ### If the user has chosen to register the ASDK as part of the process, the script will side load an AZPKG from the Azure Stack Marketplace ###
         
         # Upload AZPKG package
-        Write-Verbose "Checking for the following packages: $($azpkg.name)"
+        Write-CustomVerbose -Message "Checking for the following packages: $($azpkg.name)"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
-            Write-Verbose "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
+            Write-CustomVerbose -Message "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
         }
         else {
-            Write-Verbose "Didn't find this package: $($azpkg.name)"
-            Write-Verbose "Will need to side load it in to the gallery"
+            Write-CustomVerbose -Message "Didn't find this package: $($azpkg.name)"
+            Write-CustomVerbose -Message "Will need to side load it in to the gallery"
                 
             if ($registerASDK) {
                 $galleryItemUri = $($azpkg.azpkgPath)
-                Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
+                Write-CustomVerbose -Message "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
                 $galleryItemUri = $($azpkg.azpkgPath)
             }
             else {
                 $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
-                Write-Verbose "Uploading $($azpkg.name) from $galleryItemUri"
+                Write-CustomVerbose -Message "Uploading $($azpkg.name) from $galleryItemUri"
             }
             $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-                Write-Verbose "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-Verbose "Uploading $($azpkg.name) from $galleryItemUri"
+                Write-CustomVerbose -Message "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                Write-CustomVerbose -Message "Uploading $($azpkg.name) from $galleryItemUri"
                 $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
                 Start-Sleep -Seconds 5
             }
         }
         Remove-Variable $ubuntuUploadSuccess -Force -ErrorAction SilentlyContinue
         # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+        Write-Output $progress | Out-Host
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 ### ADD WINDOWS SERVER 2016 PLATFORM IMAGES ##################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "WindowsImage")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         ### Log back into Azure Stack to check for existing images and push new ones if required ###
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
-        Write-Verbose "Checking to see if a Windows Server 2016 image is present in your Azure Stack Platform Image Repository"
+        Write-CustomVerbose -Message "Checking to see if a Windows Server 2016 image is present in your Azure Stack Platform Image Repository"
         # Pre-validate that the Windows Server 2016 Server Core VM Image is not already available
 
         Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
@@ -1258,7 +1268,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $serverCoreVMImageAlreadyAvailable = $false
 
         if ($platformImageCore -ne $null -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
-            Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
+            Write-CustomVerbose -Message "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverCoreVMImageAlreadyAvailable = $true
         }
 
@@ -1269,23 +1279,23 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $serverFullVMImageAlreadyAvailable = $false
 
         if ($platformImageFull -ne $null -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
-            Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
+            Write-CustomVerbose -Message "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverFullVMImageAlreadyAvailable = $true
         }
 
         if ($serverCoreVMImageAlreadyAvailable -eq $false) {
             $downloadCURequired = $true
-            Write-Verbose "You're missing the Windows Server 2016 Datacenter Server Core image in your Platform Image Repository."
+            Write-CustomVerbose -Message "You're missing the Windows Server 2016 Datacenter Server Core image in your Platform Image Repository."
         }
 
         if ($serverFullVMImageAlreadyAvailable -eq $false) {
             $downloadCURequired = $true
-            Write-Verbose "You're missing the Windows Server 2016 Datacenter Full image in your Platform Image Repository."
+            Write-CustomVerbose -Message "You're missing the Windows Server 2016 Datacenter Full image in your Platform Image Repository."
         }
 
         if (($serverCoreVMImageAlreadyAvailable -eq $true) -and ($serverFullVMImageAlreadyAvailable -eq $true)) {
             $downloadCURequired = $false
-            Write-Verbose "Windows Server 2016 Datacenter Full and Core Images already exist in your Platform Image Repository"
+            Write-CustomVerbose -Message "Windows Server 2016 Datacenter Full and Core Images already exist in your Platform Image Repository"
         }
 
         ### Download the latest Cumulative Update for Windows Server 2016 - Existing Azure Stack Tools module doesn't work ###
@@ -1300,21 +1310,21 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
             Dismount-DiskImage -ImagePath $ISOPath
 
-            Write-Verbose "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
+            Write-CustomVerbose -Message "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
             # Define parameters
             $StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
             $Build = $buildVersion
             $SearchString = 'Cumulative.*Server.*x64'
 
             # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
-            Write-Verbose "Downloading $StartKB to retrieve the list of updates."
+            Write-CustomVerbose -Message "Downloading $StartKB to retrieve the list of updates."
             $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $Build | Select-Object -First 1
 
             # Get Download Link for the corresponding Cumulative Update
-            Write-Verbose "Found ID: KB$($kbID.articleID)"
+            Write-CustomVerbose -Message "Found ID: KB$($kbID.articleID)"
             $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($kbID.articleID)" -UseBasicParsing
             $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-            $Available_kbIDs | Out-String | Write-Verbose
+            $Available_kbIDs | Out-String | Write-CustomVerbose -Message
             $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
 
             # If innerHTML is empty or does not exist, use outerHTML instead
@@ -1325,7 +1335,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $Urls = @()
 
             ForEach ( $kbID in $kbIDs ) {
-                Write-Verbose "KB ID: $kbID"
+                Write-CustomVerbose -Message "KB ID: $kbID"
                 $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
                 $PostBody = @{ updateIDs = "[$Post]" } 
                 $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
@@ -1335,23 +1345,23 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             ForEach ( $Url in $Urls ) {
                 $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
                 $target = "$((Get-Item $ASDKpath).FullName)\$filename"
-                Write-Verbose "Windows Server 2016 Cumulative Update will be stored at $target"
-                Write-Verbose "These are generally larger than 1GB, so may take a few minutes."
+                Write-CustomVerbose -Message "Windows Server 2016 Cumulative Update will be stored at $target"
+                Write-CustomVerbose -Message "These are generally larger than 1GB, so may take a few minutes."
                 If (!(Test-Path -Path $target)) {
                     DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
                 }
                 Else {
-                    Write-Verbose "File exists: $target. Skipping download."
+                    Write-CustomVerbose -Message "File exists: $target. Skipping download."
                 }
             }
-            Write-Verbose "Creating Windows Server 2016 Evaluation images..."
+            Write-CustomVerbose -Message "Creating Windows Server 2016 Evaluation images..."
 
             try {
                 # Download Convert-WindowsImage.ps1
                 $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
                 $convertWindowsDownloadLocation = "$ASDKpath\Convert-WindowsImage.ps1"
-                Write-Verbose "Downloading Convert-WindowsImage.ps1 to create the VHD from the ISO"
-                Write-Verbose "The download will be stored in $ASDKpath."
+                Write-CustomVerbose -Message "Downloading Convert-WindowsImage.ps1 to create the VHD from the ISO"
+                Write-CustomVerbose -Message "The download will be stored in $ASDKpath."
                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                 DownloadWithRetry -downloadURI "$convertWindowsURI" -downloadLocation "$convertWindowsDownloadLocation" -retries 10
                 Set-Location $ASDKpath
@@ -1389,7 +1399,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
                     # Check there's not a VHD already uploaded to storage
                     if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($serverCoreUploadSuccess)) {
-                        Write-Verbose "You already have an upload of $($serverCoreVHD.Name) within your Storage Account. No need to re-upload."
+                        Write-CustomVerbose -Message "You already have an upload of $($serverCoreVHD.Name) within your Storage Account. No need to re-upload."
                     }
                     elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverCoreUploadSuccess)) {
                         Try {
@@ -1400,7 +1410,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         }
                         catch {
                             $serverCoreUploadSuccess = $false
-                            Write-Verbose $_.Exception.Message -ErrorAction Stop
+                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
                             Set-Location $ScriptLocation
                             return
                         }
@@ -1414,7 +1424,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         }
                         catch {
                             $serverCoreUploadSuccess = $false
-                            Write-Verbose $_.Exception.Message -ErrorAction Stop
+                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
                             Set-Location $ScriptLocation
                             return
                         }
@@ -1422,10 +1432,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     Add-AzsPlatformImage -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -OsType "Windows" -OsUri "$serverCoreURI" -Force -Confirm: $false
 
                     if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-                        Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f "MicrosoftWindowsServer", "WindowsServer", "2016-Datacenter-Server-Core", "1.0.0") -ErrorAction SilentlyContinue
-                        Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
+                        Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f "MicrosoftWindowsServer", "WindowsServer", "2016-Datacenter-Server-Core", "1.0.0") -ErrorAction SilentlyContinue
+                        Write-CustomVerbose -Message "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
                         Get-ChildItem -Path "$ASDKpath" -Filter *ServerCore.vhd | Remove-Item -Force
-                        Write-Verbose "Cleaning up VHD from storage account"
+                        Write-CustomVerbose -Message "Cleaning up VHD from storage account"
                         Remove-AzureStorageBlob -Blob $serverCoreVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                     }
                     elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
@@ -1451,7 +1461,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
                     # Check there's not a VHD already uploaded to storage
                     if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($serverFullUploadSuccess)) {
-                        Write-Verbose "You already have an upload of $($serverFullVHD.Name) within your Storage Account. No need to re-upload."
+                        Write-CustomVerbose -Message "You already have an upload of $($serverFullVHD.Name) within your Storage Account. No need to re-upload."
                     }
                     elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess)) {
                         Try {
@@ -1462,7 +1472,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         }
                         catch {
                             $serverFullUploadSuccess = $false
-                            Write-Verbose $_.Exception.Message -ErrorAction Stop
+                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
                             Set-Location $ScriptLocation
                             return
                         }
@@ -1476,7 +1486,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         }
                         catch {
                             $serverFullUploadSuccess = $false
-                            Write-Verbose $_.Exception.Message -ErrorAction Stop
+                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
                             Set-Location $ScriptLocation
                             return
                         }
@@ -1484,10 +1494,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     Add-AzsPlatformImage -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -OsType "Windows" -OsUri "$serverFullURI" -Force -Confirm: $false
 
                     if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-                        Write-Verbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f "MicrosoftWindowsServer", "WindowsServer", "2016-Datacenter", "1.0.0") -ErrorAction SilentlyContinue
-                        Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
+                        Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f "MicrosoftWindowsServer", "WindowsServer", "2016-Datacenter", "1.0.0") -ErrorAction SilentlyContinue
+                        Write-CustomVerbose -Message "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
                         Get-ChildItem -Path "$ASDKpath" -Filter *ServerFull.vhd | Remove-Item -Force
-                        Write-Verbose "Cleaning up VHD from storage account"
+                        Write-CustomVerbose -Message "Cleaning up VHD from storage account"
                         Remove-AzureStorageBlob -Blob $serverFullVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                     }
                     elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
@@ -1501,7 +1511,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Get-ChildItem -Path "$ASDKpath\*" -Include *.msu, *.cab | Remove-Item -Force
             }
             Catch {
-                Write-Verbose $_.Exception.Message -ErrorAction Stop
+                Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
                 Set-Location $ScriptLocation
                 return
             }
@@ -1516,28 +1526,28 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $packageArray = @()
             $packageArray.Clear()
             $packageArray = "*WindowsServer2016Datacenter-ARM*", "*WindowsServer2016DatacenterServerCore-ARM*"
-            Write-Verbose "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
+            Write-CustomVerbose -Message "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
 
             foreach ($package in $packageArray) {
                 $wsPackage = $null
                 $wsPackage = (Get-AzsGalleryItem | Where-Object {$_.name -like "$package"} | Sort-Object CreatedTime -Descending | Select-Object -First 1)
                 if ($wsPackage) {
-                    Write-Verbose "Found the following existing package in your gallery: $($wsPackage.Identity) - No need to upload a new one"
+                    Write-CustomVerbose -Message "Found the following existing package in your gallery: $($wsPackage.Identity) - No need to upload a new one"
                 }
                 else {
                     $wsPackage = $package -replace '[*.]', ''
-                    Write-Verbose "Didn't find this package: $wsPackage"
-                    Write-Verbose "Will need to sideload it in to the gallery"
+                    Write-CustomVerbose -Message "Didn't find this package: $wsPackage"
+                    Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
                     $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/Microsoft.$wsPackage.1.0.0.azpkg"
-                    Write-Verbose "Uploading $wsPackage from $galleryItemUri"
+                    Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
                 }
                 $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
                 Start-Sleep -Seconds 5
                 $Retries = 0
                 # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
                 While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-                    Write-Verbose "$($wsPackage.ItemName) wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                    Write-Verbose "Uploading $($wsPackage.Identity) from $galleryItemUri"
+                    Write-CustomVerbose -Message "$($wsPackage.ItemName) wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                    Write-CustomVerbose -Message "Uploading $($wsPackage.Identity) from $galleryItemUri"
                     $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
                     Start-Sleep -Seconds 5
                 }    
@@ -1637,21 +1647,21 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             foreach ($azpkg in $azpkgArray) {
 
-                Write-Verbose "Checking for the following packages: $($azpkg.name)"
+                Write-CustomVerbose -Message "Checking for the following packages: $($azpkg.name)"
                 if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
-                    Write-Verbose "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
+                    Write-CustomVerbose -Message "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
                 }
                 else {
-                    Write-Verbose "Didn't find this package: $($azpkg.name)"
-                    Write-Verbose "Will need to side load it in to the gallery"
-                    Write-Verbose "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
+                    Write-CustomVerbose -Message "Didn't find this package: $($azpkg.name)"
+                    Write-CustomVerbose -Message "Will need to side load it in to the gallery"
+                    Write-CustomVerbose -Message "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
                     $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction Stop
                     Start-Sleep -Seconds 5
                     $Retries = 0
                     # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
                     While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-                        Write-Verbose "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                        Write-Verbose "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
+                        Write-CustomVerbose -Message "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                        Write-CustomVerbose -Message "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
                         $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction Stop
                         Start-Sleep -Seconds 5
                     }
@@ -1659,177 +1669,185 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+        Write-Output $progress | Out-Host
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 ### ADD VM SCALE SET GALLERY ITEM ############################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "ScaleSetGalleryItem")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         ### Login to Azure Stack, then confirm if the VM Scale Set Gallery Item is already present ###
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         $VMSSPackageName = "microsoft.vmss.1.3.6"
         $VMSSPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/VMSS/microsoft.vmss.1.3.6.azpkg"
-        Write-Verbose "Checking for the VM Scale Set gallery item"
+        Write-CustomVerbose -Message "Checking for the VM Scale Set gallery item"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$VMSSPackageName*"}) {
-            Write-Verbose "Found a suitable VM Scale Set Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
+            Write-CustomVerbose -Message "Found a suitable VM Scale Set Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
         }
         else {
-            Write-Verbose "Didn't find this package: $VMSSPackageName"
-            Write-Verbose "Will need to side load it in to the gallery"
-            Write-Verbose "Uploading $VMSSPackageName"
+            Write-CustomVerbose -Message "Didn't find this package: $VMSSPackageName"
+            Write-CustomVerbose -Message "Will need to side load it in to the gallery"
+            Write-CustomVerbose -Message "Uploading $VMSSPackageName"
             $Upload = Add-AzsGalleryItem -GalleryItemUri $VMSSPackageURL -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-                Write-Verbose "$VMSSPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-Verbose "Uploading $VMSSPackageName from $VMSSPackageURL"
+                Write-CustomVerbose -Message "$VMSSPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                Write-CustomVerbose -Message "Uploading $VMSSPackageName from $VMSSPackageURL"
                 $Upload = Add-AzsGalleryItem -GalleryItemUri $VMSSPackageURL -Force -Confirm:$false -ErrorAction Stop
                 Start-Sleep -Seconds 5
             }
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+        Write-Output $progress | Out-Host
     }
     Catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 ### ADD MYSQL GALLERY ITEM ###################################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         $mySQLPackageName = "ASDK.MySQL.1.0.0"
         $mySQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
-        Write-Verbose "Checking for the MySQL gallery item"
+        Write-CustomVerbose -Message "Checking for the MySQL gallery item"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$mySQLPackageName*"}) {
-            Write-Verbose "Found a suitable MySQL Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
+            Write-CustomVerbose -Message "Found a suitable MySQL Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
         }
         else {
-            Write-Verbose "Didn't find this package: $mySQLPackageName"
-            Write-Verbose "Will need to side load it in to the gallery"
-            Write-Verbose "Uploading $mySQLPackageName"
+            Write-CustomVerbose -Message "Didn't find this package: $mySQLPackageName"
+            Write-CustomVerbose -Message "Will need to side load it in to the gallery"
+            Write-CustomVerbose -Message "Uploading $mySQLPackageName"
             $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-                Write-Verbose "$mySQLPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-Verbose "Uploading $mySQLPackageName from $mySQLPackageURL"
+                Write-CustomVerbose -Message "$mySQLPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                Write-CustomVerbose -Message "Uploading $mySQLPackageName from $mySQLPackageURL"
                 $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL -Force -Confirm:$false -ErrorAction Stop
                 Start-Sleep -Seconds 5
             }
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+        Write-Output $progress | Out-Host
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 ### ADD SQL SERVER GALLERY ITEM ##############################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         ### Login to Azure Stack, then confirm if the SQL Server 2017 Gallery Item is already present ###
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         $MSSQLPackageName = "ASDK.MSSQL.1.0.0"
         $MSSQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
-        Write-Verbose "Checking for the SQL Server 2017 gallery item"
+        Write-CustomVerbose -Message "Checking for the SQL Server 2017 gallery item"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$MSSQLPackageName*"}) {
-            Write-Verbose "Found a suitable SQL Server 2017 Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
+            Write-CustomVerbose -Message "Found a suitable SQL Server 2017 Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
         }
         else {
-            Write-Verbose "Didn't find this package: $MSSQLPackageName"
-            Write-Verbose "Will need to side load it in to the gallery"
-            Write-Verbose "Uploading $MSSQLPackageName"
+            Write-CustomVerbose -Message "Didn't find this package: $MSSQLPackageName"
+            Write-CustomVerbose -Message "Will need to side load it in to the gallery"
+            Write-CustomVerbose -Message "Uploading $MSSQLPackageName"
             $Upload = Add-AzsGalleryItem -GalleryItemUri $MSSQLPackageURL -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-                Write-Verbose "$MSSQLPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-Verbose "Uploading $MSSQLPackageName from $MSSQLPackageURL"
+                Write-CustomVerbose -Message "$MSSQLPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                Write-CustomVerbose -Message "Uploading $MSSQLPackageName from $MSSQLPackageURL"
                 $Upload = Add-AzsGalleryItem -GalleryItemUri $MSSQLPackageURL -Force -Confirm:$false -ErrorAction Stop
                 Start-Sleep -Seconds 5
             }
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+        Write-Output $progress | Out-Host
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### INSTALL MYSQL RESOURCE PROVIDER #########################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLRP")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipMySQL) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Login to Azure Stack
-            Write-Verbose "Downloading and installing MySQL Resource Provider"
+            Write-CustomVerbose -Message "Downloading and installing MySQL Resource Provider"
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
             # Cleanup old folder
@@ -1847,41 +1865,43 @@ if (!$skipMySQL) {
             .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipMySQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip MySQL Resource Provider Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip MySQL Resource Provider Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### INSTALL SQL SERVER RESOURCE PROVIDER ####################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerRP")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipMSSQL) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Login to Azure Stack
-            Write-Verbose "Downloading and installing SQL Server Resource Provider"
+            Write-CustomVerbose -Message "Downloading and installing SQL Server Resource Provider"
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
             # Download and Expand the SQL Server RP files
@@ -1897,36 +1917,38 @@ if (!$skipMSSQL) {
             .\DeploySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipMSSQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip SQL Server Resource Provider Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip SQL Server Resource Provider Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "RegisterNewRPs")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         # Register resource providers
@@ -1936,28 +1958,30 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+        Write-Output $progress | Out-Host
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### ADD MYSQL SKU & QUOTA ###################################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLSKUQuota")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipMySQL) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
@@ -2028,7 +2052,7 @@ if (!$skipMySQL) {
             $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
 
             # Create the SKU
-            Write-Verbose -Message "Creating new MySQL Resource Provider SKU with name: $($mySqlSkuName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
+            Write-CustomVerbose -Message "Creating new MySQL Resource Provider SKU with name: $($mySqlSkuName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
             try {
                 # Make the REST call
                 $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $mySqlHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
@@ -2040,7 +2064,7 @@ if (!$skipMySQL) {
             }
 
             # Create the Quota
-            Write-Verbose -Message "Creating new MySQL Resource Provider Quota with name: $($mySqlQuotaName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
+            Write-CustomVerbose -Message "Creating new MySQL Resource Provider Quota with name: $($mySqlQuotaName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
             try {
                 # Make the REST call
                 $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $mySqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing
@@ -2051,36 +2075,38 @@ if (!$skipMySQL) {
                 Write-Error -Message ("Failed to create MySQL Resource Provider Quota with name {0}, failed with error: {1}" -f $mySqlQuotaName, $message) 
             }
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipMySQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip MySQL Quota and SKU Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip MySQL Quota and SKU Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### ADD SQL SERVER SKU & QUOTA ##############################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerSKUQuota")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipMSSQL) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
@@ -2153,7 +2179,7 @@ if (!$skipMSSQL) {
             $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
 
             # Create the SKU
-            Write-Verbose -Message "Creating new SQL Server Resource Provider SKU with name: $($sqlSkuName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
+            Write-CustomVerbose -Message "Creating new SQL Server Resource Provider SKU with name: $($sqlSkuName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
             try {
                 # Make the REST call
                 $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $sqlHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
@@ -2165,7 +2191,7 @@ if (!$skipMSSQL) {
             }
 
             # Create the Quota
-            Write-Verbose -Message "Creating new SQL Server Resource Provider Quota with name: $($sqlQuotaName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
+            Write-CustomVerbose -Message "Creating new SQL Server Resource Provider Quota with name: $($sqlQuotaName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
             try {
                 # Make the REST call
                 $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $sqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing
@@ -2176,119 +2202,125 @@ if (!$skipMSSQL) {
                 Write-Error -Message ("Failed to create SQL Server Resource Provider Quota with name {0}, failed with error: {1}" -f $sqlQuotaName, $message) 
             }
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipMSSQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip SQL Server Quota and SKU Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip SQL Server Quota and SKU Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### DEPLOY MySQL VM TO HOST USER DATABASES ##################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLDBVM")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipMySQL) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
-            Write-Verbose "Creating a dedicated Resource Group for all database hosting assets"
+            Write-CustomVerbose -Message "Creating a dedicated Resource Group for all database hosting assets"
             New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
 
             # Deploy a MySQL VM for hosting tenant db
-            Write-Verbose "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
+            Write-CustomVerbose -Message "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
             New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json `
                 -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
                 -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipMySQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip MySQL Hosting Server Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip MySQL Hosting Server Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### DEPLOY SQL SERVER VM TO HOST USER DATABASES #############################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerDBVM")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipMSSQL) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Deploy a SQL Server 2017 on Ubuntu VM for hosting tenant db
-            Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
+            Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
             New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
                 -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
                 -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipMSSQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip MySQL Hosting Server Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip MySQL Hosting Server Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### ADD MYSQL HOSTING SERVER ################################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLAddHosting")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipMySQL) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
@@ -2296,21 +2328,22 @@ if (!$skipMySQL) {
             $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
 
             # Add host server to MySQL RP
-            Write-Verbose "Attaching MySQL hosting server to MySQL resource provider"
+            Write-CustomVerbose -Message "Attaching MySQL hosting server to MySQL resource provider"
             New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
                 -username "root" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
@@ -2318,21 +2351,22 @@ if (!$skipMySQL) {
     elseif ($progress[$RowIndex].Status -eq "Complete") {
         # Get the FQDN of the VM
         $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipMySQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip MySQL Hosting Server Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip MySQL Hosting Server Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### ADD SQL SERVER HOSTING SERVER ###########################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerAddHosting")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipMSSQL) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
@@ -2340,21 +2374,22 @@ if (!$skipMSSQL) {
             $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
 
             # Add host server to SQL Server RP
-            Write-Verbose "Attaching SQL Server 2017 hosting server to SQL Server resource provider"
+            Write-CustomVerbose -Message "Attaching SQL Server 2017 hosting server to SQL Server resource provider"
             New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json `
                 -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 10240 -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
@@ -2362,21 +2397,22 @@ if (!$skipMSSQL) {
     elseif ($progress[$RowIndex].Status -eq "Complete") {
         # Get the FQDN of the VM
         $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipMSSQL -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip SQL Server Hosting Server Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip SQL Server Hosting Server Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         # Configure a simple base plan and offer for IaaS
@@ -2438,33 +2474,35 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
 
         # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+        Write-Output $progress | Out-Host
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### DEPLOY APP SERVICE FILE SERVER ##########################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceFileServer")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipAppService) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             ### Deploy File Server ###
-            Write-Verbose "Deploying Windows Server 2016 File Server"
+            Write-CustomVerbose -Message "Deploying Windows Server 2016 File Server"
             New-AzureRmResourceGroup -Name "appservice-fileshare" -Location $azsLocation -Force
             New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json `
                 -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
@@ -2473,16 +2511,17 @@ if (!$skipAppService) {
             $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
@@ -2490,26 +2529,27 @@ if (!$skipAppService) {
     elseif ($progress[$RowIndex].Status -eq "Complete") {
         # Get the FQDN of the VM
         $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip App Service Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### DEPLOY APP SERVICE SQL SERVER ###########################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceSQLServer")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipAppService) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Deploy a SQL Server 2017 on Ubuntu VM for App Service
-            Write-Verbose "Creating a dedicated SQL Server 2017 on Ubuntu Server 16.04 LTS for App Service"
+            Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu Server 16.04 LTS for App Service"
             New-AzureRmResourceGroup -Name "appservice-sql" -Location $azsLocation -Force
             New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
                 -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
@@ -2519,16 +2559,17 @@ if (!$skipAppService) {
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
@@ -2536,26 +2577,27 @@ if (!$skipAppService) {
     elseif ($progress[$RowIndex].Status -eq "Complete") {
         # Get the FQDN of the VM
         $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip App Service Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### DOWNLOAD APP SERVICE ####################################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "DownloadAppService")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipAppService) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Install App Service To be added
-            Write-Verbose "Downloading App Service Installer"
+            Write-CustomVerbose -Message "Downloading App Service Installer"
             Set-Location $ASDKpath
             # Clean up old App Service Path if it exists
             Remove-Item "$asdkPath\AppService" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
@@ -2568,30 +2610,31 @@ if (!$skipAppService) {
             DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip App Service Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 $AppServicePath = "$ASDKpath\AppService"
@@ -2600,45 +2643,48 @@ $AppServicePath = "$ASDKpath\AppService"
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "GenerateAppServiceCerts")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipAppService) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
-            Write-Verbose "Generating Certificates"
+            Write-CustomVerbose -Message "Generating Certificates"
             Set-Location "$AppServicePath"
             .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName "local.azurestack.external"
             .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $cloudAdminCreds
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip App Service Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### CREATE AD SERVICE PRINCIPAL #############################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateServicePrincipal")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipAppService) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
@@ -2670,33 +2716,34 @@ if (!$skipAppService) {
                 Write-Output $identityApplicationID > $appIdPath
             }
             else {
-                Write-Verbose ("No valid application was created, please perform this step after the script has completed")  -ErrorAction SilentlyContinue
+                Write-CustomVerbose -Message ("No valid application was created, please perform this step after the script has completed") -ErrorAction SilentlyContinue
             }
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip App Service Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 if (!$identityApplicationID) {
@@ -2707,6 +2754,7 @@ if (!$identityApplicationID) {
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipAppService) {
     if ($authenticationType.ToString() -like "AzureAd") {
         if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -2730,78 +2778,80 @@ if (!$skipAppService) {
                 $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
                 Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction SilentlyContinue
                 # Update the ConfigASDKProgressLog.csv file with successful completion
+                Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
                 $progress[$RowIndex].Status = "Complete"
                 $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-                Write-Output $progress
+                Write-Output $progress | Out-Host
             }
             catch {
-                Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+                Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
                 $progress[$RowIndex].Status = "Failed"
                 $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-                Write-Output $progress
-                Write-Verbose $_.Exception.Message -ErrorAction Stop
+                Write-Output $progress | Out-Host
+                Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
                 Set-Location $ScriptLocation
                 return
             }
         }
         elseif ($progress[$RowIndex].Status -eq "Complete") {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
         }
     }
     elseif ($authenticationType.ToString() -like "ADFS") {
-        Write-Verbose "Skipping Azure AD App Permissions, as this is an ADFS deployment"
+        Write-CustomVerbose -Message "Skipping Azure AD App Permissions, as this is an ADFS deployment`r`n"
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress[$RowIndex].Status = "Skipped"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+        Write-Output $progress | Out-Host
     }
 }
 elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip App Service Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### DEPLOY APP SERVICE ######################################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipAppService) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
-            Write-Verbose "Checking variables are present before creating JSON"
+            Write-CustomVerbose -Message "Checking variables are present before creating JSON"
             # Check Variables #
             if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -ne $null)) {
-                Write-Verbose "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
+                Write-CustomVerbose -Message "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
             }
             elseif ($authenticationType.ToString() -like "ADFS") {
-                Write-Verbose "ADFS deployment, no need for Azure Directory Tenant Name"
+                Write-CustomVerbose -Message "ADFS deployment, no need for Azure Directory Tenant Name"
             }
             elseif (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -eq $null)) {
                 throw "Missing Azure Directory Tenant Name - Exiting process"
             }
             if ($fileServerFqdn -ne $null) {
-                Write-Verbose "File Server FQDN is present: $fileServerFqdn"
+                Write-CustomVerbose -Message "File Server FQDN is present: $fileServerFqdn"
             }
             else {
                 throw "Missing File Server FQDN - Exiting process"
             }
             if ($VMpwd -ne $null) {
-                Write-Verbose "Virtual Machine password is present: $VMpwd"
+                Write-CustomVerbose -Message "Virtual Machine password is present: $VMpwd"
             }
             else {
                 throw "Missing Virtual Machine password - Exiting process"
             }
             if ($sqlAppServerFqdn -ne $null) {
-                Write-Verbose "SQL Server FQDN is present: $sqlAppServerFqdn"
+                Write-CustomVerbose -Message "SQL Server FQDN is present: $sqlAppServerFqdn"
             }
             else {
                 throw "Missing SQL Server FQDN - Exiting process"
             }
             if ($identityApplicationID -ne $null) {
-                Write-Verbose "Identity Application ID present: $identityApplicationID"
+                Write-CustomVerbose -Message "Identity Application ID present: $identityApplicationID"
             }
             else {
                 throw "Missing Identity Application ID - Exiting process"
@@ -2834,73 +2884,75 @@ if (!$skipAppService) {
             $appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
             $appServiceLogPath = "$AppServicePath\AppServiceLog$appServiceLogTime.txt"
             Set-Location "$AppServicePath"
-            Write-Verbose "Starting deployment of the App Service"
+            Write-CustomVerbose -Message "Starting deployment of the App Service"
             Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
 
             while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-                Write-Verbose "App Service is deploying. Checking in 10 seconds"
+                Write-CustomVerbose -Message "App Service is deploying. Checking in 10 seconds"
                 Start-Sleep -Seconds 10
             }
             
             if (!(Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-                Write-Verbose "App Service deployment has finished executing."
+                Write-CustomVerbose -Message "App Service deployment has finished executing."
             }
 
             $appServiceErrorCode = "Exit code: 0xffffffff"
-            Write-Verbose "Checking App Service log file for issues"
+            Write-CustomVerbose -Message "Checking App Service log file for issues"
             if ($(Select-String -Path $appServiceLogPath -Pattern "$appServiceErrorCode" -SimpleMatch -Quiet) -eq "True") {
-                Write-Verbose "App Service install failed with $appServiceErrorCode"
-                Write-Verbose "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
+                Write-CustomVerbose -Message "App Service install failed with $appServiceErrorCode"
+                Write-CustomVerbose -Message "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
                 throw "App Service install failed with $appServiceErrorCode. Please check the App Service logs at $appServiceLogPath"
             }
             else {
-                Write-Verbose "App Service log file indicates successful deployment"
+                Write-CustomVerbose -Message "App Service log file indicates successful deployment"
             }
-            Write-Verbose "Checking App Service resource group for successful deployment"
+            Write-CustomVerbose -Message "Checking App Service resource group for successful deployment"
             # Ensure logged into Azure Stack
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
             Clear-AzureRmContext -Scope CurrentUser -Force
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
             if ($appServiceRgCheck.ProvisioningState -ne 'Succeeded') {
-                Write-Verbose "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
+                Write-CustomVerbose -Message "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
                 throw "$($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState). Please check the App Service logs at $appServiceLogPath"
             }
             else {
-                Write-Verbose "App Service deployment with name: $($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState)"
+                Write-CustomVerbose -Message "App Service deployment with name: $($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState)"
             }
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip App Service Deployment"
+    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### CUSTOMIZE ASDK HOST #####################################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallHostApps")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (!$skipCustomizeHost) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
@@ -2908,64 +2960,66 @@ if (!$skipCustomizeHost) {
             Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
             # Enable Choco Global Confirmation
-            Write-Verbose "Enabling global confirmation to streamline installs"
+            Write-CustomVerbose -Message "Enabling global confirmation to streamline installs"
             choco feature enable -n allowGlobalConfirmation
 
             # Visual Studio Code
-            Write-Verbose "Installing VS Code with Chocolatey"
+            Write-CustomVerbose -Message "Installing VS Code with Chocolatey"
             choco install visualstudiocode
 
             # Putty
-            Write-Verbose "Installing Putty with Chocolatey"
+            Write-CustomVerbose -Message "Installing Putty with Chocolatey"
             choco install putty.install
 
             # WinSCP
-            Write-Verbose "Installing WinSCP with Chocolatey"
+            Write-CustomVerbose -Message "Installing WinSCP with Chocolatey"
             choco install winscp.install 
 
             # Chrome
-            Write-Verbose "Installing Chrome with Chocolatey"
+            Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
             choco install googlechrome
 
             # WinDirStat
-            Write-Verbose "Installing WinDirStat with Chocolatey"
+            Write-CustomVerbose -Message "Installing WinDirStat with Chocolatey"
             choco install windirstat
 
             # Azure CLI
-            Write-Verbose "Installing latest version of Azure CLI with Chocolatey"
+            Write-CustomVerbose -Message "Installing latest version of Azure CLI with Chocolatey"
             choco install azure-cli
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
+            Write-Output $progress | Out-Host
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress
-            Write-Verbose $_.Exception.Message -ErrorAction Stop
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
     elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
     }
 }
 elseif ($skipCustomizeHost -or ($progress[$RowIndex].Status -eq "Skipped")) {
-    Write-Verbose "Operator chose to skip ASDK Host Customization"
+    Write-CustomVerbose -Message "Operator chose to skip ASDK Host Customization`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress
+    Write-Output $progress | Out-Host
 }
 
 #### GENERATE OUTPUT #########################################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateOutput")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         ### Create Output Document ###
@@ -3034,39 +3088,28 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application" >> $txtPath
             }
 
-            Write-Output "`r`nYou'll now need to run the appservice.exe located in your $AppServicePath folder" >> $txtPath
-            Write-Output "Documentation can be found here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-deploy" >> $txtPath
-            Write-Output "Use the following values to populate the wizard:" >> $txtPath
+            Write-Output "`r`nOther useful information for reference:" >> $txtPath
             Write-Output "`r`nAzure Stack Admin ARM Endpoint: adminmanagement.local.azurestack.external" >> $txtPath
             Write-Output "Azure Stack Tenant ARM Endpoint: management.local.azurestack.external" >> $txtPath
             Write-Output "Azure Directory Tenant Name: $azureDirectoryTenantName" >> $txtPath
-            Write-Output "`r`nOn the next screen, click Connect, login, and then choose your subscription and location (local)" >> $txtPath
-            Write-Output "`r`nOn the next screen, replace your Resource Group Name with appservice-infra" >> $txtPath
-            Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
             Write-Output "File Share UNC Path: \\appservicefileshare.local.cloudapp.azurestack.external\websites" >> $txtPath
             Write-Output "File Share Owner: fileshareowner" >> $txtPath
             Write-Output "File Share Owner Password: $VMpwd" >> $txtPath
             Write-Output "File Share User: fileshareuser" >> $txtPath
             Write-Output "File Share User Password: $VMpwd" >> $txtPath
-            Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
             Write-Output "Identity Application ID: $identityApplicationID" >> $txtPath
             Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.local.azurestack.external.pfx" >> $txtPath
             Write-Output "Identity Application Certificate (*.pfx) password: $VMpwd" >> $txtPath
             Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority.cer" >> $txtPath
-            Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
             Write-Output "App Service default SSL certificate file (*.pfx): $AppServicePath\_.appservice.local.AzureStack.external.pfx" >> $txtPath
             Write-Output "App Service default SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
             Write-Output "App Service API SSL certificate file (*.pfx): $AppServicePath\api.appservice.local.AzureStack.external.pfx" >> $txtPath
             Write-Output "App Service API SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
             Write-Output "App Service Publisher SSL certificate file (*.pfx): $AppServicePath\ftp.appservice.local.AzureStack.external.pfx" >> $txtPath
             Write-Output "App Service Publisher SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
-            Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
             Write-Output "SQL Server Name: $sqlAppServerFqdn" >> $txtPath
             Write-Output "SQL sysadmin login: sa" >> $txtPath
             Write-Output "SQL sysadmin password: $VMpwd" >> $txtPath
-            Write-Output "`r`nOn the next screen, accept the defaults for the instances and click Next:" >> $txtPath
-            Write-Output "`r`nOn the next screen, accept the default for the Platform Image and click Next:" >> $txtPath
-            Write-Output "`r`nOn the next screen, input the following info:" >> $txtPath
             Write-Output "Worker Role Virtual Machine(s) Admin: workeradmin" >> $txtPath
             Write-Output "Worker Role Virtual Machine(s) Password: $VMpwd" >> $txtPath
             Write-Output "Confirm Password: $VMpwd" >> $txtPath
@@ -3075,36 +3118,38 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Write-Output "Confirm Password: $VMpwd" >> $txtPath
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
+        Write-Output $progress | Out-Host
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed"
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress
-        Write-Verbose $_.Exception.Message -ErrorAction Stop
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### FINAL STEPS #############################################################################################################################################
 ##############################################################################################################################################################
 
 ### Clean Up ASDK Folder ###
+$scriptStep = "CLEANUP"
 $scriptSuccess = $progress | Where-Object {($_.Status -eq "Incomplete") -or ($_.Status -eq "Failed")}
 if ([string]::IsNullOrEmpty($scriptSuccess)) {
-    Write-Verbose "Congratulations - all steps completed successfully:`r`n"
-    $progress
-    Write-Verbose "Cleaning up ASDK Folder and Progress CSV file"
+    Write-CustomVerbose -Message "Congratulations - all steps completed successfully:`r`n"
+    Write-Output $progress | Out-Host
+    Write-CustomVerbose -Message "Cleaning up ASDK Folder and Progress CSV file"
     Remove-Item -Path "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
     Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
-    Write-Verbose "Cleaning up Resource Group used for Image Upload"
+    Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
     # Increment run counter to track successful run
@@ -3112,12 +3157,10 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Invoke-WebRequest -Uri "http://bit.ly/asdksuccessrun" -UseBasicParsing -ErrorAction SilentlyContinue -DisableKeepAlive | Out-Null
 }
 else {
-    Write-Verbose "Script hasn't completed successfully"
-    Write-Verbose "Please rerun the script to complete the process"
-    $progress
+    Write-CustomVerbose -Message "Script hasn't completed successfully"
+    Write-CustomVerbose -Message "Please rerun the script to complete the process`r`n"
+    Write-Output $progress | Out-Host
 }
-
-#>
 
 Write-CustomVerbose -Message "Setting Execution Policy back to RemoteSigned"
 Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
@@ -3135,12 +3178,19 @@ Write-Output "ASDK Configurator setup completed successfully, taking $difference
 Write-Output "You started the ASDK Configurator deployment at $startTime." -ErrorAction SilentlyContinue
 Write-Output "ASDK Configurator deployment completed at $endTime." -ErrorAction SilentlyContinue
 
-<### Launch browser to activate admin and user portal for Azure AD deployments
+### Launch browser to activate admin and user portal for Azure AD deployments
+### Will launch in Chrome if Host has been customized
 if ($authenticationType.ToString() -like "AzureAd") {
     Write-Output "Launching browser to activate admin and user portals"
-    [System.Diagnostics.Process]::Start("chrome.exe", "https://adminportal.local.azurestack.external/guest/signup")
-    Start-Sleep -Seconds 10
-    [System.Diagnostics.Process]::Start("chrome.exe", "https://portal.local.azurestack.external/guest/signup")
-} #>
-
+    if (!$skipCustomizeHost) {
+        [System.Diagnostics.Process]::Start("chrome.exe", "https://adminportal.local.azurestack.external/guest/signup")
+        Start-Sleep -Seconds 10
+        [System.Diagnostics.Process]::Start("chrome.exe", "https://portal.local.azurestack.external/guest/signup")
+    }
+    elseif ($skipCustomizeHost) {
+        Start-Process https://adminportal.local.azurestack.external/guest/signup
+        Start-Sleep -Seconds 10
+        Start-Process https://portal.local.azurestack.external/guest/signup
+    }
+}
 Stop-Transcript -ErrorAction SilentlyContinue
