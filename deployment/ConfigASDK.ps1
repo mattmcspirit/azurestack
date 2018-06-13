@@ -862,7 +862,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $progress[$RowIndex].Status = "Complete"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "`r`nHost configuration is now complete."
+        Write-CustomVerbose -Message "Host configuration is now complete."
     }
     Catch {
         Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
@@ -888,11 +888,11 @@ if ($registerASDK) {
         try {
             Write-CustomVerbose -Message "Starting Azure Stack registration to Azure"
             # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
-            Add-AzureRmAccount -EnvironmentName "AzureCloud" -Subscription $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             # Register the Azure Stack resource provider in your Azure subscription
             Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
             # Import the registration module that was downloaded with the GitHub tools
-            Import-Module $modulePath\Registration\RegisterWithAzure.psm1
+            Import-Module $modulePath\Registration\RegisterWithAzure.psm1 -Force -Verbose
             #Register Azure Stack
             $AzureContext = Get-AzureRmContext
             Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ErrorAction Stop
