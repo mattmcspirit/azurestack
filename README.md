@@ -4,10 +4,10 @@ Azure Stack Development Kit Configurator 1804
 Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
-* ASDK build **20180513.1 (1804)**
+* ASDK build **1.1805.1.47 (1805) and 20180513.1 (1804)**
 * Azure Stack PowerShell Module **1.3.0**
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1804, and Azure Stack PowerShell 1.3.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1805 and 1804, both with Azure Stack PowerShell 1.3.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
@@ -38,6 +38,7 @@ This includes:
 * App Service Service Principal Created (for Azure AD and ADFS)
 * Grants App Service Service Principal Admin Consent (for Azure AD)
 * Automates deployment of the App Service using dynamically constructed JSON
+* MySQL, SQL, App Service and Host Customization can be optionally skipped
 * Cleans up download folder to ensure clean future runs
 * Transcript Log for errors and troubleshooting
 * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file

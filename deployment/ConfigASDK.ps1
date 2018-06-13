@@ -26,6 +26,7 @@
         * App Service Service Principal Created (for Azure AD and ADFS)
         * Grants App Service Service Principal Admin Consent (for Azure AD)
         * Automates deployment of the App Service using dynamically constructed JSON
+        * MySQL, SQL, App Service and Host Customization can be optionally skipped
         * Cleans up download folder to ensure clean future runs
         * Transcript Log for errors and troubleshooting
         * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
@@ -33,6 +34,7 @@
 
 .VERSION
 
+    1805 updated with improvements to Azure account verification, ability to skip RP deployment, run counters and bug fixes
     1804 Updated with support for ASDK 1804 and PowerShell 1.3.0, bug fixes, reduced number of modules imported from GitHub tools repo
     3.1  Update added App Service automation, bug fixes, MySQL Root account fix.
     3.0  major update for ASDK release 20180329.1
@@ -621,7 +623,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
         $OauthMetadata = (Invoke-WebRequest -UseBasicParsing $endpt).Content | ConvertFrom-Json
         $TenantID = $OauthMetadata.Issuer.Split('/')[3]
         Write-Verbose "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Clear Azure login
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
         Clear-AzureRmContext -Scope CurrentUser -Force
@@ -641,7 +643,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
         Write-Verbose ("Getting Tenant ID for Login to Azure Stack")
         $TenantID = $(Invoke-RestMethod $("{0}/.well-known/openid-configuration" -f $ADauth.TrimEnd('/'))).issuer.TrimEnd('/').Split('/')[-1]
         Write-Verbose "Logging in with your Azure Stack Administrator Account used with ADFS"
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Clean up current logins
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
         Clear-AzureRmContext -Scope CurrentUser -Force
