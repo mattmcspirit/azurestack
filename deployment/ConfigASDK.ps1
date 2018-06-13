@@ -151,6 +151,13 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 try {Stop-Transcript | Out-Null} catch {}
 
+Write-Verbose "Validating if running under Admin Privileges"
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (!($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))) {
+    Write-Verbose "User is not administrator - please ensure you're running as Administrator (right-click, Run as administrator)" 
+    exit
+}
+
 ### GET START TIME ###
 $startTime = Get-Date -Format g
 $sw = [Diagnostics.Stopwatch]::StartNew()
