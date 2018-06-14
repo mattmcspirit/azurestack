@@ -2562,7 +2562,12 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceFileServer")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipAppService) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    # Get the FQDN of the VM
+    $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif ((!$skipAppService) -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             ### Deploy File Server ###
@@ -2590,13 +2595,8 @@ if (!$skipAppService) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        # Get the FQDN of the VM
-        $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -2609,7 +2609,12 @@ elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceSQLServer")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipAppService) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    # Get the FQDN of the VM
+    $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Deploy a SQL Server 2017 on Ubuntu VM for App Service
@@ -2638,13 +2643,8 @@ if (!$skipAppService) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        # Get the FQDN of the VM
-        $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -2657,7 +2657,10 @@ elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "DownloadAppService")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipAppService) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Install App Service To be added
@@ -2689,11 +2692,8 @@ if (!$skipAppService) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -2701,14 +2701,19 @@ elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
     Write-Output $progress | Out-Host
 }
 
-$AppServicePath = "$ASDKpath\AppService"
+if (!$skipAppService) {
+    $AppServicePath = "$ASDKpath\AppService"
+}
 
 #### GENERATE APP SERVICE CERTS ##############################################################################################################################
 ##############################################################################################################################################################
 
 $RowIndex = [array]::IndexOf($progress.Stage, "GenerateAppServiceCerts")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipAppService) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             Write-CustomVerbose -Message "Generating Certificates"
@@ -2732,11 +2737,8 @@ if (!$skipAppService) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -2749,7 +2751,10 @@ elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateServicePrincipal")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipAppService) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Create Azure AD or ADFS Service Principal
@@ -2798,11 +2803,8 @@ if (!$skipAppService) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -2810,7 +2812,7 @@ elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
     Write-Output $progress | Out-Host
 }
 
-if (!$identityApplicationID) {
+if (!$identityApplicationID -and !$skipAppService) {
     $identityApplicationID = Get-Content -Path "$AppServicePath\ApplicationID.txt"
 }
 
@@ -2819,7 +2821,10 @@ if (!$identityApplicationID) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipAppService) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     if ($authenticationType.ToString() -like "AzureAd") {
         if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
             try {
@@ -2857,9 +2862,6 @@ if (!$skipAppService) {
                 return
             }
         }
-        elseif ($progress[$RowIndex].Status -eq "Complete") {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-        }
     }
     elseif ($authenticationType.ToString() -like "ADFS") {
         Write-CustomVerbose -Message "Skipping Azure AD App Permissions, as this is an ADFS deployment`r`n"
@@ -2869,7 +2871,7 @@ if (!$skipAppService) {
         Write-Output $progress | Out-Host
     }
 }
-elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -2882,7 +2884,10 @@ elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipAppService) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             Write-CustomVerbose -Message "Checking variables are present before creating JSON"
@@ -3000,11 +3005,8 @@ if (!$skipAppService) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
+elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -3017,7 +3019,10 @@ elseif ($skipAppService -or ($progress[$RowIndex].Status -eq "Skipped")) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallHostApps")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipCustomizeHost) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Install useful ASDK Host Apps via Chocolatey
@@ -3067,11 +3072,8 @@ if (!$skipCustomizeHost) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipCustomizeHost -or ($progress[$RowIndex].Status -eq "Skipped")) {
+elseif ($skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip ASDK Host Customization`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -3084,7 +3086,10 @@ elseif ($skipCustomizeHost -or ($progress[$RowIndex].Status -eq "Skipped")) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateOutput")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         ### Create Output Document ###
         $txtPath = "$downloadPath\ConfigASDKOutput.txt"
@@ -3196,9 +3201,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Set-Location $ScriptLocation
         return
     }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### FINAL STEPS #############################################################################################################################################
