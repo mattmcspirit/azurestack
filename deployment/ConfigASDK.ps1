@@ -2568,6 +2568,14 @@ if ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 elseif ((!$skipAppService) -and ($progress[$RowIndex].Status -ne "Complete")) {
+    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
+    if ($progress[$RowIndex].Status -eq "Skipped") {
+        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Incomplete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceFileServer")
+    }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             ### Deploy File Server ###
@@ -2615,6 +2623,14 @@ if ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
+    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
+    if ($progress[$RowIndex].Status -eq "Skipped") {
+        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Incomplete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceSQLServer")
+    }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Deploy a SQL Server 2017 on Ubuntu VM for App Service
@@ -2661,6 +2677,14 @@ if ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
+    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
+    if ($progress[$RowIndex].Status -eq "Skipped") {
+        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Incomplete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        $RowIndex = [array]::IndexOf($progress.Stage, "DownloadAppService")
+    }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Install App Service To be added
@@ -2714,6 +2738,14 @@ if ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
+    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
+    if ($progress[$RowIndex].Status -eq "Skipped") {
+        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Incomplete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        $RowIndex = [array]::IndexOf($progress.Stage, "GenerateAppServiceCerts")
+    }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             Write-CustomVerbose -Message "Generating Certificates"
@@ -2755,6 +2787,14 @@ if ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
+    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
+    if ($progress[$RowIndex].Status -eq "Skipped") {
+        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Incomplete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        $RowIndex = [array]::IndexOf($progress.Stage, "CreateServicePrincipal")
+    }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Create Azure AD or ADFS Service Principal
@@ -2825,6 +2865,14 @@ if ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
+    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
+    if ($progress[$RowIndex].Status -eq "Skipped") {
+        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Incomplete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        $RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
+    }
     if ($authenticationType.ToString() -like "AzureAd") {
         if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
             try {
@@ -2888,6 +2936,14 @@ if ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
+    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
+    if ($progress[$RowIndex].Status -eq "Skipped") {
+        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Incomplete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
+    }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             Write-CustomVerbose -Message "Checking variables are present before creating JSON"
@@ -3023,6 +3079,14 @@ if ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
+    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
+    if ($progress[$RowIndex].Status -eq "Skipped") {
+        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        $progress[$RowIndex].Status = "Incomplete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        $RowIndex = [array]::IndexOf($progress.Stage, "InstallHostApps")
+    }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Install useful ASDK Host Apps via Chocolatey
@@ -3086,121 +3150,116 @@ elseif ($skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateOutput")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+try {
+    ### Create Output Document ###
+    $txtPath = "$downloadPath\ConfigASDKOutput.txt"
+    Remove-Item -Path $txtPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
+    New-Item "$txtPath" -ItemType file -Force
+
+    Write-Output "`r`nThis document contains useful information for deployment of the App Service" > $txtPath
+    Write-Output "`r`nYour chosen authentication type was: $authenticationType" >> $txtPath
+
+    if ($authenticationType.ToString() -like "ADFS") {
+        Write-Output "Your ASDK admin account and the Azure Stack portal use the following account for login: $azureStackAdminUsername" >> $txtPath
+    }
+
+    elseif ($authenticationType.ToString() -like "AzureAD") {
+        Write-Output "Use the following username to login to your ASDK host: $azureStackAdminUsername" >> $txtPath
+        Write-Output "Use the following username to login to the Azure Stack portal: $azureAdUsername" >> $txtPath
+    }
+
+    Write-Output "`r`nASDK has been registered to Azure: $($registerASDK.IsPresent)" >> $txtPath
+
+    if ($registerASDK) {
+        Write-Output "Your Azure Stack was registered to this Azure subscription: $azureRegSubId" >> $txtPath
+    }
+
+    if ($useAzureCredsForRegistration -and $registerASDK) {
+        Write-Output "Your Azure Stack was registered to Azure with the following username: $azureAdUsername" >> $txtPath
+    }
+    elseif ($authenticationType.ToString() -like "AzureAd" -and !$useAzureCredsForRegistration -and $registerASDK) {
+        Write-Output "Your Azure Stack was registered to Azure with the following username: $azureRegUsername" >> $txtPath
+    }
+
+    if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
+        Write-Output "Your Azure Stack was registered to Azure with the following username: $azureRegUsername" >> $txtPath
+    }
+
+    Write-Output "`r`nThe Azure Stack PowerShell tools have been downloaded to: $modulePath" >> $txtPath
+    Write-Output "All other downloads have been stored here: $ASDKpath" >> $txtPath
+
+    Write-Output "`r`nSQL & MySQL Resource Provider Information:" >> $txtPath
+    if (!$skipMySQL) {
+        Write-Output "MySQL Resource Provider VM Credentials = mysqlrpadmin | $VMpwd" >> $txtPath
+        Write-Output "MySQL Database Hosting VM FQDN: $mySqlFqdn" >> $txtPath
+        Write-Output "MySQL Database Hosting VM Credentials = mysqladmin | $VMpwd" >> $txtPath
+    }
+    if (!$skipMSSQL) {
+        Write-Output "SQL Server Resource Provider VM Credentials = sqlrpadmin | $VMpwd" >> $txtPath
+        Write-Output "SQL Server Database Hosting VM FQDN: $sqlFqdn" >> $txtPath
+        Write-Output "SQL Server Database Hosting VM Credentials = sqladmin | $VMpwd" >> $txtPath
+    }
+    if (!$skipAppService) {
+        Write-Output "`r`nApp Service Resource Provider Information:" >> $txtPath
+        Write-Output "App Service File Server VM FQDN: $fileServerFqdn" >> $txtPath
+        Write-Output "App Service File Server VM Credentials = fileshareowner or fileshareuser | $VMpwd" >> $txtPath
+        Write-Output "App Service SQL Server VM FQDN: $sqlAppServerFqdn" >> $txtPath
+        Write-Output "App Service SQL Server VM Credentials = sqladmin | $VMpwd" >> $txtPath
+        Write-Output "App Service SQL Server SA Credentials = sa | $VMpwd" >> $txtPath
+
+        if ($authenticationType.ToString() -like "AzureAd") {
+            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
+            Write-Output "Sign in to the Azure portal as Azure Active Directory Service Admin ($azureAdUsername) -> Search for Application Id and grant permissions." >> $txtPath
+            Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application" >> $txtPath
+        }
+        elseif ($authenticationType.ToString() -like "ADFS") {
+            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
+            Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application" >> $txtPath
+        }
+
+        Write-Output "`r`nOther useful information for reference:" >> $txtPath
+        Write-Output "`r`nAzure Stack Admin ARM Endpoint: adminmanagement.local.azurestack.external" >> $txtPath
+        Write-Output "Azure Stack Tenant ARM Endpoint: management.local.azurestack.external" >> $txtPath
+        Write-Output "Azure Directory Tenant Name: $azureDirectoryTenantName" >> $txtPath
+        Write-Output "File Share UNC Path: \\appservicefileshare.local.cloudapp.azurestack.external\websites" >> $txtPath
+        Write-Output "File Share Owner: fileshareowner" >> $txtPath
+        Write-Output "File Share Owner Password: $VMpwd" >> $txtPath
+        Write-Output "File Share User: fileshareuser" >> $txtPath
+        Write-Output "File Share User Password: $VMpwd" >> $txtPath
+        Write-Output "Identity Application ID: $identityApplicationID" >> $txtPath
+        Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.local.azurestack.external.pfx" >> $txtPath
+        Write-Output "Identity Application Certificate (*.pfx) password: $VMpwd" >> $txtPath
+        Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority.cer" >> $txtPath
+        Write-Output "App Service default SSL certificate file (*.pfx): $AppServicePath\_.appservice.local.AzureStack.external.pfx" >> $txtPath
+        Write-Output "App Service default SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
+        Write-Output "App Service API SSL certificate file (*.pfx): $AppServicePath\api.appservice.local.AzureStack.external.pfx" >> $txtPath
+        Write-Output "App Service API SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
+        Write-Output "App Service Publisher SSL certificate file (*.pfx): $AppServicePath\ftp.appservice.local.AzureStack.external.pfx" >> $txtPath
+        Write-Output "App Service Publisher SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
+        Write-Output "SQL Server Name: $sqlAppServerFqdn" >> $txtPath
+        Write-Output "SQL sysadmin login: sa" >> $txtPath
+        Write-Output "SQL sysadmin password: $VMpwd" >> $txtPath
+        Write-Output "Worker Role Virtual Machine(s) Admin: workeradmin" >> $txtPath
+        Write-Output "Worker Role Virtual Machine(s) Password: $VMpwd" >> $txtPath
+        Write-Output "Confirm Password: $VMpwd" >> $txtPath
+        Write-Output "Other Roles Virtual Machine(s) Admin: roleadmin" >> $txtPath
+        Write-Output "Other Roles Virtual Machine(s) Password: $VMpwd" >> $txtPath
+        Write-Output "Confirm Password: $VMpwd" >> $txtPath
+    }
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+    $progress[$RowIndex].Status = "Complete"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress | Out-Host
 }
-elseif (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        ### Create Output Document ###
-        $txtPath = "$downloadPath\ConfigASDKOutput.txt"
-        Remove-Item -Path $txtPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
-        New-Item "$txtPath" -ItemType file -Force
-
-        Write-Output "`r`nThis document contains useful information for deployment of the App Service" > $txtPath
-        Write-Output "`r`nYour chosen authentication type was: $authenticationType" >> $txtPath
-
-        if ($authenticationType.ToString() -like "ADFS") {
-            Write-Output "Your ASDK admin account and the Azure Stack portal use the following account for login: $azureStackAdminUsername" >> $txtPath
-        }
-
-        elseif ($authenticationType.ToString() -like "AzureAD") {
-            Write-Output "Use the following username to login to your ASDK host: $azureStackAdminUsername" >> $txtPath
-            Write-Output "Use the following username to login to the Azure Stack portal: $azureAdUsername" >> $txtPath
-        }
-
-        Write-Output "`r`nASDK has been registered to Azure: $($registerASDK.IsPresent)" >> $txtPath
-
-        if ($registerASDK) {
-            Write-Output "Your Azure Stack was registered to this Azure subscription: $azureRegSubId" >> $txtPath
-        }
-
-        if ($useAzureCredsForRegistration -and $registerASDK) {
-            Write-Output "Your Azure Stack was registered to Azure with the following username: $azureAdUsername" >> $txtPath
-        }
-        elseif ($authenticationType.ToString() -like "AzureAd" -and !$useAzureCredsForRegistration -and $registerASDK) {
-            Write-Output "Your Azure Stack was registered to Azure with the following username: $azureRegUsername" >> $txtPath
-        }
-
-        if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
-            Write-Output "Your Azure Stack was registered to Azure with the following username: $azureRegUsername" >> $txtPath
-        }
-
-        Write-Output "`r`nThe Azure Stack PowerShell tools have been downloaded to: $modulePath" >> $txtPath
-        Write-Output "All other downloads have been stored here: $ASDKpath" >> $txtPath
-
-        Write-Output "`r`nSQL & MySQL Resource Provider Information:" >> $txtPath
-        if (!$skipMySQL) {
-            Write-Output "MySQL Resource Provider VM Credentials = mysqlrpadmin | $VMpwd" >> $txtPath
-            Write-Output "MySQL Database Hosting VM FQDN: $mySqlFqdn" >> $txtPath
-            Write-Output "MySQL Database Hosting VM Credentials = mysqladmin | $VMpwd" >> $txtPath
-        }
-        if (!$skipMSSQL) {
-            Write-Output "SQL Server Resource Provider VM Credentials = sqlrpadmin | $VMpwd" >> $txtPath
-            Write-Output "SQL Server Database Hosting VM FQDN: $sqlFqdn" >> $txtPath
-            Write-Output "SQL Server Database Hosting VM Credentials = sqladmin | $VMpwd" >> $txtPath
-        }
-        if (!$skipAppService) {
-            Write-Output "`r`nApp Service Resource Provider Information:" >> $txtPath
-            Write-Output "App Service File Server VM FQDN: $fileServerFqdn" >> $txtPath
-            Write-Output "App Service File Server VM Credentials = fileshareowner or fileshareuser | $VMpwd" >> $txtPath
-            Write-Output "App Service SQL Server VM FQDN: $sqlAppServerFqdn" >> $txtPath
-            Write-Output "App Service SQL Server VM Credentials = sqladmin | $VMpwd" >> $txtPath
-            Write-Output "App Service SQL Server SA Credentials = sa | $VMpwd" >> $txtPath
-
-            if ($authenticationType.ToString() -like "AzureAd") {
-                Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
-                Write-Output "Sign in to the Azure portal as Azure Active Directory Service Admin ($azureAdUsername) -> Search for Application Id and grant permissions." >> $txtPath
-                Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application" >> $txtPath
-            }
-            elseif ($authenticationType.ToString() -like "ADFS") {
-                Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
-                Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application" >> $txtPath
-            }
-
-            Write-Output "`r`nOther useful information for reference:" >> $txtPath
-            Write-Output "`r`nAzure Stack Admin ARM Endpoint: adminmanagement.local.azurestack.external" >> $txtPath
-            Write-Output "Azure Stack Tenant ARM Endpoint: management.local.azurestack.external" >> $txtPath
-            Write-Output "Azure Directory Tenant Name: $azureDirectoryTenantName" >> $txtPath
-            Write-Output "File Share UNC Path: \\appservicefileshare.local.cloudapp.azurestack.external\websites" >> $txtPath
-            Write-Output "File Share Owner: fileshareowner" >> $txtPath
-            Write-Output "File Share Owner Password: $VMpwd" >> $txtPath
-            Write-Output "File Share User: fileshareuser" >> $txtPath
-            Write-Output "File Share User Password: $VMpwd" >> $txtPath
-            Write-Output "Identity Application ID: $identityApplicationID" >> $txtPath
-            Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.local.azurestack.external.pfx" >> $txtPath
-            Write-Output "Identity Application Certificate (*.pfx) password: $VMpwd" >> $txtPath
-            Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority.cer" >> $txtPath
-            Write-Output "App Service default SSL certificate file (*.pfx): $AppServicePath\_.appservice.local.AzureStack.external.pfx" >> $txtPath
-            Write-Output "App Service default SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
-            Write-Output "App Service API SSL certificate file (*.pfx): $AppServicePath\api.appservice.local.AzureStack.external.pfx" >> $txtPath
-            Write-Output "App Service API SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
-            Write-Output "App Service Publisher SSL certificate file (*.pfx): $AppServicePath\ftp.appservice.local.AzureStack.external.pfx" >> $txtPath
-            Write-Output "App Service Publisher SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
-            Write-Output "SQL Server Name: $sqlAppServerFqdn" >> $txtPath
-            Write-Output "SQL sysadmin login: sa" >> $txtPath
-            Write-Output "SQL sysadmin password: $VMpwd" >> $txtPath
-            Write-Output "Worker Role Virtual Machine(s) Admin: workeradmin" >> $txtPath
-            Write-Output "Worker Role Virtual Machine(s) Password: $VMpwd" >> $txtPath
-            Write-Output "Confirm Password: $VMpwd" >> $txtPath
-            Write-Output "Other Roles Virtual Machine(s) Admin: roleadmin" >> $txtPath
-            Write-Output "Other Roles Virtual Machine(s) Password: $VMpwd" >> $txtPath
-            Write-Output "Confirm Password: $VMpwd" >> $txtPath
-        }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-    }
-    catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
+catch {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+    $progress[$RowIndex].Status = "Failed"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress | Out-Host
+    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    Set-Location $ScriptLocation
+    return
 }
 
 #### FINAL STEPS #############################################################################################################################################
