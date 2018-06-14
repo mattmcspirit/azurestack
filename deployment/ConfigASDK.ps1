@@ -3273,8 +3273,8 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-CustomVerbose -Message "Congratulations - all steps completed successfully:`r`n"
     Write-Output $progress | Out-Host
     Write-CustomVerbose -Message "Cleaning up ASDK Folder"
-    Remove-Item -Path "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-    #Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
+    #Remove-Item -Path "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+    &cmd.exe /c rd /s /q $asdkPath > $null
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
