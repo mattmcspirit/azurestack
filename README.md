@@ -96,7 +96,7 @@ Usage Examples:
 as you used when you deployed your ASDK.
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+.\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
 -VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123! `
 -registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
@@ -116,7 +116,7 @@ as you used when you deployed your ASDK.
 **Scenario 2** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use a different set of Azure AD credentials from the set you used when you deployed your ASDK:
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+.\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
 -VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123! `
 -registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd123! `
@@ -129,7 +129,7 @@ as you used when you deployed your ASDK.
 **Scenario 3** - Using Azure AD for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+.\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
 -VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123!
 ```
@@ -138,7 +138,7 @@ as you used when you deployed your ASDK.
 **Scenario 4** - Using ADFS for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you will have to use a different set of Azure AD credentials as your ASDK was deployed with ADFS:
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
+.\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd P@ssw0rd123! -VMpwd P@ssw0rd123! -registerASDK `
 -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd123! `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
@@ -148,7 +148,7 @@ as you used when you deployed your ASDK.
 **Scenario 5** - Using ADFS for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
+.\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd P@ssw0rd123! -VMpwd P@ssw0rd123!
 ```
 
