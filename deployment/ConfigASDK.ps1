@@ -1843,7 +1843,10 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLRP")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipMySQL) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progress[$RowIndex].Status -eq "Skipped") {
         Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
@@ -1888,11 +1891,8 @@ if (!$skipMySQL) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipMySQL) {
+elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip MySQL Resource Provider Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -1905,7 +1905,10 @@ elseif ($skipMySQL) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerRP")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipMSSQL) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progress[$RowIndex].Status -eq "Skipped") {
         Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
@@ -1948,11 +1951,8 @@ if (!$skipMSSQL) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipMSSQL) {
+elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip SQL Server Resource Provider Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -1998,7 +1998,10 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLSKUQuota")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipMySQL) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progress[$RowIndex].Status -eq "Skipped") {
         Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
@@ -2114,11 +2117,8 @@ if (!$skipMySQL) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipMySQL) {
+elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip MySQL Quota and SKU Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -2131,7 +2131,10 @@ elseif ($skipMySQL) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerSKUQuota")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipMSSQL) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progress[$RowIndex].Status -eq "Skipped") {
         Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
@@ -2249,11 +2252,8 @@ if (!$skipMSSQL) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipMSSQL) {
+elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip SQL Server Quota and SKU Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -2266,7 +2266,10 @@ elseif ($skipMSSQL) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLDBVM")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipMySQL) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progress[$RowIndex].Status -eq "Skipped") {
         Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
@@ -2302,11 +2305,8 @@ if (!$skipMySQL) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipMySQL) {
+elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip MySQL Hosting Server Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -2319,7 +2319,10 @@ elseif ($skipMySQL) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerDBVM")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipMSSQL) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progress[$RowIndex].Status -eq "Skipped") {
         Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
@@ -2352,11 +2355,8 @@ if (!$skipMSSQL) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipMSSQL) {
+elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip MySQL Hosting Server Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -2369,7 +2369,12 @@ elseif ($skipMSSQL) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLAddHosting")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipMySQL) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    # Get the FQDN of the VM
+    $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progress[$RowIndex].Status -eq "Skipped") {
         Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
@@ -2404,13 +2409,8 @@ if (!$skipMySQL) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        # Get the FQDN of the VM
-        $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipMySQL) {
+elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip MySQL Hosting Server Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
@@ -2423,7 +2423,12 @@ elseif ($skipMySQL) {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerAddHosting")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (!$skipMSSQL) {
+if ($progress[$RowIndex].Status -eq "Complete") {
+    # Get the FQDN of the VM
+    $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progress[$RowIndex].Status -eq "Skipped") {
         Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
@@ -2458,13 +2463,8 @@ if (!$skipMSSQL) {
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        # Get the FQDN of the VM
-        $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName "azurestack-dbhosting").DnsSettings.Fqdn
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
 }
-elseif ($skipMSSQL) {
+elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip SQL Server Hosting Server Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
