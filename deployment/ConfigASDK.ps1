@@ -2808,7 +2808,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
                 Set-Location "$AppServicePath"
                 $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
                     -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
-                $appIdPath = "$AppServicePath\ApplicationID.txt"
+                $appIdPath = "$downloadPath\ApplicationIDBackup.txt"
                 $identityApplicationID = $applicationId
                 New-Item $appIdPath -ItemType file -Force
                 Write-Output $identityApplicationID > $appIdPath
@@ -2819,7 +2819,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
                 Set-Location "$AppServicePath"
                 $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
                     -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds
-                $appIdPath = "$AppServicePath\ApplicationID.txt"
+                $appIdPath = "$downloadPath\ApplicationIDBackup.txt"
                 $identityApplicationID = $appID
                 New-Item $appIdPath -ItemType file -Force
                 Write-Output $identityApplicationID > $appIdPath
@@ -2853,7 +2853,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 }
 
 if (!$identityApplicationID -and !$skipAppService) {
-    $identityApplicationID = Get-Content -Path "$AppServicePath\ApplicationID.txt"
+    $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
 }
 
 #### GRANT AZURE AD APP PERMISSION ###########################################################################################################################
