@@ -3313,9 +3313,11 @@ if ($authenticationType.ToString() -like "AzureAd") {
         [System.Diagnostics.Process]::Start("chrome.exe", "https://portal.local.azurestack.external/guest/signup")
     }
     elseif ($skipCustomizeHost) {
-        Start-Process https://adminportal.local.azurestack.external/guest/signup
+        Start-Process iexplore.exe https://adminportal.local.azurestack.external/guest/signup
         Start-Sleep -Seconds 10
-        Start-Process https://portal.local.azurestack.external/guest/signup
+        # Open in 2nd tab in same browser
+        $ie = (New-Object -COM "Shell.Application").Windows() | Where-Object { $_.Name -eq "Internet Explorer" }
+        $ie.Navigate("https://portal.local.azurestack.external/guest/signup", 2048)
     }
 }
 Stop-Transcript -ErrorAction SilentlyContinue
