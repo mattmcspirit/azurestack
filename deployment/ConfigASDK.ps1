@@ -3274,6 +3274,7 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Output $progress | Out-Host
     Write-CustomVerbose -Message "Cleaning up ASDK Folder"
     #Remove-Item -Path "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+    #Using CMD as it seems more reliable to cleanup the folder. Will still leave the MySQL telemetry DLL as that's locked until you close PS.
     &cmd.exe /c rd /s /q $asdkPath > $null
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
