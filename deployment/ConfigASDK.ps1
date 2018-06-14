@@ -3156,7 +3156,7 @@ try {
     Remove-Item -Path $txtPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
     New-Item "$txtPath" -ItemType file -Force
 
-    Write-Output "`r`nThis document contains useful information for deployment of the App Service" > $txtPath
+    Write-Output "`r`nThis document contains useful information about your deployment" > $txtPath
     Write-Output "`r`nYour chosen authentication type was: $authenticationType" >> $txtPath
 
     if ($authenticationType.ToString() -like "ADFS") {
@@ -3271,9 +3271,9 @@ $scriptSuccess = $progress | Where-Object {($_.Status -eq "Incomplete") -or ($_.
 if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-CustomVerbose -Message "Congratulations - all steps completed successfully:`r`n"
     Write-Output $progress | Out-Host
-    Write-CustomVerbose -Message "Cleaning up ASDK Folder and Progress CSV file"
+    Write-CustomVerbose -Message "Cleaning up ASDK Folder"
     Remove-Item -Path "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-    Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
+    #Remove-Item -Path $ConfigASDKProgressLogPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
