@@ -92,17 +92,7 @@ Invoke-Webrequest http://bit.ly/configasdk -UseBasicParsing `
 Usage Examples:
 -------------
 
-**Scenario 1** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use the same Azure AD credentials
-as you used when you deployed your ASDK.
-
-```PowerShell
-.\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
--VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123! `
--registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
-```
-
-**Please Note**
+**General Guidance**
 * For the **-azureDirectoryTenantName**, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that
 * For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files
 * **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
@@ -112,6 +102,24 @@ as you used when you deployed your ASDK.
 * Use the **-registerASDK** flag to instruct the script to register your ASDK to Azure
 * Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK
 * If you specify -registerASDK but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials
+
+**New in ASDK Configurator 1805 - Skip Resource Provider Deployment**
+* Use **-skipMySQL** to **not** install the MySQL Resource Provider, Hosting Server and SKU/Quotas.
+* Use **-skipMSSQL** to **not** install the Microsoft SQL Server Resource Provider, Hosting Server and SKU/Quotas.
+* Use **-skipAppService** to **not** install the App Service pre-requisites and App Service Resource Provider.
+* Use **-skipCustomizeHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
+
+In addition, you can choose to skip a particular resource provider deployment, such as -skipMySQL, but later, re-run the Configurator (using the same launch command) and **not** specify the -skipMySQL flag, and the Configurator will add that particular functionality.
+
+**Scenario 1** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use the same Azure AD credentials
+as you used when you deployed your ASDK.
+
+```PowerShell
+.\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
+-VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123! `
+-registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
+```
 
 **Scenario 2** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use a different set of Azure AD credentials from the set you used when you deployed your ASDK:
 
@@ -134,7 +142,6 @@ as you used when you deployed your ASDK.
 -VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123!
 ```
 
-
 **Scenario 4** - Using ADFS for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you will have to use a different set of Azure AD credentials as your ASDK was deployed with ADFS:
 
 ```PowerShell
@@ -144,7 +151,6 @@ as you used when you deployed your ASDK.
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
-
 **Scenario 5** - Using ADFS for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
 
 ```PowerShell
@@ -152,12 +158,10 @@ as you used when you deployed your ASDK.
 -azureStackAdminPwd P@ssw0rd123! -VMpwd P@ssw0rd123!
 ```
 
-
 Post-Script Actions
 -------------------
 This script can take over 6 hours to finish.
-Once the script has completed, be sure to look in your downloadPath folder, as it will contain a ConfigASDKOutput.txt file, which contains useful information.
-Assuming the script has completed successfully, you just need to activate the portals: <https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-post-deploy#activate-the-administrator-and-tenant-portals>
+Assuming the script has completed successfully, you just need to activate the portals. The script does open the browser to prompt you to perform these tasks, but for more information, go here: <https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-post-deploy#activate-the-administrator-and-tenant-portals>
 
 #### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
