@@ -56,7 +56,8 @@
 
     Jon LaBelle - https://jonlabelle.com/snippets/view/powershell/download-remote-file-with-retry-support
     Alain Vetier - https://github.com/esache/Azure-Stack
-    Ned Ballavance - https://github.com/ned1313/AzureStack-VM-PoC 
+    Ned Ballavance - https://github.com/ned1313/AzureStack-VM-PoC
+    Rik Hepworth - https://github.com/rikhepworth/azurestack
 
 .GUIDANCE
 

@@ -103,14 +103,6 @@ Usage Examples:
 * Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK
 * If you specify -registerASDK but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials
 
-**New in ASDK Configurator 1805 - Skip Resource Provider Deployment**
-* Use **-skipMySQL** to **not** install the MySQL Resource Provider, Hosting Server and SKU/Quotas.
-* Use **-skipMSSQL** to **not** install the Microsoft SQL Server Resource Provider, Hosting Server and SKU/Quotas.
-* Use **-skipAppService** to **not** install the App Service pre-requisites and App Service Resource Provider.
-* Use **-skipCustomizeHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
-
-In addition, you can choose to skip a particular resource provider deployment, such as -skipMySQL, but later, re-run the Configurator (using the same launch command) and **not** specify the -skipMySQL flag, and the Configurator will add that particular functionality.
-
 **Scenario 1** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use the same Azure AD credentials
 as you used when you deployed your ASDK.
 
@@ -157,6 +149,18 @@ as you used when you deployed your ASDK.
 .\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd P@ssw0rd123! -VMpwd P@ssw0rd123!
 ```
+
+Optional Actions - New in ASDK Configurator 1805
+----------------
+
+Use the following switches to skip deployment of additional Resource Providers, or host customization. Note, if you don't specify these switches, the Resource Provider/Customization will be performed as part of the deployment.
+
+* Use **-skipMySQL** to **not** install the MySQL Resource Provider, Hosting Server and SKU/Quotas.
+* Use **-skipMSSQL** to **not** install the Microsoft SQL Server Resource Provider, Hosting Server and SKU/Quotas.
+* Use **-skipAppService** to **not** install the App Service pre-requisites and App Service Resource Provider.
+* Use **-skipCustomizeHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
+
+In addition, you can choose to skip a particular resource provider deployment, such as -skipMySQL, but later, re-run the Configurator (using the same launch command) and **not** specify the -skipMySQL switch, and the Configurator will add that particular functionality.
 
 Post-Script Actions
 -------------------
