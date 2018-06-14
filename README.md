@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1804
+Azure Stack Development Kit Configurator 1805
 ==============
 
 Version Compatibility
