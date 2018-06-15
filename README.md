@@ -11,7 +11,7 @@ The current version of the ConfigASDK.ps1 script has been **tested with the foll
 
 Description
 -----------
-Once you have completed the installation of your ASDK, you need to populate it with content, in order to have a more complete experience. This content may include
+Once you have **completed the installation of your ASDK**, you need to populate it with content, in order to have a more complete experience. This content may include
 virtual machine images, extensions, database hosts, app services and more. All of that takes time to install and configure.
 The purpose of this ConfigASDK.ps1 script is to automate as much as possible, the post-deployment tasks for the Azure Stack Development Kit
 
@@ -48,13 +48,14 @@ Additionally, if you encounter an issue, try rerunning the script with the same 
 
 Important Considerations
 ------------
-The current version of the ConfigASDK.ps1 script **relies** on your ASDK host having an internet connection. During the execution, the script will download a number of files from the internet, including the Azure Stack Tools, Ubuntu Server 16.04 VHD, Windows Updates for the Windows Server image creation process, and more. Future versions of the ConfigASDK.ps1 script may include complete offline support.
+Firstly, **you must have already deployed the ASDK**. The current version of the ConfigASDK.ps1 script **relies** on your ASDK host having an internet connection. During the execution, the script will download a number of files from the internet, including the Azure Stack Tools, Ubuntu Server 16.04 VHD, Windows Updates for the Windows Server image creation process, and more. Future versions of the ConfigASDK.ps1 script may include complete offline support.
 
 Instructions
 ------------
 #### Install PowerShell for Azure Stack ####
 
-* Login as azurestack\azurestackadmin on your ASDK host.
+* Deploy your ASDK
+* Once complete, login as azurestack\azurestackadmin on your ASDK host.
 * Open an elevated PowerShell window and run the following script to install PowerShell for Azure Stack:
 
 ```PowerShell
