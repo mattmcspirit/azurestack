@@ -1,13 +1,13 @@
-Azure Stack Development Kit Configurator 1804
+Azure Stack Development Kit Configurator 1805
 ==============
 
 Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
-* ASDK build **20180513.1 (1804)**
+* ASDK build **1.1805.1.47 (1805) and 20180513.1 (1804)**
 * Azure Stack PowerShell Module **1.3.0**
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1804, and Azure Stack PowerShell 1.3.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1805 and 1804, both with Azure Stack PowerShell 1.3.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
@@ -38,6 +38,7 @@ This includes:
 * App Service Service Principal Created (for Azure AD and ADFS)
 * Grants App Service Service Principal Admin Consent (for Azure AD)
 * Automates deployment of the App Service using dynamically constructed JSON
+* MySQL, SQL, App Service and Host Customization can be optionally skipped
 * Cleans up download folder to ensure clean future runs
 * Transcript Log for errors and troubleshooting
 * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
@@ -91,17 +92,7 @@ Invoke-Webrequest http://bit.ly/configasdk -UseBasicParsing `
 Usage Examples:
 -------------
 
-**Scenario 1** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use the same Azure AD credentials
-as you used when you deployed your ASDK.
-
-```PowerShell
-.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
--VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123! `
--registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
-```
-
-**Please Note**
+**General Guidance**
 * For the **-azureDirectoryTenantName**, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that
 * For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files
 * **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
@@ -112,10 +103,20 @@ as you used when you deployed your ASDK.
 * Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK
 * If you specify -registerASDK but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials
 
+**Scenario 1** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use the same Azure AD credentials
+as you used when you deployed your ASDK.
+
+```PowerShell
+.\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
+-VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123! `
+-registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
+```
+
 **Scenario 2** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use a different set of Azure AD credentials from the set you used when you deployed your ASDK:
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+.\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
 -VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123! `
 -registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd123! `
@@ -128,35 +129,43 @@ as you used when you deployed your ASDK.
 **Scenario 3** - Using Azure AD for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+.\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd P@ssw0rd123! `
 -VMpwd P@ssw0rd123! -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd P@ssw0rd123!
 ```
 
-
 **Scenario 4** - Using ADFS for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you will have to use a different set of Azure AD credentials as your ASDK was deployed with ADFS:
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
+.\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd P@ssw0rd123! -VMpwd P@ssw0rd123! -registerASDK `
 -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd P@ssw0rd123! `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
-
 **Scenario 5** - Using ADFS for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
 
 ```PowerShell
-.\ConfigASDK.ps1 -ASDK -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
+.\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd P@ssw0rd123! -VMpwd P@ssw0rd123!
 ```
 
+Optional Actions - New in ASDK Configurator 1805
+----------------
+
+Use the following switches to skip deployment of additional Resource Providers, or host customization. Note, if you don't specify these switches, the Resource Provider/Customization will be performed as part of the deployment.
+
+* Use **-skipMySQL** to **not** install the MySQL Resource Provider, Hosting Server and SKU/Quotas.
+* Use **-skipMSSQL** to **not** install the Microsoft SQL Server Resource Provider, Hosting Server and SKU/Quotas.
+* Use **-skipAppService** to **not** install the App Service pre-requisites and App Service Resource Provider.
+* Use **-skipCustomizeHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
+
+In addition, you can choose to skip a particular resource provider deployment, such as -skipMySQL, but later, re-run the Configurator (using the same launch command) and **not** specify the -skipMySQL switch, and the Configurator will add that particular functionality.
 
 Post-Script Actions
 -------------------
 This script can take over 6 hours to finish.
-Once the script has completed, be sure to look in your downloadPath folder, as it will contain a ConfigASDKOutput.txt file, which contains useful information.
-Assuming the script has completed successfully, you just need to activate the portals: <https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-post-deploy#activate-the-administrator-and-tenant-portals>
+Assuming the script has completed successfully, you just need to activate the portals. The script does open the browser to prompt you to perform these tasks, but for more information, go here: <https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-post-deploy#activate-the-administrator-and-tenant-portals>
 
 #### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
