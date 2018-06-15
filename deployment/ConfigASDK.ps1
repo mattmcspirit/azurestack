@@ -2484,6 +2484,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
         Clear-AzureRmContext -Scope CurrentUser -Force
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
+        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+        $subID = $azureContext.Subscription.Id
 
         # Default quotas, plan, and offer
         $PlanName = "BasePlan"
@@ -2532,6 +2535,22 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $quotaIDs += (New-AzsComputeQuota @computeParams).ID
         $quotaIDs += (New-AzsStorageQuota @storageParams).ID
         $quotaIDs += (Get-AzsKeyVaultQuota @kvParams).ID
+
+        # If MySQL and MSSQL haven't been skipped, add them to the Base Plan too
+        if (!$skipMySQL) {
+            $mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
+            $mySqlLocation = "$azsLocation"
+            $mySqlQuotaName = "mysqldefault"
+            $mySQLQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
+            $quotaIDs += $mySQLQuotaId
+        }
+        if (!$skipMSSQL) {
+            $sqlDatabaseAdapterNamespace = "Microsoft.SQLAdapter.Admin"
+            $sqlLocation = "$azsLocation"
+            $sqlQuotaName = "sqldefault"
+            $sqlQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
+            $quotaIDs += $sqlQuotaId
+        }
 
         New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
         $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
