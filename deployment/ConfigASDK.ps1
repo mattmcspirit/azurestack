@@ -242,6 +242,7 @@ $validConfigASDKProgressLogPath = [System.IO.File]::Exists($ConfigASDKProgressLo
 If ($validConfigASDKProgressLogPath -eq $true) {
     Write-CustomVerbose -Message "ConfigASDkProgressLog.csv exists - this must be a rerun"
     Write-CustomVerbose -Message "Starting from previous failed step`r`n"
+    $isRerun = $true
     $progress = Import-Csv $ConfigASDKProgressLogPath
     Write-Output $progress | Out-Host
 }
@@ -756,9 +757,20 @@ function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [i
 ########################################################################################################################################################
 
 ### CREATE ASDK FOLDER ###
-
 $ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
+
 If ($ASDKpath -eq $true) {
+    if (!$isRerun) {
+        # If this is a fresh run, the $asdkPath should be empty to avoid any conflicts.
+        # It may exist from a previous successful run
+        Write-CustomVerbose -Message "Cleaning up an old ASDK Folder from a previous completed run"
+        # Will attempt multiple times as sometimes it fails
+        $i = 0 
+        While ($i -le 3) {
+            Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            $i++
+        }
+    }
     Write-CustomVerbose -Message "ASDK folder exists at $downloadPath - no need to create it."
     Write-CustomVerbose -Message "Download files will be placed in $downloadPath\ASDK"
     $ASDKpath = "$downloadPath\ASDK"
@@ -3286,9 +3298,12 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-CustomVerbose -Message "Congratulations - all steps completed successfully:`r`n"
     Write-Output $progress | Out-Host
     Write-CustomVerbose -Message "Cleaning up ASDK Folder"
-    #Remove-Item -Path "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-    #Using CMD as it seems more reliable to cleanup the folder. Will still leave the MySQL telemetry DLL as that's locked until you close PS.
-    &cmd.exe /c rd /s /q $asdkPath > $null
+    # Will attempt multiple times as sometimes it fails
+    $i = 0 
+    While ($i -le 3) {
+        Remove-Item -Path "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        $i++
+    }
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
