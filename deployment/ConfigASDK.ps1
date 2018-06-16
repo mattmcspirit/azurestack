@@ -468,7 +468,8 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
     
         if ($azureRegUsername -cmatch $emailRegex -eq $true) {
             Write-CustomVerbose -Message "Azure AD username is correctly formatted." 
-            Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure." 
+            Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure."
+            $azureRegTenantName = $azureRegUsername.Substring($azureRegUsername.IndexOf("@") + 1)
         }
     
         elseif ($azureRegUsername -cmatch $emailRegex -eq $false) {
@@ -626,7 +627,7 @@ if ($registerASDK) {
 $scriptStep = "TEST LOGINS"
 
 # Clear all logins
-Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
 Clear-AzureRmContext -Scope CurrentUser -Force
 
 # Register an AzureRM environment that targets your administrative Azure Stack instance
@@ -645,7 +646,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
         Write-Output $testAzureSub
         Start-Sleep -Seconds 5
         # Clear Azure login
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
 
         ### TEST AZURE STACK LOGIN - Login to Azure Stack
@@ -659,7 +660,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
         Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory`r`n`r`n"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Clear Azure login
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
     }
     catch {
@@ -679,7 +680,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
         Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS`r`n`r`n"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Clean up current logins
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
     }
     catch {
@@ -692,13 +693,16 @@ if ($registerASDK) {
     try {
         ### OPTIONAL - TEST AZURE REGISTRATION CREDS
         Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory`r`n"
-        Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+        Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantName -Credential $azureRegCreds -ErrorAction Stop | Out-Null
         $testAzureRegSub = Get-AzureRmContext | Out-Null
         Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:`r`n`r`n"
         Write-Output $testAzureRegSub
+        Write-CustomVerbose -Message "TenantID for this subscription is:`r`n"
+        $azureRegTenantID = $testAzureRegSub.Tenant.Id
+        Write-Output $azureRegTenantID
         Start-Sleep -Seconds 5
         # Clear Azure login
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
     }
     catch {
@@ -713,7 +717,7 @@ elseif (!$registerASDK) {
 }
 
 # Clean up current logins
-Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
 Clear-AzureRmContext -Scope CurrentUser -Force
 
 ### Run Counter #############################################################################################################################################
@@ -889,7 +893,7 @@ if ($registerASDK) {
         try {
             Write-CustomVerbose -Message "Starting Azure Stack registration to Azure"
             # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             # Register the Azure Stack resource provider in your Azure subscription
             Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
             # Import the registration module that was downloaded with the GitHub tools
@@ -989,16 +993,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         }       
         if ($registerASDK) {
             # Logout to clean up
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
 
             ### Login to Azure to get all the details about the syndicated Ubuntu Server 16.04 marketplace offering ###
             Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription -SubscriptionId $azureRegSubId | Select-AzureRmSubscription
-            $AzureContext = Get-AzureRmContext
-            $subID = $AzureContext.Subscription.Id
-            $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $azureRegCreds
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
             $resources = Get-AzureRmResource
             $resource = $resources.resourcename
@@ -1014,7 +1014,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $token = $null
             $tokens = $null
             $tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-            $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureAccount.Context.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+            $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object TenantId -EQ $azureRegTenantID | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
 
             # Define variables and create an array to store all information
             $package = "*Canonical.UbuntuServer1604LTS*"
@@ -1033,7 +1033,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
 
             ### Get the package information ###
-            $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
+            $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
             $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
             $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1 -ErrorAction Stop
 
@@ -1044,13 +1044,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $azpkg.offer = $product.properties.offer
 
             # Get product info
-            $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
+            $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
             $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
             $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
             $azpkg.name = $productDetails.properties.galleryItemIdentity
 
             # Get download location for Ubuntu Server 16.04 LTS AZPKG file
-            $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
+            $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
             $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
             $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
 
@@ -1561,13 +1561,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             ### Login to Azure to get all the details about the syndicated Windows Server 2016 marketplace offering ###
             Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-            Clear-AzureRmContext -Scope CurrentUser -Force
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription -SubscriptionId $azureRegSubId | Select-AzureRmSubscription
-            $AzureContext = Get-AzureRmContext
-            $subID = $AzureContext.Subscription.Id
-            $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $azureRegCreds
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
             $resources = Get-AzureRmResource
             $resource = $resources.resourcename
@@ -1599,7 +1593,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $product = $null
 
                 # Get the package information
-                $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
+                $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
                 $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
                 $products = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
 
@@ -1623,13 +1617,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     $azpkg.offer = $product.properties.offer
 
                     # Get product info
-                    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
+                    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
                     $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
                     $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
                     $azpkg.name = $productDetails.properties.galleryItemIdentity
 
                     # Get download location for AZPKG file
-                    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
+                    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
                     $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
                     $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
 
@@ -2014,7 +2008,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Logout to clean up
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
 
             # Set the variables and gather token for creating the SKU & Quota
@@ -2147,7 +2141,7 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Logout to clean up
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
 
             # Set the variables and gather token for creating the SKU & Quota
@@ -2481,7 +2475,7 @@ $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         # Configure a simple base plan and offer for IaaS
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
@@ -2820,7 +2814,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             # Create Azure AD or ADFS Service Principal
             if ($authenticationType.ToString() -like "AzureAd") {
                 # Logout to clean up
-                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force
 
                 # Grant permissions to Azure AD Service Principal
@@ -2897,7 +2891,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
         if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
             try {
                 # Logout to clean up
-                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force
                 # Grant permissions to Azure AD Service Principal
                 Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $azureDirectoryTenantName -Credential $asdkCreds -ErrorAction Stop | Out-Null
@@ -3053,7 +3047,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             }
             Write-CustomVerbose -Message "Checking App Service resource group for successful deployment"
             # Ensure logged into Azure Stack
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
