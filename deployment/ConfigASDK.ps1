@@ -456,6 +456,7 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
 
     if ($useAzureCredsForRegistration -and $registerASDK) {
         $azureRegCreds = $azureAdCreds
+        $azureRegTenantName = $azureDirectoryTenantName
     }
 
     elseif (!$useAzureCredsForRegistration -and $registerASDK) {
