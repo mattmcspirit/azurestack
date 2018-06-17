@@ -456,7 +456,6 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
 
     if ($useAzureCredsForRegistration -and $registerASDK) {
         $azureRegCreds = $azureAdCreds
-        $azureRegTenantName = $azureDirectoryTenantName
     }
 
     elseif (!$useAzureCredsForRegistration -and $registerASDK) {
@@ -471,7 +470,6 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
         if ($azureRegUsername -cmatch $emailRegex -eq $true) {
             Write-CustomVerbose -Message "Azure AD username is correctly formatted." 
             Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure."
-            #$azureRegTenantName = $azureRegUsername.Substring($azureRegUsername.IndexOf("@") + 1)
         }
     
         elseif ($azureRegUsername -cmatch $emailRegex -eq $false) {
@@ -696,7 +694,7 @@ if ($registerASDK) {
     try {
         ### OPTIONAL - TEST AZURE REGISTRATION CREDS
         Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory`r`n"
-        Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId <#-TenantId $azureRegTenantName#> -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+        Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
         $testAzureRegSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:`r`n`r`n"
         Write-Output $testAzureRegSub
