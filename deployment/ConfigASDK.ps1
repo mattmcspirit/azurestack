@@ -471,7 +471,7 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
         if ($azureRegUsername -cmatch $emailRegex -eq $true) {
             Write-CustomVerbose -Message "Azure AD username is correctly formatted." 
             Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure."
-            $azureRegTenantName = $azureRegUsername.Substring($azureRegUsername.IndexOf("@") + 1)
+            #$azureRegTenantName = $azureRegUsername.Substring($azureRegUsername.IndexOf("@") + 1)
         }
     
         elseif ($azureRegUsername -cmatch $emailRegex -eq $false) {
@@ -615,6 +615,7 @@ if ($registerASDK) {
     if ($azureRegSubId) {
         Write-CustomVerbose -Message "Azure subscription ID has been provided."
         Write-CustomVerbose -Message "$azureRegSubId will be used to register this Azure Stack with Azure."
+
     }   
     elseif ([string]::IsNullOrEmpty($azureRegSubId)) {
         Write-CustomVerbose -Message "No valid Azure subscription ID was entered again. Exiting process..." -ErrorAction Stop
@@ -643,7 +644,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
         ### TEST AZURE LOGIN - Login to Azure Cloud (used for App Service App creation)
         Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r`n"
         Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId "$azureDirectoryTenantName" -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $testAzureSub = Get-AzureRmContext | Out-Null
+        $testAzureSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Subscription is:`r`n`r`n"
         Write-Output $testAzureSub
         Start-Sleep -Seconds 5
@@ -695,8 +696,8 @@ if ($registerASDK) {
     try {
         ### OPTIONAL - TEST AZURE REGISTRATION CREDS
         Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory`r`n"
-        Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantName -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-        $testAzureRegSub = Get-AzureRmContext | Out-Null
+        Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId <#-TenantId $azureRegTenantName#> -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+        $testAzureRegSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:`r`n`r`n"
         Write-Output $testAzureRegSub
         Write-CustomVerbose -Message "TenantID for this subscription is:`r`n"
@@ -760,7 +761,11 @@ function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [i
 ### CREATE ASDK FOLDER ###
 $ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
 
-If ($ASDKpath -eq $true) {
+if ($ASDKpath -eq $true) {
+    $ASDKpath = "$downloadPath\ASDK"
+    Write-CustomVerbose -Message "ASDK folder exists at $downloadPath - no need to create it."
+    Write-CustomVerbose -Message "Download files will be placed in $downloadPath\ASDK"
+    Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
     if (!$isRerun) {
         # If this is a fresh run, the $asdkPath should be empty to avoid any conflicts.
         # It may exist from a previous successful run
@@ -772,10 +777,6 @@ If ($ASDKpath -eq $true) {
             $i++
         }
     }
-    Write-CustomVerbose -Message "ASDK folder exists at $downloadPath - no need to create it."
-    Write-CustomVerbose -Message "Download files will be placed in $downloadPath\ASDK"
-    $ASDKpath = "$downloadPath\ASDK"
-    Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
 }
 elseif ($ASDKpath -eq $false) {
     # Create the ASDK folder.
@@ -1590,7 +1591,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $token = $null
             $tokens = $null
             $tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-            $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureAccount.Context.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+            $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object TenantId -EQ $azureRegTenantID | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
 
             # Define variables and create arrays to store all information
             $packageArray = @()
