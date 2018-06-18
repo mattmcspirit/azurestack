@@ -3299,9 +3299,12 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-Output $progress | Out-Host
     Write-CustomVerbose -Message "Cleaning up ASDK Folder"
     # Will attempt multiple times as sometimes it fails
-    $i = 0 
+    $ASDKpath = "$downloadPath\ASDK"
+    $i = 1
     While ($i -le 3) {
-        Remove-Item -Path "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        Write-CustomVerbose -Message "Cleanup Attempt: $i"
+        Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        Remove-Item -Path "$ASDKpath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
         $i++
     }
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
