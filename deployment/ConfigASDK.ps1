@@ -1150,8 +1150,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             # Upload the image to the Azure Stack Platform Image Repository
             Write-CustomVerbose -Message "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
-
-            # If the user has chosen to register the ASDK, the script will NOT create a gallery item as part of the image upload
             
             # Upload VHD to Storage Account
             $asdkStorageAccount.PrimaryEndpoints.Blob
@@ -1160,35 +1158,74 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # Check there's not a VHD already uploaded to storage
             if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($ubuntuUploadSuccess)) {
                 Write-CustomVerbose -Message "You already have an upload of $($UbuntuServerVHD.Name) within your Storage Account. No need to re-upload."
+                Write-CustomVerbose -Message "Core VHD path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
             }
-            elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess)) {
+
+            # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+            # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
+            $uploadVhdAttempt = 1
+            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                 Try {
-                    # Logging in again to ensure login hasn't timed out
+                    # Log back into Azure Stack to ensure login hasn't timed out
+                    Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
                     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                     $ubuntuUploadSuccess = $true
                 }
                 catch {
+                    Write-CustomVerbose -Message "Upload failed."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    $uploadVhdAttempt++
                     $ubuntuUploadSuccess = $false
-                    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                    Set-Location $ScriptLocation
-                    return
-                }
-            }
-            else {
-                Try {
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -Verbose -ErrorAction Stop
-                    $ubuntuUploadSuccess = $true
-                }
-                catch {
-                    $ubuntuUploadSuccess = $false
-                    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                    Set-Location $ScriptLocation
-                    return
                 }
             }
 
+            # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+            # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
+
+            while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
+                Try {
+                    # Log back into Azure Stack to ensure login hasn't timed out
+                    Write-CustomVerbose -Message "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                    $ubuntuUploadSuccess = $true
+                }
+                catch {
+                    Write-CustomVerbose -Message "Upload failed."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    $uploadVhdAttempt++
+                    $ubuntuUploadSuccess = $false
+                }
+            }
+
+            # This is one final catch-all for the upload process
+            # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
+            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
+                Try {
+                    # Log back into Azure Stack to ensure login hasn't timed out
+                    Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                    $ubuntuUploadSuccess = $true
+                }
+                catch {
+                    Write-CustomVerbose -Message "Upload failed."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    $uploadVhdAttempt++
+                    $ubuntuUploadSuccess = $false
+                }
+            }
+
+            if ($uploadVhdAttempt -gt 3) {
+                Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
+                $ubuntuUploadSuccess = $false
+                throw "Uploading image failed"
+                Set-Location $ScriptLocation
+                return
+            }
+
+            # If the user has chosen to register the ASDK, the script will NOT create a gallery item as part of the image upload
             if ($registerASDK) {
                 Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$ubuntuServerURI" -Force -Confirm: $false
             }
@@ -1398,50 +1435,91 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 }
 
                 ### If required, build the Server Core Image ###
-
                 if ($serverCoreVMImageAlreadyAvailable -eq $false) {
+                    $serverCoreVHDpath = "$ASDKpath\ServerCore.vhd"
+                    $serverCoreVHDExists = [System.IO.File]::Exists($serverCoreVHDpath)
                     $CoreEdition = 'Windows Server 2016 SERVERDATACENTERCORE'
-                    $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$CoreEdition" -VHDPath "$ASDKpath\ServerCore.vhd" `
-                        -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+
+                    if ($serverCoreVHDExists -eq $false) {
+                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$CoreEdition" -VHDPath "$ASDKpath\ServerCore.vhd" `
+                            -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+                    }
 
                     $serverCoreVHD = Get-ChildItem -Path "$ASDKpath" -Filter "*ServerCore.vhd"
-
-                    # Upload VHD to Storage Account
                     $asdkStorageAccount.PrimaryEndpoints.Blob
                     $serverCoreURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $serverCoreVHD.Name
 
                     # Check there's not a VHD already uploaded to storage
                     if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($serverCoreUploadSuccess)) {
                         Write-CustomVerbose -Message "You already have an upload of $($serverCoreVHD.Name) within your Storage Account. No need to re-upload."
+                        Write-CustomVerbose -Message "Core VHD path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
                     }
-                    elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverCoreUploadSuccess)) {
+
+                    # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+                    # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
+                    $uploadVhdAttempt = 1
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverCoreUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                         Try {
                             # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
                             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             $serverCoreUploadSuccess = $true
                         }
                         catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
                             $serverCoreUploadSuccess = $false
-                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                            Set-Location $ScriptLocation
-                            return
                         }
                     }
-                    else {
+
+                    # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+                    # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
+
+                    while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverCoreUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                         Try {
                             # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
                             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -Verbose -ErrorAction Stop
+                            Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             $serverCoreUploadSuccess = $true
                         }
                         catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
                             $serverCoreUploadSuccess = $false
-                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                            Set-Location $ScriptLocation
-                            return
                         }
                     }
+
+                    # This is one final catch-all for the upload process
+                    # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
+                        Try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
+                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                            Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            $serverCoreUploadSuccess = $true
+                        }
+                        catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
+                            $serverCoreUploadSuccess = $false
+                        }
+                    }
+
+                    if ($uploadVhdAttempt -gt 3) {
+                        Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
+                        $serverCoreUploadSuccess = $false
+                        throw "Uploading image failed"
+                        Set-Location $ScriptLocation
+                        return
+                    }
+
+                    # Push the image into the PIR from the Storage Account
                     Add-AzsPlatformImage -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -OsType "Windows" -OsUri "$serverCoreURI" -Force -Confirm: $false
 
                     if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
@@ -1462,48 +1540,88 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 ### If required, build the Server Full Image ###
 
                 if ($serverFullVMImageAlreadyAvailable -eq $false) {
+                    $serverFullVHDpath = "$ASDKpath\ServerFull.vhd"
+                    $serverFullVHDExists = [System.IO.File]::Exists($serverFullVHDpath)
                     $FullEdition = 'Windows Server 2016 SERVERDATACENTER'
-                    $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$FullEdition" -VHDPath "$ASDKpath\ServerFull.vhd" `
-                        -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
 
+                    if ($serverFullVHDExists -eq $false) {
+                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$FullEdition" -VHDPath "$ASDKpath\ServerFull.vhd" `
+                            -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+                    }
+                    
                     $serverFullVHD = Get-ChildItem -Path "$ASDKpath" -Filter "*ServerFull.vhd"
-
-                    # Upload VHD to Storage Account
                     $asdkStorageAccount.PrimaryEndpoints.Blob
                     $serverFullURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $serverFullVHD.Name
 
                     # Check there's not a VHD already uploaded to storage
                     if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($serverFullUploadSuccess)) {
                         Write-CustomVerbose -Message "You already have an upload of $($serverFullVHD.Name) within your Storage Account. No need to re-upload."
+                        Write-CustomVerbose -Message "Full VHD path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
                     }
-                    elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess)) {
+
+                    # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+                    # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
+                    $uploadVhdAttempt = 1
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                         Try {
                             # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
                             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             $serverFullUploadSuccess = $true
                         }
                         catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
                             $serverFullUploadSuccess = $false
-                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                            Set-Location $ScriptLocation
-                            return
                         }
                     }
-                    else {
+                    
+                    # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+                    # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
+                    while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                         Try {
                             # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
                             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -Verbose -ErrorAction Stop
+                            Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             $serverFullUploadSuccess = $true
                         }
                         catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
                             $serverFullUploadSuccess = $false
-                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                            Set-Location $ScriptLocation
-                            return
                         }
                     }
+
+                    # This is one final catch-all for the upload process
+                    # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
+                        Try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
+                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                            Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            $serverFullUploadSuccess = $true
+                        }
+                        catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
+                            $serverFullUploadSuccess = $false
+                        }
+                    }
+
+                    if ($uploadVhdAttempt -gt 3) {
+                        Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
+                        $serverFullUploadSuccess = $false
+                        throw "Uploading image failed"
+                        Set-Location $ScriptLocation
+                        return
+                    }
+
                     Add-AzsPlatformImage -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -OsType "Windows" -OsUri "$serverFullURI" -Force -Confirm: $false
 
                     if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
