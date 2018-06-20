@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1805
+Azure Stack Development Kit Configurator 1805.1
 ==============
 
 Version Compatibility
@@ -154,7 +154,7 @@ as you used when you deployed your ASDK.
 Optional Actions - New in ASDK Configurator 1805
 ----------------
 
-Use the following switches to skip deployment of additional Resource Providers, or host customization. Note, if you don't specify these switches, the Resource Provider/Customization will be performed as part of the deployment.
+Use the following switches to skip deployment of additional Resource Providers, or host customization. Note, if you don't specify these switches, the Resource Provider installation/customization will be performed as part of the deployment.
 
 * Use **-skipMySQL** to **not** install the MySQL Resource Provider, Hosting Server and SKU/Quotas.
 * Use **-skipMSSQL** to **not** install the Microsoft SQL Server Resource Provider, Hosting Server and SKU/Quotas.
@@ -165,7 +165,7 @@ In addition, you can choose to skip a particular resource provider deployment, s
 
 Post-Script Actions
 -------------------
-This script can take over 6 hours to finish.
+This script can take over 6 hours to finish, depending on your hardware and download speeds.
 Assuming the script has completed successfully, you just need to activate the portals. The script does open the browser to prompt you to perform these tasks, but for more information, go here: <https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-post-deploy#activate-the-administrator-and-tenant-portals>
 
 #### Troubleshooting & Improvements

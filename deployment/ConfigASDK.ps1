@@ -34,6 +34,7 @@
 
 .VERSION
 
+    1805.1 updates to handling Azure subscriptions with multiple Azure AD tenants, and error handling for random Add-AzureRmVhd pipeline error
     1805 updated with improvements to Azure account verification, ability to skip RP deployment, run counters and bug fixes
     1804 Updated with support for ASDK 1804 and PowerShell 1.3.0, bug fixes, reduced number of modules imported from GitHub tools repo
     3.1  Update added App Service automation, bug fixes, MySQL Root account fix.
