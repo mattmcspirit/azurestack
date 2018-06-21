@@ -20,12 +20,14 @@
         * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
         * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
         * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
-        * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
         * App Service prerequisites installation (SQL Server and Standalone File Server)
         * App Service Resource Provider sources download and certificates generation
         * App Service Service Principal Created (for Azure AD and ADFS)
         * Grants App Service Service Principal Admin Consent (for Azure AD)
         * Automates deployment of the App Service using dynamically constructed JSON
+        * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
+        * Creates a Base Plan and Offer containing all deployed services
+        * Creates a user subscription for the logged in tenant, and activates all resource providers
         * MySQL, SQL, App Service and Host Customization can be optionally skipped
         * Cleans up download folder to ensure clean future runs
         * Transcript Log for errors and troubleshooting
@@ -34,17 +36,18 @@
 
 .VERSION
 
-    1805.1 updates to handling Azure subscriptions with multiple Azure AD tenants, and error handling for random Add-AzureRmVhd pipeline error
-    1805 updated with improvements to Azure account verification, ability to skip RP deployment, run counters and bug fixes
-    1804 Updated with support for ASDK 1804 and PowerShell 1.3.0, bug fixes, reduced number of modules imported from GitHub tools repo
-    3.1  Update added App Service automation, bug fixes, MySQL Root account fix.
-    3.0  major update for ASDK release 20180329.1
-    2.0  update for release 1.0.280917.3 
-    1.0: small bug fixes and adding quotas/plan/offer creation
-    0.5: add SQL 2014 VM deployment
-    0.4: add Windows update disable
-    0.3: Bug fix (SQL Provider prompting for tenantdirectoryID)
-    0.2: Bug Fix (AZStools download)
+    1805.1  Updates to handling Azure subscriptions with multiple Azure AD tenants, and error handling for random Add-AzureRmVhd pipeline error,
+            added automated App Service quota to base plan, created user subscription and activated RPs for that subscription.
+    1805    Updated with improvements to Azure account verification, ability to skip RP deployment, run counters and bug fixes
+    1804    Updated with support for ASDK 1804 and PowerShell 1.3.0, bug fixes, reduced number of modules imported from GitHub tools repo
+    3.1     Update added App Service automation, bug fixes, MySQL Root account fix.
+    3.0     Major update for ASDK release 20180329.1
+    2.0     Update for release 1.0.280917.3 
+    1.0:    Small bug fixes and adding quotas/plan/offer creation
+    0.5:    Add SQL 2014 VM deployment
+    0.4:    Add Windows update disable
+    0.3:    Bug fix (SQL Provider prompting for tenantdirectoryID)
+    0.2:    Bug Fix (AZStools download)
 
 .AUTHOR
 
@@ -269,7 +272,6 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"SQLServerDBVM","Incomplete"'
         '"MySQLAddHosting","Incomplete"'
         '"SQLServerAddHosting","Incomplete"'
-        '"CreatePlansOffers","Incomplete"'
         '"AppServiceFileServer","Incomplete"'
         '"AppServiceSQLServer","Incomplete"'
         '"DownloadAppService","Incomplete"'
@@ -277,6 +279,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"CreateServicePrincipal","Incomplete"'
         '"GrantAzureADAppPermissions","Incomplete"'
         '"InstallAppService","Incomplete"'
+        '"CreatePlansOffers","Incomplete"'
         '"InstallHostApps","Incomplete"'
         '"CreateOutput","Incomplete"'
     )
@@ -2517,7 +2520,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             # Add host server to MySQL RP
             Write-CustomVerbose -Message "Attaching MySQL hosting server to MySQL resource provider"
             New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
-                -username "root" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
+                -username "root" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 20480 -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -2571,7 +2574,7 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             # Add host server to SQL Server RP
             Write-CustomVerbose -Message "Attaching SQL Server 2017 hosting server to SQL Server resource provider"
             New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json `
-                -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 10240 -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
+                -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 20480 -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -2596,110 +2599,6 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
     Write-Output $progress | Out-Host
-}
-
-#### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
-##############################################################################################################################################################
-
-$RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Configure a simple base plan and offer for IaaS
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
-        Clear-AzureRmContext -Scope CurrentUser -Force
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
-        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-        $subID = $azureContext.Subscription.Id
-
-        # Default quotas, plan, and offer
-        $PlanName = "BasePlan"
-        $OfferName = "BaseOffer"
-        $RGName = "azurestack-plansandoffers"
-
-        $computeParams = $null
-        $computeParams = @{
-            Name                 = "compute_default"
-            CoresLimit           = 200
-            AvailabilitySetCount = 20
-            VirtualMachineCount  = 100
-            VmScaleSetCount      = 20
-            Location             = $azsLocation
-        }
-
-        $netParams = $null
-        $netParams = @{
-            Name                                               = "network_default"
-            MaxPublicIpsPerSubscription                        = 500
-            MaxVNetsPerSubscription                            = 500
-            MaxVirtualNetworkGatewaysPerSubscription           = 10
-            MaxVirtualNetworkGatewayConnectionsPerSubscription = 20
-            MaxLoadBalancersPerSubscription                    = 500
-            MaxNicsPerSubscription                             = 1000
-            MaxSecurityGroupsPerSubscription                   = 500
-            Location                                           = $azsLocation
-        }
-
-        $storageParams = $null
-        $storageParams = @{
-            Name                    = "storage_default"
-            NumberOfStorageAccounts = 200
-            CapacityInGB            = 2048
-            Location                = $azsLocation
-        }
-
-        $kvParams = $null
-        $kvParams = @{
-            Location = $azsLocation
-        }
-
-        $quotaIDs = $null
-        $quotaIDs = @()
-        $quotaIDs += (New-AzsNetworkQuota @netParams).ID
-        $quotaIDs += (New-AzsComputeQuota @computeParams).ID
-        $quotaIDs += (New-AzsStorageQuota @storageParams).ID
-        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams).ID
-
-        # If MySQL and MSSQL haven't been skipped, add them to the Base Plan too
-        if (!$skipMySQL) {
-            $mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
-            $mySqlLocation = "$azsLocation"
-            $mySqlQuotaName = "mysqldefault"
-            $mySQLQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
-            $quotaIDs += $mySQLQuotaId
-        }
-        if (!$skipMSSQL) {
-            $sqlDatabaseAdapterNamespace = "Microsoft.SQLAdapter.Admin"
-            $sqlLocation = "$azsLocation"
-            $sqlQuotaName = "sqldefault"
-            $sqlQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
-            $quotaIDs += $sqlQuotaId
-        }
-
-        New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
-        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
-        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
-        Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-    }
-    catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### DEPLOY APP SERVICE FILE SERVER ##########################################################################################################################
@@ -3213,6 +3112,138 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
     Write-Output $progress | Out-Host
+}
+
+#### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    try {
+        # Configure a simple base plan and offer for IaaS
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+        Clear-AzureRmContext -Scope CurrentUser -Force
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
+        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+        $subID = $azureContext.Subscription.Id
+
+        # Default quotas, plan, and offer
+        $PlanName = "BasePlan"
+        $OfferName = "BaseOffer"
+        $RGName = "azurestack-plansandoffers"
+
+        $computeParams = $null
+        $computeParams = @{
+            Name                 = "compute_default"
+            CoresLimit           = 200
+            AvailabilitySetCount = 20
+            VirtualMachineCount  = 100
+            VmScaleSetCount      = 20
+            Location             = $azsLocation
+        }
+
+        $netParams = $null
+        $netParams = @{
+            Name                                               = "network_default"
+            MaxPublicIpsPerSubscription                        = 500
+            MaxVNetsPerSubscription                            = 500
+            MaxVirtualNetworkGatewaysPerSubscription           = 10
+            MaxVirtualNetworkGatewayConnectionsPerSubscription = 20
+            MaxLoadBalancersPerSubscription                    = 500
+            MaxNicsPerSubscription                             = 1000
+            MaxSecurityGroupsPerSubscription                   = 500
+            Location                                           = $azsLocation
+        }
+
+        $storageParams = $null
+        $storageParams = @{
+            Name                    = "storage_default"
+            NumberOfStorageAccounts = 200
+            CapacityInGB            = 2048
+            Location                = $azsLocation
+        }
+
+        $kvParams = $null
+        $kvParams = @{
+            Location = $azsLocation
+        }
+
+        $quotaIDs = $null
+        $quotaIDs = @()
+        $quotaIDs += (New-AzsNetworkQuota @netParams).ID
+        $quotaIDs += (New-AzsComputeQuota @computeParams).ID
+        $quotaIDs += (New-AzsStorageQuota @storageParams).ID
+        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams).ID
+
+        # If MySQL, MSSQL and App Service haven't been skipped, add them to the Base Plan too
+        if (!$skipMySQL) {
+            $mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
+            $mySqlLocation = "$azsLocation"
+            $mySqlQuotaName = "mysqldefault"
+            $mySQLQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
+            $quotaIDs += $mySQLQuotaId
+        }
+        if (!$skipMSSQL) {
+            $sqlDatabaseAdapterNamespace = "Microsoft.SQLAdapter.Admin"
+            $sqlLocation = "$azsLocation"
+            $sqlQuotaName = "sqldefault"
+            $sqlQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
+            $quotaIDs += $sqlQuotaId
+        }
+
+        if (!$skipAppService) {
+            $appServiceNamespace = "Microsoft.Web.Admin"
+            $appServiceLocation = "$azsLocation"
+            $appServiceQuotaName = "Default"
+            $appServiceQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $appServiceNamespace, $appServiceLocation, $appServiceQuotaName
+            $quotaIDs += $appServiceQuotaId
+        }
+
+        # Create the Plan and Offer
+        New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
+        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
+        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
+        Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
+
+        # Create a new subscription for that offer, for the currently logged in user
+        $Offer = Get-AzsOffer | Where-Object name -eq "BaseOffer"
+        New-AzsSubscription  -OfferId $Offer.Id -DisplayName "ASDK Subscription"
+
+        # Log the user out of the "AzureStackAdmin" environment
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+        Clear-AzureRmContext -Scope CurrentUser -Force
+
+        # Log the user into the "AzureStackUser" environment
+        Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "https://management.local.azurestack.external"
+        Login-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
+        # Register all the RPs for that user
+        foreach ($s in (Get-AzureRmSubscription)) {
+            Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
+            Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
+            Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
+        }
+
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+    }
+    catch {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### CUSTOMIZE ASDK HOST #####################################################################################################################################
