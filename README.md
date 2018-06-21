@@ -88,8 +88,7 @@ Set-Location "C:\ConfigASDK"
 
 # Download the ConfigASDK Script.
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-Webrequest http://bit.ly/configasdk -UseBasicParsing `
--OutFile ConfigASDK.ps1
+Invoke-Webrequest http://bit.ly/configasdk -UseBasicParsing -OutFile ConfigASDK.ps1
 ```
 
 Usage Examples:
