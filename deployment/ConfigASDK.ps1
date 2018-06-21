@@ -20,12 +20,14 @@
         * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
         * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
         * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
-        * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
         * App Service prerequisites installation (SQL Server and Standalone File Server)
         * App Service Resource Provider sources download and certificates generation
         * App Service Service Principal Created (for Azure AD and ADFS)
         * Grants App Service Service Principal Admin Consent (for Azure AD)
         * Automates deployment of the App Service using dynamically constructed JSON
+        * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
+        * Creates a Base Plan and Offer containing all deployed services
+        * Creates a user subscription for the logged in tenant, and activates all resource providers
         * MySQL, SQL, App Service and Host Customization can be optionally skipped
         * Cleans up download folder to ensure clean future runs
         * Transcript Log for errors and troubleshooting
@@ -34,16 +36,18 @@
 
 .VERSION
 
-    1805 updated with improvements to Azure account verification, ability to skip RP deployment, run counters and bug fixes
-    1804 Updated with support for ASDK 1804 and PowerShell 1.3.0, bug fixes, reduced number of modules imported from GitHub tools repo
-    3.1  Update added App Service automation, bug fixes, MySQL Root account fix.
-    3.0  major update for ASDK release 20180329.1
-    2.0  update for release 1.0.280917.3 
-    1.0: small bug fixes and adding quotas/plan/offer creation
-    0.5: add SQL 2014 VM deployment
-    0.4: add Windows update disable
-    0.3: Bug fix (SQL Provider prompting for tenantdirectoryID)
-    0.2: Bug Fix (AZStools download)
+    1805.1  Updates to handling Azure subscriptions with multiple Azure AD tenants, and error handling for random Add-AzureRmVhd pipeline error,
+            added automated App Service quota to base plan, created user subscription and activated RPs for that subscription.
+    1805    Updated with improvements to Azure account verification, ability to skip RP deployment, run counters and bug fixes
+    1804    Updated with support for ASDK 1804 and PowerShell 1.3.0, bug fixes, reduced number of modules imported from GitHub tools repo
+    3.1     Update added App Service automation, bug fixes, MySQL Root account fix.
+    3.0     Major update for ASDK release 20180329.1
+    2.0     Update for release 1.0.280917.3 
+    1.0:    Small bug fixes and adding quotas/plan/offer creation
+    0.5:    Add SQL 2014 VM deployment
+    0.4:    Add Windows update disable
+    0.3:    Bug fix (SQL Provider prompting for tenantdirectoryID)
+    0.2:    Bug Fix (AZStools download)
 
 .AUTHOR
 
@@ -242,6 +246,7 @@ $validConfigASDKProgressLogPath = [System.IO.File]::Exists($ConfigASDKProgressLo
 If ($validConfigASDKProgressLogPath -eq $true) {
     Write-CustomVerbose -Message "ConfigASDkProgressLog.csv exists - this must be a rerun"
     Write-CustomVerbose -Message "Starting from previous failed step`r`n"
+    $isRerun = $true
     $progress = Import-Csv $ConfigASDKProgressLogPath
     Write-Output $progress | Out-Host
 }
@@ -267,7 +272,6 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"SQLServerDBVM","Incomplete"'
         '"MySQLAddHosting","Incomplete"'
         '"SQLServerAddHosting","Incomplete"'
-        '"CreatePlansOffers","Incomplete"'
         '"AppServiceFileServer","Incomplete"'
         '"AppServiceSQLServer","Incomplete"'
         '"DownloadAppService","Incomplete"'
@@ -275,6 +279,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"CreateServicePrincipal","Incomplete"'
         '"GrantAzureADAppPermissions","Incomplete"'
         '"InstallAppService","Incomplete"'
+        '"CreatePlansOffers","Incomplete"'
         '"InstallHostApps","Incomplete"'
         '"CreateOutput","Incomplete"'
     )
@@ -468,7 +473,7 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
     
         if ($azureRegUsername -cmatch $emailRegex -eq $true) {
             Write-CustomVerbose -Message "Azure AD username is correctly formatted." 
-            Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure." 
+            Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure."
         }
     
         elseif ($azureRegUsername -cmatch $emailRegex -eq $false) {
@@ -612,6 +617,7 @@ if ($registerASDK) {
     if ($azureRegSubId) {
         Write-CustomVerbose -Message "Azure subscription ID has been provided."
         Write-CustomVerbose -Message "$azureRegSubId will be used to register this Azure Stack with Azure."
+
     }   
     elseif ([string]::IsNullOrEmpty($azureRegSubId)) {
         Write-CustomVerbose -Message "No valid Azure subscription ID was entered again. Exiting process..." -ErrorAction Stop
@@ -626,7 +632,7 @@ if ($registerASDK) {
 $scriptStep = "TEST LOGINS"
 
 # Clear all logins
-Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
 Clear-AzureRmContext -Scope CurrentUser -Force
 
 # Register an AzureRM environment that targets your administrative Azure Stack instance
@@ -640,12 +646,12 @@ if ($authenticationType.ToString() -like "AzureAd") {
         ### TEST AZURE LOGIN - Login to Azure Cloud (used for App Service App creation)
         Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r`n"
         Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId "$azureDirectoryTenantName" -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $testAzureSub = Get-AzureRmContext | Out-Null
+        $testAzureSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Subscription is:`r`n`r`n"
         Write-Output $testAzureSub
         Start-Sleep -Seconds 5
         # Clear Azure login
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
 
         ### TEST AZURE STACK LOGIN - Login to Azure Stack
@@ -659,7 +665,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
         Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory`r`n`r`n"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Clear Azure login
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
     }
     catch {
@@ -679,7 +685,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
         Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS`r`n`r`n"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Clean up current logins
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
     }
     catch {
@@ -693,12 +699,15 @@ if ($registerASDK) {
         ### OPTIONAL - TEST AZURE REGISTRATION CREDS
         Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory`r`n"
         Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-        $testAzureRegSub = Get-AzureRmContext | Out-Null
+        $testAzureRegSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:`r`n`r`n"
         Write-Output $testAzureRegSub
+        Write-CustomVerbose -Message "TenantID for this subscription is:`r`n"
+        $azureRegTenantID = $testAzureRegSub.Tenant.Id
+        Write-Output $azureRegTenantID
         Start-Sleep -Seconds 5
         # Clear Azure login
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
     }
     catch {
@@ -713,7 +722,7 @@ elseif (!$registerASDK) {
 }
 
 # Clean up current logins
-Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
 Clear-AzureRmContext -Scope CurrentUser -Force
 
 ### Run Counter #############################################################################################################################################
@@ -752,13 +761,24 @@ function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [i
 ########################################################################################################################################################
 
 ### CREATE ASDK FOLDER ###
-
 $ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
-If ($ASDKpath -eq $true) {
+
+if ($ASDKpath -eq $true) {
+    $ASDKpath = "$downloadPath\ASDK"
     Write-CustomVerbose -Message "ASDK folder exists at $downloadPath - no need to create it."
     Write-CustomVerbose -Message "Download files will be placed in $downloadPath\ASDK"
-    $ASDKpath = "$downloadPath\ASDK"
     Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
+    if (!$isRerun) {
+        # If this is a fresh run, the $asdkPath should be empty to avoid any conflicts.
+        # It may exist from a previous successful run
+        Write-CustomVerbose -Message "Cleaning up an old ASDK Folder from a previous completed run"
+        # Will attempt multiple times as sometimes it fails
+        $i = 0 
+        While ($i -le 3) {
+            Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            $i++
+        }
+    }
 }
 elseif ($ASDKpath -eq $false) {
     # Create the ASDK folder.
@@ -889,7 +909,7 @@ if ($registerASDK) {
         try {
             Write-CustomVerbose -Message "Starting Azure Stack registration to Azure"
             # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             # Register the Azure Stack resource provider in your Azure subscription
             Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
             # Import the registration module that was downloaded with the GitHub tools
@@ -989,16 +1009,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         }       
         if ($registerASDK) {
             # Logout to clean up
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
 
             ### Login to Azure to get all the details about the syndicated Ubuntu Server 16.04 marketplace offering ###
             Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription -SubscriptionId $azureRegSubId | Select-AzureRmSubscription
-            $AzureContext = Get-AzureRmContext
-            $subID = $AzureContext.Subscription.Id
-            $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $azureRegCreds
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
             $resources = Get-AzureRmResource
             $resource = $resources.resourcename
@@ -1014,7 +1030,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $token = $null
             $tokens = $null
             $tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-            $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureAccount.Context.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+            $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object TenantId -EQ $azureRegTenantID | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
 
             # Define variables and create an array to store all information
             $package = "*Canonical.UbuntuServer1604LTS*"
@@ -1033,7 +1049,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
 
             ### Get the package information ###
-            $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
+            $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
             $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
             $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1 -ErrorAction Stop
 
@@ -1044,13 +1060,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $azpkg.offer = $product.properties.offer
 
             # Get product info
-            $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
+            $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
             $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
             $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
             $azpkg.name = $productDetails.properties.galleryItemIdentity
 
             # Get download location for Ubuntu Server 16.04 LTS AZPKG file
-            $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
+            $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
             $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
             $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
 
@@ -1138,8 +1154,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             # Upload the image to the Azure Stack Platform Image Repository
             Write-CustomVerbose -Message "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
-
-            # If the user has chosen to register the ASDK, the script will NOT create a gallery item as part of the image upload
             
             # Upload VHD to Storage Account
             $asdkStorageAccount.PrimaryEndpoints.Blob
@@ -1148,40 +1162,79 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # Check there's not a VHD already uploaded to storage
             if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($ubuntuUploadSuccess)) {
                 Write-CustomVerbose -Message "You already have an upload of $($UbuntuServerVHD.Name) within your Storage Account. No need to re-upload."
+                Write-CustomVerbose -Message "Core VHD path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
             }
-            elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess)) {
+
+            # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+            # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
+            $uploadVhdAttempt = 1
+            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                 Try {
-                    # Logging in again to ensure login hasn't timed out
+                    # Log back into Azure Stack to ensure login hasn't timed out
+                    Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
                     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                     $ubuntuUploadSuccess = $true
                 }
                 catch {
+                    Write-CustomVerbose -Message "Upload failed."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    $uploadVhdAttempt++
                     $ubuntuUploadSuccess = $false
-                    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                    Set-Location $ScriptLocation
-                    return
-                }
-            }
-            else {
-                Try {
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -Verbose -ErrorAction Stop
-                    $ubuntuUploadSuccess = $true
-                }
-                catch {
-                    $ubuntuUploadSuccess = $false
-                    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                    Set-Location $ScriptLocation
-                    return
                 }
             }
 
+            # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+            # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
+
+            while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
+                Try {
+                    # Log back into Azure Stack to ensure login hasn't timed out
+                    Write-CustomVerbose -Message "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                    $ubuntuUploadSuccess = $true
+                }
+                catch {
+                    Write-CustomVerbose -Message "Upload failed."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    $uploadVhdAttempt++
+                    $ubuntuUploadSuccess = $false
+                }
+            }
+
+            # This is one final catch-all for the upload process
+            # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
+            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
+                Try {
+                    # Log back into Azure Stack to ensure login hasn't timed out
+                    Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                    $ubuntuUploadSuccess = $true
+                }
+                catch {
+                    Write-CustomVerbose -Message "Upload failed."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    $uploadVhdAttempt++
+                    $ubuntuUploadSuccess = $false
+                }
+            }
+
+            if ($uploadVhdAttempt -gt 3) {
+                Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
+                $ubuntuUploadSuccess = $false
+                throw "Uploading image failed"
+                Set-Location $ScriptLocation
+                return
+            }
+
+            # If the user has chosen to register the ASDK, the script will NOT create a gallery item as part of the image upload
             if ($registerASDK) {
-                Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$ubuntuServerURI" -Force -Confirm: $false
+                Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$ubuntuServerURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
             }
             else {
-                Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$ubuntuServerURI" -Force -Confirm: $false
+                Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$ubuntuServerURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
             }
             if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                 Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
@@ -1386,51 +1439,92 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 }
 
                 ### If required, build the Server Core Image ###
-
                 if ($serverCoreVMImageAlreadyAvailable -eq $false) {
+                    $serverCoreVHDpath = "$ASDKpath\ServerCore.vhd"
+                    $serverCoreVHDExists = [System.IO.File]::Exists($serverCoreVHDpath)
                     $CoreEdition = 'Windows Server 2016 SERVERDATACENTERCORE'
-                    $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$CoreEdition" -VHDPath "$ASDKpath\ServerCore.vhd" `
-                        -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+
+                    if ($serverCoreVHDExists -eq $false) {
+                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$CoreEdition" -VHDPath "$ASDKpath\ServerCore.vhd" `
+                            -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+                    }
 
                     $serverCoreVHD = Get-ChildItem -Path "$ASDKpath" -Filter "*ServerCore.vhd"
-
-                    # Upload VHD to Storage Account
                     $asdkStorageAccount.PrimaryEndpoints.Blob
                     $serverCoreURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $serverCoreVHD.Name
 
                     # Check there's not a VHD already uploaded to storage
                     if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($serverCoreUploadSuccess)) {
                         Write-CustomVerbose -Message "You already have an upload of $($serverCoreVHD.Name) within your Storage Account. No need to re-upload."
+                        Write-CustomVerbose -Message "Core VHD path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
                     }
-                    elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverCoreUploadSuccess)) {
+
+                    # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+                    # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
+                    $uploadVhdAttempt = 1
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverCoreUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                         Try {
                             # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
                             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             $serverCoreUploadSuccess = $true
                         }
                         catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
                             $serverCoreUploadSuccess = $false
-                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                            Set-Location $ScriptLocation
-                            return
                         }
                     }
-                    else {
+
+                    # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+                    # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
+
+                    while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverCoreUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                         Try {
                             # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
                             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -Verbose -ErrorAction Stop
+                            Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             $serverCoreUploadSuccess = $true
                         }
                         catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
                             $serverCoreUploadSuccess = $false
-                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                            Set-Location $ScriptLocation
-                            return
                         }
                     }
-                    Add-AzsPlatformImage -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -OsType "Windows" -OsUri "$serverCoreURI" -Force -Confirm: $false
+
+                    # This is one final catch-all for the upload process
+                    # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverCoreVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
+                        Try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
+                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                            Add-AzureRmVhd -Destination $serverCoreURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverCoreVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            $serverCoreUploadSuccess = $true
+                        }
+                        catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
+                            $serverCoreUploadSuccess = $false
+                        }
+                    }
+
+                    if ($uploadVhdAttempt -gt 3) {
+                        Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
+                        $serverCoreUploadSuccess = $false
+                        throw "Uploading image failed"
+                        Set-Location $ScriptLocation
+                        return
+                    }
+
+                    # Push the image into the PIR from the Storage Account
+                    Add-AzsPlatformImage -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -OsType "Windows" -OsUri "$serverCoreURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
 
                     if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                         Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f "MicrosoftWindowsServer", "WindowsServer", "2016-Datacenter-Server-Core", "1.0.0") -ErrorAction SilentlyContinue
@@ -1450,49 +1544,89 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 ### If required, build the Server Full Image ###
 
                 if ($serverFullVMImageAlreadyAvailable -eq $false) {
+                    $serverFullVHDpath = "$ASDKpath\ServerFull.vhd"
+                    $serverFullVHDExists = [System.IO.File]::Exists($serverFullVHDpath)
                     $FullEdition = 'Windows Server 2016 SERVERDATACENTER'
-                    $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$FullEdition" -VHDPath "$ASDKpath\ServerFull.vhd" `
-                        -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
 
+                    if ($serverFullVHDExists -eq $false) {
+                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$FullEdition" -VHDPath "$ASDKpath\ServerFull.vhd" `
+                            -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+                    }
+                    
                     $serverFullVHD = Get-ChildItem -Path "$ASDKpath" -Filter "*ServerFull.vhd"
-
-                    # Upload VHD to Storage Account
                     $asdkStorageAccount.PrimaryEndpoints.Blob
                     $serverFullURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $serverFullVHD.Name
 
                     # Check there's not a VHD already uploaded to storage
                     if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($serverFullUploadSuccess)) {
                         Write-CustomVerbose -Message "You already have an upload of $($serverFullVHD.Name) within your Storage Account. No need to re-upload."
+                        Write-CustomVerbose -Message "Full VHD path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
                     }
-                    elseif ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess)) {
+
+                    # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+                    # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
+                    $uploadVhdAttempt = 1
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                         Try {
                             # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
                             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             $serverFullUploadSuccess = $true
                         }
                         catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
                             $serverFullUploadSuccess = $false
-                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                            Set-Location $ScriptLocation
-                            return
                         }
                     }
-                    else {
+                    
+                    # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+                    # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
+                    while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                         Try {
                             # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
                             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -Verbose -ErrorAction Stop
+                            Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             $serverFullUploadSuccess = $true
                         }
                         catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
                             $serverFullUploadSuccess = $false
-                            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                            Set-Location $ScriptLocation
-                            return
                         }
                     }
-                    Add-AzsPlatformImage -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -OsType "Windows" -OsUri "$serverFullURI" -Force -Confirm: $false
+
+                    # This is one final catch-all for the upload process
+                    # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
+                        Try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
+                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                            Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            $serverFullUploadSuccess = $true
+                        }
+                        catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadVhdAttempt++
+                            $serverFullUploadSuccess = $false
+                        }
+                    }
+
+                    if ($uploadVhdAttempt -gt 3) {
+                        Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
+                        $serverFullUploadSuccess = $false
+                        throw "Uploading image failed"
+                        Set-Location $ScriptLocation
+                        return
+                    }
+
+                    Add-AzsPlatformImage -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -OsType "Windows" -OsUri "$serverFullURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
 
                     if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                         Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f "MicrosoftWindowsServer", "WindowsServer", "2016-Datacenter", "1.0.0") -ErrorAction SilentlyContinue
@@ -1561,13 +1695,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             ### Login to Azure to get all the details about the syndicated Windows Server 2016 marketplace offering ###
             Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-            Clear-AzureRmContext -Scope CurrentUser -Force
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription -SubscriptionId $azureRegSubId | Select-AzureRmSubscription
-            $AzureContext = Get-AzureRmContext
-            $subID = $AzureContext.Subscription.Id
-            $azureAccount = Add-AzureRmAccount -subscriptionid $AzureContext.Subscription.Id -TenantId $AzureContext.Tenant.TenantId -Credential $azureRegCreds
+            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
             $resources = Get-AzureRmResource
             $resource = $resources.resourcename
@@ -1583,7 +1711,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $token = $null
             $tokens = $null
             $tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-            $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureAccount.Context.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+            $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object TenantId -EQ $azureRegTenantID | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
 
             # Define variables and create arrays to store all information
             $packageArray = @()
@@ -1599,7 +1727,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $product = $null
 
                 # Get the package information
-                $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
+                $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
                 $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
                 $products = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
 
@@ -1623,13 +1751,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     $azpkg.offer = $product.properties.offer
 
                     # Get product info
-                    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
+                    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
                     $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
                     $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
                     $azpkg.name = $productDetails.properties.galleryItemIdentity
 
                     # Get download location for AZPKG file
-                    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($subID.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
+                    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
                     $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
                     $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
 
@@ -2014,7 +2142,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Logout to clean up
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
 
             # Set the variables and gather token for creating the SKU & Quota
@@ -2147,7 +2275,7 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Logout to clean up
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
 
             # Set the variables and gather token for creating the SKU & Quota
@@ -2392,7 +2520,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             # Add host server to MySQL RP
             Write-CustomVerbose -Message "Attaching MySQL hosting server to MySQL resource provider"
             New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
-                -username "root" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 10240 -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
+                -username "root" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 20480 -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -2446,7 +2574,7 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             # Add host server to SQL Server RP
             Write-CustomVerbose -Message "Attaching SQL Server 2017 hosting server to SQL Server resource provider"
             New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json `
-                -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 10240 -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
+                -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 20480 -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -2471,91 +2599,6 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
     Write-Output $progress | Out-Host
-}
-
-#### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
-##############################################################################################################################################################
-
-$RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Configure a simple base plan and offer for IaaS
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
-        Clear-AzureRmContext -Scope CurrentUser -Force
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-
-        # Default quotas, plan, and offer
-        $PlanName = "BasePlan"
-        $OfferName = "BaseOffer"
-        $RGName = "azurestack-plansandoffers"
-
-        $computeParams = $null
-        $computeParams = @{
-            Name                 = "compute_default"
-            CoresLimit           = 200
-            AvailabilitySetCount = 20
-            VirtualMachineCount  = 100
-            VmScaleSetCount      = 20
-            Location             = $azsLocation
-        }
-
-        $netParams = $null
-        $netParams = @{
-            Name                                               = "network_default"
-            MaxPublicIpsPerSubscription                        = 500
-            MaxVNetsPerSubscription                            = 500
-            MaxVirtualNetworkGatewaysPerSubscription           = 10
-            MaxVirtualNetworkGatewayConnectionsPerSubscription = 20
-            MaxLoadBalancersPerSubscription                    = 500
-            MaxNicsPerSubscription                             = 1000
-            MaxSecurityGroupsPerSubscription                   = 500
-            Location                                           = $azsLocation
-        }
-
-        $storageParams = $null
-        $storageParams = @{
-            Name                    = "storage_default"
-            NumberOfStorageAccounts = 200
-            CapacityInGB            = 2048
-            Location                = $azsLocation
-        }
-
-        $kvParams = $null
-        $kvParams = @{
-            Location = $azsLocation
-        }
-
-        $quotaIDs = $null
-        $quotaIDs = @()
-        $quotaIDs += (New-AzsNetworkQuota @netParams).ID
-        $quotaIDs += (New-AzsComputeQuota @computeParams).ID
-        $quotaIDs += (New-AzsStorageQuota @storageParams).ID
-        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams).ID
-
-        New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
-        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
-        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
-        Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-    }
-    catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### DEPLOY APP SERVICE FILE SERVER ##########################################################################################################################
@@ -2801,7 +2844,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             # Create Azure AD or ADFS Service Principal
             if ($authenticationType.ToString() -like "AzureAd") {
                 # Logout to clean up
-                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force
 
                 # Grant permissions to Azure AD Service Principal
@@ -2878,7 +2921,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
         if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
             try {
                 # Logout to clean up
-                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force
                 # Grant permissions to Azure AD Service Principal
                 Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $azureDirectoryTenantName -Credential $asdkCreds -ErrorAction Stop | Out-Null
@@ -3034,7 +3077,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             }
             Write-CustomVerbose -Message "Checking App Service resource group for successful deployment"
             # Ensure logged into Azure Stack
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
@@ -3069,6 +3112,138 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
     Write-Output $progress | Out-Host
+}
+
+#### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    try {
+        # Configure a simple base plan and offer for IaaS
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+        Clear-AzureRmContext -Scope CurrentUser -Force
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
+        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+        $subID = $azureContext.Subscription.Id
+
+        # Default quotas, plan, and offer
+        $PlanName = "BasePlan"
+        $OfferName = "BaseOffer"
+        $RGName = "azurestack-plansandoffers"
+
+        $computeParams = $null
+        $computeParams = @{
+            Name                 = "compute_default"
+            CoresLimit           = 200
+            AvailabilitySetCount = 20
+            VirtualMachineCount  = 100
+            VmScaleSetCount      = 20
+            Location             = $azsLocation
+        }
+
+        $netParams = $null
+        $netParams = @{
+            Name                                               = "network_default"
+            MaxPublicIpsPerSubscription                        = 500
+            MaxVNetsPerSubscription                            = 500
+            MaxVirtualNetworkGatewaysPerSubscription           = 10
+            MaxVirtualNetworkGatewayConnectionsPerSubscription = 20
+            MaxLoadBalancersPerSubscription                    = 500
+            MaxNicsPerSubscription                             = 1000
+            MaxSecurityGroupsPerSubscription                   = 500
+            Location                                           = $azsLocation
+        }
+
+        $storageParams = $null
+        $storageParams = @{
+            Name                    = "storage_default"
+            NumberOfStorageAccounts = 200
+            CapacityInGB            = 2048
+            Location                = $azsLocation
+        }
+
+        $kvParams = $null
+        $kvParams = @{
+            Location = $azsLocation
+        }
+
+        $quotaIDs = $null
+        $quotaIDs = @()
+        $quotaIDs += (New-AzsNetworkQuota @netParams).ID
+        $quotaIDs += (New-AzsComputeQuota @computeParams).ID
+        $quotaIDs += (New-AzsStorageQuota @storageParams).ID
+        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams).ID
+
+        # If MySQL, MSSQL and App Service haven't been skipped, add them to the Base Plan too
+        if (!$skipMySQL) {
+            $mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
+            $mySqlLocation = "$azsLocation"
+            $mySqlQuotaName = "mysqldefault"
+            $mySQLQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
+            $quotaIDs += $mySQLQuotaId
+        }
+        if (!$skipMSSQL) {
+            $sqlDatabaseAdapterNamespace = "Microsoft.SQLAdapter.Admin"
+            $sqlLocation = "$azsLocation"
+            $sqlQuotaName = "sqldefault"
+            $sqlQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlQuotaName
+            $quotaIDs += $sqlQuotaId
+        }
+
+        if (!$skipAppService) {
+            $appServiceNamespace = "Microsoft.Web.Admin"
+            $appServiceLocation = "$azsLocation"
+            $appServiceQuotaName = "Default"
+            $appServiceQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $appServiceNamespace, $appServiceLocation, $appServiceQuotaName
+            $quotaIDs += $appServiceQuotaId
+        }
+
+        # Create the Plan and Offer
+        New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
+        $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
+        New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
+        Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
+
+        # Create a new subscription for that offer, for the currently logged in user
+        $Offer = Get-AzsOffer | Where-Object name -eq "BaseOffer"
+        New-AzsSubscription  -OfferId $Offer.Id -DisplayName "ASDK Subscription"
+
+        # Log the user out of the "AzureStackAdmin" environment
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+        Clear-AzureRmContext -Scope CurrentUser -Force
+
+        # Log the user into the "AzureStackUser" environment
+        Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "https://management.local.azurestack.external"
+        Login-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
+        # Register all the RPs for that user
+        foreach ($s in (Get-AzureRmSubscription)) {
+            Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
+            Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
+            Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
+        }
+
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+    }
+    catch {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### CUSTOMIZE ASDK HOST #####################################################################################################################################
@@ -3273,9 +3448,15 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-CustomVerbose -Message "Congratulations - all steps completed successfully:`r`n"
     Write-Output $progress | Out-Host
     Write-CustomVerbose -Message "Cleaning up ASDK Folder"
-    #Remove-Item -Path "$asdkPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-    #Using CMD as it seems more reliable to cleanup the folder. Will still leave the MySQL telemetry DLL as that's locked until you close PS.
-    &cmd.exe /c rd /s /q $asdkPath > $null
+    # Will attempt multiple times as sometimes it fails
+    $ASDKpath = "$downloadPath\ASDK"
+    $i = 1
+    While ($i -le 3) {
+        Write-CustomVerbose -Message "Cleanup Attempt: $i"
+        Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        Remove-Item -Path "$ASDKpath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        $i++
+    }
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
