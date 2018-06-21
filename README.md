@@ -32,12 +32,14 @@ This includes:
 * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
 * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
 * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
-* Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
 * App Service prerequisites installation (SQL Server and Standalone File Server)
 * App Service Resource Provider sources download and certificates generation
 * App Service Service Principal Created (for Azure AD and ADFS)
 * Grants App Service Service Principal Admin Consent (for Azure AD)
 * Automates deployment of the App Service using dynamically constructed JSON
+* Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
+* Creates a Base Plan and Offer containing all deployed services
+* Creates a user subscription for the logged in tenant, and activates all resource providers
 * MySQL, SQL, App Service and Host Customization can be optionally skipped
 * Cleans up download folder to ensure clean future runs
 * Transcript Log for errors and troubleshooting
