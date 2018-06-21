@@ -148,10 +148,8 @@ as you used when you deployed your ASDK.
 **Scenario 5** - Using ADFS for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
 
 ```powershell
-
 .\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd "Passw0rd123!" -VMpwd "Passw0rd123!"
-
 ```
 
 Optional Actions - New in ASDK Configurator 1805
