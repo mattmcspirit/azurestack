@@ -3189,7 +3189,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $sqlDatabaseAdapterNamespace = "Microsoft.SQLAdapter.Admin"
             $sqlLocation = "$azsLocation"
             $sqlQuotaName = "sqldefault"
-            $sqlQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
+            $sqlQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlQuotaName
             $quotaIDs += $sqlQuotaId
         }
 
