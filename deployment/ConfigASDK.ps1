@@ -1660,7 +1660,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             $packageArray = @()
             $packageArray.Clear()
-            $packageArray = "*WindowsServer2016Datacenter-ARM*", "*WindowsServer2016DatacenterServerCore-ARM*"
+            $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterCore-ARM*"
             Write-CustomVerbose -Message "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
 
             foreach ($package in $packageArray) {
@@ -1716,7 +1716,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # Define variables and create arrays to store all information
             $packageArray = @()
             $packageArray.Clear()
-            $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*"
+            $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterCore-ARM*"
             $azpkgArray = @()
             $azpkgArray.Clear()
 
