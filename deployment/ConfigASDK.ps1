@@ -3274,7 +3274,7 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # Visual Studio Code
             Write-CustomVerbose -Message "Installing VS Code with Chocolatey"
-            choco install visualstudiocode
+            choco install vscode
 
             # Putty
             Write-CustomVerbose -Message "Installing Putty with Chocolatey"
