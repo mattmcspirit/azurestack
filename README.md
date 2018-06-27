@@ -52,6 +52,8 @@ Important Considerations
 ------------
 Firstly, **you must have already deployed the ASDK**. The current version of the ConfigASDK.ps1 script **relies** on your ASDK host having an internet connection. During the execution, the script will download a number of files from the internet, including the Azure Stack Tools, Ubuntu Server 16.04 VHD, Windows Updates for the Windows Server image creation process, and more. Future versions of the ConfigASDK.ps1 script may include complete offline support.
 
+Secondly, for an **Azure AD deployment of the ASDK** (or if you want use ConfigASDK.ps1 with an ADFS deployment of the ASDK, but **register** it to Azure), to run the ConfigASDK.ps1 script, you need to be using a true **organizational account**, such as admin@contoso.onmicrosoft.com or admin@contoso.com, and this account should have global admin credentials for the specified Azure AD directory. Even if you have a non-organizational account, such as an outlook.com account, that has the right level of privilege in Azure AD, the ConfigASDK.ps1 script **uses a -Credential switch for non-interactive login, which doesn’t work with non-organizational accounts**. You will receive an error.
+
 Instructions
 ------------
 #### Install PowerShell for Azure Stack ####
