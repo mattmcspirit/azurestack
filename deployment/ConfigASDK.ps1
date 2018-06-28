@@ -1689,7 +1689,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             $packageArray = @()
             $packageArray.Clear()
-            $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterCore-ARM*"
+            $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*"
             Write-CustomVerbose -Message "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
 
             foreach ($package in $packageArray) {
@@ -1699,10 +1699,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     Write-CustomVerbose -Message "Found the following existing package in your gallery: $($wsPackage.Identity) - No need to upload a new one"
                 }
                 else {
-                    $wsPackage = $package -replace '[*.]', ''
+                    $wsPackage = $package -replace '[*]', ''
                     Write-CustomVerbose -Message "Didn't find this package: $wsPackage"
                     Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
-                    $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/Microsoft.$wsPackage.1.0.0.azpkg"
+                    $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/$wsPackage.1.0.0.azpkg"
                     Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
                 }
                 $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
