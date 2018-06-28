@@ -36,6 +36,8 @@
 
 .VERSION
 
+    1805.2  Update to Windows Image creation to handle adding of KB4132216 to update Servicing Stack (for build 14393) for future updates
+            (<https://support.microsoft.com/en-us/help/4132216>)
     1805.1  Updates to handling Azure subscriptions with multiple Azure AD tenants, and error handling for random Add-AzureRmVhd pipeline error,
             added automated App Service quota to base plan, created user subscription and activated RPs for that subscription.
     1805    Updated with improvements to Azure account verification, ability to skip RP deployment, run counters and bug fixes
@@ -1051,7 +1053,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             ### Get the package information ###
             $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
             $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-            $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object -Property @{Expression={$_.properties.offerVersion}; Ascending=$true} | Select-Object -Last 1 -ErrorAction Stop
+            $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object -Property @{Expression = {$_.properties.offerVersion}; Ascending = $true} | Select-Object -Last 1 -ErrorAction Stop
 
             $azpkg.id = $product.name.Split('/')[-1]
             $azpkg.type = $product.properties.productKind
@@ -1229,13 +1231,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 return
             }
 
-            # If the user has chosen to register the ASDK, the script will NOT create a gallery item as part of the image upload
-            if ($registerASDK) {
-                Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$ubuntuServerURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
-            }
-            else {
-                Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$ubuntuServerURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
-            }
+            # Add the Platform Image
+            
+            Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$ubuntuServerURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
+            
             if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                 Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                 Write-CustomVerbose -Message "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
@@ -1251,8 +1250,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
         }
 
-        ### If the user has chosen to register the ASDK as part of the process, the script will side load an AZPKG from the Azure Stack Marketplace ###
-        
+        ### If the user has chosen to register the ASDK as part of the process, the script will side load an AZPKG from the Azure Marketplace, otherwise ###
+        ### it will add one from GitHub ###
+
         # Upload AZPKG package
         Write-CustomVerbose -Message "Checking for the following packages: $($azpkg.name)"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
@@ -1367,12 +1367,27 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Write-CustomVerbose -Message "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
             # Define parameters
             $StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
-            $Build = $buildVersion
             $SearchString = 'Cumulative.*Server.*x64'
+
+            ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.    
+            if ($buildVersion -eq "14393") {
+                $servicingStackKB = "4132216"
+                $ServicingSearchString = 'Windows Server 2016'
+                Write-CustomVerbose -Message "Build is $buildVersion - Need to download: KB$($servicingStackKB) to update Servicing Stack before adding future Cumulative Updates"
+                $servicingKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$servicingStackKB" -UseBasicParsing
+                $servicingAvailable_kbIDs = $servicingKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+                $servicingAvailable_kbIDs | Out-String | Write-Verbose
+                $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
+
+                # If innerHTML is empty or does not exist, use outerHTML instead
+                if ($servicingKbIDs -eq $Null) {
+                    $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
+                }
+            }
 
             # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
             Write-CustomVerbose -Message "Downloading $StartKB to retrieve the list of updates."
-            $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $Build | Select-Object -First 1
+            $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
 
             # Get Download Link for the corresponding Cumulative Update
             Write-CustomVerbose -Message "Found ID: KB$($kbID.articleID)"
@@ -1385,29 +1400,43 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             If ($kbIDs -eq $Null) {
                 $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
             }
-
+            
+            # Defined a KB array to hold the kbIDs and if the build is 14393, add the corresponding KBID to it
+            $kbDownloads = @()
+            if ($buildVersion -eq "14393") {
+                $kbDownloads += "$servicingKbIDs"
+            }
+            $kbDownloads += "$kbIDs"
             $Urls = @()
 
-            ForEach ( $kbID in $kbIDs ) {
+            foreach ( $kbID in $kbDownloads ) {
                 Write-CustomVerbose -Message "KB ID: $kbID"
                 $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
                 $PostBody = @{ updateIDs = "[$Post]" } 
                 $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
             }
 
-            # Download the corresponding Windows Server 2016 Cumulative Update
-            ForEach ( $Url in $Urls ) {
+            # Download the corresponding Windows Server 2016 Cumulative Update (and possibly, Servicing Stack Update)
+            foreach ( $Url in $Urls ) {
                 $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
                 $target = "$((Get-Item $ASDKpath).FullName)\$filename"
-                Write-CustomVerbose -Message "Windows Server 2016 Cumulative Update will be stored at $target"
-                Write-CustomVerbose -Message "These are generally larger than 1GB, so may take a few minutes."
-                If (!(Test-Path -Path $target)) {
+                Write-CustomVerbose -Message "Update will be stored at $target"
+                Write-CustomVerbose -Message "These can be larger than 1GB, so may take a few minutes."
+                if (!(Test-Path -Path $target)) {
                     DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
                 }
-                Else {
+                else {
                     Write-CustomVerbose -Message "File exists: $target. Skipping download."
                 }
             }
+
+            # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied first when patching the WIM file.
+            if ($buildVersion -eq "14393") {
+                Write-CustomVerbose -Message "Renaming the Servicing Stack Update to ensure it is applied first"
+                Get-ChildItem -Path $ASDKpath -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -Verbose
+                $target = $ASDKpath
+            }
+
             Write-CustomVerbose -Message "Creating Windows Server 2016 Evaluation images..."
 
             try {
