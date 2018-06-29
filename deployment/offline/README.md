@@ -1,4 +1,4 @@
-Azure Stack Development Kit Offline Dependencies Downloader 1805.3
+ASDK Offline Dependencies Downloader 1805.3
 ==============
 
 Version Compatibility

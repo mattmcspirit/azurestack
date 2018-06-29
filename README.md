@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1805.2
+Azure Stack Development Kit Configurator 1805.3
 ==============
 
 Version Compatibility
@@ -45,6 +45,7 @@ This includes:
 * Transcript Log for errors and troubleshooting
 * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
 * Stores script output in a ConfigASDKOutput.txt, for future reference
+* Supports usage in offline/disconnected environments.
 
 Additionally, if you encounter an issue, try rerunning the script with the same command you used to run it previously.  The script is written in such a way that it shouldn't try to rerun previously completed steps.
 
