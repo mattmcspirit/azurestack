@@ -1,5 +1,4 @@
 <#
-
 .SYNOPSYS
 
     The purpose of this script is to automate the download of all files and scripts required for installing all services on ASDK, that are to be
@@ -61,6 +60,7 @@ param (
 $VerbosePreference = "Continue"
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+$scriptStep = ""
 try {Stop-Transcript | Out-Null} catch {}
 
 ### CUSTOM VERBOSE FUNCTION #################################################################################################################################
@@ -108,6 +108,7 @@ function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [i
 ### VALIDATION ##############################################################################################################################################
 #############################################################################################################################################################
 
+$scriptStep = "VALIDATION"
 Write-CustomVerbose -Message "Validating if running under Admin Privileges"
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if (!($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))) {
@@ -173,14 +174,14 @@ elseif ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
 
 ### Start Logging ###
 $logTime = $(Get-Date).ToString("MMdd-HHmmss")
-$logStart = Start-Transcript -Path "$downloadPath\ConfigASDKLog$logTime.txt" -Append
+$logStart = Start-Transcript -Path "$downloadPath\ConfigASDKDependencyLog$logTime.txt" -Append
 Write-CustomVerbose -Message $logStart
 
-### DOWNLOAD TOOLS #####################################################################################################################################
+### Create Folder Structure ############################################################################################################################
 ########################################################################################################################################################
 
+$scriptStep = "CREATE FOLDERS"
 ### Create root ConfigASDKfiles FOLDER and sub folder structure ###
-
 $configASDKFilePathExists = [System.IO.Directory]::Exists("$downloadPath\ConfigASDKfiles")
 if ($configASDKFilePathExists -eq $true) {
     $configASDKFilePath = "$downloadPath\ConfigASDKfiles"
@@ -188,7 +189,7 @@ if ($configASDKFilePathExists -eq $true) {
     Write-CustomVerbose -Message "Download files will be placed in $downloadPath\ConfigASDKfiles"
     $i = 0 
     While ($i -le 3) {
-        Remove-Item "$configASDKFilePath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        Remove-Item "$configASDKFilePath\*" -Exclude "*.iso" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
         $i++
     }
 }
@@ -201,16 +202,90 @@ elseif ($configASDKFilePathExists -eq $false) {
 $ASDKpath = mkdir "$configASDKFilePath\ASDK" -Force
 $packagePath = mkdir "$ASDKpath\packages" -Force
 $templatePath = mkdir "$ASDKpath\templates" -Force
+$psPath = mkdir "$ASDKpath\powershell" -Force
+$dbPath = mkdir "$ASDKpath\databases" -Force
+$imagesPath = mkdir "$ASDKpath\images" -Force
+$appServicePath = mkdir "$ASDKpath\appservice" -Force
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+
+### Create Download Table ##############################################################################################################################
+########################################################################################################################################################
+$scriptStep = "CREATE TABLE"
 try {
-    ### DOWNLOAD TOOLS ###
-    # Download the tools archive using a function incase the download fails or is interrupted.
-    $toolsURI = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
-    $toolsDownloadLocation = "$ASDKpath\master.zip"
-    Write-CustomVerbose -Message "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
-    Write-CustomVerbose -Message "The download will be stored in $ASDKpath."
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    DownloadWithRetry -downloadURI "$toolsURI" -downloadLocation "$toolsDownloadLocation" -retries 10
+    Write-CustomVerbose -Message "Creating table to store list of downloads" -ErrorAction Stop
+    $table = New-Object System.Data.DataTable
+    $table.Clear()
+    $table.Columns.Add("productName", "string") | Out-Null
+    $table.Columns.Add("filename", "string") | Out-Null
+    $table.Columns.Add("path", "string") | Out-Null
+    $table.Columns.Add("Uri", "string") | Out-Null
+
+    # ConfigASDK.ps1 Script
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/ConfigASDK.ps1"
+    $row.filename = "ConfigASDK.ps1"; $row.path = "$downloadPath"; $row.productName = "ASDK Configurator Script"; $Table.Rows.Add($row)
+    # Azure Stack Tools
+    $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
+    $row.filename = "Master.zip"; $row.path = "$ASDKpath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
+    # Ubuntu Server 16.04 ZIP
+    $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
+    $row.filename = "UbuntuServer.1.0.0.zip"; $row.path = "$imagesPath"; $row.productName = "Ubuntu Server 16.04 LTS zip file"; $Table.Rows.Add($row)
+    # Ubuntu Server AZPKG
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
+    $row.filename = "Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Ubuntu Server Marketplace Package"; $Table.Rows.Add($row)
+    # Convert-WindowsImage.ps1 Script
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
+    $row.filename = "Convert-WindowsImage.ps1"; $row.path = "$imagesPath"; $row.productName = "Convert-WindowsImage.ps1 VHD Creation Tool"; $Table.Rows.Add($row)
+    # Windows Server DC AZPKG
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/Microsoft.WindowsServer2016Datacenter-ARM.1.0.0.azpkg"
+    $row.filename = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2016 Datacenter Marketplace Package"; $Table.Rows.Add($row)
+    # Windows Server DC Core AZPKG
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"
+    $row.filename = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2016 Datacenter Core Marketplace Package"; $Table.Rows.Add($row)
+    # VMSS AZPKG
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/VMSS/microsoft.vmss.1.3.6.azpkg"
+    $row.filename = "microsoft.vmss.1.3.6.azpkg"; $row.path = "$packagePath"; $row.productName = "Virtual Machine Scale Set Marketplace Package"; $Table.Rows.Add($row)
+    # MYSQL AZPKG
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
+    $row.filename = "ASDK.MySQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "MySQL Marketplace Package"; $Table.Rows.Add($row)
+    # SQL AZPKG
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
+    $row.filename = "ASDK.MSSQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "SQL Server Marketplace Package"; $Table.Rows.Add($row)
+    # MySQL RP
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestackmysqlrp"
+    $row.filename = "MySQL.zip"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files"; $Table.Rows.Add($row)
+    # MySQL RP Helper MSI
+    $row = $table.NewRow(); $row.Uri = "https://dev.mysql.com/get/Download/sConnector-Net/mysql-connector-net-6.10.5.msi"
+    $row.filename = "mysql-connector-net-6.10.5.msi"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files Offline Connector"; $Table.Rows.Add($row)
+    # SQL RP
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp"
+    $row.filename = "SQL.zip"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
+    # MySQL VM Template
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json"
+    $row.filename = "mySqlTemplate.json"; $row.path = "$templatePath"; $row.productName = "MySQL template for deployment"; $Table.Rows.Add($row)
+    # SQL VM Template
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json"
+    $row.filename = "sqlTemplate.json"; $row.path = "$templatePath"; $row.productName = "SQL Server template for deployment"; $Table.Rows.Add($row)
+    # Add MySQL Hosting Server Template
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json"
+    $row.filename = "mySqlHostingTemplate.json"; $row.path = "$templatePath"; $row.productName = "Add MySQL Hosting Server template for deployment"; $Table.Rows.Add($row)
+    # Add SQL Hosting Server Template
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json"
+    $row.filename = "sqlHostingTemplate.json"; $row.path = "$templatePath"; $row.productName = "Add SQL Server Hosting Server template for deployment"; $Table.Rows.Add($row)
+    # File Server Template
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json"
+    $row.filename = "FileServerTemplate.json"; $row.path = "$templatePath"; $row.productName = "File Server template for deployment"; $Table.Rows.Add($row)
+    # App Service Helper Scripts
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
+    $row.filename = "appservicehelper.zip"; $row.path = "$appServicePath"; $row.productName = "App Service Resource Provider Helper files"; $Table.Rows.Add($row)
+    # App Service Installer
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmasinstaller"
+    $row.filename = "appservice.exe"; $row.path = "$appServicePath"; $row.productName = "App Service installer"; $Table.Rows.Add($row)
+    # App Service PreDeployment JSON
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json"
+    $row.filename = "AppServiceDeploymentSettings.json"; $row.path = "$appServicePath"; $row.productName = "App Service Pre-Deployment JSON Configuration"; $Table.Rows.Add($row)
+    Write-CustomVerbose -Message "The following files will be downloaded:"
+    $table | Format-Table -AutoSize
 }
 catch {
     Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -218,22 +293,30 @@ catch {
     return
 }
 
-### Download Ubuntu Zip & Gallery Item ##################################################################################################################
-#########################################################################################################################################################
+### Download Artifacts #################################################################################################################################
+########################################################################################################################################################
 
+$scriptStep = "DOWNLOADS"
 try {
-    ### DOWNLOAD UBUNTU ZIP ###
-    $ubuntuDownloadLocation = "$ASDKpath\UbuntuServer.1.0.0.zip"
-    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-    Write-CustomVerbose -Message "Downloading latest Ubuntu Server 16.04 image (ZIP). This may take a few minutes, depending on your connection speed."
-    Write-CustomVerbose -Message "The download will be stored in $ubuntuDownloadLocation."
-    DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
-    ### DOWNLOAD UBUNTU GALLERY ITEM ###
-    $ubuntuAzpkgDownloadLocation = "$packagePath\Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
-    $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
-    Write-CustomVerbose -Message "Downloading latest Ubuntu Server 16.04 gallery item from GitHub. This may take a few minutes, depending on your connection speed."
-    Write-CustomVerbose -Message "The download will be stored in $ubuntuAzpkgDownloadLocation."
-    DownloadWithRetry -downloadURI "$galleryItemUri" -downloadLocation "$ubuntuAzpkgDownloadLocation" -retries 10
+    foreach ($dependency in $table) {
+        Write-CustomVerbose -Message "Downloading the $($dependency.productName) from $($dependency.uri) and storing at $($dependency.path)\$($dependency.filename)."
+        DownloadWithRetry -downloadURI "$($dependency.uri)" -downloadLocation "$($dependency.path)\$($dependency.filename)" -retries 10
+    }
+}
+catch {
+    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    Set-Location $ScriptLocation
+    return
+}
+
+### Download PowerShell ################################################################################################################################
+########################################################################################################################################################
+
+$scriptStep = "POWERSHELL"
+try {
+    Write-CustomVerbose -Message "Downloading PowerShell Modules for AzureRM and Azure Stack" -ErrorAction Stop
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath -Force -RequiredVersion 1.2.11 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath -Force -RequiredVersion 1.3.0 | Out-Null
 }
 catch {
     Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -244,6 +327,7 @@ catch {
 ### Copy Windows Server ISO & Download Updates ##########################################################################################################
 #########################################################################################################################################################
 
+$scriptStep = "WINDOWS"
 ### Copy ISO file to $downloadPath ###
 try {
     Write-CustomVerbose -Message "Copying Windows Server 2016 ISO image to $configASDKFilePath" -ErrorAction Stop
@@ -251,10 +335,12 @@ try {
     $ISOinDownloadPath = [System.IO.File]::Exists("$configASDKFilePath\$ISOFile")
     if (!$ISOinDownloadPath) {
         Copy-Item "$ISOPath" -Destination "$configASDKFilePath" -Force -Verbose
+        $ISOPath = "$configASDKFilePath\$ISOFile"
     }
     else {
         Write-CustomVerbose -Message "Windows Server 2016 ISO image exists within $configASDKFilePath." -ErrorAction Stop
-        Write-CustomVerbose -Message "Full path is "$configASDKFilePath\$ISOFile"." -ErrorAction Stop
+        Write-CustomVerbose -Message "Full path is $configASDKFilePath\$ISOFile" -ErrorAction Stop
+        $ISOPath = "$configASDKFilePath\$ISOFile"
     }
 }
 catch {
@@ -273,7 +359,6 @@ try {
     $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
     Dismount-DiskImage -ImagePath $ISOPath
 
-    Write-CustomVerbose -Message "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
     # Define parameters
     $StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
     $SearchString = 'Cumulative.*Server.*x64'
@@ -328,7 +413,7 @@ try {
     # Download the corresponding Windows Server 2016 Cumulative Update (and possibly, Servicing Stack Update)
     foreach ( $Url in $Urls ) {
         $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
-        $target = "$((Get-Item $ASDKpath).FullName)\$filename"
+        $target = "$((Get-Item $imagesPath).FullName)\$filename"
         Write-CustomVerbose -Message "Update will be stored at $target"
         Write-CustomVerbose -Message "These can be larger than 1GB, so may take a few minutes."
         if (!(Test-Path -Path $target)) {
@@ -342,8 +427,8 @@ try {
     # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied first when patching the WIM file.
     if ($buildVersion -eq "14393") {
         Write-CustomVerbose -Message "Renaming the Servicing Stack Update to ensure it is applied first"
-        Get-ChildItem -Path $ASDKpath -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -Verbose
-        $target = $ASDKpath
+        Get-ChildItem -Path $imagesPath -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -Verbose
+        $target = $imagesPath
     }
 
 }
@@ -353,38 +438,22 @@ catch {
     return
 }
 
-try {
-    # Download Convert-WindowsImage.ps1
-    $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
-    $convertWindowsDownloadLocation = "$ASDKpath\Convert-WindowsImage.ps1"
-    Write-CustomVerbose -Message "Downloading Convert-WindowsImage.ps1"
-    Write-CustomVerbose -Message "The download will be stored in $ASDKpath."
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    DownloadWithRetry -downloadURI "$convertWindowsURI" -downloadLocation "$convertWindowsDownloadLocation" -retries 10
-    Set-Location $ASDKpath
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
+### Create a ZIP file ##################################################################################################################################
+########################################################################################################################################################
 
-### Download Windows Server packages from GitHub ###
+$scriptStep = "CREATE ZIP"
 try {
-    $packageArray = @()
-    $packageArray.Clear()
-    $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*"
-
-    foreach ($package in $packageArray) {
-        $wsPackage = $null
-        $wsPackage = $package -replace '[*]', ''
-        $wsAzpkgDownloadLocation = "$packagePath\$wsPackage.1.0.0.azpkg"
-        Write-CustomVerbose -Message "Downloading Windows Server 2016 AZPKG files from GitHub."
-        Write-CustomVerbose -Message "The download will be stored in $wsAzpkgDownloadLocation."
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/$wsPackage.1.0.0.azpkg"
-        DownloadWithRetry -downloadURI "$galleryItemUri" -downloadLocation "$wsAzpkgDownloadLocation" -retries 10
+    $session = New-PSSession -Name CreateZip
+    Write-CustomVerbose -Message "Packaging files into a single ZIP file"
+    Invoke-Command -Session $session -ArgumentList $downloadPath, $configASDKFilePath -ScriptBlock {
+        $zipPath = "$Using:downloadPath\ConfigASDKfiles.zip"
+        Install-Module -Name 7Zip4PowerShell -Verbose -Force
+        Compress-7Zip -CompressionLevel None -Path "$Using:configASDKFilePath" -ArchiveFileName $zipPath -Format Zip;
+        Remove-Module -Name 7Zip4PowerShell -Verbose -Force
     }
+    Remove-PSSession -Name CreateZip -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+    Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
+    Uninstall-Module -Name 7Zip4PowerShell -Force -Confirm:$false -Verbose
 }
 catch {
     Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -392,176 +461,10 @@ catch {
     return
 }
 
-### DOWNLOAD SCALE SET GALLERY ITEM ##########################################################################################################################
-##############################################################################################################################################################
+### Final Steps #########################################################################################################################################
+#########################################################################################################################################################
 
-try {
-    $vmssAzpkgDownloadLocation = "$packagePath\microsoft.vmss.1.3.6.azpkg"
-    Write-CustomVerbose -Message "Downloading Virtual Machine Scale Set AZPKG file from GitHub."
-    Write-CustomVerbose -Message "The download will be stored in $vmssAzpkgDownloadLocation."
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/VMSS/microsoft.vmss.1.3.6.azpkg"
-    DownloadWithRetry -downloadURI "$galleryItemUri" -downloadLocation "$vmssAzpkgDownloadLocation" -retries 10
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
-### DOWNLOAD MYSQL GALLERY ITEM ##########################################################################################################################
-##############################################################################################################################################################
-
-try {
-    $mySQLAzpkgDownloadLocation = "$packagePath\ASDK.MySQL.1.0.0"
-    Write-CustomVerbose -Message "Downloading MySQL 5.7 on Ubuntu Server AZPKG file from GitHub."
-    Write-CustomVerbose -Message "The download will be stored in $mySQLAzpkgDownloadLocation."
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
-    DownloadWithRetry -downloadURI "$galleryItemUri" -downloadLocation "$mySQLAzpkgDownloadLocation" -retries 10
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
-### DOWNLOAD SQL GALLERY ITEM ##########################################################################################################################
-##############################################################################################################################################################
-
-try {
-    $sqlAzpkgDownloadLocation = "$packagePath\ASDK.MSSQL.1.0.0"
-    Write-CustomVerbose -Message "Downloading SQL Server 2017 on Ubuntu Server AZPKG file from GitHub."
-    Write-CustomVerbose -Message "The download will be stored in $sqlAzpkgDownloadLocation."
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
-    DownloadWithRetry -downloadURI "$galleryItemUri" -downloadLocation "$sqlAzpkgDownloadLocation" -retries 10
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
-### DOWNLOAD MySQL RP ########################################################################################################################################
-##############################################################################################################################################################
-
-try {
-    $mySqlRpURI = "https://aka.ms/azurestackmysqlrp"
-    $mySqlRpDownloadLocation = "$ASDKpath\MySQL.zip"
-    Write-CustomVerbose -Message "Downloading MySQL Resource Provider files."
-    Write-CustomVerbose -Message "The download will be stored in $mySqlRpDownloadLocation."
-    DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
-    Set-Location $ASDKpath
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
-### DOWNLOAD SQL RP ##########################################################################################################################################
-##############################################################################################################################################################
-
-try {
-    $sqlRpURI = "https://aka.ms/azurestacksqlrp"
-    $sqlRpDownloadLocation = "$ASDKpath\SQL.zip"
-    Write-CustomVerbose -Message "Downloading SQL Resource Provider files."
-    Write-CustomVerbose -Message "The download will be stored in $sqlRpDownloadLocation."
-    DownloadWithRetry -downloadURI "$sqlRpURI" -downloadLocation "$sqlRpDownloadLocation" -retries 10
-    Set-Location $ASDKpath
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
-### Download Database & File Server Templates ##############################################################################################################################
-##############################################################################################################################################################
-
-try {
-    # MySQL VM
-    $mySQLTemplateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json"
-    $mySQLTemplateLocation = "$templatePath\mySqlTemplate.json"
-    Write-CustomVerbose -Message "Downloading MySQL template for deployment."
-    Write-CustomVerbose -Message "The download will be stored in $mySQLTemplateLocation."
-    DownloadWithRetry -downloadURI "$mySQLTemplateURI" -downloadLocation "$mySQLTemplateLocation" -retries 10
-    # SQL VM
-    $sqlTemplateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json"
-    $sqlTemplateLocation = "$templatePath\SqlTemplate.json"
-    Write-CustomVerbose -Message "Downloading SQL template for deployment."
-    Write-CustomVerbose -Message "The download will be stored in $sqlTemplateLocation."
-    DownloadWithRetry -downloadURI "$sqlTemplateURI" -downloadLocation "$sqlTemplateLocation" -retries 10
-    # MySQL Hosting
-    $mySQLHostingTemplateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json"
-    $mySQLHostingTemplateLocation = "$templatePath\mySqlHostingTemplate.json"
-    Write-CustomVerbose -Message "Downloading MySQL Hosting Server template for deployment."
-    Write-CustomVerbose -Message "The download will be stored in $mySQLHostingTemplateLocation."
-    DownloadWithRetry -downloadURI "$mySQLHostingTemplateURI" -downloadLocation "$mySQLHostingTemplateLocation" -retries 10
-    # SQL Hosting
-    $sqlHostingTemplateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json"
-    $sqlHostingTemplateLocation = "$templatePath\SqlHostingTemplate.json"
-    Write-CustomVerbose -Message "Downloading SQL Hosting Server template for deployment."
-    Write-CustomVerbose -Message "The download will be stored in $sqlHostingTemplateLocation."
-    DownloadWithRetry -downloadURI "$sqlHostingTemplateURI" -downloadLocation "$sqlHostingTemplateLocation" -retries 10
-    # File Server
-    $fileServerTemplateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json"
-    $fileServerTemplateLocation = "$templatePath\FileServerTemplate.json"
-    Write-CustomVerbose -Message "Downloading File Server template for deployment."
-    Write-CustomVerbose -Message "The download will be stored in $fileServerTemplateLocation."
-    DownloadWithRetry -downloadURI "$fileServerTemplateURI" -downloadLocation "$fileServerTemplateLocation" -retries 10
-    Set-Location $ASDKpath
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
-### Download App Service #####################################################################################################################################
-##############################################################################################################################################################
-
-try {
-    $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
-    $appServiceHelperDownloadLocation = "$ASDKpath\appservicehelper.zip"
-    Write-CustomVerbose -Message "Downloading App Service Resource Provider Helper files."
-    Write-CustomVerbose -Message "The download will be stored in $appServiceHelperDownloadLocation."
-    DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
-    $appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
-    $appServiceExeDownloadLocation = "$ASDKpath\appservice.exe"
-    Write-CustomVerbose -Message "Downloading App Service Installer."
-    Write-CustomVerbose -Message "The download will be stored in $appServiceHelperDownloadLocation."
-    DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
-    $appServicePreJson = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json"
-    $appServicePreJsonDownloadLocation = "$ASDKpath\AppServiceDeploymentSettings.json"
-    Write-CustomVerbose -Message "Downloading App Service Pre-Deployment JSON Configuration."
-    Write-CustomVerbose -Message "The download will be stored in $appServicePreJsonDownloadLocation."
-    DownloadWithRetry -downloadURI "$appServicePreJson" -downloadLocation "$appServicePreJsonDownloadLocation" -retries 10
-    Set-Location $ASDKpath
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
-### Create a ZIP file ########################################################################################################################################
-##############################################################################################################################################################
-
-try {
-    Write-CustomVerbose -Message "Creating zip file" -ErrorAction Stop
-    Compress-Archive -Path "$configASDKFilePath\*" -CompressionLevel Optimal -DestinationPath "$downloadPath\ConfigASDKfiles" -Force -Verbose -ErrorAction Stop
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
-### Final Steps ##############################################################################################################################################
-##############################################################################################################################################################
-
+$scriptStep = "FINAL STEPS"
 # Calculate completion time
 $endTime = Get-Date -Format g
 $sw.Stop()

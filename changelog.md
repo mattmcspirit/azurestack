@@ -3,6 +3,7 @@ Here you'll find information on key changes, bug fixes and improvements made by 
 
 ## ConfigASDK.ps1
 
+    1805.3  Added support for offline deployment in conjunction with the ASDK Offline Dependency Downloader
     1805.2  Update to Windows Image creation to handle adding of KB4132216 to update Servicing Stack (for build 14393) for future updates
             (<https://support.microsoft.com/en-us/help/4132216>)
     1805.1  Updates to handling Azure subscriptions with multiple Azure AD tenants, and error handling for random Add-AzureRmVhd pipeline error,
