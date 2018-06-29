@@ -57,7 +57,7 @@ TBC
 
 #### Offline Example ####
 
-As this is an offline deployment, ADFS is **required** for authentication. In addition, as the ASDK is offline, and disconnected from the internet, the script will be configured **not** to register the ASDK to Azure as part of the automated process. Finally, the additional **Host Customizations**, such as installation of useful apps via Chocolatey, such as Putty, Visual Studio Code, Google Chrome and more, will **not** be performed in this release.
+As this is an offline deployment, **ADFS is required** for authentication. In addition, as the ASDK is offline, and disconnected from the internet, the script will be configured **not to register the ASDK to Azure** as part of the automated process. Finally, the additional **Host Customizations**, such as installation of useful apps via Chocolatey, such as Putty, Visual Studio Code, Google Chrome and more, will **not** be performed in this release.  You can optionally skip other parts of the installation, as described below.
 
 ```powershell
 .\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
