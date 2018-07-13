@@ -60,9 +60,13 @@ TBC
 As this is an offline deployment, **ADFS is required** for authentication. In addition, as the ASDK is offline, and disconnected from the internet, the script will be configured **not to register the ASDK to Azure** as part of the automated process. Finally, the additional **Host Customizations**, such as installation of useful apps via Chocolatey, such as Putty, Visual Studio Code, Google Chrome and more, will **not** be performed in this release.  You can optionally skip other parts of the installation, as described below.
 
 ```powershell
-.\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd "Passw0rd123!" -VMpwd "Passw0rd123!" -configAsdkOfflinePath "D:\ConfigASDKfiles.zip"
+.\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -azureStackAdminPwd "Passw0rd123!" `
+-VMpwd "Passw0rd123!" -offline -configAsdkOfflinePath "D:\ConfigASDKfiles.zip"
 ```
+
+**General Guidance**
+* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 10GB of files
+* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
 
 #### Optional Actions - New in ASDK Configurator 1805 ####
 

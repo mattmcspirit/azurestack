@@ -148,9 +148,12 @@ param (
     # If you don't want to customize the ASDK host with useful apps such as Chrome, Azure CLI, VS Code etc. set this flag
     [switch]$skipCustomizeHost,
 
+    # If you want to use the pre-downloaded zip file, set this flag
+    [switch]$offline,
+
     # Offline installation package path for all key components
     [parameter(Mandatory = $false)]
-    [string]$configAsdkOfflinePath
+    [string]$configAsdkOfflineZipPath
 )
 
 $VerbosePreference = "Continue"
@@ -210,6 +213,52 @@ $emailRegex = @"
 ### PARAMATER VALIDATION #####################################################################################################################################
 ##############################################################################################################################################################
 
+### Validate parameter combinations ###
+<#
+$configAsdkOfflineZipPath and AzureAD
+$configAsdkOfflineZipPath and Register
+$configAsdkOfflineZipPath and HostApps
+#>
+
+# https://www.petri.com/test-network-connectivity-powershell-test-connection-cmdlet
+# Test-NetConnection portal.azure.com -InformationLevel Quiet
+# Test-NetConnection portal.azure.com -CommonTCPPort HTTP -InformationLevel Quiet
+
+### Validate the combination of AzureAD Authentication and the use of the offline deployment mode
+if (($authenticationType.ToString() -like "AzureAd") -and (($offline) -or ($configAsdkOfflineZipPath))) {
+    Write-CustomVerbose -Message "You've chosen an offline install, but with AzureAD authentication. If you don't have internet connection, the script will fail."
+}
+
+### Validate the combination of registering the ASDK to Azure, and the use of the offline deployment mode
+if (($registerASDK) -and (($offline) -or ($configAsdkOfflineZipPath))) {
+    Write-CustomVerbose -Message "You've chosen an offline install, but also to register your ASDK to Azure. If you don't have internet connection, the script will fail."
+}
+
+### Validate the Offline switch usage, and path to the Zip file ###
+if (($offline) -or ($configAsdkOfflineZipPath)) {
+    if (($offline) -and ($configAsdkOfflineZipPath)) {
+        if (([System.IO.File]::Exists($configAsdkOfflineZipPath)) -and ([System.IO.Path]::GetExtension("$configAsdkOfflineZipPath"))) {
+            $isValidOfflineInstall = $true
+            $skipCustomizeHost = $false
+        }
+        else {
+            Write-CustomVerbose -Message "You've chosen an offline install, but the ConfigASDKfiles.zip isn't valid"
+            throw
+        }
+    }
+    else {
+        Write-CustomVerbose -Message "You've chosen an offline install, but either the -offline switch or the '$configAsdkOfflineZipPath' is missing."
+        throw
+    }
+}
+
+### Validate path to ISO File ###
+
+# If both the ConfigASDKfiles.zip file exists AND the $ISOPath has been provided by the user, set the $ISOPath to $null as it will be defined later
+if (([System.IO.File]::Exists($configAsdkOfflineZipPath)) -and ([System.IO.File]::Exists($ISOPath))) { 
+    $ISOPath = $null
+}
+
 ### Validate Download Path ###
 
 Clear-Host
@@ -257,6 +306,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
     Write-CustomVerbose -Message "Creating ConfigASDKProgressLog.csv`r`n"
     Add-Content -Path $ConfigASDKProgressLogPath -Value '"Stage","Status"' -Force -Confirm:$false
     $ConfigASDKprogress = @(
+        '"ExtractZip","Incomplete"'
         '"DownloadTools","Incomplete"'
         '"HostConfiguration","Incomplete"'
         '"Registration","Incomplete"'
@@ -289,8 +339,6 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
     $progress = Import-Csv -Path $ConfigASDKProgressLogPath
     Write-Output $progress | Out-Host
 }
-
-### Validate path to ISO File ###
 
 Write-CustomVerbose -Message "Checking to see if the path to the ISO exists"
 
@@ -1321,7 +1369,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $platformImageCore = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverCoreVMImageAlreadyAvailable = $false
 
-        if ($platformImageCore -ne $null -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
+        if ($null -ne $platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
             Write-CustomVerbose -Message "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverCoreVMImageAlreadyAvailable = $true
         }
@@ -1332,7 +1380,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $platformImageFull = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverFullVMImageAlreadyAvailable = $false
 
-        if ($platformImageFull -ne $null -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
+        if ($null -ne $platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
             Write-CustomVerbose -Message "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverFullVMImageAlreadyAvailable = $true
         }
@@ -1380,7 +1428,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
 
                 # If innerHTML is empty or does not exist, use outerHTML instead
-                if ($servicingKbIDs -eq $Null) {
+                if ($null -eq $servicingKbIDs) {
                     $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
                 }
             }
@@ -1397,7 +1445,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
 
             # If innerHTML is empty or does not exist, use outerHTML instead
-            If ($kbIDs -eq $Null) {
+            if ($null -eq $kbIDs) {
                 $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
             }
             
@@ -2492,11 +2540,22 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Deploy a SQL Server 2017 on Ubuntu VM for hosting tenant db
-            Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
-            New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
-                -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
-                -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
-
+            if ($skipMySQL) {
+                #if MySQL RP was skipped, DB hosting resources should be created here
+                Write-CustomVerbose -Message "Creating a dedicated Resource Group for all database hosting assets"
+                New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
+                Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
+                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
+                    -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
+                    -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+            }
+            else {
+                # Assume MySQL RP was deployed, and DB Hosting RG and networks were previously created
+                Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
+                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
+                    -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
+                    -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+            }
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
@@ -3021,34 +3080,34 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
         try {
             Write-CustomVerbose -Message "Checking variables are present before creating JSON"
             # Check Variables #
-            if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -ne $null)) {
+            if (($authenticationType.ToString() -like "AzureAd") -and ($null -ne $azureDirectoryTenantName)) {
                 Write-CustomVerbose -Message "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
             }
             elseif ($authenticationType.ToString() -like "ADFS") {
                 Write-CustomVerbose -Message "ADFS deployment, no need for Azure Directory Tenant Name"
             }
-            elseif (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -eq $null)) {
+            elseif (($authenticationType.ToString() -like "AzureAd") -and ($null -eq $azureDirectoryTenantName)) {
                 throw "Missing Azure Directory Tenant Name - Exiting process"
             }
-            if ($fileServerFqdn -ne $null) {
+            if ($null -ne $fileServerFqdn) {
                 Write-CustomVerbose -Message "File Server FQDN is present: $fileServerFqdn"
             }
             else {
                 throw "Missing File Server FQDN - Exiting process"
             }
-            if ($VMpwd -ne $null) {
+            if ($null -ne $VMpwd) {
                 Write-CustomVerbose -Message "Virtual Machine password is present: $VMpwd"
             }
             else {
                 throw "Missing Virtual Machine password - Exiting process"
             }
-            if ($sqlAppServerFqdn -ne $null) {
+            if ($null -ne $sqlAppServerFqdn) {
                 Write-CustomVerbose -Message "SQL Server FQDN is present: $sqlAppServerFqdn"
             }
             else {
                 throw "Missing SQL Server FQDN - Exiting process"
             }
-            if ($identityApplicationID -ne $null) {
+            if ($null -ne $identityApplicationID) {
                 Write-CustomVerbose -Message "Identity Application ID present: $identityApplicationID"
             }
             else {
@@ -3089,7 +3148,6 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
                 Write-CustomVerbose -Message "App Service is deploying. Checking in 10 seconds"
                 Start-Sleep -Seconds 10
             }
-            
             if (!(Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
                 Write-CustomVerbose -Message "App Service deployment has finished executing."
             }
@@ -3311,7 +3369,7 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # WinSCP
             Write-CustomVerbose -Message "Installing WinSCP with Chocolatey"
-            choco install winscp.install 
+            choco install winscp.install
 
             # Chrome
             Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
