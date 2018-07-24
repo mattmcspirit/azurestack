@@ -99,7 +99,7 @@ param (
     [String]$downloadPath,
 
     # Path to Windows Server 2016 Datacenter Evaluation ISO file
-    [parameter(Mandatory = $true)]
+    [parameter(Mandatory = $false)]
     [String]$ISOPath,
 
     # Password used for deployment of the ASDK.
@@ -148,9 +148,6 @@ param (
     # If you don't want to customize the ASDK host with useful apps such as Chrome, Azure CLI, VS Code etc. set this flag
     [switch]$skipCustomizeHost,
 
-    # If you want to use the pre-downloaded zip file, set this flag
-    [switch]$offline,
-
     # Offline installation package path for all key components
     [parameter(Mandatory = $false)]
     [string]$configAsdkOfflineZipPath
@@ -161,6 +158,30 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 try {Stop-Transcript | Out-Null} catch {}
 $scriptStep = ""
+
+### DOWNLOADER FUNCTION #####################################################################################################################################
+#############################################################################################################################################################
+function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
+    while ($true) {
+        try {
+            (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
+            break
+        }
+        catch {
+            $exceptionMessage = $_.Exception.Message
+            Write-CustomVerbose -Message "Failed to download '$downloadURI': $exceptionMessage"
+            if ($retries -gt 0) {
+                $retries--
+                Write-CustomVerbose -Message "Waiting 10 seconds before retrying. Retries left: $retries"
+                Start-Sleep -Seconds 10
+            }
+            else {
+                $exception = $_.Exception
+                throw $exception
+            }
+        }
+    }
+}
 
 ### CUSTOM VERBOSE FUNCTION #################################################################################################################################
 #############################################################################################################################################################
@@ -210,61 +231,143 @@ $emailRegex = @"
 (?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])
 "@
 
-### PARAMATER VALIDATION #####################################################################################################################################
+### SET LOG LOCATION ###
+$logDate = Get-Date -Format FileDate
+New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\" -Force | Out-Null
+$logPath = "$ScriptLocation\Logs\$logDate"
+Write-CustomVerbose -Message "Log folder full path is $logPath"
+
+### START LOGGING ###
+$logTime = $(Get-Date).ToString("MMdd-HHmmss")
+$logStart = Start-Transcript -Path "$logPath\ConfigASDKLog$logTime.txt" -Append
+Write-CustomVerbose -Message $logStart
+
+### INTERNET CONNECTION TEST #################################################################################################################################
 ##############################################################################################################################################################
 
-### Validate parameter combinations ###
-<#
-$configAsdkOfflineZipPath and AzureAD
-$configAsdkOfflineZipPath and Register
-$configAsdkOfflineZipPath and HostApps
-#>
+try {
+    Write-CustomVerbose -Message "Testing internet connectivity to various internet resources:"
+    $azureNetTest = Test-NetConnection portal.azure.com -CommonTCPPort HTTP -InformationLevel Quiet
+    $gitHubNetTest = Test-NetConnection github.com -CommonTCPPort HTTP -InformationLevel Quiet
+    $ubuntuNetTest = Test-NetConnection cloud-images.ubuntu.com -CommonTCPPort HTTP -InformationLevel Quiet
+    $catalogNetTest = Test-NetConnection www.catalog.update.microsoft.com -CommonTCPPort HTTP -InformationLevel Quiet
+    $microsoftNetTest = Test-NetConnection microsoft.com -CommonTCPPort HTTP -InformationLevel Quiet
+    $chocolateyNetTest = Test-NetConnection chocolatey.org -CommonTCPPort HTTP -InformationLevel Quiet
+    Write-CustomVerbose -Message "Connection to Azure: $azureNetTest"
+    Write-CustomVerbose -Message "Connection to Microsoft.com: $microsoftNetTest"
+    Write-CustomVerbose -Message "Connection to Microsoft Update Catalog: $catalogNetTest"
+    Write-CustomVerbose -Message "Connection to GitHub: $gitHubNetTest"
+    Write-CustomVerbose -Message "Connection to Ubuntu's Image Repo: $ubuntuNetTest"
+    Write-CustomVerbose -Message "Connection to Chocolatey: $chocolateyNetTest"
 
-# https://www.petri.com/test-network-connectivity-powershell-test-connection-cmdlet
-# Test-NetConnection portal.azure.com -InformationLevel Quiet
-# Test-NetConnection portal.azure.com -CommonTCPPort HTTP -InformationLevel Quiet
-
-### Validate the combination of AzureAD Authentication and the use of the offline deployment mode
-if (($authenticationType.ToString() -like "AzureAd") -and (($offline) -or ($configAsdkOfflineZipPath))) {
-    Write-CustomVerbose -Message "You've chosen an offline install, but with AzureAD authentication. If you don't have internet connection, the script will fail."
-}
-
-### Validate the combination of registering the ASDK to Azure, and the use of the offline deployment mode
-if (($registerASDK) -and (($offline) -or ($configAsdkOfflineZipPath))) {
-    Write-CustomVerbose -Message "You've chosen an offline install, but also to register your ASDK to Azure. If you don't have internet connection, the script will fail."
-}
-
-### Validate the Offline switch usage, and path to the Zip file ###
-if (($offline) -or ($configAsdkOfflineZipPath)) {
-    if (($offline) -and ($configAsdkOfflineZipPath)) {
-        if (([System.IO.File]::Exists($configAsdkOfflineZipPath)) -and ([System.IO.Path]::GetExtension("$configAsdkOfflineZipPath"))) {
-            $isValidOfflineInstall = $true
-            $skipCustomizeHost = $false
-        }
-        else {
-            Write-CustomVerbose -Message "You've chosen an offline install, but the ConfigASDKfiles.zip isn't valid"
-            throw
-        }
+    if ($azureNetTest -and $gitHubNetTest -and $ubuntuNetTest -and $catalogNetTest -and $microsoftNetTest -and $chocolateyNetTest) {
+        Write-CustomVerbose -Message "All internet connectivity tests passed"
+        $validOnlineInstall = $true
     }
     else {
-        Write-CustomVerbose -Message "You've chosen an offline install, but either the -offline switch or the '$configAsdkOfflineZipPath' is missing."
-        throw
+        Write-CustomVerbose -Message "One or more internet connectivity tests failed"
+        $validOnlineInstall = $false
+        if ($configAsdkOfflineZipPath) {
+            Write-CustomVerbose -Message "However, offline zip path has been provided so installation can continue"
+            if ($registerASDK) {
+                Write-CustomVerbose -Message "You have selected to register your ASDK, which requires internet connectivity."
+            }
+        }
+        else {
+            $exception = "No offline zip path provided, and one or more connectivity tests failed. Check your network or provide an offline zip of the dependencies, and try again."
+            throw $exception 
+        }
     }
 }
+catch {
+    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    Set-Location $ScriptLocation
+    return
+}
 
-### Validate path to ISO File ###
+### VALIDATION ###############################################################################################################################################
+##############################################################################################################################################################
 
-# If both the ConfigASDKfiles.zip file exists AND the $ISOPath has been provided by the user, set the $ISOPath to $null as it will be defined later
-if (([System.IO.File]::Exists($configAsdkOfflineZipPath)) -and ([System.IO.File]::Exists($ISOPath))) { 
-    $ISOPath = $null
+### Validate parameter combinations to determine deployment type - Online (fully internet connected)
+### PartialOnline (internet connected, but using offline zip), and Offline (ADFS with offline zip)
+
+try {
+    if (($authenticationType.ToString() -like "AzureAd") -and $validOnlineInstall -and !$configAsdkOfflineZipPath) {
+        $deploymentMode = "Online"
+    }
+    elseif (($authenticationType.ToString() -like "AzureAd") -and $validOnlineInstall -and $configAsdkOfflineZipPath) {
+        $deploymentMode = "PartialOnline"
+    }
+    elseif (($authenticationType.ToString() -like "AzureAd") -and !$validOnlineInstall) {
+        $exception = "Azure AD is the selected authentication model, but you failed internet connectivity tests. Check your internet connectivity, then retry."
+        throw $exception
+    }
+    elseif (($authenticationType.ToString() -like "ADFS") -and $validOnlineInstall -and !$configAsdkOfflineZipPath) {
+        $deploymentMode = "Online"
+    }
+    elseif (($authenticationType.ToString() -like "ADFS") -and $validOnlineInstall -and $configAsdkOfflineZipPath) {
+        $deploymentMode = "PartialOnline"
+    }
+    elseif (($authenticationType.ToString() -like "ADFS") -and !$validOnlineInstall -and $configAsdkOfflineZipPath) {
+        $deploymentMode = "Offline"
+        $skipCustomizeHost = $true
+    }
+    elseif (($authenticationType.ToString() -like "ADFS") -and !$validOnlineInstall -and !$configAsdkOfflineZipPath) {
+        $exception = "ADFS is your selected authentication model, but you failed internet connectivity tests and didn't provide an offline zip path."
+        throw $exception
+    }
+}
+catch {
+    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    Set-Location $ScriptLocation
+    return
+}
+
+### Validate offline Zip Path ###
+try {
+    if ($configAsdkOfflineZipPath) {
+        Write-CustomVerbose -Message "Validating offline zip path."
+        $validZipPath = [System.IO.File]::Exists("$configAsdkOfflineZipPath")
+        $validZipfile = [System.IO.Path]::GetExtension("$configAsdkOfflineZipPath")
+
+        if ($validZipPath -eq $true -and $validZipfile -eq ".zip") {
+            Write-CustomVerbose -Message "Found path to valid zip file" 
+            $configAsdkOfflineZipPath = [System.IO.Path]::GetFullPath($configAsdkOfflineZipPath)
+            Write-CustomVerbose -Message "The zip path found at $configAsdkOfflineZipPath will be used"
+            $offlineZipIsValid = $true
+        }
+        elseif ($validZipPath -eq $false -or $validZipfile -ne ".zip") {
+            $configAsdkOfflineZipPath = Read-Host "Zip path is invalid - please enter a valid path to the offline zip file"
+            $validZipPath = [System.IO.File]::Exists("$configAsdkOfflineZipPath")
+            $validZipfile = [System.IO.Path]::GetExtension("$configAsdkOfflineZipPath")
+            if ($validZipPath -eq $false -or $validZipfile -ne ".zip") {
+                $offlineZipIsValid = $false
+                Write-CustomVerbose -Message "No valid path to a zip file was entered again. Exiting process..." -ErrorAction Stop
+                Set-Location $ScriptLocation
+                return
+            }
+            elseif ($validZipPath -eq $true -and $validZipfile -eq ".zip") {
+                Write-CustomVerbose -Message "Found path to valid zip file" 
+                $configAsdkOfflineZipPath = [System.IO.Path]::GetFullPath($configAsdkOfflineZipPath)
+                Write-CustomVerbose -Message "The zip file found at $configAsdkOfflineZipPath will be used"
+                $offlineZipIsValid = $true
+            }
+        }
+    }
+    ### Validate path to ISO File ###
+    # If both the ConfigASDKfiles.zip file exists AND the $ISOPath has been provided by the user, set the $ISOPath to $null as it will be defined later
+    if (([System.IO.File]::Exists($configAsdkOfflineZipPath)) -and ([System.IO.File]::Exists($ISOPath))) { 
+        $ISOPath = $null
+    }
+}
+catch {
+    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    Set-Location $ScriptLocation
+    return
 }
 
 ### Validate Download Path ###
-
-Clear-Host
-Write-CustomVerbose -Message "Selected identity provider is $authenticationType"
-Write-CustomVerbose -Message "Checking to see if the Download Path exists"
-
+Write-CustomVerbose -Message "Validating download path."
 $validDownloadPath = [System.IO.Directory]::Exists($downloadPath)
 If ($validDownloadPath -eq $true) {
     Write-CustomVerbose -Message "Download path exists and is valid" 
@@ -286,85 +389,10 @@ elseif ($validDownloadPath -eq $false) {
     }
 }
 
-### Start Logging ###
-$logTime = $(Get-Date).ToString("MMdd-HHmmss")
-$logStart = Start-Transcript -Path "$downloadPath\ConfigASDKLog$logTime.txt" -Append
-Write-CustomVerbose -Message $logStart
+Write-CustomVerbose -Message "Selected identity provider is $authenticationType"
 
-### Check if ConfigASDKProgressLog.csv exists ###
-$ConfigASDKProgressLogPath = "$downloadPath\ConfigASDKProgressLog.csv"
-$validConfigASDKProgressLogPath = [System.IO.File]::Exists($ConfigASDKProgressLogPath)
-If ($validConfigASDKProgressLogPath -eq $true) {
-    Write-CustomVerbose -Message "ConfigASDkProgressLog.csv exists - this must be a rerun"
-    Write-CustomVerbose -Message "Starting from previous failed step`r`n"
-    $isRerun = $true
-    $progress = Import-Csv $ConfigASDKProgressLogPath
-    Write-Output $progress | Out-Host
-}
-elseif ($validConfigASDKProgressLogPath -eq $false) {
-    Write-CustomVerbose -Message "No ConfigASDkProgressLog.csv exists - this must be a fresh deployment"
-    Write-CustomVerbose -Message "Creating ConfigASDKProgressLog.csv`r`n"
-    Add-Content -Path $ConfigASDKProgressLogPath -Value '"Stage","Status"' -Force -Confirm:$false
-    $ConfigASDKprogress = @(
-        '"ExtractZip","Incomplete"'
-        '"DownloadTools","Incomplete"'
-        '"HostConfiguration","Incomplete"'
-        '"Registration","Incomplete"'
-        '"UbuntuImage","Incomplete"'
-        '"WindowsImage","Incomplete"'
-        '"ScaleSetGalleryItem","Incomplete"'
-        '"MySQLGalleryItem","Incomplete"'
-        '"SQLServerGalleryItem","Incomplete"'
-        '"MySQLRP","Incomplete"'
-        '"SQLServerRP","Incomplete"'
-        '"RegisterNewRPs","Incomplete"'
-        '"MySQLSKUQuota","Incomplete"'
-        '"SQLServerSKUQuota","Incomplete"'
-        '"MySQLDBVM","Incomplete"'
-        '"SQLServerDBVM","Incomplete"'
-        '"MySQLAddHosting","Incomplete"'
-        '"SQLServerAddHosting","Incomplete"'
-        '"AppServiceFileServer","Incomplete"'
-        '"AppServiceSQLServer","Incomplete"'
-        '"DownloadAppService","Incomplete"'
-        '"GenerateAppServiceCerts","Incomplete"'
-        '"CreateServicePrincipal","Incomplete"'
-        '"GrantAzureADAppPermissions","Incomplete"'
-        '"InstallAppService","Incomplete"'
-        '"CreatePlansOffers","Incomplete"'
-        '"InstallHostApps","Incomplete"'
-        '"CreateOutput","Incomplete"'
-    )
-    $ConfigASDKprogress | ForEach-Object { Add-Content -Path $ConfigASDKProgressLogPath -Value $_ }
-    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-    Write-Output $progress | Out-Host
-}
-
-Write-CustomVerbose -Message "Checking to see if the path to the ISO exists"
-
-$validISOPath = [System.IO.File]::Exists($ISOPath)
-$validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
-
-If ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
-    Write-CustomVerbose -Message "Found path to valid ISO file" 
-    $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
-    Write-CustomVerbose -Message "The Windows Server 2016 Eval found at $ISOPath will be used" 
-}
-elseif ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
-    $ISOPath = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2016 ISO"
-    $validISOPath = [System.IO.File]::Exists($ISOPath)
-    $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
-    if ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
-        Write-CustomVerbose -Message "No valid path to a Windows Server 2016 ISO was entered again. Exiting process..." -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-    elseif ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
-        Write-CustomVerbose -Message "Found path to valid ISO file" 
-        $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
-        Write-CustomVerbose -Message "The Windows Server 2016 Eval found at $ISOPath will be used" 
-    }
-}
+### VALIDATE CREDS ##########################################################################################################################################
+#############################################################################################################################################################
 
 ### Validate Virtual Machine (To be created) Password ###
 
@@ -407,7 +435,6 @@ elseif ($VMpwd -cmatch $regex -eq $false) {
 }
 
 ### Validate Azure Stack Development Kit Deployment Credentials ###
-
 if ([string]::IsNullOrEmpty($azureStackAdminPwd)) {
     Write-CustomVerbose -Message "You didn't enter the Azure Stack Development Kit Deployment password." 
     $secureAzureStackAdminPwd = Read-Host "Please enter the password used for the Azure Stack Development Kit Deployment, for account AzureStack\AzureStackAdmin" -AsSecureString -ErrorAction Stop
@@ -433,11 +460,10 @@ elseif ($azureStackAdminPwd -cmatch $regex -eq $false) {
     $azureStackAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $azureStackAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
 }
 
-<### Credentials Recap ###
-$azureStackAdminUsername = "AzureStack\AzureStackAdmin" | Used to log into the local ASDK Host
-azureStackAdminPwd (and $secureAzureStackAdminPwd) | Used to log into the local ASDK Host
-$azureStackAdminCreds | Used to log into the local ASDK Host
-#>
+### Credentials Recap ###
+# $azureStackAdminUsername = "AzureStack\AzureStackAdmin" | Used to log into the local ASDK Host
+# azureStackAdminPwd (and $secureAzureStackAdminPwd) | Used to log into the local ASDK Host
+# $azureStackAdminCreds | Used to log into the local ASDK Host
 
 ### Validate Azure Stack Development Kit Service Administrator Credentials (AZURE AD ONLY) ###
 
@@ -501,12 +527,11 @@ if ($authenticationType.ToString() -like "AzureAd") {
 
     $asdkCreds = $azureAdCreds
 
-    <### Credentials Recap ###
-$azureAdUsername | Used for Azure AD athentication to log into Azure/Azure Stack portals
-$azureAdPwd (and $secureAzureAdPwd) | Used to log into Azure/Azure Stack portals
-$azureAdCreds | Combined credentials, used to log into Azure/Azure Stack portals
-$asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $azureStackAdminCreds (if ADFS)
-#>
+    ### Credentials Recap ###
+    # $azureAdUsername | Used for Azure AD athentication to log into Azure/Azure Stack portals
+    # $azureAdPwd (and $secureAzureAdPwd) | Used to log into Azure/Azure Stack portals
+    # $azureAdCreds | Combined credentials, used to log into Azure/Azure Stack portals
+    # $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $azureStackAdminCreds (if ADFS)
 
     if ($useAzureCredsForRegistration -and $registerASDK) {
         $azureRegCreds = $azureAdCreds
@@ -572,20 +597,18 @@ $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $a
 $cloudAdminUsername = "azurestack\cloudadmin"
 $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
 
-<### Credentials Recap ###
-$azureRegUsername | Used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
-$azureRegPwd (and $secureAzureRegPwd) | Used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
-$azureRegCreds | Combined credentials, used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
-$cloudAdminCreds | Used for ADFS login (azurestackadmin not used) and also MySQL/SQL RP deployment
-#>
+### Credentials Recap ###
+# $azureRegUsername | Used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
+# $azureRegPwd (and $secureAzureRegPwd) | Used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
+# $azureRegCreds | Combined credentials, used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
+# $cloudAdminCreds | Used for ADFS login (azurestackadmin not used) and also MySQL/SQL RP deployment
 
 if ($authenticationType.ToString() -like "ADFS") {
     $asdkCreds = $cloudAdminCreds
 }
 
-<### Credentials Recap ###
-$asdkCreds | If deployment is using ADFS, $asdkCreds will be set to match $azureStackAdminCreds, which should be azurestack\azurestackadmin and accompanying password
-#>
+### Credentials Recap ###
+# $asdkCreds | If deployment is using ADFS, $asdkCreds will be set to match $azureStackAdminCreds, which should be azurestack\azurestackadmin and accompanying password
 
 if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
 
@@ -676,6 +699,224 @@ if ($registerASDK) {
     }
 }
 
+### CREATE CSV ##############################################################################################################################################
+#############################################################################################################################################################
+
+### Check if ConfigASDKProgressLog.csv exists ###
+$ConfigASDKProgressLogPath = "$downloadPath\ConfigASDKProgressLog.csv"
+$validConfigASDKProgressLogPath = [System.IO.File]::Exists($ConfigASDKProgressLogPath)
+If ($validConfigASDKProgressLogPath -eq $true) {
+    Write-CustomVerbose -Message "ConfigASDkProgressLog.csv exists - this must be a rerun"
+    Write-CustomVerbose -Message "Starting from previous failed step`r`n"
+    $isRerun = $true
+    $progress = Import-Csv $ConfigASDKProgressLogPath
+    Write-Output $progress | Out-Host
+}
+elseif ($validConfigASDKProgressLogPath -eq $false) {
+    Write-CustomVerbose -Message "No ConfigASDkProgressLog.csv exists - this must be a fresh deployment"
+    Write-CustomVerbose -Message "Creating ConfigASDKProgressLog.csv`r`n"
+    Add-Content -Path $ConfigASDKProgressLogPath -Value '"Stage","Status"' -Force -Confirm:$false
+    $ConfigASDKprogress = @(
+        '"ExtractZip","Incomplete"'
+        '"InstallPowerShell","Incomplete"'
+        '"DownloadTools","Incomplete"'
+        '"HostConfiguration","Incomplete"'
+        '"Registration","Incomplete"'
+        '"UbuntuImage","Incomplete"'
+        '"WindowsImage","Incomplete"'
+        '"ScaleSetGalleryItem","Incomplete"'
+        '"MySQLGalleryItem","Incomplete"'
+        '"SQLServerGalleryItem","Incomplete"'
+        '"MySQLRP","Incomplete"'
+        '"SQLServerRP","Incomplete"'
+        '"RegisterNewRPs","Incomplete"'
+        '"MySQLSKUQuota","Incomplete"'
+        '"SQLServerSKUQuota","Incomplete"'
+        '"MySQLDBVM","Incomplete"'
+        '"SQLServerDBVM","Incomplete"'
+        '"MySQLAddHosting","Incomplete"'
+        '"SQLServerAddHosting","Incomplete"'
+        '"AppServiceFileServer","Incomplete"'
+        '"AppServiceSQLServer","Incomplete"'
+        '"DownloadAppService","Incomplete"'
+        '"GenerateAppServiceCerts","Incomplete"'
+        '"CreateServicePrincipal","Incomplete"'
+        '"GrantAzureADAppPermissions","Incomplete"'
+        '"InstallAppService","Incomplete"'
+        '"CreatePlansOffers","Incomplete"'
+        '"InstallHostApps","Incomplete"'
+        '"CreateOutput","Incomplete"'
+    )
+    $ConfigASDKprogress | ForEach-Object { Add-Content -Path $ConfigASDKProgressLogPath -Value $_ }
+    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+    Write-Output $progress | Out-Host
+}
+
+### CREATE ASDK FOLDER ######################################################################################################################################
+#############################################################################################################################################################
+
+### CREATE ASDK FOLDER ###
+$ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
+if ($ASDKpath -eq $true) {
+    $ASDKpath = "$downloadPath\ASDK"
+    Write-CustomVerbose -Message "ASDK folder exists at $downloadPath - no need to create it."
+    Write-CustomVerbose -Message "Download files will be placed in $downloadPath\ASDK"
+    Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
+    if (!$isRerun) {
+        # If this is a fresh run, the $asdkPath should be empty to avoid any conflicts.
+        # It may exist from a previous successful run
+        Write-CustomVerbose -Message "Cleaning up an old ASDK Folder from a previous completed run"
+        # Will attempt multiple times as sometimes it fails
+        $i = 0 
+        While ($i -le 3) {
+            Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            $i++
+        }
+    }
+}
+elseif ($ASDKpath -eq $false) {
+    # Create the ASDK folder.
+    Write-CustomVerbose -Message "ASDK folder doesn't exist within $downloadPath, creating it"
+    mkdir "$downloadPath\ASDK" -Force | Out-Null
+    $ASDKpath = "$downloadPath\ASDK"
+    Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
+}
+
+### EXTRACT ZIP (OPTIONAL) ##################################################################################################################################
+#############################################################################################################################################################
+
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
+$RowIndex = [array]::IndexOf($progress.Stage, "ExtractZip")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+
+if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            Write-CustomVerbose -Message "ASDK Configurator dependency files located at: $validZipPath"
+            Write-CustomVerbose -Message "Starting extraction to $downloadPath"
+            ### Extract the Zip file, move contents to appropriate place
+            Expand-Archive -Path $configAsdkOfflineZipPath -DestinationPath $downloadPath -Force -Verbose -ErrorAction Stop
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress | Out-Host
+        }
+        catch {
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    }
+}
+elseif (!$configAsdkOfflineZipPath) {
+    Write-CustomVerbose -Message "Skipping zip extraction - this is a 100% online deployment`r`n"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress | Out-Host
+}
+
+### VALIDATE ISO ############################################################################################################################################
+#############################################################################################################################################################
+
+$scriptStep = "VALIDATE ISO"
+try {
+    Write-CustomVerbose -Message "Validating ISO path"
+    # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
+    if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
+        $ISOPath = Get-ChildItem -Path "$downloadPath\*" -Recurse -Filter *.iso -ErrorAction Stop
+        $ISOPath = $ISOPath.FullName
+    }
+    $validISOPath = [System.IO.File]::Exists($ISOPath)
+    $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
+    if ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
+        Write-CustomVerbose -Message "Found path to valid ISO file" 
+        $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
+        Write-CustomVerbose -Message "The Windows Server 2016 Eval found at $ISOPath will be used" 
+    }
+    elseif ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
+        $ISOPath = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2016 ISO"
+        $validISOPath = [System.IO.File]::Exists($ISOPath)
+        $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
+        if ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
+            Write-CustomVerbose -Message "No valid path to a Windows Server 2016 ISO was entered again. Exiting process..." -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+        elseif ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
+            Write-CustomVerbose -Message "Found path to valid ISO file" 
+            $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
+            Write-CustomVerbose -Message "The Windows Server 2016 Eval found at $ISOPath will be used" 
+        }
+    }
+}
+catch {
+    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    Set-Location $ScriptLocation
+    return
+}
+
+### INSTALL POWERSHELL ######################################################################################################################################
+#############################################################################################################################################################
+
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
+$RowIndex = [array]::IndexOf($progress.Stage, "InstallPowerShell")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+
+if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    try {
+        Import-Module -Name PowerShellGet -ErrorAction Stop
+        Import-Module -Name PackageManagement -ErrorAction Stop
+        Write-CustomVerbose -Message "Uninstalling previously existing Azure Stack modules"
+        Uninstall-Module AzureRM.AzureStackAdmin -Force -ErrorAction Ignore
+        Uninstall-Module AzureRM.AzureStackStorage -Force -ErrorAction Ignore
+        Uninstall-Module -Name AzureStack -Force -ErrorAction Ignore
+        if ($deploymentMode -eq "Online") {
+            # If this is an online deployment, pull down the PowerShell modules from the Internet
+            Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
+            Get-PSRepository -Name "PSGallery"
+            Register-PsRepository -Default
+            Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
+            Install-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
+            Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop
+            Install-Module -Name AzureStack -RequiredVersion 1.3.0 -Force -ErrorAction Stop
+        }
+        elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
+            $SourceLocation = "$downloadPath\ASDK\PowerShell"
+            $RepoName = "MyNuGetSource"
+            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation  -InstallationPolicy Trusted
+            Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
+            Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
+        }
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+    }
+    catch {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return        
+    }
+}
+elseif ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+
 ### TEST ALL LOGINS #########################################################################################################################################
 #############################################################################################################################################################
 
@@ -744,7 +985,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
         return
     }
 }
-if ($registerASDK) {
+if ($registerASDK -and ($deploymentMode -eq "PartialOnline" -or "Online")) {
     try {
         ### OPTIONAL - TEST AZURE REGISTRATION CREDS
         Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory`r`n"
@@ -783,60 +1024,8 @@ Clear-AzureRmContext -Scope CurrentUser -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Invoke-WebRequest -Uri "http://bit.ly/asdkcounter" -UseBasicParsing -ErrorAction SilentlyContinue -DisableKeepAlive | Out-Null
 
-### DOWNLOADER FUNCTION #####################################################################################################################################
-#############################################################################################################################################################
-function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
-    while ($true) {
-        try {
-            (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
-            break
-        }
-        catch {
-            $exceptionMessage = $_.Exception.Message
-            Write-CustomVerbose -Message "Failed to download '$downloadURI': $exceptionMessage"
-            if ($retries -gt 0) {
-                $retries--
-                Write-CustomVerbose -Message "Waiting 10 seconds before retrying. Retries left: $retries"
-                Start-Sleep -Seconds 10
-            }
-            else {
-                $exception = $_.Exception
-                throw $exception
-            }
-        }
-    }
-}
-
 ### DOWNLOAD TOOLS #####################################################################################################################################
 ########################################################################################################################################################
-
-### CREATE ASDK FOLDER ###
-$ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
-
-if ($ASDKpath -eq $true) {
-    $ASDKpath = "$downloadPath\ASDK"
-    Write-CustomVerbose -Message "ASDK folder exists at $downloadPath - no need to create it."
-    Write-CustomVerbose -Message "Download files will be placed in $downloadPath\ASDK"
-    Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
-    if (!$isRerun) {
-        # If this is a fresh run, the $asdkPath should be empty to avoid any conflicts.
-        # It may exist from a previous successful run
-        Write-CustomVerbose -Message "Cleaning up an old ASDK Folder from a previous completed run"
-        # Will attempt multiple times as sometimes it fails
-        $i = 0 
-        While ($i -le 3) {
-            Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-            $i++
-        }
-    }
-}
-elseif ($ASDKpath -eq $false) {
-    # Create the ASDK folder.
-    Write-CustomVerbose -Message "ASDK folder doesn't exist within $downloadPath, creating it"
-    mkdir "$downloadPath\ASDK" -Force | Out-Null
-    $ASDKpath = "$downloadPath\ASDK"
-    Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
-}
 
 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "DownloadTools")
@@ -846,20 +1035,25 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
     try {
         ### DOWNLOAD & EXTRACT TOOLS ###
-        # Download the tools archive using a function incase the download fails or is interrupted.
-        $toolsURI = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
-        $toolsDownloadLocation = "$ASDKpath\master.zip"
-        Write-CustomVerbose -Message "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
-        Write-CustomVerbose -Message "The download will be stored in $ASDKpath."
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        DownloadWithRetry -downloadURI "$toolsURI" -downloadLocation "$toolsDownloadLocation" -retries 10
-
+        if ($deploymentMode -eq "Online") {
+            # Download the tools archive using a function incase the download fails or is interrupted.
+            $toolsURI = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
+            $toolsDownloadLocation = "$ASDKpath\master.zip"
+            Write-CustomVerbose -Message "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
+            Write-CustomVerbose -Message "The download will be stored in $ASDKpath."
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            DownloadWithRetry -downloadURI "$toolsURI" -downloadLocation "$toolsDownloadLocation" -retries 10
+        }
+        elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            $toolsDownloadLocation = "$ASDKpath\master.zip"
+        }
         # Expand the downloaded files
         Write-CustomVerbose -Message "Expanding Archive"
         Expand-Archive "$toolsDownloadLocation" -DestinationPath "C:\" -Force
-        Write-CustomVerbose -Message "Archive expanded. Cleaning up."
-        Remove-Item "$toolsDownloadLocation" -Force -ErrorAction Stop
-
+        if ($deploymentMode -eq "Online") {
+            Write-CustomVerbose -Message "Archive expanded. Cleaning up."
+            Remove-Item "$toolsDownloadLocation" -Force -ErrorAction Stop
+        }
         # Update the ConfigASDKProgressLog.csv file with successful completion
         Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
@@ -1039,25 +1233,22 @@ $asdkImagesContainerName = "asdkimagescontainer"
 
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-
         # Test/Create RG
         if (-not (Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
             New-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
         }
-
         # Test/Create Storage
         $asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName -ErrorAction SilentlyContinue
         if (-not ($asdkStorageAccount)) {
             $asdkStorageAccount = New-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -Location $azsLocation -ResourceGroupName $asdkImagesRGName -Type Standard_LRS -ErrorAction Stop
         }
-        Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName 
-
+        Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName
         # Test/Create Container
         $asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
         if (-not ($asdkContainer)) {
             $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop
         }       
-        if ($registerASDK) {
+        if ($registerASDK -and ($deploymentMode -eq "PartialOnline" -or "Online")) {
             # Logout to clean up
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
@@ -1163,21 +1354,21 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Write-CustomVerbose -Message "Unfortunately, no image was found with these properties."
             Write-CustomVerbose -Message "Checking to see if the Ubuntu Server VHD already exists in ASDK Configurator folder"
 
-            $validDownloadPathVHD = [System.IO.File]::Exists("$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).vhd")
-            $validDownloadPathZIP = [System.IO.File]::Exists("$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip")
+            $validDownloadPathVHD = [System.IO.File]::Exists("$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).vhd")
+            $validDownloadPathZIP = [System.IO.File]::Exists("$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip")
 
             if ($validDownloadPathVHD -eq $true) {
                 Write-CustomVerbose -Message "Located Ubuntu Server VHD in this folder. No need to download again..."
-                $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).vhd"
+                $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).vhd"
                 Write-CustomVerbose -Message "Ubuntu Server VHD located at $UbuntuServerVHD"
             }
             elseif ($validDownloadPathZIP -eq $true) {
                 Write-CustomVerbose -Message "Cannot find a previously extracted Ubuntu Server VHD with name $($azpkg.offer)$($azpkg.vhdVersion).vhd"
                 Write-CustomVerbose -Message "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
-                $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                 Write-CustomVerbose -Message "Ubuntu Server ZIP located at $UbuntuServerZIP"
-                Expand-Archive -Path $UbuntuServerZIP -DestinationPath $ASDKpath -Force -ErrorAction Stop
-                $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath" -Filter *.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
+                Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$ASDKpath\images" -Force -ErrorAction Stop
+                $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath\images\" -Filter *.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
             }
             else {
                 # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
@@ -1185,21 +1376,21 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Write-CustomVerbose -Message "Cannot find a previously extracted Ubuntu Server download or ZIP file"
                 Write-CustomVerbose -Message "Begin download of correct Ubuntu Server ZIP and extraction of VHD into $ASDKpath"
 
-                if ($registerASDK) {
+                if ($registerASDK -and ($deploymentMode -eq "Online")) {
                     $ubuntuBuild = $azpkg.vhdVersion
                     $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
                     $ubuntuBuild = $ubuntuBuild.split('.')[2]
                     $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
 
                 }
-                else {
+                elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
                     $ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
                 }
-                $ubuntuDownloadLocation = "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                $ubuntuDownloadLocation = "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                 DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
        
-                Expand-Archive -Path "$ASDKpath\$($azpkg.offer)$($azpkg.vhdVersion).zip" -DestinationPath $ASDKpath -Force -ErrorAction Stop
-                $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath" -Filter *disk1.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
+                Expand-Archive -Path "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip" -DestinationPath "$ASDKpath\images\" -Force -ErrorAction Stop
+                $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath\images\" -Filter *disk1.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
             }
 
             # Upload the image to the Azure Stack Platform Image Repository
@@ -1280,9 +1471,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
 
             # Add the Platform Image
-            
             Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$ubuntuServerURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
-            
             if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                 Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                 Write-CustomVerbose -Message "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
@@ -1299,7 +1488,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         }
 
         ### If the user has chosen to register the ASDK as part of the process, the script will side load an AZPKG from the Azure Marketplace, otherwise ###
-        ### it will add one from GitHub ###
+        ### it will add one from GitHub (assuming an online deployment choice) ###
 
         # Upload AZPKG package
         Write-CustomVerbose -Message "Checking for the following packages: $($azpkg.name)"
@@ -1310,15 +1499,50 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Write-CustomVerbose -Message "Didn't find this package: $($azpkg.name)"
             Write-CustomVerbose -Message "Will need to side load it in to the gallery"
                 
-            if ($registerASDK) {
+            if ($registerASDK -and ($deploymentMode -eq "Online")) {
                 $galleryItemUri = $($azpkg.azpkgPath)
                 Write-CustomVerbose -Message "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
                 $galleryItemUri = $($azpkg.azpkgPath)
             }
-            else {
+            elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
                 $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
                 Write-CustomVerbose -Message "Uploading $($azpkg.name) from $galleryItemUri"
             }
+            elseif (($registerASDK -or !$registerASDK) -and ($deploymentMode -eq "PartialOnline" -or "Offline")) {
+                #### Need to upload to blob storage first from extracted ZIP ####
+                $UbuntuOfflineAZPKGPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *Ubuntu*.azpkg
+
+                # Upload the Gallery Item to the Azure Stack Platform Image Repository
+                Write-CustomVerbose -Message "Extraction Complete. Beginning upload of the Ubuntu AZPKG gallery item"
+                $asdkStorageAccount.PrimaryEndpoints.Blob
+                
+                # Check there's not a gallery item already uploaded to storage
+                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGPath.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($ubuntuAzpkgUploadSuccess)) {
+                    Write-CustomVerbose -Message "You already have an upload of $($UbuntuOfflineAZPKGPath.Name) within your Storage Account. No need to re-upload."
+                    Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGPath.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+                }
+
+                $uploadAzpkgAttempt = 1
+                while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGPath.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuAzpkgUploadSuccess) -and ($uploadAzpkgAttempt -le 3)) {
+                    Try {
+                        # Log back into Azure Stack to ensure login hasn't timed out
+                        Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
+                        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                        Set-AzureStorageBlobContent -File "$UbuntuOfflineAZPKGPath.FullName" -Container $asdkImagesContainerName -Blob "$UbuntuOfflineAZPKGPath.Name" -Context $asdkStorageAccount.Context -ErrorAction Stop
+                        $ubuntuAzpkgUploadSuccess = $true
+                    }
+                    catch {
+                        Write-CustomVerbose -Message "Upload failed."
+                        Write-CustomVerbose -Message "$_.Exception.Message"
+                        $uploadAzpkgAttempt++
+                        $ubuntuAzpkgUploadSuccess = $false
+                    }
+                }
+                $ubuntuAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $UbuntuOfflineAZPKGPath.Name
+                $galleryItemUri = $ubuntuAzpkgURI
+                Write-CustomVerbose -Message "Uploading $($azpkg.name) from $galleryItemUri"
+            }
+
             $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
