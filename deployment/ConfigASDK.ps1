@@ -832,8 +832,7 @@ try {
     Write-CustomVerbose -Message "Validating ISO path"
     # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
     if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
-        $ISOPath = Get-ChildItem -Path "$downloadPath\*" -Recurse -Filter *.iso -ErrorAction Stop
-        $ISOPath = $ISOPath.FullName
+        $ISOPath = Get-ChildItem -Path "$downloadPath\*" -Recurse -Include *.iso -ErrorAction Stop | ForEach-Object { $_.FullName }
     }
     $validISOPath = [System.IO.File]::Exists($ISOPath)
     $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
@@ -985,7 +984,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
         return
     }
 }
-if ($registerASDK -and ($deploymentMode -eq "PartialOnline" -or "Online")) {
+if ($registerASDK -and ($deploymentMode -ne "Offline")) {
     try {
         ### OPTIONAL - TEST AZURE REGISTRATION CREDS
         Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory`r`n"
@@ -1148,7 +1147,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 
 $RowIndex = [array]::IndexOf($progress.Stage, "Registration")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($registerASDK) {
+if ($registerASDK -and ($deploymentMode -ne "Offline")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             Write-CustomVerbose -Message "Starting Azure Stack registration to Azure"
@@ -1160,7 +1159,8 @@ if ($registerASDK) {
             Import-Module $modulePath\Registration\RegisterWithAzure.psm1 -Force -Verbose
             #Register Azure Stack
             $AzureContext = Get-AzureRmContext
-            Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -BillingModel Development -ErrorAction Stop
+            $registrationTime = $(Get-Date).ToString("MMdd-HHmmss")
+            Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "ASDKRegistration-$registrationTime"  -BillingModel Development -ErrorAction Stop
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
