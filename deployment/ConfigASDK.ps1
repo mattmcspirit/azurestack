@@ -1043,7 +1043,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             DownloadWithRetry -downloadURI "$toolsURI" -downloadLocation "$toolsDownloadLocation" -retries 10
         }
-        elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+        elseif ($deploymentMode -ne "Online") {
             $toolsDownloadLocation = "$ASDKpath\master.zip"
         }
         # Expand the downloaded files
@@ -1191,6 +1191,7 @@ elseif (!$registerASDK) {
 
 ### CONNECT TO AZURE STACK #############################################################################################################################
 ########################################################################################################################################################
+
 $scriptStep = "CONNECTING"
 # Add GraphEndpointResourceId value for Azure AD or ADFS and obtain Tenant ID, then login to Azure Stack
 if ($authenticationType.ToString() -like "AzureAd") {
@@ -1248,7 +1249,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         if (-not ($asdkContainer)) {
             $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop
         }       
-        if ($registerASDK -and ($deploymentMode -eq "PartialOnline" -or "Online")) {
+        if ($registerASDK -and ($deploymentMode -eq "Online")) {
             # Logout to clean up
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
@@ -1323,7 +1324,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         }
 
-        elseif (!$registerASDK) {
+        elseif ((!$registerASDK) -or ($registerASDK -and ($deploymentMode -ne "Online"))) {
             $azpkg = $null
             $azpkg = @{
                 publisher  = "Canonical"
@@ -1510,25 +1511,25 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
             elseif (($registerASDK -or !$registerASDK) -and ($deploymentMode -eq "PartialOnline" -or "Offline")) {
                 #### Need to upload to blob storage first from extracted ZIP ####
-                $UbuntuOfflineAZPKGPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *Ubuntu*.azpkg
+                $UbuntuOfflineAZPKGFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *Ubuntu*.azpkg | ForEach-Object { $_.FullName }
+                $UbuntuOfflineAZPKGFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *Ubuntu*.azpkg | ForEach-Object { $_.Name }
 
                 # Upload the Gallery Item to the Azure Stack Platform Image Repository
                 Write-CustomVerbose -Message "Extraction Complete. Beginning upload of the Ubuntu AZPKG gallery item"
-                $asdkStorageAccount.PrimaryEndpoints.Blob
                 
                 # Check there's not a gallery item already uploaded to storage
-                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGPath.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($ubuntuAzpkgUploadSuccess)) {
-                    Write-CustomVerbose -Message "You already have an upload of $($UbuntuOfflineAZPKGPath.Name) within your Storage Account. No need to re-upload."
-                    Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGPath.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($ubuntuAzpkgUploadSuccess)) {
+                    Write-CustomVerbose -Message "You already have an upload of $UbuntuOfflineAZPKGFileName within your Storage Account. No need to re-upload."
+                    Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
                 }
 
                 $uploadAzpkgAttempt = 1
-                while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGPath.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuAzpkgUploadSuccess) -and ($uploadAzpkgAttempt -le 3)) {
-                    Try {
+                while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuAzpkgUploadSuccess) -and ($uploadAzpkgAttempt -le 3)) {
+                    try {
                         # Log back into Azure Stack to ensure login hasn't timed out
                         Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
                         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                        Set-AzureStorageBlobContent -File "$UbuntuOfflineAZPKGPath.FullName" -Container $asdkImagesContainerName -Blob "$UbuntuOfflineAZPKGPath.Name" -Context $asdkStorageAccount.Context -ErrorAction Stop
+                        Set-AzureStorageBlobContent -File "$UbuntuOfflineAZPKGFullPath" -Container $asdkImagesContainerName -Blob "$UbuntuOfflineAZPKGFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop
                         $ubuntuAzpkgUploadSuccess = $true
                     }
                     catch {
@@ -1538,7 +1539,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         $ubuntuAzpkgUploadSuccess = $false
                     }
                 }
-                $ubuntuAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $UbuntuOfflineAZPKGPath.Name
+                $ubuntuAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $UbuntuOfflineAZPKGFileName
                 $galleryItemUri = $ubuntuAzpkgURI
                 Write-CustomVerbose -Message "Uploading $($azpkg.name) from $galleryItemUri"
             }
@@ -1628,98 +1629,109 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         if ($downloadCURequired -eq $true) {
 
-            # Mount the ISO, check the image for the version, then dismount
-            Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
-            $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath -StorageType ISO -PassThru
-            $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
-            $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
-            $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
-            Dismount-DiskImage -ImagePath $ISOPath
+            if ($deploymentMode -eq "Online") {
 
-            Write-CustomVerbose -Message "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
-            # Define parameters
-            $StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
-            $SearchString = 'Cumulative.*Server.*x64'
+                # Mount the ISO, check the image for the version, then dismount
+                Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
+                $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath -StorageType ISO -PassThru
+                $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
+                $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
+                $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
+                Dismount-DiskImage -ImagePath $ISOPath
 
-            ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.    
-            if ($buildVersion -eq "14393") {
-                $servicingStackKB = "4132216"
-                $ServicingSearchString = 'Windows Server 2016'
-                Write-CustomVerbose -Message "Build is $buildVersion - Need to download: KB$($servicingStackKB) to update Servicing Stack before adding future Cumulative Updates"
-                $servicingKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$servicingStackKB" -UseBasicParsing
-                $servicingAvailable_kbIDs = $servicingKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-                $servicingAvailable_kbIDs | Out-String | Write-Verbose
-                $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
+                Write-CustomVerbose -Message "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
+                # Define parameters
+                $StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
+                $SearchString = 'Cumulative.*Server.*x64'
+
+                ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.    
+                if ($buildVersion -eq "14393") {
+                    $servicingStackKB = "4132216"
+                    $ServicingSearchString = 'Windows Server 2016'
+                    Write-CustomVerbose -Message "Build is $buildVersion - Need to download: KB$($servicingStackKB) to update Servicing Stack before adding future Cumulative Updates"
+                    $servicingKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$servicingStackKB" -UseBasicParsing
+                    $servicingAvailable_kbIDs = $servicingKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+                    $servicingAvailable_kbIDs | Out-String | Write-Verbose
+                    $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
+
+                    # If innerHTML is empty or does not exist, use outerHTML instead
+                    if ($null -eq $servicingKbIDs) {
+                        $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
+                    }
+                }
+
+                # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
+                Write-CustomVerbose -Message "Downloading $StartKB to retrieve the list of updates."
+                $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
+
+                # Get Download Link for the corresponding Cumulative Update
+                Write-CustomVerbose -Message "Found ID: KB$($kbID.articleID)"
+                $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($kbID.articleID)" -UseBasicParsing
+                $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+                $Available_kbIDs | Out-String | Write-Verbose
+                $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
 
                 # If innerHTML is empty or does not exist, use outerHTML instead
-                if ($null -eq $servicingKbIDs) {
-                    $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
+                if ($null -eq $kbIDs) {
+                    $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
                 }
-            }
-
-            # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
-            Write-CustomVerbose -Message "Downloading $StartKB to retrieve the list of updates."
-            $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
-
-            # Get Download Link for the corresponding Cumulative Update
-            Write-CustomVerbose -Message "Found ID: KB$($kbID.articleID)"
-            $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($kbID.articleID)" -UseBasicParsing
-            $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-            $Available_kbIDs | Out-String | Write-Verbose
-            $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
-
-            # If innerHTML is empty or does not exist, use outerHTML instead
-            if ($null -eq $kbIDs) {
-                $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
-            }
             
-            # Defined a KB array to hold the kbIDs and if the build is 14393, add the corresponding KBID to it
-            $kbDownloads = @()
-            if ($buildVersion -eq "14393") {
-                $kbDownloads += "$servicingKbIDs"
-            }
-            $kbDownloads += "$kbIDs"
-            $Urls = @()
-
-            foreach ( $kbID in $kbDownloads ) {
-                Write-CustomVerbose -Message "KB ID: $kbID"
-                $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
-                $PostBody = @{ updateIDs = "[$Post]" } 
-                $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
-            }
-
-            # Download the corresponding Windows Server 2016 Cumulative Update (and possibly, Servicing Stack Update)
-            foreach ( $Url in $Urls ) {
-                $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
-                $target = "$((Get-Item $ASDKpath).FullName)\$filename"
-                Write-CustomVerbose -Message "Update will be stored at $target"
-                Write-CustomVerbose -Message "These can be larger than 1GB, so may take a few minutes."
-                if (!(Test-Path -Path $target)) {
-                    DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
+                # Defined a KB array to hold the kbIDs and if the build is 14393, add the corresponding KBID to it
+                $kbDownloads = @()
+                if ($buildVersion -eq "14393") {
+                    $kbDownloads += "$servicingKbIDs"
                 }
-                else {
-                    Write-CustomVerbose -Message "File exists: $target. Skipping download."
+                $kbDownloads += "$kbIDs"
+                $Urls = @()
+
+                foreach ( $kbID in $kbDownloads ) {
+                    Write-CustomVerbose -Message "KB ID: $kbID"
+                    $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
+                    $PostBody = @{ updateIDs = "[$Post]" } 
+                    $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
+                }
+
+                # Download the corresponding Windows Server 2016 Cumulative Update (and possibly, Servicing Stack Update)
+                foreach ( $Url in $Urls ) {
+                    $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
+                    $target = "$((Get-Item $ASDKpath).FullName)\images\$filename"
+                    Write-CustomVerbose -Message "Update will be stored at $target"
+                    Write-CustomVerbose -Message "These can be larger than 1GB, so may take a few minutes."
+                    if (!(Test-Path -Path $target)) {
+                        DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
+                    }
+                    else {
+                        Write-CustomVerbose -Message "File exists: $target. Skipping download."
+                    }
+                }
+
+                # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied first when patching the WIM file.
+                if ($buildVersion -eq "14393") {
+                    Write-CustomVerbose -Message "Renaming the Servicing Stack Update to ensure it is applied first"
+                    Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -Verbose
+                    $target = "$ASDKpath\images"
                 }
             }
 
-            # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied first when patching the WIM file.
-            if ($buildVersion -eq "14393") {
-                Write-CustomVerbose -Message "Renaming the Servicing Stack Update to ensure it is applied first"
-                Get-ChildItem -Path $ASDKpath -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -Verbose
-                $target = $ASDKpath
+            elseif ($deploymentMode -ne "Online") {
+                $target = "$ASDKpath\images"
             }
 
             Write-CustomVerbose -Message "Creating Windows Server 2016 Evaluation images..."
 
             try {
-                # Download Convert-WindowsImage.ps1
-                $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
-                $convertWindowsDownloadLocation = "$ASDKpath\Convert-WindowsImage.ps1"
-                Write-CustomVerbose -Message "Downloading Convert-WindowsImage.ps1 to create the VHD from the ISO"
-                Write-CustomVerbose -Message "The download will be stored in $ASDKpath."
-                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                DownloadWithRetry -downloadURI "$convertWindowsURI" -downloadLocation "$convertWindowsDownloadLocation" -retries 10
-                Set-Location $ASDKpath
+
+                if ($deploymentMode -eq "Online") {
+                    # Download Convert-WindowsImage.ps1
+                    $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
+                    $convertWindowsDownloadLocation = "$ASDKpath\images\Convert-WindowsImage.ps1"
+                    Write-CustomVerbose -Message "Downloading Convert-WindowsImage.ps1 to create the VHD from the ISO"
+                    Write-CustomVerbose -Message "The download will be stored in $ASDKpath\images"
+                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                    DownloadWithRetry -downloadURI "$convertWindowsURI" -downloadLocation "$convertWindowsDownloadLocation" -retries 10
+                }
+
+                Set-Location "$ASDKpath\images"
 
                 # Test/Create RG
                 if (-not (Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
@@ -1741,16 +1753,16 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
                 ### If required, build the Server Core Image ###
                 if ($serverCoreVMImageAlreadyAvailable -eq $false) {
-                    $serverCoreVHDpath = "$ASDKpath\ServerCore.vhd"
+                    $serverCoreVHDpath = "$ASDKpath\images\ServerCore.vhd"
                     $serverCoreVHDExists = [System.IO.File]::Exists($serverCoreVHDpath)
                     $CoreEdition = 'Windows Server 2016 SERVERDATACENTERCORE'
 
                     if ($serverCoreVHDExists -eq $false) {
-                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$CoreEdition" -VHDPath "$ASDKpath\ServerCore.vhd" `
+                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$CoreEdition" -VHDPath "$ASDKpath\images\ServerCore.vhd" `
                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                     }
 
-                    $serverCoreVHD = Get-ChildItem -Path "$ASDKpath" -Filter "*ServerCore.vhd"
+                    $serverCoreVHD = Get-ChildItem -Path "$ASDKpath\images" -Filter "*ServerCore.vhd"
                     $asdkStorageAccount.PrimaryEndpoints.Blob
                     $serverCoreURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $serverCoreVHD.Name
 
@@ -1829,8 +1841,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
                     if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                         Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f "MicrosoftWindowsServer", "WindowsServer", "2016-Datacenter-Server-Core", "1.0.0") -ErrorAction SilentlyContinue
-                        Write-CustomVerbose -Message "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
-                        Get-ChildItem -Path "$ASDKpath" -Filter *ServerCore.vhd | Remove-Item -Force
+                        Write-CustomVerbose -Message "Cleaning up local hard drive space - deleting VHD file"
+                        Get-ChildItem -Path "$ASDKpath\images" -Filter *ServerCore.vhd | Remove-Item -Force
                         Write-CustomVerbose -Message "Cleaning up VHD from storage account"
                         Remove-AzureStorageBlob -Blob $serverCoreVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                     }
@@ -1845,21 +1857,21 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 ### If required, build the Server Full Image ###
 
                 if ($serverFullVMImageAlreadyAvailable -eq $false) {
-                    $serverFullVHDpath = "$ASDKpath\ServerFull.vhd"
+                    $serverFullVHDpath = "$ASDKpath\images\ServerFull.vhd"
                     $serverFullVHDExists = [System.IO.File]::Exists($serverFullVHDpath)
                     $FullEdition = 'Windows Server 2016 SERVERDATACENTER'
 
                     if ($serverFullVHDExists -eq $false) {
-                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$FullEdition" -VHDPath "$ASDKpath\ServerFull.vhd" `
+                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$FullEdition" -VHDPath "$ASDKpath\images\ServerFull.vhd" `
                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                     }
                     
-                    $serverFullVHD = Get-ChildItem -Path "$ASDKpath" -Filter "*ServerFull.vhd"
+                    $serverFullVHD = Get-ChildItem -Path "$ASDKpath\images" -Filter "*ServerFull.vhd"
                     $asdkStorageAccount.PrimaryEndpoints.Blob
                     $serverFullURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $serverFullVHD.Name
 
                     # Check there's not a VHD already uploaded to storage
-                    if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($serverFullUploadSuccess)) {
+                    if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
                         Write-CustomVerbose -Message "You already have an upload of $($serverFullVHD.Name) within your Storage Account. No need to re-upload."
                         Write-CustomVerbose -Message "Full VHD path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
                     }
@@ -1867,61 +1879,54 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
                     # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
                     $uploadVhdAttempt = 1
-                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
-                        Try {
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
+                        try {
                             # Log back into Azure Stack to ensure login hasn't timed out
                             Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
                             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                            $serverFullUploadSuccess = $true
                         }
                         catch {
                             Write-CustomVerbose -Message "Upload failed."
                             Write-CustomVerbose -Message "$_.Exception.Message"
                             $uploadVhdAttempt++
-                            $serverFullUploadSuccess = $false
                         }
                     }
                     
                     # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
                     # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
-                    while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
-                        Try {
+                    while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
+                        try {
                             # Log back into Azure Stack to ensure login hasn't timed out
                             Write-CustomVerbose -Message "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
                             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                            $serverFullUploadSuccess = $true
                         }
                         catch {
                             Write-CustomVerbose -Message "Upload failed."
                             Write-CustomVerbose -Message "$_.Exception.Message"
                             $uploadVhdAttempt++
-                            $serverFullUploadSuccess = $false
                         }
                     }
 
                     # This is one final catch-all for the upload process
                     # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
-                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$serverFullUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverFullVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
                         Try {
                             # Log back into Azure Stack to ensure login hasn't timed out
                             Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
                             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             Add-AzureRmVhd -Destination $serverFullURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverFullVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                            $serverFullUploadSuccess = $true
                         }
                         catch {
                             Write-CustomVerbose -Message "Upload failed."
                             Write-CustomVerbose -Message "$_.Exception.Message"
                             $uploadVhdAttempt++
-                            $serverFullUploadSuccess = $false
                         }
                     }
 
                     if ($uploadVhdAttempt -gt 3) {
                         Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
-                        $serverFullUploadSuccess = $false
                         throw "Uploading image failed"
                         Set-Location $ScriptLocation
                         return
@@ -1931,8 +1936,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
                     if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                         Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f "MicrosoftWindowsServer", "WindowsServer", "2016-Datacenter", "1.0.0") -ErrorAction SilentlyContinue
-                        Write-CustomVerbose -Message "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
-                        Get-ChildItem -Path "$ASDKpath" -Filter *ServerFull.vhd | Remove-Item -Force
+                        Write-CustomVerbose -Message "Cleaning up local hard drive space - deleting VHD file"
+                        Get-ChildItem -Path "$ASDKpath\images" -Filter *ServerFull.vhd | Remove-Item -Force
                         Write-CustomVerbose -Message "Cleaning up VHD from storage account"
                         Remove-AzureStorageBlob -Blob $serverFullVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                     }
@@ -1944,7 +1949,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     }
                 }
 
-                Get-ChildItem -Path "$ASDKpath\*" -Include *.msu, *.cab | Remove-Item -Force
+                if ($deploymentMode -eq "Online") {
+                    Get-ChildItem -Path "$ASDKpath\images\*" -Include *.msu, *.cab | Remove-Item -Force
+                }
             }
             Catch {
                 Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -1955,45 +1962,108 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         ### PACKAGES ###
         # Now check for and create (if required) AZPKG files for sideloading
-        # If the user chose not to register the ASDK, the step below will grab an azpkg file from Github
-        if (!$registerASDK) {
+        # If the user chose not to register the ASDK, but the deployment is "online", the step below will grab an azpkg file from Github
+        if (!$registerASDK -and ($deploymentMode -eq "Online")) {
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-
             $packageArray = @()
             $packageArray.Clear()
-            $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*"
+            $packageArray = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0", "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0"
             Write-CustomVerbose -Message "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
 
             foreach ($package in $packageArray) {
                 $wsPackage = $null
                 $wsPackage = (Get-AzsGalleryItem | Where-Object {$_.name -like "$package"} | Sort-Object CreatedTime -Descending | Select-Object -First 1)
+                # Check to see if the package exists already in the Gallery
                 if ($wsPackage) {
                     Write-CustomVerbose -Message "Found the following existing package in your gallery: $($wsPackage.Identity) - No need to upload a new one"
                 }
                 else {
-                    $wsPackage = $package -replace '[*]', ''
+                    # If the package doesn't exist, sideload it directly from GitHub
+                    $wsPackage = $package
                     Write-CustomVerbose -Message "Didn't find this package: $wsPackage"
                     Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
-                    $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/$wsPackage.1.0.0.azpkg"
+                    $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/$wsPackage.azpkg"
                     Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
-                }
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
-                Start-Sleep -Seconds 5
-                $Retries = 0
-                # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-                While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-                    Write-CustomVerbose -Message "$($wsPackage.ItemName) wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                    Write-CustomVerbose -Message "Uploading $($wsPackage.Identity) from $galleryItemUri"
-                    $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
+                    $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Ignore
                     Start-Sleep -Seconds 5
-                }    
+                    $Retries = 0
+                    # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+                    While (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$wsPackage"}) -and ($Retries++ -lt 20)) {
+                        Write-CustomVerbose -Message "$wsPackage wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                        Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
+                        $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Ignore
+                        Start-Sleep -Seconds 5
+                    }
+                }   
             }
         }
 
-        # If the user chose to register the ASDK as part of the script, this section will log into Azure, scrape the marketplace items and get the properties of
-        # the gallery items, and the azpkg files, and side-load them into the Azure Stack marketplace.
-        elseif ($registerASDK) {
+        # Regardless of registration choice, if the ZIP file has been provided, use the azpkg files from the zip file
+        elseif (($registerASDK -or !$registerASDK) -and ($deploymentMode -eq "PartialOnline" -or "Offline")) {
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $packageArray = @()
+            $packageArray.Clear()
+            $packageArray = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *WindowsServer*.azpkg -ErrorAction Stop
+            if (!$registerASDK) {
+                Write-CustomVerbose -Message "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
+            }
+            # Check for existing gallery items
+            foreach ($package in $packageArray) {
+                $wsPackage = $null
+                $wsPackage = (Get-AzsGalleryItem | Where-Object {$_.name -like "$($package.Basename)"} | Sort-Object CreatedTime -Descending | Select-Object -First 1)
+                if ($wsPackage) {
+                    Write-CustomVerbose -Message "Found the following existing package in your gallery: $($wsPackage.Identity) - No need to upload a new one"
+                }
+                # If no gallery items found, sideload from the extracted zip file.
+                else {
+                    $wsPackage = $package.Name
+                    $wsPackagePath = $package.FullName
+                    Write-CustomVerbose -Message "Didn't find this package: $wsPackage"
+                    Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
+                    # Check there's not a gallery item already uploaded to storage
+                    if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $wsPackage -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
+                        Write-CustomVerbose -Message "You already have an upload of $wsPackage within your Storage Account. No need to re-upload."
+                        Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $wsPackage -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+                    }
+                    else {
+                        # If there's no existing gallery item, sideload it into the gallery. First need to upload it to the storage account.
+                        $uploadAzpkgAttempt = 1
+                        while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $wsPackage -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
+                            try {
+                                Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
+                                Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                                Set-AzureStorageBlobContent -File "$wsPackagePath" -Container $asdkImagesContainerName -Blob "$wsPackage" -Context $asdkStorageAccount.Context -ErrorAction Stop
+                            }
+                            catch {
+                                Write-CustomVerbose -Message "Upload failed."
+                                Write-CustomVerbose -Message "$_.Exception.Message"
+                                $uploadAzpkgAttempt++
+                            }
+                        }
+                    }
 
+                    # With the azpkg in the storage account, create the URI for upload
+                    $wsAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $wsPackage
+                    $galleryItemUri = $wsAzpkgURI
+                    Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
+                }
+                # Upload the azpkg from storage account to gallery
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 5
+                $Retries = 0
+                # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+                While (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$($package.Basename)"}) -and ($Retries++ -lt 20)) {
+                    Write-CustomVerbose -Message "$wsPackage wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                    Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
+                    $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
+                    Start-Sleep -Seconds 5
+                }
+            }
+        }
+
+        # If the user chose to register the ASDK as part of the script and this is an online deployment, this section will log into Azure, scrape the marketplace items and get the properties of
+        # the gallery items, and the azpkg files, and side-load them into the Azure Stack marketplace.
+        elseif ($registerASDK -and ($deploymentMode -eq "Online")) {
             ### Login to Azure to get all the details about the syndicated Windows Server 2016 marketplace offering ###
             Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
             Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
@@ -2017,7 +2087,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # Define variables and create arrays to store all information
             $packageArray = @()
             $packageArray.Clear()
-            $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterCore-ARM*"
+            $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*"
             $azpkgArray = @()
             $azpkgArray.Clear()
 
@@ -2089,7 +2159,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     Start-Sleep -Seconds 5
                     $Retries = 0
                     # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-                    While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+                    while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$($azpkg.name)"}) -and ($Retries++ -lt 20)) {
                         Write-CustomVerbose -Message "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
                         Write-CustomVerbose -Message "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
                         $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction Stop
@@ -2128,7 +2198,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         ### Login to Azure Stack, then confirm if the VM Scale Set Gallery Item is already present ###
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         $VMSSPackageName = "microsoft.vmss.1.3.6"
-        $VMSSPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/VMSS/microsoft.vmss.1.3.6.azpkg"
         Write-CustomVerbose -Message "Checking for the VM Scale Set gallery item"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$VMSSPackageName*"}) {
             Write-CustomVerbose -Message "Found a suitable VM Scale Set Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
@@ -2136,15 +2205,54 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         else {
             Write-CustomVerbose -Message "Didn't find this package: $VMSSPackageName"
             Write-CustomVerbose -Message "Will need to side load it in to the gallery"
-            Write-CustomVerbose -Message "Uploading $VMSSPackageName"
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $VMSSPackageURL -Force -Confirm:$false -ErrorAction Stop
+
+            # If this is an online deployment, grab the azpkg from GitHUb
+            if ($deploymentMode -eq "Online") {
+                Write-CustomVerbose -Message "Uploading $VMSSPackageName"        
+                $VMSSPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/VMSS/microsoft.vmss.1.3.6.azpkg"
+            }
+            # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+
+                #### Need to upload to blob storage first from extracted ZIP ####
+                $vmssOfflineAZPKGFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *vmss*.azpkg | ForEach-Object { $_.FullName }
+                $vmssOfflineAZPKGFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *vmss*.azpkg | ForEach-Object { $_.Name }
+                
+                # Check there's not a gallery item already uploaded to storage
+                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $vmssOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
+                    Write-CustomVerbose -Message "You already have an upload of $vmssOfflineAZPKGFileName within your Storage Account. No need to re-upload."
+                    Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $vmssOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+                }
+                else {
+                    $uploadAzpkgAttempt = 1
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $vmssOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
+                        try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
+                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                            Set-AzureStorageBlobContent -File "$vmssOfflineAZPKGFullPath" -Container $asdkImagesContainerName -Blob "$vmssOfflineAZPKGFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop
+                        }
+                        catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadAzpkgAttempt++
+                        }
+                    }
+                }
+
+                $vmssAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $vmssOfflineAZPKGFileName
+                $VMSSPackageURL = $vmssAzpkgURI
+                Write-CustomVerbose -Message "Uploading $vmssOfflineAZPKGFileName from $VMSSPackageURL"
+            }
+
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $VMSSPackageURL -Force -Confirm:$false -ErrorAction Ignore
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-            While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$VMSSPackageName"}) -and ($Retries++ -lt 20)) {
                 Write-CustomVerbose -Message "$VMSSPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
                 Write-CustomVerbose -Message "Uploading $VMSSPackageName from $VMSSPackageURL"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $VMSSPackageURL -Force -Confirm:$false -ErrorAction Stop
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $VMSSPackageURL -Force -Confirm:$false -ErrorAction Ignore
                 Start-Sleep -Seconds 5
             }
         }
@@ -2453,7 +2561,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             $mySqlLocation = "$azsLocation"
             $mySqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
             $mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
-            $mySqlApiVersion = "2017-08-28"
+            $mySqlApiVersion = "2017-08-28" 
             $mySqlQuotaName = "mysqldefault"
             $mySqlQuotaResourceCount = "10"
             $mySqlQuotaResourceSizeMB = "1024"
