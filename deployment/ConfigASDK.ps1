@@ -3459,19 +3459,19 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             # Pull the pre-deployment JSON file from online, or the local zip file.
             if ($deploymentMode -eq "Online") {
                 $appServiceJsonURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json"
-                $appServiceJsonDownloadLocation = "$AppServicePath\AppServiceDeploymentSettings.json"
+                $appServiceJsonDownloadLocation = "$AppServicePath\AppServicePreDeploymentSettings.json"
                 DownloadWithRetry -downloadURI "$appServiceJsonURI" -downloadLocation "$appServiceJsonDownloadLocation" -retries 10
             }
             elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
-                if ([System.IO.File]::Exists("$ASDKpath\appservice\AppServiceDeploymentSettings.json")) {
-                    Write-CustomVerbose -Message "Located AppServiceDeploymentSettings.json file"
+                if ([System.IO.File]::Exists("$ASDKpath\appservice\AppServicePreDeploymentSettings.json")) {
+                    Write-CustomVerbose -Message "Located AppServicePreDeploymentSettings.json file"
                 }
-                if (-not [System.IO.File]::Exists("$ASDKpath\appservice\AppServiceDeploymentSettings.json")) {
-                    throw "Missing AppServiceDeploymentSettings.json file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\ - Exiting process"
+                if (-not [System.IO.File]::Exists("$ASDKpath\appservice\AppServicePreDeploymentSettings.json")) {
+                    throw "Missing AppServicePreDeploymentSettings.json file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\ - Exiting process"
                 }
             }
             
-            $JsonConfig = Get-Content -Path "$AppServicePath\AppServiceDeploymentSettings.json"
+            $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
             # Edit the JSON from deployment
 
             if ($authenticationType.ToString() -like "AzureAd") {
