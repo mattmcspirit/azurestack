@@ -773,7 +773,6 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"SQLServerGalleryItem","Incomplete"'
         '"MySQLRP","Incomplete"'
         '"SQLServerRP","Incomplete"'
-        '"RegisterNewRPs","Incomplete"'
         '"MySQLSKUQuota","Incomplete"'
         '"SQLServerSKUQuota","Incomplete"'
         '"MySQLDBVM","Incomplete"'
@@ -787,6 +786,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"CreateServicePrincipal","Incomplete"'
         '"GrantAzureADAppPermissions","Incomplete"'
         '"InstallAppService","Incomplete"'
+        '"RegisterNewRPs","Incomplete"'
         '"CreatePlansOffers","Incomplete"'
         '"InstallHostApps","Incomplete"'
         '"CreateOutput","Incomplete"'
@@ -2363,6 +2363,11 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 $mySqlRpDownloadLocation = "$ASDKpath\databases\MySQL.zip"
                 DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
             }
+            elseif ($deploymentMode -ne "Online") {
+                if (-not [System.IO.File]::Exists("$ASDKpath\databases\MySQL.zip")) {
+                    throw "Missing MySQL Zip file in extracted dependencies folder. Please ensure this exists at $ASDKpath\databases\MySQL.zip - Exiting process"
+                }
+            }
 
             Set-Location "$ASDKpath\databases"
             Expand-Archive "$ASDKpath\databases\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
@@ -2430,13 +2435,23 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             Write-CustomVerbose -Message "Downloading and installing SQL Server Resource Provider"
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
-            # Download and Expand the SQL Server RP files
-            $sqlRpURI = "https://aka.ms/azurestacksqlrp1804"
-            $sqlRpDownloadLocation = "$ASDKpath\SQL.zip"
-            DownloadWithRetry -downloadURI "$sqlRpURI" -downloadLocation "$sqlRpDownloadLocation" -retries 10
-            Set-Location $ASDKpath
-            Expand-Archive "$ASDKpath\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
-            Set-Location "$ASDKpath\SQL"
+            if ($deploymentMode -eq "Online") {
+                # Cleanup old folder
+                Remove-Item "$asdkPath\databases\SQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+                # Download and Expand the SQL Server RP files
+                $sqlRpURI = "https://aka.ms/azurestacksqlrp1804"
+                $sqlRpDownloadLocation = "$ASDKpath\databases\SQL.zip"
+                DownloadWithRetry -downloadURI "$sqlRpURI" -downloadLocation "$sqlRpDownloadLocation" -retries 10
+            }
+            elseif ($deploymentMode -ne "Online") {
+                if (-not [System.IO.File]::Exists("$ASDKpath\databases\SQL.zip")) {
+                    throw "Missing SQL Server Zip file in extracted dependencies folder. Please ensure this exists at $ASDKpath\databases\SQL.zip - Exiting process"
+                }
+            }
+
+            Set-Location "$ASDKpath\databases\"
+            Expand-Archive "$ASDKpath\databases\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
+            Set-Location "$ASDKpath\databases\SQL"
 
             # Define the additional credentials for the local virtual machine username/password and certificates password
             $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
@@ -2465,39 +2480,6 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
     Write-Output $progress | Out-Host
-}
-
-#### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
-##############################################################################################################################################################
-
-$RowIndex = [array]::IndexOf($progress.Stage, "RegisterNewRPs")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Register resource providers
-        foreach ($s in (Get-AzureRmSubscription)) {
-            Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
-            Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
-            Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
-        }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-    }
-    catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### ADD MYSQL SKU & QUOTA ###################################################################################################################################
@@ -3500,6 +3482,39 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
     Write-Output $progress | Out-Host
+}
+
+#### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "RegisterNewRPs")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    try {
+        # Register resource providers
+        foreach ($s in (Get-AzureRmSubscription)) {
+            Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
+            Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
+            Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
+        }
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+    }
+    catch {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
