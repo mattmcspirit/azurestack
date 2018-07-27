@@ -3027,7 +3027,16 @@ elseif ((!$skipAppService) -and ($progress[$RowIndex].Status -ne "Complete")) {
             ### Deploy File Server ###
             Write-CustomVerbose -Message "Deploying Windows Server 2016 File Server"
             New-AzureRmResourceGroup -Name "appservice-fileshare" -Location $azsLocation -Force
-            New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json `
+
+            if ($deploymentMode -eq "Online") {
+                $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json"
+            }
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+                $templateFile = "FileServerTemplate.json"
+                $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
+            }
+
+            New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri $templateURI `
                 -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
 
             # Get the FQDN of the VM
@@ -3082,7 +3091,16 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             # Deploy a SQL Server 2017 on Ubuntu VM for App Service
             Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu Server 16.04 LTS for App Service"
             New-AzureRmResourceGroup -Name "appservice-sql" -Location $azsLocation -Force
-            New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
+
+            if ($deploymentMode -eq "Online") {
+                $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json"
+            }
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+                $templateFile = "sqlTemplate.json"
+                $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
+            }
+
+            New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri $templateURI `
                 -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
                 -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
@@ -3133,18 +3151,29 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
-            # Install App Service To be added
-            Write-CustomVerbose -Message "Downloading App Service Installer"
-            Set-Location $ASDKpath
-            # Clean up old App Service Path if it exists
-            Remove-Item "$asdkPath\AppService" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-            $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
-            $appServiceHelperDownloadLocation = "$ASDKpath\appservicehelper.zip"
-            DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
-            Expand-Archive $ASDKpath\appservicehelper.zip -DestinationPath "$ASDKpath\AppService\" -Force
-            $appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
-            $appServiceExeDownloadLocation = "$ASDKpath\AppService\appservice.exe"
-            DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
+            if ($deploymentMode -eq "Online") {
+                # Install App Service To be added
+                Write-CustomVerbose -Message "Downloading App Service Installer"
+                Set-Location "$ASDKpath\appservice"
+                # Clean up old App Service Path if it exists
+                Remove-Item "$asdkPath\appservice\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+                $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
+                $appServiceHelperDownloadLocation = "$ASDKpath\appservice\appservicehelper.zip"
+                DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
+                $appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
+                $appServiceExeDownloadLocation = "$ASDKpath\appservice\appservice.exe"
+                DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
+            }
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+                if (-not [System.IO.File]::Exists("$ASDKpath\appservice\appservicehelper.zip")) {
+                    throw "Missing appservice.zip file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\appservicehelper.zip - Exiting process"
+                }
+                if (-not [System.IO.File]::Exists("$ASDKpath\appservice\appservice.exe")) {
+                    throw "Missing appservice.exe file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\appservice.exe - Exiting process"
+                }
+            }
+            Expand-Archive "$ASDKpath\appservice\appservicehelper.zip" -DestinationPath "$ASDKpath\appservice" -Force
+            Set-Location "$ASDKpath\appservice"
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -3172,7 +3201,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 }
 
 if (!$skipAppService) {
-    $AppServicePath = "$ASDKpath\AppService"
+    $AppServicePath = "$ASDKpath\appservice"
 }
 
 #### GENERATE APP SERVICE CERTS ##############################################################################################################################
@@ -3244,11 +3273,10 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Create Azure AD or ADFS Service Principal
-            if ($authenticationType.ToString() -like "AzureAd") {
+            if (($authenticationType.ToString() -like "AzureAd") -and ($deploymentMode -eq "Online" -or "PartialOnline")) {
                 # Logout to clean up
                 Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force
-
                 # Grant permissions to Azure AD Service Principal
                 Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId "$azureDirectoryTenantName" -Credential $asdkCreds -ErrorAction Stop | Out-Null
                 Set-Location "$AppServicePath"
@@ -3319,7 +3347,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         $RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
     }
-    if ($authenticationType.ToString() -like "AzureAd") {
+    if (($authenticationType.ToString() -like "AzureAd") -and ($deploymentMode -eq "Online" -or "PartialOnline")) {
         if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
             try {
                 # Logout to clean up
@@ -3427,10 +3455,24 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             else {
                 throw "Missing Identity Application ID - Exiting process"
             }
-        
-            Invoke-WebRequest "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json" -OutFile "$AppServicePath\AppServicePreDeploymentSettings.json" -UseBasicParsing -ErrorAction Stop
-            $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
-            #Create the JSON from deployment
+
+            # Pull the pre-deployment JSON file from online, or the local zip file.
+            if ($deploymentMode -eq "Online") {
+                $appServiceJsonURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json"
+                $appServiceJsonDownloadLocation = "$AppServicePath\AppServiceDeploymentSettings.json"
+                DownloadWithRetry -downloadURI "$appServiceJsonURI" -downloadLocation "$appServiceJsonDownloadLocation" -retries 10
+            }
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+                if ([System.IO.File]::Exists("$ASDKpath\appservice\AppServiceDeploymentSettings.json")) {
+                    Write-CustomVerbose -Message "Located AppServiceDeploymentSettings.json file"
+                }
+                if (-not [System.IO.File]::Exists("$ASDKpath\appservice\AppServiceDeploymentSettings.json")) {
+                    throw "Missing AppServiceDeploymentSettings.json file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\ - Exiting process"
+                }
+            }
+            
+            $JsonConfig = Get-Content -Path "$AppServicePath\AppServiceDeploymentSettings.json"
+            # Edit the JSON from deployment
 
             if ($authenticationType.ToString() -like "AzureAd") {
                 $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $azureDirectoryTenantName)
