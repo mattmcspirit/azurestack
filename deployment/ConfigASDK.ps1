@@ -2286,7 +2286,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         $mySQLPackageName = "ASDK.MySQL.1.0.0"
-        $mySQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
+        
         Write-CustomVerbose -Message "Checking for the MySQL gallery item"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$mySQLPackageName*"}) {
             Write-CustomVerbose -Message "Found a suitable MySQL Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
@@ -2294,12 +2294,48 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         else {
             Write-CustomVerbose -Message "Didn't find this package: $mySQLPackageName"
             Write-CustomVerbose -Message "Will need to side load it in to the gallery"
-            Write-CustomVerbose -Message "Uploading $mySQLPackageName"
+
+            if ($deploymentMode -eq "Online") {
+                Write-CustomVerbose -Message "Uploading $mySQLPackageName"        
+                $mySQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
+            }
+            # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+
+                #### Need to upload to blob storage first from extracted ZIP ####
+                $mySQLOfflineAZPKGFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *MySQL*.azpkg | ForEach-Object { $_.FullName }
+                $mySQLOfflineAZPKGFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *MySQL*.azpkg | ForEach-Object { $_.Name }
+                                
+                # Check there's not a gallery item already uploaded to storage
+                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $mySQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
+                    Write-CustomVerbose -Message "You already have an upload of $mySQLOfflineAZPKGFileName within your Storage Account. No need to re-upload."
+                    Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $mySQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+                }
+                else {
+                    $uploadAzpkgAttempt = 1
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $mySQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
+                        try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
+                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                            Set-AzureStorageBlobContent -File "$mySQLOfflineAZPKGFullPath" -Container $asdkImagesContainerName -Blob "$mySQLOfflineAZPKGFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop
+                        }
+                        catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadAzpkgAttempt++
+                        }
+                    }
+                }
+                $mySQLAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $mySQLOfflineAZPKGFileName
+                $mySQLPackageURL = $mySQLAzpkgURI
+                Write-CustomVerbose -Message "Uploading $mySQLOfflineAZPKGFileName from $mySQLPackageURL"
+            }
             $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-            While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$mySQLPackageName"}) -and ($Retries++ -lt 20)) {
                 Write-CustomVerbose -Message "$mySQLPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
                 Write-CustomVerbose -Message "Uploading $mySQLPackageName from $mySQLPackageURL"
                 $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL -Force -Confirm:$false -ErrorAction Stop
@@ -2333,10 +2369,9 @@ $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
-        ### Login to Azure Stack, then confirm if the SQL Server 2017 Gallery Item is already present ###
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         $MSSQLPackageName = "ASDK.MSSQL.1.0.0"
-        $MSSQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
+        
         Write-CustomVerbose -Message "Checking for the SQL Server 2017 gallery item"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$MSSQLPackageName*"}) {
             Write-CustomVerbose -Message "Found a suitable SQL Server 2017 Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
@@ -2344,12 +2379,48 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         else {
             Write-CustomVerbose -Message "Didn't find this package: $MSSQLPackageName"
             Write-CustomVerbose -Message "Will need to side load it in to the gallery"
-            Write-CustomVerbose -Message "Uploading $MSSQLPackageName"
+
+            if ($deploymentMode -eq "Online") {
+                Write-CustomVerbose -Message "Uploading $MSSQLPackageName"        
+                $mySQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
+            }
+            # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+
+                #### Need to upload to blob storage first from extracted ZIP ####
+                $MSSQLOfflineAZPKGFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *MSSQL*.azpkg | ForEach-Object { $_.FullName }
+                $MSSQLOfflineAZPKGFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *MSSQL*.azpkg | ForEach-Object { $_.Name }
+                                
+                # Check there's not a gallery item already uploaded to storage
+                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $MSSQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
+                    Write-CustomVerbose -Message "You already have an upload of $MSSQLOfflineAZPKGFileName within your Storage Account. No need to re-upload."
+                    Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $MSSQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+                }
+                else {
+                    $uploadAzpkgAttempt = 1
+                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $MSSQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
+                        try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
+                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                            Set-AzureStorageBlobContent -File "$MSSQLOfflineAZPKGFullPath" -Container $asdkImagesContainerName -Blob "$MSSQLOfflineAZPKGFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop
+                        }
+                        catch {
+                            Write-CustomVerbose -Message "Upload failed."
+                            Write-CustomVerbose -Message "$_.Exception.Message"
+                            $uploadAzpkgAttempt++
+                        }
+                    }
+                }
+                $MSSQLAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $MSSQLOfflineAZPKGFileName
+                $MSSQLPackageURL = $MSSQLAzpkgURI
+                Write-CustomVerbose -Message "Uploading $MSSQLOfflineAZPKGFileName from $MSSQLPackageURL"
+            }
             $Upload = Add-AzsGalleryItem -GalleryItemUri $MSSQLPackageURL -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-            While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
+            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$MSSQLPackageName"}) -and ($Retries++ -lt 20)) {
                 Write-CustomVerbose -Message "$MSSQLPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
                 Write-CustomVerbose -Message "Uploading $MSSQLPackageName from $MSSQLPackageURL"
                 $Upload = Add-AzsGalleryItem -GalleryItemUri $MSSQLPackageURL -Force -Confirm:$false -ErrorAction Stop
