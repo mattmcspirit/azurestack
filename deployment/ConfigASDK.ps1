@@ -201,7 +201,51 @@ function Write-CustomVerbose {
     end {}
 }
 
+### OFFLINE AZPKG FUNCTION ##################################################################################################################################
 #############################################################################################################################################################
+
+function Add-OfflineAZPKG {
+    [cmdletbinding()]
+    param
+    (
+        [parameter(Mandatory = $true)]
+        [string]$azpkgPackageName
+    )
+    begin {}
+    process {
+        #### Need to upload to blob storage first from extracted ZIP ####
+        $azpkgFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.FullName }
+        $azpkgFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.Name }
+                                
+        # Check there's not a gallery item already uploaded to storage
+        if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
+            Write-CustomVerbose -Message "You already have an upload of $azpkgFileName within your Storage Account. No need to re-upload."
+            Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+        }
+        else {
+            $uploadAzpkgAttempt = 1
+            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
+                try {
+                    # Log back into Azure Stack to ensure login hasn't timed out
+                    Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $asdkImagesContainerName -Blob "$azpkgFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
+                }
+                catch {
+                    Write-CustomVerbose -Message "Upload failed."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    $uploadAzpkgAttempt++
+                }
+            }
+        }
+        $azpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $azpkgFileName
+        Write-CustomVerbose -Message "Uploading $azpkgFileName from $azpkgURI"
+        return [string]$azpkgURI
+    }
+    end {}
+}
+
+### VALIDATION ##############################################################################################################################################
 #############################################################################################################################################################
 
 $scriptStep = "VALIDATION"
@@ -1402,7 +1446,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $ubuntuServerURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $UbuntuServerVHD.Name
 
             # Check there's not a VHD already uploaded to storage
-            if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($ubuntuUploadSuccess)) {
+            if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
                 Write-CustomVerbose -Message "You already have an upload of $($UbuntuServerVHD.Name) within your Storage Account. No need to re-upload."
                 Write-CustomVerbose -Message "Core VHD path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
             }
@@ -1410,38 +1454,34 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
             # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
             $uploadVhdAttempt = 1
-            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
+            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
                 Try {
                     # Log back into Azure Stack to ensure login hasn't timed out
                     Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
                     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                    $ubuntuUploadSuccess = $true
                 }
                 catch {
                     Write-CustomVerbose -Message "Upload failed."
                     Write-CustomVerbose -Message "$_.Exception.Message"
                     $uploadVhdAttempt++
-                    $ubuntuUploadSuccess = $false
                 }
             }
 
             # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
             # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
 
-            while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
+            while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
                 Try {
                     # Log back into Azure Stack to ensure login hasn't timed out
                     Write-CustomVerbose -Message "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
                     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                    $ubuntuUploadSuccess = $true
                 }
                 catch {
                     Write-CustomVerbose -Message "Upload failed."
                     Write-CustomVerbose -Message "$_.Exception.Message"
                     $uploadVhdAttempt++
-                    $ubuntuUploadSuccess = $false
                 }
             }
 
@@ -1453,19 +1493,16 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
                     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                    $ubuntuUploadSuccess = $true
                 }
                 catch {
                     Write-CustomVerbose -Message "Upload failed."
                     Write-CustomVerbose -Message "$_.Exception.Message"
                     $uploadVhdAttempt++
-                    $ubuntuUploadSuccess = $false
                 }
             }
 
             if ($uploadVhdAttempt -gt 3) {
                 Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
-                $ubuntuUploadSuccess = $false
                 throw "Uploading image failed"
                 Set-Location $ScriptLocation
                 return
@@ -1488,74 +1525,43 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
         }
 
+        ### Add Packages ###
         ### If the user has chosen to register the ASDK as part of the process, the script will side load an AZPKG from the Azure Marketplace, otherwise ###
         ### it will add one from GitHub (assuming an online deployment choice) ###
 
-        # Upload AZPKG package
-        Write-CustomVerbose -Message "Checking for the following packages: $($azpkg.name)"
-        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
-            Write-CustomVerbose -Message "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
+        $azpkgPackageName = "$($azpkg.name)"
+        Write-CustomVerbose -Message "Checking for the following package: $azpkgPackageName"
+        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
+            Write-CustomVerbose -Message "Found the following existing package in your Gallery: $azpkgPackageName. No need to upload a new one"
         }
         else {
-            Write-CustomVerbose -Message "Didn't find this package: $($azpkg.name)"
+            Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
             Write-CustomVerbose -Message "Will need to side load it in to the gallery"
-                
+
             if ($registerASDK -and ($deploymentMode -eq "Online")) {
-                $galleryItemUri = $($azpkg.azpkgPath)
-                Write-CustomVerbose -Message "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
-                $galleryItemUri = $($azpkg.azpkgPath)
+                $azpkgPackageURL = $($azpkg.azpkgPath)
+                Write-CustomVerbose -Message "Uploading $azpkgPackageName with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
+                $azpkgPackageURL = $($azpkg.azpkgPath)
             }
             elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
-                $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
-                Write-CustomVerbose -Message "Uploading $($azpkg.name) from $galleryItemUri"
+                Write-CustomVerbose -Message "Uploading $azpkgPackageName"        
+                $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
             }
+            # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
             elseif (($registerASDK -or !$registerASDK) -and ($deploymentMode -eq "PartialOnline" -or "Offline")) {
-                #### Need to upload to blob storage first from extracted ZIP ####
-                $UbuntuOfflineAZPKGFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *Ubuntu*.azpkg | ForEach-Object { $_.FullName }
-                $UbuntuOfflineAZPKGFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *Ubuntu*.azpkg | ForEach-Object { $_.Name }
-
-                # Upload the Gallery Item to the Azure Stack Platform Image Repository
-                Write-CustomVerbose -Message "Extraction Complete. Beginning upload of the Ubuntu AZPKG gallery item"
-                
-                # Check there's not a gallery item already uploaded to storage
-                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($ubuntuAzpkgUploadSuccess)) {
-                    Write-CustomVerbose -Message "You already have an upload of $UbuntuOfflineAZPKGFileName within your Storage Account. No need to re-upload."
-                    Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
-                }
-
-                $uploadAzpkgAttempt = 1
-                while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuAzpkgUploadSuccess) -and ($uploadAzpkgAttempt -le 3)) {
-                    try {
-                        # Log back into Azure Stack to ensure login hasn't timed out
-                        Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
-                        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                        Set-AzureStorageBlobContent -File "$UbuntuOfflineAZPKGFullPath" -Container $asdkImagesContainerName -Blob "$UbuntuOfflineAZPKGFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop
-                        $ubuntuAzpkgUploadSuccess = $true
-                    }
-                    catch {
-                        Write-CustomVerbose -Message "Upload failed."
-                        Write-CustomVerbose -Message "$_.Exception.Message"
-                        $uploadAzpkgAttempt++
-                        $ubuntuAzpkgUploadSuccess = $false
-                    }
-                }
-                $ubuntuAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $UbuntuOfflineAZPKGFileName
-                $galleryItemUri = $ubuntuAzpkgURI
-                Write-CustomVerbose -Message "Uploading $($azpkg.name) from $galleryItemUri"
+                $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-            While ($Upload.StatusCode -match "OK" -and ($Retries++ -lt 20)) {
-                Write-CustomVerbose -Message "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-CustomVerbose -Message "Uploading $($azpkg.name) from $galleryItemUri"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
+            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
+                Write-CustomVerbose -Message "$azpkgPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
                 Start-Sleep -Seconds 5
             }
         }
-        Remove-Variable $ubuntuUploadSuccess -Force -ErrorAction SilentlyContinue
         # Update the ConfigASDKProgressLog.csv file with successful completion
         Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
         $progress[$RowIndex].Status = "Complete"
@@ -1963,47 +1969,148 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         ### PACKAGES ###
         # Now check for and create (if required) AZPKG files for sideloading
         # If the user chose not to register the ASDK, but the deployment is "online", the step below will grab an azpkg file from Github
-        if (!$registerASDK -and ($deploymentMode -eq "Online")) {
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $packageArray = @()
-            $packageArray.Clear()
-            $packageArray = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0", "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0"
-            Write-CustomVerbose -Message "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
-
-            foreach ($package in $packageArray) {
-                $wsPackage = $null
-                $wsPackage = (Get-AzsGalleryItem | Where-Object {$_.name -like "$package"} | Sort-Object CreatedTime -Descending | Select-Object -First 1)
-                # Check to see if the package exists already in the Gallery
-                if ($wsPackage) {
-                    Write-CustomVerbose -Message "Found the following existing package in your gallery: $($wsPackage.Identity) - No need to upload a new one"
+        if ($deploymentMode -eq "Online") {
+            if ($registerASDK) {
+                ### Login to Azure to get all the details about the syndicated Windows Server 2016 marketplace offering ###
+                Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
+                Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+                $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
+                $resources = Get-AzureRmResource
+                $resource = $resources.resourcename
+                $registrations = @($resource | Where-Object {$_ -like "AzureStack*"})
+                if ($registrations.count -gt 1) {
+                    $Registration = $registrations[0]
                 }
                 else {
-                    # If the package doesn't exist, sideload it directly from GitHub
-                    $wsPackage = $package
-                    Write-CustomVerbose -Message "Didn't find this package: $wsPackage"
-                    Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
-                    $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/$wsPackage.azpkg"
-                    Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
-                    $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Ignore
-                    Start-Sleep -Seconds 5
-                    $Retries = 0
-                    # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-                    While (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$wsPackage"}) -and ($Retries++ -lt 20)) {
-                        Write-CustomVerbose -Message "$wsPackage wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                    $Registration = $registrations
+                }
+
+                # Retrieve the access token
+                $token = $null
+                $tokens = $null
+                $tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
+                $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object TenantId -EQ $azureRegTenantID | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+
+                # Define variables and create arrays to store all information
+                $packageArray = @()
+                $packageArray.Clear()
+                $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*"
+                $azpkgArray = @()
+                $azpkgArray.Clear()
+
+                foreach ($package in $packageArray) {
+                    $products = @()
+                    $products.Clear()
+                    $product = $null
+
+                    # Get the package information
+                    $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
+                    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
+                    $products = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
+
+                    foreach ($product in $products) {
+                        $azpkg = $null
+                        $azpkg = @{
+                            id        = ""
+                            publisher = ""
+                            sku       = ""
+                            offer     = ""
+                            azpkgPath = ""
+                            name      = ""
+                            type      = ""
+                        }
+
+                        $azpkg.id = $product.name.Split('/')[-1]
+                        $azpkg.type = $product.properties.productKind
+                        $azpkg.publisher = $product.properties.publisherDisplayName
+                        $azpkg.sku = $product.properties.sku
+                        $azpkg.offer = $product.properties.offer
+
+                        # Get product info
+                        $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
+                        $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
+                        $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
+                        $azpkg.name = $productDetails.properties.galleryItemIdentity
+
+                        # Get download location for AZPKG file
+                        $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
+                        $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
+                        $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
+
+                        # Display Legal Terms
+                        $legalTerms = $productDetails.properties.description
+                        $legalDisplay = $legalTerms -replace '<.*?>', ''
+                        Write-Host "$legalDisplay" -ForegroundColor Yellow
+
+                        # Add to the array
+                        $azpkgArray += , $azpkg
+                    }
+                }
+
+                ### With all the information stored in the arrays, log back into Azure Stack to check for existing gallery items and push new ones if required ###
+                Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                foreach ($azpkg in $azpkgArray) {
+                    Write-CustomVerbose -Message "Checking for the following packages: $($azpkg.name)"
+                    if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
+                        Write-CustomVerbose -Message "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
+                    }
+                    else {
+                        Write-CustomVerbose -Message "Didn't find this package: $($azpkg.name)"
+                        Write-CustomVerbose -Message "Will need to side load it in to the gallery"
+                        Write-CustomVerbose -Message "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
+                        $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction Stop
+                        Start-Sleep -Seconds 5
+                        $Retries = 0
+                        # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+                        while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$($azpkg.name)"}) -and ($Retries++ -lt 20)) {
+                            Write-CustomVerbose -Message "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                            Write-CustomVerbose -Message "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
+                            $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction Stop
+                            Start-Sleep -Seconds 5
+                        }
+                    }
+                }
+            }
+            elseif (!$registerASDK) {
+                Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                $packageArray = @()
+                $packageArray.Clear()
+                $packageArray = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0", "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0"
+                Write-CustomVerbose -Message "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
+
+                foreach ($package in $packageArray) {
+                    $wsPackage = $null
+                    $wsPackage = (Get-AzsGalleryItem | Where-Object {$_.name -like "$package"} | Sort-Object CreatedTime -Descending | Select-Object -First 1)
+                    # Check to see if the package exists already in the Gallery
+                    if ($wsPackage) {
+                        Write-CustomVerbose -Message "Found the following existing package in your gallery: $($wsPackage.Identity) - No need to upload a new one"
+                    }
+                    else {
+                        # If the package doesn't exist, sideload it directly from GitHub
+                        $wsPackage = $package
+                        Write-CustomVerbose -Message "Didn't find this package: $wsPackage"
+                        Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
+                        $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/$wsPackage.azpkg"
                         Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
                         $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Ignore
                         Start-Sleep -Seconds 5
-                    }
-                }   
+                        $Retries = 0
+                        # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+                        While (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$wsPackage"}) -and ($Retries++ -lt 20)) {
+                            Write-CustomVerbose -Message "$wsPackage wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                            Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
+                            $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Ignore
+                            Start-Sleep -Seconds 5
+                        }
+                    }   
+                }
             }
         }
-
-        # Regardless of registration choice, if the ZIP file has been provided, use the azpkg files from the zip file
-        elseif (($registerASDK -or !$registerASDK) -and ($deploymentMode -eq "PartialOnline" -or "Offline")) {
+        elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $packageArray = @()
             $packageArray.Clear()
-            $packageArray = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *WindowsServer*.azpkg -ErrorAction Stop
+            $packageArray = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include "*WindowsServer*.azpkg" -ErrorAction Stop
             if (!$registerASDK) {
                 Write-CustomVerbose -Message "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
             }
@@ -2016,153 +2123,18 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 }
                 # If no gallery items found, sideload from the extracted zip file.
                 else {
-                    $wsPackage = $package.Name
-                    $wsPackagePath = $package.FullName
-                    Write-CustomVerbose -Message "Didn't find this package: $wsPackage"
+                    $azpkgPackageName = $package.Name
+                    Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
                     Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
-                    # Check there's not a gallery item already uploaded to storage
-                    if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $wsPackage -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
-                        Write-CustomVerbose -Message "You already have an upload of $wsPackage within your Storage Account. No need to re-upload."
-                        Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $wsPackage -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
-                    }
-                    else {
-                        # If there's no existing gallery item, sideload it into the gallery. First need to upload it to the storage account.
-                        $uploadAzpkgAttempt = 1
-                        while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $wsPackage -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
-                            try {
-                                Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
-                                Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                                Set-AzureStorageBlobContent -File "$wsPackagePath" -Container $asdkImagesContainerName -Blob "$wsPackage" -Context $asdkStorageAccount.Context -ErrorAction Stop
-                            }
-                            catch {
-                                Write-CustomVerbose -Message "Upload failed."
-                                Write-CustomVerbose -Message "$_.Exception.Message"
-                                $uploadAzpkgAttempt++
-                            }
-                        }
-                    }
-
-                    # With the azpkg in the storage account, create the URI for upload
-                    $wsAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $wsPackage
-                    $galleryItemUri = $wsAzpkgURI
-                    Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
-                }
-                # Upload the azpkg from storage account to gallery
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction SilentlyContinue
-                Start-Sleep -Seconds 5
-                $Retries = 0
-                # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-                While (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$($package.Basename)"}) -and ($Retries++ -lt 20)) {
-                    Write-CustomVerbose -Message "$wsPackage wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                    Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
-                    $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Stop
-                    Start-Sleep -Seconds 5
-                }
-            }
-        }
-
-        # If the user chose to register the ASDK as part of the script and this is an online deployment, this section will log into Azure, scrape the marketplace items and get the properties of
-        # the gallery items, and the azpkg files, and side-load them into the Azure Stack marketplace.
-        elseif ($registerASDK -and ($deploymentMode -eq "Online")) {
-            ### Login to Azure to get all the details about the syndicated Windows Server 2016 marketplace offering ###
-            Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-            $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
-            $resources = Get-AzureRmResource
-            $resource = $resources.resourcename
-            $registrations = @($resource | Where-Object {$_ -like "AzureStack*"})
-            if ($registrations.count -gt 1) {
-                $Registration = $registrations[0]
-            }
-            else {
-                $Registration = $registrations
-            }
-
-            # Retrieve the access token
-            $token = $null
-            $tokens = $null
-            $tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-            $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object TenantId -EQ $azureRegTenantID | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
-
-            # Define variables and create arrays to store all information
-            $packageArray = @()
-            $packageArray.Clear()
-            $packageArray = "*Microsoft.WindowsServer2016Datacenter-ARM*", "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*"
-            $azpkgArray = @()
-            $azpkgArray.Clear()
-
-            foreach ($package in $packageArray) {
-
-                $products = @()
-                $products.Clear()
-                $product = $null
-
-                # Get the package information
-                $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
-                $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-                $products = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object Name | Select-Object -Last 1
-
-                foreach ($product in $products) {
-
-                    $azpkg = $null
-                    $azpkg = @{
-                        id        = ""
-                        publisher = ""
-                        sku       = ""
-                        offer     = ""
-                        azpkgPath = ""
-                        name      = ""
-                        type      = ""
-                    }
-
-                    $azpkg.id = $product.name.Split('/')[-1]
-                    $azpkg.type = $product.properties.productKind
-                    $azpkg.publisher = $product.properties.publisherDisplayName
-                    $azpkg.sku = $product.properties.sku
-                    $azpkg.offer = $product.properties.offer
-
-                    # Get product info
-                    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
-                    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-                    $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
-                    $azpkg.name = $productDetails.properties.galleryItemIdentity
-
-                    # Get download location for AZPKG file
-                    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
-                    $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
-                    $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
-
-                    # Display Legal Terms
-                    $legalTerms = $productDetails.properties.description
-                    $legalDisplay = $legalTerms -replace '<.*?>', ''
-                    Write-Host "$legalDisplay" -ForegroundColor Yellow
-
-                    # Add to the array
-                    $azpkgArray += , $azpkg
-                }
-            }
-
-            ### With all the information stored in the arrays, log back into Azure Stack to check for existing gallery items and push new ones if required ###
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-
-            foreach ($azpkg in $azpkgArray) {
-
-                Write-CustomVerbose -Message "Checking for the following packages: $($azpkg.name)"
-                if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$($azpkg.name)*"}) {
-                    Write-CustomVerbose -Message "Found the following existing package in your Gallery: $($azpkg.name). No need to upload a new one"
-                }
-                else {
-                    Write-CustomVerbose -Message "Didn't find this package: $($azpkg.name)"
-                    Write-CustomVerbose -Message "Will need to side load it in to the gallery"
-                    Write-CustomVerbose -Message "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
-                    $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction Stop
+                    $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
+                    $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
                     Start-Sleep -Seconds 5
                     $Retries = 0
                     # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-                    while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$($azpkg.name)"}) -and ($Retries++ -lt 20)) {
-                        Write-CustomVerbose -Message "$($azpkg.name) wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                        Write-CustomVerbose -Message "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
-                        $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction Stop
+                    while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
+                        Write-CustomVerbose -Message "$azpkgPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                        Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                        $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
                         Start-Sleep -Seconds 5
                     }
                 }
@@ -2197,62 +2169,31 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         ### Login to Azure Stack, then confirm if the VM Scale Set Gallery Item is already present ###
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $VMSSPackageName = "microsoft.vmss.1.3.6"
+        $azpkgPackageName = "microsoft.vmss.1.3.6"
         Write-CustomVerbose -Message "Checking for the VM Scale Set gallery item"
-        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$VMSSPackageName*"}) {
+        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
             Write-CustomVerbose -Message "Found a suitable VM Scale Set Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
         }
         else {
-            Write-CustomVerbose -Message "Didn't find this package: $VMSSPackageName"
+            Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
             Write-CustomVerbose -Message "Will need to side load it in to the gallery"
 
-            # If this is an online deployment, grab the azpkg from GitHUb
             if ($deploymentMode -eq "Online") {
-                Write-CustomVerbose -Message "Uploading $VMSSPackageName"        
-                $VMSSPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/VMSS/microsoft.vmss.1.3.6.azpkg"
+                Write-CustomVerbose -Message "Uploading $azpkgPackageName"
+                $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/VMSS/microsoft.vmss.1.3.6.azpkg"
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
             elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
-
-                #### Need to upload to blob storage first from extracted ZIP ####
-                $vmssOfflineAZPKGFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *vmss*.azpkg | ForEach-Object { $_.FullName }
-                $vmssOfflineAZPKGFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *vmss*.azpkg | ForEach-Object { $_.Name }
-                
-                # Check there's not a gallery item already uploaded to storage
-                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $vmssOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
-                    Write-CustomVerbose -Message "You already have an upload of $vmssOfflineAZPKGFileName within your Storage Account. No need to re-upload."
-                    Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $vmssOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
-                }
-                else {
-                    $uploadAzpkgAttempt = 1
-                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $vmssOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
-                        try {
-                            # Log back into Azure Stack to ensure login hasn't timed out
-                            Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
-                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            Set-AzureStorageBlobContent -File "$vmssOfflineAZPKGFullPath" -Container $asdkImagesContainerName -Blob "$vmssOfflineAZPKGFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop
-                        }
-                        catch {
-                            Write-CustomVerbose -Message "Upload failed."
-                            Write-CustomVerbose -Message "$_.Exception.Message"
-                            $uploadAzpkgAttempt++
-                        }
-                    }
-                }
-
-                $vmssAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $vmssOfflineAZPKGFileName
-                $VMSSPackageURL = $vmssAzpkgURI
-                Write-CustomVerbose -Message "Uploading $vmssOfflineAZPKGFileName from $VMSSPackageURL"
+                $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $VMSSPackageURL -Force -Confirm:$false -ErrorAction Ignore
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$VMSSPackageName"}) -and ($Retries++ -lt 20)) {
-                Write-CustomVerbose -Message "$VMSSPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-CustomVerbose -Message "Uploading $VMSSPackageName from $VMSSPackageURL"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $VMSSPackageURL -Force -Confirm:$false -ErrorAction Ignore
+            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
+                Write-CustomVerbose -Message "$azpkgPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
                 Start-Sleep -Seconds 5
             }
         }
@@ -2285,60 +2226,32 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $mySQLPackageName = "ASDK.MySQL.1.0.0"
+        azpkgPackageName = "ASDK.MySQL.1.0.0"
         
         Write-CustomVerbose -Message "Checking for the MySQL gallery item"
-        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$mySQLPackageName*"}) {
+        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
             Write-CustomVerbose -Message "Found a suitable MySQL Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
         }
         else {
-            Write-CustomVerbose -Message "Didn't find this package: $mySQLPackageName"
+            Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
             Write-CustomVerbose -Message "Will need to side load it in to the gallery"
 
             if ($deploymentMode -eq "Online") {
-                Write-CustomVerbose -Message "Uploading $mySQLPackageName"        
-                $mySQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
+                Write-CustomVerbose -Message "Uploading $azpkgPackageName"        
+                $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
             elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
-
-                #### Need to upload to blob storage first from extracted ZIP ####
-                $mySQLOfflineAZPKGFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *MySQL*.azpkg | ForEach-Object { $_.FullName }
-                $mySQLOfflineAZPKGFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *MySQL*.azpkg | ForEach-Object { $_.Name }
-                                
-                # Check there's not a gallery item already uploaded to storage
-                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $mySQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
-                    Write-CustomVerbose -Message "You already have an upload of $mySQLOfflineAZPKGFileName within your Storage Account. No need to re-upload."
-                    Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $mySQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
-                }
-                else {
-                    $uploadAzpkgAttempt = 1
-                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $mySQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
-                        try {
-                            # Log back into Azure Stack to ensure login hasn't timed out
-                            Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
-                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            Set-AzureStorageBlobContent -File "$mySQLOfflineAZPKGFullPath" -Container $asdkImagesContainerName -Blob "$mySQLOfflineAZPKGFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop
-                        }
-                        catch {
-                            Write-CustomVerbose -Message "Upload failed."
-                            Write-CustomVerbose -Message "$_.Exception.Message"
-                            $uploadAzpkgAttempt++
-                        }
-                    }
-                }
-                $mySQLAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $mySQLOfflineAZPKGFileName
-                $mySQLPackageURL = $mySQLAzpkgURI
-                Write-CustomVerbose -Message "Uploading $mySQLOfflineAZPKGFileName from $mySQLPackageURL"
+                $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL -Force -Confirm:$false -ErrorAction Stop
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$mySQLPackageName"}) -and ($Retries++ -lt 20)) {
-                Write-CustomVerbose -Message "$mySQLPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-CustomVerbose -Message "Uploading $mySQLPackageName from $mySQLPackageURL"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $mySQLPackageURL -Force -Confirm:$false -ErrorAction Stop
+            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
+                Write-CustomVerbose -Message "$azpkgPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
                 Start-Sleep -Seconds 5
             }
         }
@@ -2370,60 +2283,32 @@ $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $MSSQLPackageName = "ASDK.MSSQL.1.0.0"
+        $azpkgPackageName = "ASDK.MSSQL.1.0.0"
         
         Write-CustomVerbose -Message "Checking for the SQL Server 2017 gallery item"
-        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$MSSQLPackageName*"}) {
+        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
             Write-CustomVerbose -Message "Found a suitable SQL Server 2017 Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
         }
         else {
-            Write-CustomVerbose -Message "Didn't find this package: $MSSQLPackageName"
+            Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
             Write-CustomVerbose -Message "Will need to side load it in to the gallery"
 
             if ($deploymentMode -eq "Online") {
-                Write-CustomVerbose -Message "Uploading $MSSQLPackageName"        
-                $mySQLPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
+                Write-CustomVerbose -Message "Uploading $azpkgPackageName"        
+                $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
             elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
-
-                #### Need to upload to blob storage first from extracted ZIP ####
-                $MSSQLOfflineAZPKGFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *MSSQL*.azpkg | ForEach-Object { $_.FullName }
-                $MSSQLOfflineAZPKGFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Filter *MSSQL*.azpkg | ForEach-Object { $_.Name }
-                                
-                # Check there's not a gallery item already uploaded to storage
-                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $MSSQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
-                    Write-CustomVerbose -Message "You already have an upload of $MSSQLOfflineAZPKGFileName within your Storage Account. No need to re-upload."
-                    Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $MSSQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
-                }
-                else {
-                    $uploadAzpkgAttempt = 1
-                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $MSSQLOfflineAZPKGFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
-                        try {
-                            # Log back into Azure Stack to ensure login hasn't timed out
-                            Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
-                            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            Set-AzureStorageBlobContent -File "$MSSQLOfflineAZPKGFullPath" -Container $asdkImagesContainerName -Blob "$MSSQLOfflineAZPKGFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop
-                        }
-                        catch {
-                            Write-CustomVerbose -Message "Upload failed."
-                            Write-CustomVerbose -Message "$_.Exception.Message"
-                            $uploadAzpkgAttempt++
-                        }
-                    }
-                }
-                $MSSQLAzpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $MSSQLOfflineAZPKGFileName
-                $MSSQLPackageURL = $MSSQLAzpkgURI
-                Write-CustomVerbose -Message "Uploading $MSSQLOfflineAZPKGFileName from $MSSQLPackageURL"
+                $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $MSSQLPackageURL -Force -Confirm:$false -ErrorAction Stop
+            $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
             Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$MSSQLPackageName"}) -and ($Retries++ -lt 20)) {
-                Write-CustomVerbose -Message "$MSSQLPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-CustomVerbose -Message "Uploading $MSSQLPackageName from $MSSQLPackageURL"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $MSSQLPackageURL -Force -Confirm:$false -ErrorAction Stop
+            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
+                Write-CustomVerbose -Message "$azpkgPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
+                Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
                 Start-Sleep -Seconds 5
             }
         }
@@ -2470,19 +2355,32 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             Write-CustomVerbose -Message "Downloading and installing MySQL Resource Provider"
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
-            # Cleanup old folder
-            Remove-Item "$asdkPath\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-            # Download and Expand the MySQL RP files
-            $mySqlRpURI = "https://aka.ms/azurestackmysqlrp1804"
-            $mySqlRpDownloadLocation = "$ASDKpath\MySQL.zip"
-            DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
-            Set-Location $ASDKpath
-            Expand-Archive "$ASDKpath\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
-            Set-Location "$ASDKpath\MySQL"
+            if ($deploymentMode -eq "Online") {
+                # Cleanup old folder
+                Remove-Item "$asdkPath\databases\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+                # Download and Expand the MySQL RP files
+                $mySqlRpURI = "https://aka.ms/azurestackmysqlrp1804"
+                $mySqlRpDownloadLocation = "$ASDKpath\databases\MySQL.zip"
+                DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
+            }
+
+            Set-Location "$ASDKpath\databases"
+            Expand-Archive "$ASDKpath\databases\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
+            Set-Location "$ASDKpath\databases\MySQL"
 
             # Define the additional credentials for the local virtual machine username/password and certificates password
             $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
-            .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
+
+            # If this is an offline/partial online deployment, ensure you create a directory to store certs, and hold the MySQL Connector MSI.
+            if ($deploymentMode -eq "Online") {
+                .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
+            }
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+                $dependencyFilePath = New-Item -ItemType Directory -Path "$ASDKpath\databases\MySQL\Dependencies" -Force | ForEach-Object { $_.FullName }
+                $MySQLMSI = Get-ChildItem -Path "$ASDKpath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
+                Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
+                .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -DependencyFilesLocalPath $dependencyFilePath -AcceptLicense
+            }
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
