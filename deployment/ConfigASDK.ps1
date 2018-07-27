@@ -2773,8 +2773,16 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
 
             # Deploy a MySQL VM for hosting tenant db
+            if ($deploymentMode -eq "Online") {
+                $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json"
+            }
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+                $templateFile = "mySqlTemplate.json"
+                $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
+            }
+
             Write-CustomVerbose -Message "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
-            New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json `
+            New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $templateURI `
                 -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
                 -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
@@ -2822,20 +2830,27 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
+            if ($deploymentMode -eq "Online") {
+                $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json"
+            }
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+                $templateFile = "sqlTemplate.json"
+                $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
+            }
             # Deploy a SQL Server 2017 on Ubuntu VM for hosting tenant db
             if ($skipMySQL) {
                 #if MySQL RP was skipped, DB hosting resources should be created here
                 Write-CustomVerbose -Message "Creating a dedicated Resource Group for all database hosting assets"
                 New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
                 Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
-                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
+                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $templateURI `
                     -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
                     -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
             }
             else {
                 # Assume MySQL RP was deployed, and DB Hosting RG and networks were previously created
                 Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
-                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json `
+                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $templateURI `
                     -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
                     -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
             }
@@ -2890,7 +2905,15 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # Add host server to MySQL RP
             Write-CustomVerbose -Message "Attaching MySQL hosting server to MySQL resource provider"
-            New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json `
+            if ($deploymentMode -eq "Online") {
+                $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json"
+            }
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+                $templateFile = "mySqlHostingTemplate.json"
+                $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
+            }
+
+            New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri $templateURI `
                 -username "root" -password $secureVMpwd -hostingServerName $mySqlFqdn -totalSpaceMB 20480 -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
@@ -2944,7 +2967,15 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # Add host server to SQL Server RP
             Write-CustomVerbose -Message "Attaching SQL Server 2017 hosting server to SQL Server resource provider"
-            New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json `
+            if ($deploymentMode -eq "Online") {
+                $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json"
+            }
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+                $templateFile = "sqlHostingTemplate.json"
+                $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
+            }
+
+            New-AzureRmResourceGroupDeployment -ResourceGroupName "azurestack-dbhosting" -TemplateUri $templateURI `
                 -hostingServerName $sqlFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 20480 -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
