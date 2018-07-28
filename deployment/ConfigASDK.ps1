@@ -3947,7 +3947,7 @@ else {
 }
 
 Write-CustomVerbose -Message "Setting Execution Policy back to RemoteSigned"
-Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force
+Set-ExecutionPolicy RemoteSigned -Confirm:$false -Force | Out-Null
 
 # Calculate completion time
 $endTime = Get-Date -Format g
