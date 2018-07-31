@@ -202,6 +202,7 @@ elseif ($configASDKFilePathExists -eq $false) {
 $ASDKpath = mkdir "$configASDKFilePath\ASDK" -Force
 $packagePath = mkdir "$ASDKpath\packages" -Force
 $templatePath = mkdir "$ASDKpath\templates" -Force
+$scriptPath = mkdir "$ASDKpath\scripts" -Force
 $psPath = mkdir "$ASDKpath\powershell" -Force
 $dbPath = mkdir "$ASDKpath\databases" -Force
 $imagesPath = mkdir "$ASDKpath\images" -Force
@@ -263,9 +264,15 @@ try {
     # MySQL VM Template
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json"
     $row.filename = "mySqlTemplate.json"; $row.path = "$templatePath"; $row.productName = "MySQL template for deployment"; $Table.Rows.Add($row)
+    # MySQL Install Script
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/install_MySQL.sh"
+    $row.filename = "install_MySQL.sh"; $row.path = "$scriptPath"; $row.productName = "MySQL Install Script"; $Table.Rows.Add($row)
     # SQL VM Template
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json"
     $row.filename = "sqlTemplate.json"; $row.path = "$templatePath"; $row.productName = "SQL Server template for deployment"; $Table.Rows.Add($row)
+    # SQL Server Install Script
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/blob/master/deployment/scripts/install_MSSQL.sh"
+    $row.filename = "install_MSSQL.sh"; $row.path = "$scriptPath"; $row.productName = "SQL Server Install Script"; $Table.Rows.Add($row)
     # Add MySQL Hosting Server Template
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json"
     $row.filename = "mySqlHostingTemplate.json"; $row.path = "$templatePath"; $row.productName = "Add MySQL Hosting Server template for deployment"; $Table.Rows.Add($row)
