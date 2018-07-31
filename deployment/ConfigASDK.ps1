@@ -214,6 +214,8 @@ function Add-OfflineAZPKG {
     begin {}
     process {
         #### Need to upload to blob storage first from extracted ZIP ####
+        $azpkgFullPath = $null
+        $azpkgFileName = $null
         $azpkgFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.FullName }
         $azpkgFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.Name }
                                 
@@ -775,6 +777,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"SQLServerRP","Incomplete"'
         '"MySQLSKUQuota","Incomplete"'
         '"SQLServerSKUQuota","Incomplete"'
+        '"UploadScripts","Incomplete"'
         '"MySQLDBVM","Incomplete"'
         '"SQLServerDBVM","Incomplete"'
         '"MySQLAddHosting","Incomplete"'
@@ -1292,7 +1295,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
         if (-not ($asdkContainer)) {
             $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop
-        }       
+        }
         if ($registerASDK -and ($deploymentMode -eq "Online")) {
             # Logout to clean up
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
@@ -2137,7 +2140,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 }
                 # If no gallery items found, sideload from the extracted zip file.
                 else {
-                    $azpkgPackageName = $package.Name
+                    $azpkgPackageName = $package.Basename
                     Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
                     Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
                     $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
@@ -2240,7 +2243,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     try {
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        azpkgPackageName = "ASDK.MySQL.1.0.0"
+        $azpkgPackageName = "ASDK.MySQL.1.0.0"
         
         Write-CustomVerbose -Message "Checking for the MySQL gallery item"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
@@ -2758,6 +2761,81 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 }
 elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-CustomVerbose -Message "Operator chose to skip SQL Server Quota and SKU Deployment`r`n"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress | Out-Host
+}
+
+#### DOWNLOAD SCRIPTS FOR DATABASE DEPLOYMENT ################################################################################################################
+##############################################################################################################################################################
+
+# In the event of an offline deployment, you'll need to side-load script files into a storage account to be called by any MySQL and SQL template deployment
+# rather than try to reach out to GitHub to run the scripts directly
+
+$RowIndex = [array]::IndexOf($progress.Stage, "UploadScripts")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+if ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+elseif (($deploymentMode -eq "Offline") -and ($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    try {
+        # Firstly create the appropriate RG, storage account and container
+        # Scan the $asdkPath\scripts folder and retrieve both files, add to an array, then upload to the storage account
+        # Save URI of the container to a variable to use later
+        $asdkScriptsRGName = "azurestack-scripts"
+        $asdkScriptsStorageAccountName = "scriptstor"
+        $asdkScriptsContainerName = "scriptcontainer"
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        if (-not (Get-AzureRmResourceGroup -Name $asdkScriptsRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
+            New-AzureRmResourceGroup -Name $asdkScriptsRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+        }
+        # Test/Create Storage
+        $asdkScriptsStorageAccount = Get-AzureRmStorageAccount -Name $asdkScriptsStorageAccountName -ResourceGroupName $asdkScriptsRGName -ErrorAction SilentlyContinue
+        if (-not ($asdkScriptsStorageAccount)) {
+            $asdkScriptsStorageAccount = New-AzureRmStorageAccount -Name $asdkScriptsStorageAccountName -Location $azsLocation -ResourceGroupName $asdkScriptsRGName -Type Standard_LRS -ErrorAction Stop
+        }
+        Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkScriptsStorageAccountName -ResourceGroupName $asdkScriptsRGName
+        # Test/Create Container
+        $asdkScriptsContainer = Get-AzureStorageContainer -Name $asdkScriptsContainerName -ErrorAction SilentlyContinue
+        if (-not ($asdkScriptsContainer)) {
+            $asdkScriptsContainer = New-AzureStorageContainer -Name $asdkScriptsContainerName -Permission Blob -Context $asdkScriptsStorageAccount.Context -ErrorAction Stop
+        }
+        $scriptArray = @()
+        $scriptArray.Clear()
+        $scriptArray = Get-ChildItem -Path "$ASDKpath\scripts" -Recurse -Include "*.sh" -ErrorAction Stop
+        foreach ($script in $scriptArray) {
+            $dbScriptName = $script.Name
+            $dbScriptFullPath = $script.FullName
+            $uploadScriptAttempt = 1
+            while (!$(Get-AzureStorageBlob -Container $asdkScriptsContainerName -Blob $dbScriptName -Context $asdkScriptsStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadScriptAttempt -le 3)) {
+                try {
+                    # Log back into Azure Stack to ensure login hasn't timed out
+                    Write-CustomVerbose -Message "$dbScriptName not found. Upload Attempt: $uploadScriptAttempt"
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Set-AzureStorageBlobContent -File "$dbScriptFullPath" -Container $asdkScriptsContainerName -Blob "$dbScriptName" -Context $asdkScriptsStorageAccount.Context -ErrorAction Stop | Out-Null
+                }
+                catch {
+                    Write-CustomVerbose -Message "Upload failed."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    $uploadScriptAttempt++
+                }
+            }
+        }
+        $dbScriptBaseURI = '{0}{1}/' -f $asdkScriptsStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkScriptsContainerName
+    }
+    catch {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+}
+elseif ($deploymentMode -eq "Online" -or "PartialOnline") {
+    Write-CustomVerbose -Message "This is not an offline deployent, skipping step`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
