@@ -262,9 +262,6 @@ try {
     # SQL RP
     $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp"
     $row.filename = "SQL.zip"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
-    # MySQL VM Template
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json"
-    $row.filename = "mySqlTemplate.json"; $row.path = "$templatePath"; $row.productName = "MySQL template for deployment"; $Table.Rows.Add($row)
     # MySQL Install Script
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/install_MySQL_Offline.sh"
     $row.filename = "install_MySQL.sh"; $row.path = "$scriptPath"; $row.productName = "MySQL install script"; $Table.Rows.Add($row)
@@ -325,9 +322,6 @@ try {
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
     $row.filename = "mysql-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server dependency"; $Table.Rows.Add($row)
 
-    # SQL VM Template
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json"
-    $row.filename = "sqlTemplate.json"; $row.path = "$templatePath"; $row.productName = "SQL Server template for deployment"; $Table.Rows.Add($row)
     # SQL Server Install Script
     $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/blob/master/deployment/scripts/install_MSSQL_Offline.sh"
     $row.filename = "install_MSSQL.sh"; $row.path = "$scriptPath"; $row.productName = "SQL Server Install Script"; $Table.Rows.Add($row)
