@@ -281,7 +281,7 @@ try {
     $row.filename = "mysql-libaio.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libaio dependency"; $Table.Rows.Add($row)
 
     # MySQL Offline Dependency #2
-    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/" | Out-Null
+    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/"
     $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libevent-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
     $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
