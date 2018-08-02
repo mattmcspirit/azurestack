@@ -11,7 +11,6 @@ fi
 
 # Get parameters and assign variables
 MySQLPassword=$1
-MySQLPassword='BellevueMTC!'
 AllowRemoteConnections=$(echo "$2" | tr '[:upper:]' '[:lower:]')
 
 # Set hostname in etc/hosts
@@ -32,7 +31,23 @@ export DEBIAN_FRONTEND=noninteractive
 wget http://scriptstor.blob.local.azurestack.external/scriptcontainer/mysql-{libaio,libevent-core,libmecab,common,client-core,client,server-core,server}.deb
 
 # Install the files
-dpkg -i mysql-{libaio,libevent-core,libmecab,common,client-core,client,server-core,server}.deb
+dpkg -i mysql-libaio.deb
+sleep 3
+dpkg -i mysql-libevent-core.deb
+sleep 3
+dpkg -i mysql-libmecab.deb
+sleep 3
+dpkg -i mysql-common.deb
+sleep 3
+dpkg -i mysql-client-core.deb
+sleep 3
+dpkg -i mysql-client.deb
+sleep 3
+dpkg -i mysql-server-core.deb
+sleep 3
+dpkg -i mysql-server.deb
+sleep 3
+#dpkg -i mysql-{libaio,libevent-core,libmecab,common,client-core,client,server-core,server}.deb
 
 # Reset MySQL Password to match supplied parameter
 mysql -u root -proot -e "use mysql; UPDATE user SET authentication_string=PASSWORD('$MySQLPassword') WHERE User='root'; flush privileges;"
