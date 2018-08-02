@@ -203,6 +203,7 @@ $ASDKpath = mkdir "$configASDKFilePath\ASDK" -Force
 $packagePath = mkdir "$ASDKpath\packages" -Force
 $templatePath = mkdir "$ASDKpath\templates" -Force
 $scriptPath = mkdir "$ASDKpath\scripts" -Force
+$binaryPath = mkdir "$ASDKpath\binaries" -Force
 $psPath = mkdir "$ASDKpath\powershell" -Force
 $dbPath = mkdir "$ASDKpath\databases" -Force
 $imagesPath = mkdir "$ASDKpath\images" -Force
@@ -265,14 +266,137 @@ try {
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json"
     $row.filename = "mySqlTemplate.json"; $row.path = "$templatePath"; $row.productName = "MySQL template for deployment"; $Table.Rows.Add($row)
     # MySQL Install Script
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/install_MySQL.sh"
-    $row.filename = "install_MySQL.sh"; $row.path = "$scriptPath"; $row.productName = "MySQL Install Script"; $Table.Rows.Add($row)
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/install_MySQL_Offline.sh"
+    $row.filename = "install_MySQL.sh"; $row.path = "$scriptPath"; $row.productName = "MySQL install script"; $Table.Rows.Add($row)
+
+    ### Grab the MySQL Offline Binaries - used when ASDK is deployed in a completely offline mode
+    ### The MySQL script would usually install MySQL via apt-get, however in an offline mode, this isn't possible, hence
+    ### we download them here, and upload them to local Azure Stack storage as part of the ASDK Configurator
+
+    # MySQL Offline Dependency #1
+    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/"
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libaio*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") -and ($_.href -notlike "*dbg*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mysql-libaio.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libaio dependency"; $Table.Rows.Add($row)
+
+    # MySQL Offline Dependency #2
+    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/" | Out-Null
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libevent-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mysql-libevent-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libevent dependency"; $Table.Rows.Add($row)
+
+    # MySQL Offline Dependency #3
+    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/"
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libmecab*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mysql-libmecab.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libmecab dependency"; $Table.Rows.Add($row)
+
+    # MySQL Offline Dependency #4
+    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/"
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-client*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mysql-client.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client dependency"; $Table.Rows.Add($row)
+
+    # MySQL Offline Dependency #5
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-client-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mysql-client-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client core dependency"; $Table.Rows.Add($row)
+
+    # MySQL Offline Dependency #6
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-common*.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mysql-common.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL common dependency"; $Table.Rows.Add($row)
+
+    # MySQL Offline Dependency #7
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-server-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mysql-server-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server Core dependency"; $Table.Rows.Add($row)
+
+    # MySQL Offline Dependency #8
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-server*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mysql-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server dependency"; $Table.Rows.Add($row)
+
     # SQL VM Template
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json"
     $row.filename = "sqlTemplate.json"; $row.path = "$templatePath"; $row.productName = "SQL Server template for deployment"; $Table.Rows.Add($row)
     # SQL Server Install Script
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/blob/master/deployment/scripts/install_MSSQL.sh"
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/blob/master/deployment/scripts/install_MSSQL_Offline.sh"
     $row.filename = "install_MSSQL.sh"; $row.path = "$scriptPath"; $row.productName = "SQL Server Install Script"; $Table.Rows.Add($row)
+
+    ### Grab the SQL Server 2017 for Ubuntu Offline Binaries - used when ASDK is deployed in a completely offline mode
+    ### The SQL Server 2017 script would usually install SQL Server via apt-get, however in an offline mode, this isn't possible, hence
+    ### we download them here, and upload them to local Azure Stack storage as part of the ASDK Configurator
+
+    # SQL Server 2017 Main Binary
+    $WebResponse = Invoke-WebRequest "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/"
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mssql-server*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mssql-server.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 binary"; $Table.Rows.Add($row)
+
+    # SQL Server 2017 Offline Dependency #1
+    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/j/jemalloc/"
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libjemalloc1*amd64.deb") -and ($_.href -notlike "*dbg*amd64.deb") -and ($_.href -notlike "*ubuntu*amd64.deb")} | Sort-Object | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/j/jemalloc/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mssql-libjemalloc.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libjemalloc dependency"; $Table.Rows.Add($row)
+
+    # SQL Server 2017 Offline Dependency #2
+    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/libc/libc++/"
+    $fileToDownload = $($WebResponse.Links | Select-Object innerText | Where-Object {($_.innerText -like "libc++1*amd64.deb") -and ($_.innerText -notlike "*svn*amd64.deb") -and ($_.innerText -notlike "*ubuntu*amd64.deb")} | Sort-Object | Select-Object -Last 1).innerText.ToString()
+    $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/libc/libc++/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mssql-libc.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libc dependency"; $Table.Rows.Add($row)
+
+    # SQL Server 2017 Offline Dependency #3
+    $fileToDownload = $($WebResponse.Links | Select-Object innerText | Where-Object {($_.innerText -like "libc++abi1*amd64.deb")} | Sort-Object | Select-Object -Last 1).innerText.ToString()
+    $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/libc/libc++/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mssql-libcabi.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcabi dependency"; $Table.Rows.Add($row)
+
+    # SQL Server 2017 Offline Dependency #4
+    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/g/gdb/"
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "gdb_7*amd64.deb")} | Sort-Object | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/g/gdb/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mssql-gdb.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 gdb dependency"; $Table.Rows.Add($row)
+
+    # SQL Server 2017 Offline Dependency #5
+    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/s/sssd/"
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libsss-nss-idmap0*amd64.deb")} | Sort-Object | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/s/sssd/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mssql-libsss.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsss dependency"; $Table.Rows.Add($row)
+
+    # SQL Server 2017 Offline Dependency #6
+    $WebResponse = Invoke-WebRequest "http://mirrors.kernel.org/ubuntu/pool/main/b/babeltrace/"
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libbabeltrace1_1.3*amd64.deb")} | Sort-Object | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://mirrors.kernel.org/ubuntu/pool/main/b/babeltrace/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mssql-libbabeltrace1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace1 dependency"; $Table.Rows.Add($row)
+
+    # SQL Server 2017 Offline Dependency #7
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libbabeltrace-ctf1_1.3*amd64.deb")} | Sort-Object | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://mirrors.kernel.org/ubuntu/pool/main/b/babeltrace/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mssql-libbabeltrace-ctf1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace-ctf1 dependency"; $Table.Rows.Add($row)
+
+    # SQL Server 2017 Offline Dependency #8
+    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/c/curl/"
+    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libcurl3_7.4*amd64.deb")} | Sort-Object href -Descending | Select-Object -Last 1).href.ToString()
+    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/c/curl/$fileToDownload"
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "mssql-libcurl3.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcurl3 dependency"; $Table.Rows.Add($row)
+
     # Add MySQL Hosting Server Template
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json"
     $row.filename = "mySqlHostingTemplate.json"; $row.path = "$templatePath"; $row.productName = "Add MySQL Hosting Server template for deployment"; $Table.Rows.Add($row)
