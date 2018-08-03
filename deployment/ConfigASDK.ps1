@@ -3603,7 +3603,13 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             $appServiceLogPath = "$AppServicePath\AppServiceLog$appServiceLogTime.txt"
             Set-Location "$AppServicePath"
             Write-CustomVerbose -Message "Starting deployment of the App Service"
-            Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
+
+            if ($deploymentMode -eq "Online") {
+                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
+            }
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Install OfflineInstallationPackageFile=$AppServicePath\appserviceoffline.zip UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
+            }
 
             while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
                 Write-CustomVerbose -Message "App Service is deploying. Checking in 10 seconds"
