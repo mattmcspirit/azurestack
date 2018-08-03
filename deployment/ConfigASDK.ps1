@@ -1278,10 +1278,14 @@ $azsLocation = (Get-AzsLocation).Name
 $RowIndex = [array]::IndexOf($progress.Stage, "UbuntuImage")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 
-# Create RG
+# Create RG & images folder
 $asdkImagesRGName = "azurestack-images"
 $asdkImagesStorageAccountName = "asdkimagesstor"
 $asdkImagesContainerName = "asdkimagescontainer"
+
+if (!$([System.IO.Directory]::Exists("$ASDKpath\images"))) {
+    New-Item -Path "$ASDKpath\images" -ItemType Directory -Force | Out-Null
+}
 
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
