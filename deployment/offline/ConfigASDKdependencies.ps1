@@ -440,6 +440,34 @@ catch {
     return
 }
 
+### Generate App Service Offline ZIP ###################################################################################################################
+########################################################################################################################################################
+
+$appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
+$appServiceLogPath = "$appServicePath\AppServiceLog$appServiceLogTime.txt"
+Set-Location "$appServicePath"
+Write-CustomVerbose -Message "Starting download of the App Service binaries"
+Start-Process -FilePath .\appservice.exe -ArgumentList "/quiet /log $appServiceLogPath CreateOfflineInstallationPackage OfflineInstallationPackageFile=$appServicePath\appserviceoffline.zip" -PassThru
+
+while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
+    Write-CustomVerbose -Message "App Service ZIP file being created. This process generally takes a few minutes, so please be patient. Checking again in 10 seconds"
+    Start-Sleep -Seconds 10
+}
+if (!(Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
+    Write-CustomVerbose -Message "App Service ZIP file creation has completed."
+}
+
+$appServiceErrorCode = "Exit code: 0xffffffff"
+Write-CustomVerbose -Message "Checking App Service log file for issues"
+if ($(Select-String -Path $appServiceLogPath -Pattern "$appServiceErrorCode" -SimpleMatch -Quiet) -eq "True") {
+    Write-CustomVerbose -Message "App Service ZIP file creation failed with $appServiceErrorCode"
+    Write-CustomVerbose -Message "An error has occurred during creation. Please check the App Service log at $appServiceLogPath"
+    throw "App Service ZIP file creation failed with $appServiceErrorCode. Please check the App Service log at $appServiceLogPath"
+}
+else {
+    Write-CustomVerbose -Message "App Service log file indicates successful ZIP file creation"
+}
+
 ### Download PowerShell ################################################################################################################################
 ########################################################################################################################################################
 
