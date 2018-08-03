@@ -2767,10 +2767,10 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     Write-Output $progress | Out-Host
 }
 
-#### DOWNLOAD SCRIPTS FOR DATABASE DEPLOYMENT ################################################################################################################
+#### DOWNLOAD SCRIPTS/BINARIES FOR OFFLINE DATABASE/FILE SERVER DEPLOYMENT ###################################################################################
 ##############################################################################################################################################################
 
-# In the event of an offline deployment, you'll need to side-load script files into a storage account to be called by any MySQL and SQL template deployment
+# In the event of an offline deployment, you'll need to side-load script files into a storage account to be called by any MySQL, SQL and File Server template deployment
 # rather than try to reach out to GitHub to run the scripts directly
 
 $RowIndex = [array]::IndexOf($progress.Stage, "UploadScripts")
@@ -2783,37 +2783,38 @@ elseif (($deploymentMode -eq "Offline") -and ($progress[$RowIndex].Status -eq "I
         # Firstly create the appropriate RG, storage account and container
         # Scan the $asdkPath\scripts folder and retrieve both files, add to an array, then upload to the storage account
         # Save URI of the container to a variable to use later
-        $asdkScriptsRGName = "azurestack-scripts"
-        $asdkScriptsStorageAccountName = "scriptstor"
-        $asdkScriptsContainerName = "scriptcontainer"
+        $asdkOfflineRGName = "azurestack-offline"
+        $asdkOfflineStorageAccountName = "offlinestor"
+        $asdkOfflineContainerName = "offlinecontainer"
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        if (-not (Get-AzureRmResourceGroup -Name $asdkScriptsRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
-            New-AzureRmResourceGroup -Name $asdkScriptsRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+        if (-not (Get-AzureRmResourceGroup -Name $asdkOfflineRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
+            New-AzureRmResourceGroup -Name $asdkOfflineRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
         }
         # Test/Create Storage
-        $asdkScriptsStorageAccount = Get-AzureRmStorageAccount -Name $asdkScriptsStorageAccountName -ResourceGroupName $asdkScriptsRGName -ErrorAction SilentlyContinue
-        if (-not ($asdkScriptsStorageAccount)) {
-            $asdkScriptsStorageAccount = New-AzureRmStorageAccount -Name $asdkScriptsStorageAccountName -Location $azsLocation -ResourceGroupName $asdkScriptsRGName -Type Standard_LRS -ErrorAction Stop
+        $asdkOfflineStorageAccount = Get-AzureRmStorageAccount -Name $asdkOfflineStorageAccountName -ResourceGroupName $asdkOfflineRGName -ErrorAction SilentlyContinue
+        if (-not ($asdkOfflineStorageAccount)) {
+            $asdkOfflineStorageAccount = New-AzureRmStorageAccount -Name $asdkOfflineStorageAccountName -Location $azsLocation -ResourceGroupName $asdkOfflineRGName -Type Standard_LRS -ErrorAction Stop
         }
-        Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkScriptsStorageAccountName -ResourceGroupName $asdkScriptsRGName
+        Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkOfflineStorageAccountName -ResourceGroupName $asdkOfflineRGName
         # Test/Create Container
-        $asdkScriptsContainer = Get-AzureStorageContainer -Name $asdkScriptsContainerName -ErrorAction SilentlyContinue
-        if (-not ($asdkScriptsContainer)) {
-            $asdkScriptsContainer = New-AzureStorageContainer -Name $asdkScriptsContainerName -Permission Blob -Context $asdkScriptsStorageAccount.Context -ErrorAction Stop
+        $asdkOfflineContainer = Get-AzureStorageContainer -Name $asdkOfflineContainerName -ErrorAction SilentlyContinue
+        if (-not ($asdkOfflineContainer)) {
+            $asdkOfflineContainer = New-AzureStorageContainer -Name $asdkOfflineContainerName -Permission Blob -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop
         }
-        $scriptArray = @()
-        $scriptArray.Clear()
-        $scriptArray = Get-ChildItem -Path "$ASDKpath\scripts" -Recurse -Include "*.sh" -ErrorAction Stop
-        foreach ($script in $scriptArray) {
-            $dbScriptName = $script.Name
-            $dbScriptFullPath = $script.FullName
-            $uploadScriptAttempt = 1
-            while (!$(Get-AzureStorageBlob -Container $asdkScriptsContainerName -Blob $dbScriptName -Context $asdkScriptsStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadScriptAttempt -le 3)) {
+        $offlineArray = @()
+        $offlineArray.Clear()
+        $offlineArray = Get-ChildItem -Path "$ASDKpath\scripts" -Recurse -Include ("*.sh", "*.cr.zip", "*FileServer.ps1") -ErrorAction Stop
+        $offlineArray += Get-ChildItem -Path "$ASDKpath\binaries" -Recurse -Include "*.deb" -ErrorAction Stop
+        foreach ($item in $offlineArray) {
+            $itemName = $item.Name
+            $itemFullPath = $item.FullName
+            $uploadItemAttempt = 1
+            while (!$(Get-AzureStorageBlob -Container $asdkOfflineContainerName -Blob $itemName -Context $asdkOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
                 try {
                     # Log back into Azure Stack to ensure login hasn't timed out
-                    Write-CustomVerbose -Message "$dbScriptName not found. Upload Attempt: $uploadScriptAttempt"
+                    Write-CustomVerbose -Message "$itemName not found. Upload Attempt: $uploadItemAttempt"
                     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    Set-AzureStorageBlobContent -File "$dbScriptFullPath" -Container $asdkScriptsContainerName -Blob "$dbScriptName" -Context $asdkScriptsStorageAccount.Context -ErrorAction Stop | Out-Null
+                    Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkOfflineContainerName -Blob "$itemName" -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
                 }
                 catch {
                     Write-CustomVerbose -Message "Upload failed."
@@ -2822,7 +2823,7 @@ elseif (($deploymentMode -eq "Offline") -and ($progress[$RowIndex].Status -eq "I
                 }
             }
         }
-        $dbScriptBaseURI = '{0}{1}/' -f $asdkScriptsStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkScriptsContainerName
+        $offlineBaseURI = '{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName
     }
     catch {
         Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
@@ -2864,19 +2865,22 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             Write-CustomVerbose -Message "Creating a dedicated Resource Group for all database hosting assets"
             New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
 
-            # Deploy a MySQL VM for hosting tenant db
-            if ($deploymentMode -eq "Online") {
-                $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json"
-            }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
-                $templateFile = "mySqlTemplate.json"
-                $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
-            }
+            # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
+            $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.MySQL*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
 
+            # Deploy a MySQL VM for hosting tenant db
+            if ($deploymentMode -eq "Online" -or "PartialOnline") {
+                $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
+            }
+            elseif ($deploymentMode -eq "Offline") {
+                $dbScriptBaseURI = $offlineBaseURI
+                # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
+            }
             Write-CustomVerbose -Message "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
-            New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $templateURI `
+            New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $mainTemplateURI `
                 -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
-                -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+                -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" `
+                -vmSize Standard_A3 -mode Incremental -scriptBaseUrl $dbScriptBaseURI -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -2922,12 +2926,16 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
-            if ($deploymentMode -eq "Online") {
-                $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/mainTemplate.json"
+            # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
+            $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.MSSQL*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
+
+            # Deploy a MySQL VM for hosting tenant db
+            if ($deploymentMode -eq "Online" -or "PartialOnline") {
+                $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
-                $templateFile = "sqlTemplate.json"
-                $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
+            elseif ($deploymentMode -eq "Offline") {
+                $dbScriptBaseURI = $offlineBaseURI
+                # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
             # Deploy a SQL Server 2017 on Ubuntu VM for hosting tenant db
             if ($skipMySQL) {
@@ -2935,15 +2943,15 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 Write-CustomVerbose -Message "Creating a dedicated Resource Group for all database hosting assets"
                 New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
                 Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
-                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $templateURI `
-                    -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
+                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $mainTemplateURI `
+                    -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $dbScriptBaseURI `
                     -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
             }
             else {
                 # Assume MySQL RP was deployed, and DB Hosting RG and networks were previously created
                 Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
-                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $templateURI `
-                    -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
+                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $mainTemplateURI `
+                    -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $dbScriptBaseURI `
                     -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
             }
             # Update the ConfigASDKProgressLog.csv file with successful completion
@@ -2964,7 +2972,7 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
     }
 }
 elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip MySQL Hosting Server Deployment`r`n"
+    Write-CustomVerbose -Message "Operator chose to skip SQL Server 2017 Hosting Server Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
@@ -3122,14 +3130,16 @@ elseif ((!$skipAppService) -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             if ($deploymentMode -eq "Online") {
                 $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json"
+                New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri $templateURI `
+                    -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
             }
             elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
                 $templateFile = "FileServerTemplate.json"
                 $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
+                $configFilesURI = $offlineBaseUri
+                New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri $templateURI `
+                    -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -vmExtensionScriptLocation $configFilesURI -Mode Incremental -Verbose -ErrorAction Stop
             }
-
-            New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri $templateURI `
-                -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
 
             # Get the FQDN of the VM
             $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
@@ -3184,15 +3194,18 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu Server 16.04 LTS for App Service"
             New-AzureRmResourceGroup -Name "appservice-sql" -Location $azsLocation -Force
 
-            if ($deploymentMode -eq "Online") {
-                $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/mainTemplate.json"
+            # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
+            $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.MSSQL*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
+
+            if ($deploymentMode -eq "Online" -or "PartialOnline") {
+                $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
-                $templateFile = "sqlTemplate.json"
-                $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
+            elseif ($deploymentMode -eq "Offline") {
+                $dbScriptBaseURI = $offlineBaseURI
+                # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
 
-            New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri $templateURI `
+            New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName "appservice-sql" -TemplateUri $mainTemplateURI -scriptBaseUrl $dbScriptBaseURI `
                 -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
                 -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
 
