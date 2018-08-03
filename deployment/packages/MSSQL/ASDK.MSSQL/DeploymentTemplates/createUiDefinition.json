@@ -15,26 +15,25 @@
                 }
             },
             {
-                "name": "templateBaseUrl",
-                "type": "Microsoft.Common.TextBox",
-                "label": "Template Files URL",
-                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/",
-                "toolTip": "Specify the URL of where the additional SQL Server 2017 on Ubuntu Server 16.04 LTS JSON template files can be found",
-                "constraints": {
-                    "required": true,
-                    "validationMessage": "Please use a correctly formatted URL, ending with the containing folder."
-                }
-            },
-            {
                 "name": "scriptBaseUrl",
-                "type": "Microsoft.Common.TextBox",
-                "label": "Script URL",
-                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
-                "toolTip": "Specify the URL of where the SQL Server 2017 on Ubuntu Server 16.04 LTS Custom Script can be found",
+                "type": "Microsoft.Common.DropDown",
+                "label": "SQL Server 2017 Install Script URL",
+                "defaultValue": "ONLINE - https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
+                "toolTip": "Choose the URL location of where the SQL Server 2017 Custom Script can be found. If your ASDK host is connected to the internet, choose Online, but if this is disconnected, use Local, but ensure script files have been added to a local storage account first. The ASDK Configurator will have performed this step for you.",
                 "constraints": {
-                    "required": true,
-                    "validationMessage": "Please use a correctly formatted URL, ending with the containing folder."
-                }
+                    "allowedValues": [
+                        {
+                          "label": "ONLINE - https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
+                          "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
+                        },
+                        {
+                          "label": "LOCAL - http://offlinestor.blob.local.azurestack.external/offlinecontainer/",
+                          "value": "http://offlinestor.blob.local.azurestack.external/offlinecontainer/"
+                        }
+                      ],
+                    "required": true
+                },
+                "visible": true
             }
         ],
         "steps": [
@@ -242,7 +241,6 @@
         ],
         "outputs": {
             "vmName": "[steps('basicsStep').vmName]",
-            "templateBaseUrl": "[steps('basicsStep').templateBaseUrl]",
             "scriptBaseUrl": "[steps('basicsStep').scriptBaseUrl]",
             "vmSize": "[steps('settings').Compute.vmSize]",
             "adminUsername": "[steps('settings').Compute.adminUsername]",
