@@ -139,21 +139,17 @@
                 "description": "Choose to allow remote connections for MySQL Database Server"
             }
         },
-        "templateBaseUrl": {
-            "type": "string",
-            "metadata": {
-                "artifactsBaseUrl": "",
-                "description": "Specify the URL of where the additional MySQL JSON template files can be found"
-            },
-            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/ASDK.MySQL/DeploymentTemplates/"
-        },
         "scriptBaseUrl": {
             "type": "string",
             "metadata": {
                 "artifactsBaseUrl": "",
-                "description": "Specify the URL of where the MySQL install script can be found"
+                "description": "Choose where the MySQL install script can be found"
             },
-            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
+            "allowedValues": [
+                "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
+                "http://offlinestor.blob.local.azurestack.external/offlinecontainer/"
+            ]
         }
     },
     "variables": {
@@ -166,11 +162,13 @@
         "imageOffer": "UbuntuServer",
         "imageSku": "16.04-LTS",
         "imageVersion": "latest",
-        "storageAccountSetupUrl": "[concat(parameters('templateBaseUrl'),'/storage-',parameters('storageAccountNewOrExisting'),'.json')]",
-        "publicIpAddressSetupUrl": "[concat(parameters('templateBaseUrl'),'/publicip-',parameters('publicIPAddressNewOrExisting'),'.json')]",
-        "vnetSetupUrl": "[concat(parameters('templateBaseUrl'),'/vnet-',parameters('virtualNetworkNewOrExisting'),'.json')]",
-        "vmSetupUrl": "[concat(parameters('templateBaseUrl'),'/compute-',parameters('authenticationType'),'.json')]",
-        "networkSecurityGroupSetupUrl": "[concat(parameters('templateBaseUrl'),'/networkSecurityGroup.json')]"
+        "longBaseTemplateURI": "[string(deployment().properties.templateLink.uri)]",
+        "shortBaseTemplateURI": "[replace(variables('longBaseTemplateURI'),'mainTemplate.json', '')]",
+        "storageAccountSetupUrl": "[concat(variables('shortBaseTemplateURI'),'storage-',parameters('storageAccountNewOrExisting'),'.json')]",
+        "publicIpAddressSetupUrl": "[concat(variables('shortBaseTemplateURI'),'publicip-',parameters('publicIPAddressNewOrExisting'),'.json')]",
+        "vnetSetupUrl": "[concat(variables('shortBaseTemplateURI'),'vnet-',parameters('virtualNetworkNewOrExisting'),'.json')]",
+        "vmSetupUrl": "[concat(variables('shortBaseTemplateURI'),'compute-',parameters('authenticationType'),'.json')]",
+        "networkSecurityGroupSetupUrl": "[concat(variables('shortBaseTemplateURI'),'networkSecurityGroup.json')]"
     },
     "resources": [
         {
