@@ -930,9 +930,11 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         if ($deploymentMode -eq "Online") {
             # If this is an online deployment, pull down the PowerShell modules from the Internet
             Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
-            Get-PSRepository -Name "PSGallery"
+            Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
             Register-PsRepository -Default
+            Get-PSRepository -Name "PSGallery"
             Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
+            Get-PSRepository -Name "PSGallery"
             Install-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
             Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop
             Install-Module -Name AzureStack -RequiredVersion 1.3.0 -Force -ErrorAction Stop
