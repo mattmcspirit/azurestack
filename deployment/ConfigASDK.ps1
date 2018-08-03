@@ -4053,7 +4053,9 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     While ($i -le 3) {
         Write-CustomVerbose -Message "Cleanup Attempt: $i"
         Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        Remove-Item "$AppServicePath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
         Remove-Item -Path "$ASDKpath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        Remove-Item -Path "$AppServicePath" -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
         $i++
     }
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
