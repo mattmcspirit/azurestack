@@ -4,6 +4,7 @@
 
     The purpose of this script is to automate as much as possible post deployment tasks in Azure Stack Development Kit
     This includes:
+        * Supports deployment in an internet-disconnected environment
         * Validates all input parameters
         * Ensures password for VMs meets complexity required for App Service installation
         * Updated password expiration (180 days)
@@ -36,6 +37,7 @@
 
 .VERSION
 
+    1807    Updated to provide support for offline deployments, using zip file containing pre-downloaded binaries, tools and scripts
     1805.2  Update to Windows Image creation to handle adding of KB4132216 to update Servicing Stack (for build 14393) for future updates
             (<https://support.microsoft.com/en-us/help/4132216>)
     1805.1  Updates to handling Azure subscriptions with multiple Azure AD tenants, and error handling for random Add-AzureRmVhd pipeline error,
@@ -1068,7 +1070,7 @@ Clear-AzureRmContext -Scope CurrentUser -Force
 # Once logins have been successfully tested, increment run counter to track usage
 # This is used to understand how many times the ConfigASDK.ps1 script has been run
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-WebRequest -Uri "http://bit.ly/asdkcounter" -UseBasicParsing -ErrorAction SilentlyContinue -DisableKeepAlive | Out-Null
+try {Invoke-WebRequest "http://bit.ly/asdkcounter" -UseBasicParsing -DisableKeepAlive | Out-Null } catch {$_.Exception.Response.StatusCode.Value__}
 
 ### DOWNLOAD TOOLS #####################################################################################################################################
 ########################################################################################################################################################
@@ -2395,13 +2397,23 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # If this is an offline/partial online deployment, ensure you create a directory to store certs, and hold the MySQL Connector MSI.
             if ($deploymentMode -eq "Online") {
-                .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
+                $session = New-PSSession -Name InstallMySQLRP
+                Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
+                    .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
+                }
+                Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
             }
             elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
                 $dependencyFilePath = New-Item -ItemType Directory -Path "$ASDKpath\databases\MySQL\Dependencies" -Force | ForEach-Object { $_.FullName }
                 $MySQLMSI = Get-ChildItem -Path "$ASDKpath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                 Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
-                .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -DependencyFilesLocalPath $dependencyFilePath -AcceptLicense
+                $session = New-PSSession -Name InstallMySQLRP
+                Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd, $dependencyFilePath -ScriptBlock {
+                    .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -DependencyFilesLocalPath $dependencyFilePath -AcceptLicense
+                }
+                Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
             }
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
@@ -3608,7 +3620,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
                 Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
             }
             elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
-                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Install OfflineInstallationPackageFile=$AppServicePath\appserviceoffline.zip UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
+                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy OfflineInstallationPackageFile=$AppServicePath\appserviceoffline.zip UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
             }
 
             while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
@@ -4049,7 +4061,7 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri "http://bit.ly/asdksuccessrun" -UseBasicParsing -ErrorAction SilentlyContinue -DisableKeepAlive | Out-Null
+    try {Invoke-WebRequest "http://bit.ly/asdksuccessrun" -UseBasicParsing -DisableKeepAlive | Out-Null } catch {$_.Exception.Response.StatusCode.Value__}
 }
 else {
     Write-CustomVerbose -Message "Script hasn't completed successfully"
