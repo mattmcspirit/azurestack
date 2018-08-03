@@ -75,7 +75,7 @@
     },
     "vmExtensionScriptLocation": {
       "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/",
+      "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/scripts/",
       "metadata": {
         "description": "File Server extension script Url"
       }
@@ -278,8 +278,8 @@
         "autoUpgradeMinorVersion": true,
         "settings": {
           "fileUris": [
-            "[concat(parameters('vmExtensionScriptLocation'), '/scripts/OnStartAzureVirtualMachineFileServer.ps1')]",
-            "[concat(parameters('vmExtensionScriptLocation'), '/scripts/fileserver.cr.zip')]"
+            "[concat(parameters('vmExtensionScriptLocation'), 'OnStartAzureVirtualMachineFileServer.ps1')]",
+            "[concat(parameters('vmExtensionScriptLocation'), 'fileserver.cr.zip')]"
           ]
         },
         "protectedSettings": {
