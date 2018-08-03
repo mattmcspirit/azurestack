@@ -400,6 +400,12 @@ try {
     # File Server Template
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json"
     $row.filename = "FileServerTemplate.json"; $row.path = "$templatePath"; $row.productName = "File Server template for deployment"; $Table.Rows.Add($row)
+    # File Server PowerShell Script
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/scripts/OnStartAzureVirtualMachineFileServer.ps1"
+    $row.filename = "OnStartAzureVirtualMachineFileServer.ps1"; $row.path = "$scriptPath"; $row.productName = "File Server script for deployment"; $Table.Rows.Add($row)
+    # File Server DSC zip Script
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/templates/FileServer/scripts/fileserver.cr.zip"
+    $row.filename = "fileserver.cr.zip"; $row.path = "$scriptPath"; $row.productName = "File Server DSC zip for deployment"; $Table.Rows.Add($row)
     # App Service Helper Scripts
     $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
     $row.filename = "appservicehelper.zip"; $row.path = "$appServicePath"; $row.productName = "App Service Resource Provider Helper files"; $Table.Rows.Add($row)
