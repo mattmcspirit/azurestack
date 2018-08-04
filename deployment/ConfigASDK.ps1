@@ -2500,12 +2500,12 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
 
             $session = New-PSSession -Name InstallMSSQLRP
-                Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
-                    Set-Location "$Using:ASDKpath\databases\SQL"
-                    .\DeploySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd
-                }
-                Remove-PSSession -Name InstallMSSQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-                Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
+            Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
+                Set-Location "$Using:ASDKpath\databases\SQL"
+                .\DeploySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd
+            }
+            Remove-PSSession -Name InstallMSSQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -3290,6 +3290,9 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             if ($deploymentMode -eq "Online") {
+                if (!$([System.IO.Directory]::Exists("$ASDKpath\appservice"))) {
+                    New-Item -Path "$ASDKpath\appservice" -ItemType Directory -Force | Out-Null
+                }
                 # Install App Service To be added
                 Write-CustomVerbose -Message "Downloading App Service Installer"
                 Set-Location "$ASDKpath\appservice"
