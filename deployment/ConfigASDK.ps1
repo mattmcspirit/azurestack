@@ -2380,6 +2380,10 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             Write-CustomVerbose -Message "Downloading and installing MySQL Resource Provider"
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
+            if (!$([System.IO.Directory]::Exists("$ASDKpath\databases"))) {
+                New-Item -Path "$ASDKpath\databases" -ItemType Directory -Force | Out-Null
+            }
+
             if ($deploymentMode -eq "Online") {
                 # Cleanup old folder
                 Remove-Item "$asdkPath\databases\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
@@ -2396,7 +2400,6 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             Set-Location "$ASDKpath\databases"
             Expand-Archive "$ASDKpath\databases\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
-            Set-Location "$ASDKpath\databases\MySQL"
 
             # Define the additional credentials for the local virtual machine username/password and certificates password
             $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
@@ -2405,7 +2408,8 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             if ($deploymentMode -eq "Online") {
                 $session = New-PSSession -Name InstallMySQLRP
                 Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
-                    .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
+                    Set-Location "$Using:ASDKpath\databases\MySQL"
+                    .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -AcceptLicense
                 }
                 Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
@@ -2416,7 +2420,8 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
                 $session = New-PSSession -Name InstallMySQLRP
                 Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd, $dependencyFilePath -ScriptBlock {
-                    .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -DependencyFilesLocalPath $dependencyFilePath -AcceptLicense
+                    Set-Location "$Using:ASDKpath\databases\MySQL"
+                    .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -DependencyFilesLocalPath $Using:dependencyFilePath -AcceptLicense
                 }
                 Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
@@ -2470,6 +2475,10 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             Write-CustomVerbose -Message "Downloading and installing SQL Server Resource Provider"
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
+            if (!$([System.IO.Directory]::Exists("$ASDKpath\databases"))) {
+                New-Item -Path "$ASDKpath\databases" -ItemType Directory -Force | Out-Null
+            }
+
             if ($deploymentMode -eq "Online") {
                 # Cleanup old folder
                 Remove-Item "$asdkPath\databases\SQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
@@ -2486,11 +2495,17 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             Set-Location "$ASDKpath\databases\"
             Expand-Archive "$ASDKpath\databases\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
-            Set-Location "$ASDKpath\databases\SQL"
 
             # Define the additional credentials for the local virtual machine username/password and certificates password
             $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
-            .\DeploySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd
+
+            $session = New-PSSession -Name InstallMSSQLRP
+                Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
+                    Set-Location "$Using:ASDKpath\databases\SQL"
+                    .\DeploySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd
+                }
+                Remove-PSSession -Name InstallMSSQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
