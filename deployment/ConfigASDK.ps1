@@ -4074,7 +4074,7 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     # Will attempt multiple times as sometimes it fails
     $ASDKpath = "$downloadPath\ASDK"
     $i = 1
-    While ($i -le 3) {
+    While ($i -le 5) {
         Write-CustomVerbose -Message "Cleanup Attempt: $i"
         Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
         Remove-Item "$AppServicePath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
