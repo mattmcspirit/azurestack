@@ -56,10 +56,10 @@ Firstly, **you must have already deployed the ASDK**. Secondly, for an **Azure A
 
 Offline/Disconnected Support - New in ASDK Configurator 1807
 ------------
-* Do you want to deploy your ASDK in an environment that **doesn't** have internet connectivity?
+* Do you want to deploy your ASDK in an environment that **doesn't have internet connectivity**?
 * Do you want to download the 5GB+ of required dependencies (Ubuntu image, Database resource providers, App Service binaries, JSON files etc) in advance of running the script?
 
-If you answered **yes** to any of those, then the new functionality introduced in the ASDK Configurator 1807 will be of interest to you!  There are however, some specific instructions associated with running in an offline/disconnected mode, and you should **[read the documentation](<../../README.md>)** for those scenarios.
+If you answered **yes** to any of those, then the new functionality introduced in the ASDK Configurator 1807 will be of interest to you!  There are however, some specific instructions associated with running in an offline/disconnected mode, and you should **[read the documentation](<../blob/offline/deployment/offline/README.md>)** for those scenarios.
 
 Step by Step Guidance (for internet-connected ASDK)
 ------------
