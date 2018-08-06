@@ -64,7 +64,7 @@ If you answered **yes** to any of those, then the new functionality introduced i
 Step by Step Guidance (for internet-connected ASDK)
 ------------
 
-#### Step 1 - Download the ConfigASDK.ps1 script ####
+### Step 1 - Download the ConfigASDK.ps1 script ###
 The first step in the process is to create a local folder on the ASDK host, and then download the ConfigASDK.ps1.
 
 * Deploy your ASDK
@@ -81,7 +81,7 @@ Set-Location "C:\ConfigASDK"
 Invoke-Webrequest http://bit.ly/configasdk -UseBasicParsing -OutFile ConfigASDK.ps1
 ```
 
-#### Step 2 - Run the ConfigASDK.ps1 script ####
+### Step 2 - Run the ConfigASDK.ps1 script ###
 With the script downloaded successfully, you can move on to running the script. Below, you will find a number of examples to help you run the script, depending on your scenario. Before you use the examples, please read the general guidance below:
 
 **General Guidance**
@@ -168,7 +168,7 @@ Assuming the script has completed successfully, after **deployments that use Azu
 
 The script does open the browser to prompt you to perform these tasks, but for more information, go here: <https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-post-deploy#activate-the-administrator-and-tenant-portals>
 
-#### Troubleshooting & Improvements
+### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
 
 Likewise, if you are awesome at PowerShell, or Linux scripting, or would like to improve the solution, let me know, and we can collaborate to improve the overall project!
