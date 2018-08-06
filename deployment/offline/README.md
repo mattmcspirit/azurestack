@@ -75,6 +75,8 @@ There are certain combinations that cannot work, for instance, choosing Azure AD
 
 **NOTE** - when providing the zip file path, you **do not** have to provide the Windows Server 2016 ISO path. The script assumes the ISO file is contained within your zip file and will be located automatically.
 
+**NOTE** - If you have run the ASDK Configurator successfully on this host before, you may have artifacts left over in your -downloadPath that can affect the next deployment, so please remove any existing files and folders from within your -downloadPath before running the ConfigASDK.ps1 script.
+
 Usage Examples:
 -------------
 **General Guidance**
