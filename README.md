@@ -1,13 +1,13 @@
-Azure Stack Development Kit Configurator 1805.3
+Azure Stack Development Kit Configurator 1807
 ==============
 
 Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
-* ASDK build **1.1805.1.47 (1805) and 20180513.1 (1804)**
+* ASDK build **1.1807.1.47 (1807) and 1.1805.1.47 (1805)**
 * Azure Stack PowerShell Module **1.3.0**
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1805 and 1804, both with Azure Stack PowerShell 1.3.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1807 and 1805, both with Azure Stack PowerShell 1.3.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
@@ -17,6 +17,7 @@ The purpose of this ConfigASDK.ps1 script is to automate as much as possible, th
 
 This includes:
 * Validates all input parameters
+* Installs Azure Stack PowerShell and AzureRM modules - **NEW in 1807!**
 * Ensures password for VMs meets complexity required for App Service installation
 * Updated password expiration (180 days)
 * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
@@ -24,7 +25,7 @@ This includes:
 * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
 * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
 * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
-* Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images.
+* Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
 * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
 * Creates VM Scale Set gallery item
 * MySQL Resource Provider installation
@@ -45,43 +46,29 @@ This includes:
 * Transcript Log for errors and troubleshooting
 * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
 * Stores script output in a ConfigASDKOutput.txt, for future reference
-* Supports usage in offline/disconnected environments.
+* Supports usage in offline/disconnected environments - **NEW in 1807!**
 
-Additionally, if you encounter an issue, try rerunning the script with the same command you used to run it previously.  The script is written in such a way that it shouldn't try to rerun previously completed steps.
+Additionally, if you encounter an issue, try re-running the script with the same command you used to run it previously. The script is written in such a way that it shouldn't try to rerun previously completed steps.
 
 Important Considerations
 ------------
-Firstly, **you must have already deployed the ASDK**. The current version of the ConfigASDK.ps1 script **relies** on your ASDK host having an internet connection. During the execution, the script will download a number of files from the internet, including the Azure Stack Tools, Ubuntu Server 16.04 VHD, Windows Updates for the Windows Server image creation process, and more. Future versions of the ConfigASDK.ps1 script may include complete offline support.
+Firstly, **you must have already deployed the ASDK**. Secondly, for an **Azure AD deployment of the ASDK** (or if you want use ConfigASDK.ps1 with an ADFS deployment of the ASDK, but **register** it to Azure), to run the ConfigASDK.ps1 script, you need to be using a true **organizational account**, such as admin@contoso.onmicrosoft.com or admin@contoso.com, and this account should have global admin credentials for the specified Azure AD directory. Even if you have a non-organizational account, such as an outlook.com account, that has the right level of privilege in Azure AD, the ConfigASDK.ps1 script **uses a -Credential switch for non-interactive login, which doesn’t work with non-organizational accounts**. You will receive an error.
 
-Secondly, for an **Azure AD deployment of the ASDK** (or if you want use ConfigASDK.ps1 with an ADFS deployment of the ASDK, but **register** it to Azure), to run the ConfigASDK.ps1 script, you need to be using a true **organizational account**, such as admin@contoso.onmicrosoft.com or admin@contoso.com, and this account should have global admin credentials for the specified Azure AD directory. Even if you have a non-organizational account, such as an outlook.com account, that has the right level of privilege in Azure AD, the ConfigASDK.ps1 script **uses a -Credential switch for non-interactive login, which doesn’t work with non-organizational accounts**. You will receive an error.
-
-Instructions
+Offline/Disconnected Support - New in ASDK Configurator 1807
 ------------
-#### Install PowerShell for Azure Stack ####
+* Do you want to deploy your ASDK in an environment that **doesn't** have internet connectivity?
+* Do you want to download the 5GB+ of required dependencies (Ubuntu image, Database resource providers, App Service binaries, JSON files etc) in advance of running the script?
+
+If you answered **yes** to any of those, then the new functionality introduced in the ASDK Configurator 1807 will be of interest to you!  There are however, some specific instructions associated with running in an offline/disconnected mode, and you should **[read the documentation](<../../issues>)** for those scenarios.
+
+Step by Step Guidance (for internet-connected ASDK)
+------------
+
+#### Step 1 - Download the ConfigASDK.ps1 script ####
+The first step in the process is to create a local folder on the ASDK host, and then download the ConfigASDK.ps1.
 
 * Deploy your ASDK
 * Once complete, login as azurestack\azurestackadmin on your ASDK host.
-* Open an elevated PowerShell window and run the following script to install PowerShell for Azure Stack:
-
-```powershell
-Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
-Uninstall-Module AzureRM.AzureStackAdmin -Force -ErrorAction Continue
-Uninstall-Module AzureRM.AzureStackStorage -Force -ErrorAction Continue
-Uninstall-Module -Name AzureStack -Force -ErrorAction Continue
-
-# Install the AzureRM.Bootstrapper module. Select Yes when prompted to install NuGet.
-Install-Module -Name AzureRm.BootStrapper
-
-# Install and import the API Version Profile required by Azure Stack into the current PowerShell session.
-Use-AzureRmProfile -Profile 2017-03-09-profile -Force
-Install-Module -Name AzureStack -RequiredVersion 1.3.0
-```
-
-* Detailed instructions for installing the PowerShell for Azure Stack can be found here: <https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install>
-* Once completed successfully, close your PowerShell console window.
-
-#### Download the ConfigASDK.ps1 script ####
-
 * Open an elevated PowerShell window and run the following script to download the ConfigASDK.ps1 file:
 
 ```powershell
@@ -94,22 +81,24 @@ Set-Location "C:\ConfigASDK"
 Invoke-Webrequest http://bit.ly/configasdk -UseBasicParsing -OutFile ConfigASDK.ps1
 ```
 
+#### Step 2 - Run the ConfigASDK.ps1 script ####
+With the script downloaded successfully, you can move on to running the script. Below, you will find a number of examples to help you run the script, depending on your scenario. Before you use the examples, please read the general guidance below:
+
+**General Guidance**
+* For the **-azureDirectoryTenantName**, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
+* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files.
+* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files.
+* **-azureStackAdminPwd** is the password you used when deploying your ASDK.
+* **-VMpwd** is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
+* **-azureAdUsername** and **-azureAdPwd** are the *Service Administrator* credentials you used when you deployed your ASDK host (in Azure AD connected mode)
+* Use the **-registerASDK** flag to instruct the script to register your ASDK to Azure.
+* Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK.
+* If you specify -registerASDK but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials.
+
 Usage Examples:
 -------------
 
-**General Guidance**
-* For the **-azureDirectoryTenantName**, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that
-* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files
-* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
-* **-azureStackAdminPwd** is the password you used when deploying your ASDK
-* **-VMpwd** is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
-* **-azureAdUsername** and **-azureAdPwd** are the *Service Administrator* credentials you used when you deployed your ASDK host (in Azure AD connected mode)
-* Use the **-registerASDK** flag to instruct the script to register your ASDK to Azure
-* Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK
-* If you specify -registerASDK but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials
-
-**Scenario 1** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use the same Azure AD credentials
-as you used when you deployed your ASDK.
+**Scenario 1** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use the same Azure AD credentials as you used when you deployed your ASDK:
 
 ```powershell
 .\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
@@ -155,7 +144,7 @@ as you used when you deployed your ASDK.
 -azureStackAdminPwd "Passw0rd123!" -VMpwd "Passw0rd123!"
 ```
 
-Optional Actions - New in ASDK Configurator 1805
+Optional Actions
 ----------------
 
 Use the following switches to skip deployment of additional Resource Providers, or host customization. Note, if you don't specify these switches, the Resource Provider installation/customization will be performed as part of the deployment.
