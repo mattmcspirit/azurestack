@@ -1,22 +1,31 @@
-ASDK Offline Dependencies Downloader 1805.3
+ASDK Offline Dependencies Downloader 1807
 ==============
+
+Who is this for?
+-----------
+* Do you want to deploy your ASDK in an environment that doesn't have internet connectivity?
+* Do you want to download the 5GB+ of required dependencies (Ubuntu image, Database resource providers, App Service binaries, JSON files etc) in advance of running the script?
+
+If you answered **Yes** to either of those questions, read on....
 
 Version Compatibility
 -----------
 The current version of the ConfigASDKdependencies.ps1 script has been **tested with the following versions**:
-* ASDK Configurator (ConfigASDK.ps1) **1805.3**
+* ASDK Configurator (ConfigASDK.ps1) **1807 and 1805.3**
 
 Description
 -----------
-The ASDK Configurator script automates the installation of a variety of post-deployment tools, images, resource providers and more. However, the script relies on your ASDK host having an internet connection to download the necessary files. By using the Azure Stack Development Kit Offline Dependencies Downloader, you can automate the download of all of the necessary components required by the ASDK Configurator, and zips them up into a convenient single package, ready to be imported, extracted and used by the ASDK Configurator script.
+The ASDK Configurator script automates the installation of a variety of post-deployment tools, images, resource providers and more. However, the script relies on your ASDK host having an internet connection to download the necessary files. By using the ASDK Offline Dependencies Downloader, you can automate the download of all of the necessary components required by the ASDK Configurator, and zips them up into a convenient single package, ready to be imported, extracted and used by the main ASDK Configurator script.
 
 Important Considerations
 ------------
 The ASDK Offline Dependencies Downloader **requires at least PowerShell 5.0**. This is built into Windows 10, and Windows Server 2016 and is available for other platforms here: <https://go.microsoft.com/fwlink/?linkid=830436>.  The only other requirement for the machine where you will download the dependency files, is that it **requires an internet connection**, which, goes without saying, really.
 
-Instructions
+Step by Step Guidance
 ------------
-To download the ASDK Offline Dependencies Downloader, **open an administrative PowerShell console**, and run the following:
+
+#### Step 1 - Download the ConfigASDKdependencies.ps1 script ####
+**On an internet-connected machine**, to download the ASDK Offline Dependencies Downloader, **open an administrative PowerShell console**, and run the following commands.  You can change the -Path to a different file path on your machine if you prefer.
 
 ```powershell
 # Create directory on the root drive.
@@ -28,7 +37,9 @@ Set-Location "C:\ConfigASDKfiles"
 Invoke-Webrequest http://bit.ly/asdkoffline -UseBasicParsing -OutFile ConfigASDKdependencies.ps1
 ```
 
-Once you've downloaded the script, you can run it using the following guidance. The length of time the script takes to execute will depend on your internet connection speed, and the speed of you local storage.
+Once you've downloaded the script, you can run it using the following guidance. The length of time the script takes to execute will depend on your internet connection speed, and the speed of you local storage.  The script will download the required dependencies, such as an Ubuntu image, Database resource providers, App Service binaries and more. It will also grab your Windows Server 2016 ISO file, and zip them all up into a convenient zip file.
+
+#### Step 2 - Run the ConfigASDKdependencies.ps1 script ####
 
 Usage Example:
 -------------
@@ -39,7 +50,7 @@ Usage Example:
 ```
 
 **General Guidance**
-* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 10GB of files
+* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 15GB of files
 * **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
 
 The script will create a folder structure within your chosen **downloadPath**, and will create a copy of your ISO file, and include this within the download path also. By the end of the process, your download path will contain items (and subdirectories etc.):
