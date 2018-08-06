@@ -5,6 +5,7 @@
     The purpose of this script is to automate as much as possible post deployment tasks in Azure Stack Development Kit
     This includes:
         * Supports deployment in an internet-disconnected environment
+        * Installs AzureRM and Azure Stack PowerShell modules
         * Validates all input parameters
         * Ensures password for VMs meets complexity required for App Service installation
         * Updated password expiration (180 days)
