@@ -1,4 +1,4 @@
-ASDK Offline Dependencies Downloader 1807
+ASDK Configurator 1807 | Offline Mode
 ==============
 
 Who is this for?
@@ -37,7 +37,7 @@ Set-Location "C:\ConfigASDKfiles"
 Invoke-Webrequest http://bit.ly/asdkoffline -UseBasicParsing -OutFile ConfigASDKdependencies.ps1
 ```
 
-Once you've downloaded the script, you can run it using the following guidance. The length of time the script takes to execute will depend on your internet connection speed, and the speed of you local storage.  The script will download the required dependencies, such as an Ubuntu image, Database resource providers, App Service binaries and more. It will also grab your Windows Server 2016 ISO file, and zip them all up into a convenient zip file.
+Once you've downloaded the script, you can run it using the following guidance. The length of time the script takes to execute will depend on your internet connection speed, and the speed of you local storage. In my lab, on relatively modern hardware, with an 88Mbps internet connection (according to Fast.com), it took 31 minutes to complete the process. The script will download the required dependencies, such as an Ubuntu image, Database resource providers, App Service binaries and more. It will also grab your Windows Server 2016 ISO file, and zip them all up into a convenient zip file.
 
 ### Step 2 - Run the ConfigASDKdependencies.ps1 script ###
 
@@ -125,7 +125,7 @@ Usage Examples:
 
 ### Offline Scenarios
 
-**Scenario 6** - This is a **disconnected scenario**. You cannot use Azure AD, so you are using ADFS for authentication. You **cannot** register the ASDK to Azure as part of the automated process as you have no internet connection. You have provided a valid -configAsdkOfflineZipPath:. Also, the ASDK host will not be customized, as this requires Chocolatey binaries which are pulled from the internet. This may be addressed in a future update to the ASDK Configurator.
+**Scenario 6** - This is a **disconnected scenario**. You **cannot** use Azure AD, so you are using ADFS for authentication. You **cannot** register the ASDK to Azure as part of the automated process as you have no internet connection. You have provided a valid -configAsdkOfflineZipPath:. Also, the ASDK host will **not** be customized, as this requires Chocolatey binaries which are pulled from the internet. This may be addressed in a future update to the ASDK Configurator.
 
 ```powershell
 .\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -configAsdkOfflineZipPath "D:\ConfigASDKfiles.zip" `
