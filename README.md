@@ -4,7 +4,7 @@ Azure Stack Development Kit Configurator 1807
 Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
-* ASDK build **1.1807.1.47 (1807) and 1.1805.1.47 (1805)**
+* ASDK build **1.1807.X.XX (1807) and 1.1805.1.47 (1805)**
 * Azure Stack PowerShell Module **1.3.0**
 
 **IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1807 and 1805, both with Azure Stack PowerShell 1.3.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
@@ -59,7 +59,7 @@ Offline/Disconnected Support - New in ASDK Configurator 1807
 * Do you want to deploy your ASDK in an environment that **doesn't** have internet connectivity?
 * Do you want to download the 5GB+ of required dependencies (Ubuntu image, Database resource providers, App Service binaries, JSON files etc) in advance of running the script?
 
-If you answered **yes** to any of those, then the new functionality introduced in the ASDK Configurator 1807 will be of interest to you!  There are however, some specific instructions associated with running in an offline/disconnected mode, and you should **[read the documentation](<../../issues>)** for those scenarios.
+If you answered **yes** to any of those, then the new functionality introduced in the ASDK Configurator 1807 will be of interest to you!  There are however, some specific instructions associated with running in an offline/disconnected mode, and you should **[read the documentation](<../../README.md>)** for those scenarios.
 
 Step by Step Guidance (for internet-connected ASDK)
 ------------
