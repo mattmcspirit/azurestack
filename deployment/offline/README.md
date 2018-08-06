@@ -59,7 +59,7 @@ The script will create a folder structure within your chosen **downloadPath**, a
 ### Step 3 - Copy files to target ASDK host ###
 Of the files produced in the previous step, you should copy the **ConfigASDKfiles.zip** file and the **ConfigASDK.ps1** script to your target ASDK host. For my examples, I've copied my ConfigASDK.ps1 and ConfigASDKfiles.zip to my D:\, as shown below:
 
-![Folder structure](media/AzureStackFolder.jpg)
+![Folder structure](media/AzureStackFolder.png)
 
 ### Step 4 - Run the ConfigASDK.ps1 script ###
 With your ConfigASDKfiles.zip and ConfigASDK.ps1 files copied to your ASDK host, you can now run the main ConfigASDK.ps1 script to customize your ASDK host.  When the ConfigASDK.ps1 script runs, it will now make 2 important checks.
