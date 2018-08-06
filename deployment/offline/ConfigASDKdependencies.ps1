@@ -271,28 +271,28 @@ try {
     ### we download them here, and upload them to local Azure Stack storage as part of the ASDK Configurator
 
     # MySQL Offline Dependency #1
-    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/"
+    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/" -UseBasicParsing
     $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libaio*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") -and ($_.href -notlike "*dbg*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
     $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
     $row.filename = "mysql-libaio.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libaio dependency"; $Table.Rows.Add($row)
 
     # MySQL Offline Dependency #2
-    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/"
+    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/" -UseBasicParsing
     $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libevent-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
     $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
     $row.filename = "mysql-libevent-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libevent dependency"; $Table.Rows.Add($row)
 
     # MySQL Offline Dependency #3
-    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/"
+    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/" -UseBasicParsing
     $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libmecab*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
     $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
     $row.filename = "mysql-libmecab.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libmecab dependency"; $Table.Rows.Add($row)
 
     # MySQL Offline Dependency #4
-    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/"
+    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/" -UseBasicParsing
     $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-client*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
     $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
@@ -331,48 +331,48 @@ try {
     ### we download them here, and upload them to local Azure Stack storage as part of the ASDK Configurator
 
     # SQL Server 2017 Main Binary
-    $WebResponse = Invoke-WebRequest "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/"
+    $WebResponse = Invoke-WebRequest "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/" -UseBasicParsing
     $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mssql-server*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
     $downloadFileURL = "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
     $row.filename = "mssql-server.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 binary"; $Table.Rows.Add($row)
 
     # SQL Server 2017 Offline Dependency #1
-    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/j/jemalloc/"
+    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/j/jemalloc/" -UseBasicParsing
     $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libjemalloc1*amd64.deb") -and ($_.href -notlike "*dbg*amd64.deb") -and ($_.href -notlike "*ubuntu*amd64.deb")} | Sort-Object | Select-Object -Last 1).href.ToString()
     $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/j/jemalloc/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
     $row.filename = "mssql-libjemalloc.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libjemalloc dependency"; $Table.Rows.Add($row)
 
     # SQL Server 2017 Offline Dependency #2
-    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/libc/libc++/"
-    $fileToDownload = $($WebResponse.Links | Select-Object innerText | Where-Object {($_.innerText -like "libc++1*amd64.deb") -and ($_.innerText -notlike "*svn*amd64.deb") -and ($_.innerText -notlike "*ubuntu*amd64.deb")} | Sort-Object | Select-Object -Last 1).innerText.ToString()
+    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/libc/libc++/" -UseBasicParsing
+    $fileToDownload = $($($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libc%2B%2B1*amd64.deb") -and ($_.href -notlike "*svn*amd64.deb") -and ($_.href -notlike "*ubuntu*amd64.deb")} | Sort-Object | Select-Object -Last 1).href.ToString()) -replace "%2B", '+'
     $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/libc/libc++/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
     $row.filename = "mssql-libc.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libc dependency"; $Table.Rows.Add($row)
 
     # SQL Server 2017 Offline Dependency #3
-    $fileToDownload = $($WebResponse.Links | Select-Object innerText | Where-Object {($_.innerText -like "libc++abi1*amd64.deb")} | Sort-Object | Select-Object -Last 1).innerText.ToString()
+    $fileToDownload = $($($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libc%2B%2Babi1*amd64.deb")} | Sort-Object | Select-Object -Last 1).href.ToString()) -replace "%2B", '+'
     $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/libc/libc++/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
     $row.filename = "mssql-libcabi.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcabi dependency"; $Table.Rows.Add($row)
 
     # SQL Server 2017 Offline Dependency #4
-    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/g/gdb/"
+    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/g/gdb/" -UseBasicParsing
     $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "gdb_7*amd64.deb")} | Sort-Object | Select-Object -Last 1).href.ToString()
     $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/g/gdb/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
     $row.filename = "mssql-gdb.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 gdb dependency"; $Table.Rows.Add($row)
 
     # SQL Server 2017 Offline Dependency #5
-    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/s/sssd/"
+    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/s/sssd/" -UseBasicParsing
     $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libsss-nss-idmap0*amd64.deb")} | Sort-Object | Select-Object -Last 1).href.ToString()
     $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/s/sssd/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
     $row.filename = "mssql-libsss.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsss dependency"; $Table.Rows.Add($row)
 
     # SQL Server 2017 Offline Dependency #6
-    $WebResponse = Invoke-WebRequest "http://mirrors.kernel.org/ubuntu/pool/main/b/babeltrace/"
+    $WebResponse = Invoke-WebRequest "http://mirrors.kernel.org/ubuntu/pool/main/b/babeltrace/" -UseBasicParsing
     $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libbabeltrace1_1.3*amd64.deb")} | Sort-Object | Select-Object -Last 1).href.ToString()
     $downloadFileURL = "http://mirrors.kernel.org/ubuntu/pool/main/b/babeltrace/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
@@ -385,7 +385,7 @@ try {
     $row.filename = "mssql-libbabeltrace-ctf1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace-ctf1 dependency"; $Table.Rows.Add($row)
 
     # SQL Server 2017 Offline Dependency #8
-    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/c/curl/"
+    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/c/curl/" -UseBasicParsing
     $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libcurl3_7.4*amd64.deb")} | Sort-Object href -Descending | Select-Object -Last 1).href.ToString()
     $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/c/curl/$fileToDownload"
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
@@ -450,22 +450,22 @@ Write-CustomVerbose -Message "Starting download of the App Service binaries"
 Start-Process -FilePath .\appservice.exe -ArgumentList "/quiet /log $appServiceLogPath CreateOfflineInstallationPackage OfflineInstallationPackageFile=$appServicePath\appserviceoffline.zip" -PassThru
 
 while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-    Write-CustomVerbose -Message "App Service ZIP file being created. This process generally takes a few minutes, so please be patient. Checking again in 10 seconds"
+    Write-CustomVerbose -Message "App Service offline zip file being created. This process generally takes a few minutes, so please be patient. Checking again in 10 seconds"
     Start-Sleep -Seconds 10
 }
 if (!(Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-    Write-CustomVerbose -Message "App Service ZIP file creation has completed."
+    Write-CustomVerbose -Message "App Service offline zip file creation has completed."
 }
 
 $appServiceErrorCode = "Exit code: 0xffffffff"
 Write-CustomVerbose -Message "Checking App Service log file for issues"
 if ($(Select-String -Path $appServiceLogPath -Pattern "$appServiceErrorCode" -SimpleMatch -Quiet) -eq "True") {
-    Write-CustomVerbose -Message "App Service ZIP file creation failed with $appServiceErrorCode"
+    Write-CustomVerbose -Message "App Service offline zip file creation failed with $appServiceErrorCode"
     Write-CustomVerbose -Message "An error has occurred during creation. Please check the App Service log at $appServiceLogPath"
-    throw "App Service ZIP file creation failed with $appServiceErrorCode. Please check the App Service log at $appServiceLogPath"
+    throw "App Service offline zip file creation failed with $appServiceErrorCode. Please check the App Service log at $appServiceLogPath"
 }
 else {
-    Write-CustomVerbose -Message "App Service log file indicates successful ZIP file creation"
+    Write-CustomVerbose -Message "App Service log file indicates successful offline zip file creation"
 }
 
 ### Download PowerShell ################################################################################################################################
