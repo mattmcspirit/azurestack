@@ -466,6 +466,11 @@ if ($(Select-String -Path $appServiceLogPath -Pattern "$appServiceErrorCode" -Si
 }
 else {
     Write-CustomVerbose -Message "App Service log file indicates successful offline zip file creation"
+    $i = 1
+    While ($i -le 5) {
+        Remove-Item "$appServiceLogPath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        $i++
+    }
 }
 
 ### Download PowerShell ################################################################################################################################
