@@ -77,6 +77,8 @@ There are certain combinations that cannot work, for instance, choosing Azure AD
 
 **NOTE** - If you have run the ASDK Configurator successfully on this host before, you may have artifacts left over in your -downloadPath that can affect the next deployment, so please remove any existing files and folders from within your -downloadPath before running the ConfigASDK.ps1 script.
 
+![Existing files](media/AsdkFolderCleanup.png)
+
 Usage Examples:
 -------------
 **General Guidance**
