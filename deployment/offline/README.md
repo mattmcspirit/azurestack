@@ -15,17 +15,17 @@ The current version of the ConfigASDKdependencies.ps1 script has been **tested w
 
 Description
 -----------
-The ASDK Configurator script automates the installation of a variety of post-deployment tools, images, resource providers and more. However, the script relies on your ASDK host having an internet connection to download the necessary files. By using the ASDK Offline Dependencies Downloader, you can automate the download of all of the necessary components required by the ASDK Configurator, and zips them up into a convenient single package, ready to be imported, extracted and used by the main ASDK Configurator script.
+The ASDK Configurator script automates the installation of a variety of post-deployment tools, images, resource providers and more. However, the script relies on your ASDK host having an internet connection to download the necessary files. By using the ConfigASDKdependencies.ps1 script, you can automate the download of all of the necessary components required by the ASDK Configurator, and zips them up into a convenient single package, ready to be imported, extracted and used by the main ASDK Configurator script.
 
 Important Considerations
 ------------
-The ASDK Offline Dependencies Downloader **requires at least PowerShell 5.0**. This is built into Windows 10, and Windows Server 2016 and is available for other platforms here: <https://go.microsoft.com/fwlink/?linkid=830436>.  The only other requirement for the machine where you will download the dependency files, is that it **requires an internet connection**, which, goes without saying, really.
+The ConfigASDKdependencies.ps1 script **requires at least PowerShell 5.0**. This is built into Windows 10, and Windows Server 2016 and is available for other platforms here: <https://go.microsoft.com/fwlink/?linkid=830436>.  The only other requirement for the machine where you will download the dependency files, is that it **requires an internet connection**, which, goes without saying, really.
 
 Step by Step Guidance - Download Dependencies
 ------------
 
 ### Step 1 - Download the ConfigASDKdependencies.ps1 script ###
-**On an internet-connected machine**, to download the ASDK Offline Dependencies Downloader, **open an administrative PowerShell console**, and run the following commands.  You can change the -Path to a different file path on your machine if you prefer.
+**On an internet-connected machine**, to download the ConfigASDKdependencies.ps1 script, **open an administrative PowerShell console**, and run the following commands.  You can change the -Path to a different file path on your machine if you prefer.
 
 ```powershell
 # Create directory on the root drive.
