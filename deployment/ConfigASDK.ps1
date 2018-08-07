@@ -156,9 +156,9 @@ param (
     [string]$configAsdkOfflineZipPath
 )
 
-$VerbosePreference = "Continue"
-$ErrorActionPreference = 'Stop'
-$ProgressPreference = 'SilentlyContinue'
+$Global:VerbosePreference = "Continue"
+$Global:ErrorActionPreference = 'Stop'
+$Global:ProgressPreference = 'SilentlyContinue'
 try {Stop-Transcript | Out-Null} catch {}
 $scriptStep = ""
 
