@@ -97,6 +97,8 @@ With the script downloaded successfully, you can move on to running the script. 
 
 **NOTE** - If you have run the ASDK Configurator successfully on this host before, you may have artifacts left over in your -downloadPath that can affect the next deployment, so please remove any existing files and folders from within your -downloadPath before running the ConfigASDK.ps1 script.
 
+![Existing files](deployment/offline/media/AsdkFolderCleanup.png)
+
 Usage Examples:
 -------------
 
