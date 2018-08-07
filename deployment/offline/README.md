@@ -65,7 +65,7 @@ Of the files produced in the previous step, you should copy the **ConfigASDKfile
 With your ConfigASDKfiles.zip and ConfigASDK.ps1 files copied to your ASDK host, you can now run the main ConfigASDK.ps1 script to customize your ASDK host.  When the ConfigASDK.ps1 script runs, it will now make 2 important checks.
 
 1. Can this ASDK host reach the internet? - the script will run some basic internet connectivity tests
-2. Has the user specified a -configAsdkOfflineZipPath and a valid zip file?
+2. Has the user specified -configAsdkOfflineZipPath and a valid zip file?
 
 If the ASDK host can reach the internet, **and** the -configAsdkOfflineZipPath has been provided, the ASDK Configurator will operate in a **PartialOnline** mode, where it will use the zip file for most dependencies, but will grab a few pieces of extra information (some azpkg files, some scripts) from the internet when required.
 
