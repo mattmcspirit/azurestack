@@ -2812,7 +2812,7 @@ $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
-elseif (($deploymentMode -eq "PartialOnline" -or "Offline") -and ($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+elseif (($deploymentMode -eq "PartialOnline" -or "Offline") -and (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed"))) {
     try {
         # Firstly create the appropriate RG, storage account and container
         # Scan the $asdkPath\scripts folder and retrieve both files, add to an array, then upload to the storage account
@@ -2858,6 +2858,11 @@ elseif (($deploymentMode -eq "PartialOnline" -or "Offline") -and ($progress[$Row
             }
         }
         $offlineBaseURI = '{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
     }
     catch {
         Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
@@ -2869,7 +2874,7 @@ elseif (($deploymentMode -eq "PartialOnline" -or "Offline") -and ($progress[$Row
         return
     }
 }
-elseif ($deploymentMode -eq "Online" -or "PartialOnline") {
+elseif ($deploymentMode -eq "Online") {
     Write-CustomVerbose -Message "This is not an offline deployent, skipping step`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress[$RowIndex].Status = "Skipped"
