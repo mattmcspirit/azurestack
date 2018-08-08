@@ -2908,10 +2908,10 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.MySQL*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
 
             # Deploy a MySQL VM for hosting tenant db
-            if ($deploymentMode -eq "Online" -or "PartialOnline") {
+            if ($deploymentMode -eq "Online") {
                 $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
-            elseif ($deploymentMode -eq "Offline") {
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
                 $dbScriptBaseURI = $offlineBaseURI
                 # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
@@ -2969,10 +2969,10 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.MSSQL*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
 
             # Deploy a MySQL VM for hosting tenant db
-            if ($deploymentMode -eq "Online" -or "PartialOnline") {
+            if ($deploymentMode -eq "Online") {
                 $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
-            elseif ($deploymentMode -eq "Offline") {
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
                 $dbScriptBaseURI = $offlineBaseURI
                 # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
@@ -3236,10 +3236,10 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
             $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.MSSQL*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
 
-            if ($deploymentMode -eq "Online" -or "PartialOnline") {
+            if ($deploymentMode -eq "Online") {
                 $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
-            elseif ($deploymentMode -eq "Offline") {
+            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
                 $dbScriptBaseURI = $offlineBaseURI
                 # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
