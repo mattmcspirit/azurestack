@@ -1212,7 +1212,8 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             #Register Azure Stack
             $AzureContext = Get-AzureRmContext
             $registrationTime = $(Get-Date).ToString("MMdd-HHmmss")
-            Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "ASDKRegistration-$registrationTime"  -BillingModel Development -ErrorAction Stop
+            $asdkHostName = ($env:computername).ToLower()
+            Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "asdkreg-$asdkHostName-$registrationTime" -BillingModel Development -ErrorAction Stop
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
