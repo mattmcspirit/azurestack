@@ -1317,7 +1317,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
             $resources = Get-AzureRmResource
             $resource = $resources.resourcename
-            $registrations = @($resource | Where-Object {$_ -like "AzureStack*"})
+            $registrations = @($resource | Where-Object {$_ -like "asdkreg*" -or "AzureStack*"})
             if ($registrations.count -gt 1) {
                 $Registration = $registrations[0]
             }
@@ -2004,7 +2004,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
                 $resources = Get-AzureRmResource
                 $resource = $resources.resourcename
-                $registrations = @($resource | Where-Object {$_ -like "AzureStack*"})
+                $registrations = @($resource | Where-Object {$_ -like "asdkreg*" -or "AzureStack*"})
                 if ($registrations.count -gt 1) {
                     $Registration = $registrations[0]
                 }
