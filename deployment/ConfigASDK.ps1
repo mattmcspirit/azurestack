@@ -940,7 +940,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop
             Install-Module -Name AzureStack -RequiredVersion 1.3.0 -Force -ErrorAction Stop
         }
-        elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+        elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
             $SourceLocation = "$downloadPath\ASDK\PowerShell"
             $RepoName = "MyNuGetSource"
@@ -1568,7 +1568,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
-            elseif (($registerASDK -or !$registerASDK) -and ($deploymentMode -eq "PartialOnline" -or "Offline")) {
+            elseif (($registerASDK -or !$registerASDK) -and (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline"))) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
             $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
@@ -2133,7 +2133,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 }
             }
         }
-        elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+        elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $packageArray = @()
             $packageArray.Clear()
@@ -2210,7 +2210,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/VMSS/microsoft.vmss.1.3.6.azpkg"
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
             $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
@@ -2268,7 +2268,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
             $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
@@ -2325,7 +2325,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
             $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
@@ -2416,7 +2416,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $dependencyFilePath = New-Item -ItemType Directory -Path "$ASDKpath\databases\MySQL\Dependencies" -Force | ForEach-Object { $_.FullName }
                 $MySQLMSI = Get-ChildItem -Path "$ASDKpath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                 Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
@@ -2813,7 +2813,7 @@ $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
-elseif (($deploymentMode -eq "PartialOnline" -or "Offline") -and (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed"))) {
+elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) -and (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed"))) {
     try {
         # Firstly create the appropriate RG, storage account and container
         # Scan the $asdkPath\scripts folder and retrieve both files, add to an array, then upload to the storage account
@@ -2912,7 +2912,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             if ($deploymentMode -eq "Online") {
                 $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $dbScriptBaseURI = $offlineBaseURI
                 # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
@@ -2973,7 +2973,7 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             if ($deploymentMode -eq "Online") {
                 $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $dbScriptBaseURI = $offlineBaseURI
                 # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
@@ -3048,7 +3048,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             if ($deploymentMode -eq "Online") {
                 $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json"
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $templateFile = "mySqlHostingTemplate.json"
                 $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
             }
@@ -3110,7 +3110,7 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             if ($deploymentMode -eq "Online") {
                 $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json"
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $templateFile = "sqlHostingTemplate.json"
                 $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
             }
@@ -3173,7 +3173,7 @@ elseif ((!$skipAppService) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri $templateURI `
                     -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $templateFile = "FileServerTemplate.json"
                 $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
                 $configFilesURI = $offlineBaseUri
@@ -3240,7 +3240,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             if ($deploymentMode -eq "Online") {
                 $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $dbScriptBaseURI = $offlineBaseURI
                 # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
@@ -3312,7 +3312,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
                 $appServiceExeDownloadLocation = "$ASDKpath\appservice\appservice.exe"
                 DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 if (-not [System.IO.File]::Exists("$ASDKpath\appservice\appservicehelper.zip")) {
                     throw "Missing appservice.zip file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\appservicehelper.zip - Exiting process"
                 }
@@ -3610,7 +3610,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
                 $appServiceJsonDownloadLocation = "$AppServicePath\AppServicePreDeploymentSettings.json"
                 DownloadWithRetry -downloadURI "$appServiceJsonURI" -downloadLocation "$appServiceJsonDownloadLocation" -retries 10
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 if ([System.IO.File]::Exists("$ASDKpath\appservice\AppServicePreDeploymentSettings.json")) {
                     Write-CustomVerbose -Message "Located AppServicePreDeploymentSettings.json file"
                 }
@@ -3650,7 +3650,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             if ($deploymentMode -eq "Online") {
                 Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
             }
-            elseif ($deploymentMode -eq "PartialOnline" -or "Offline") {
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy OfflineInstallationPackageFile=$AppServicePath\appserviceoffline.zip UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
             }
 
