@@ -3,17 +3,10 @@
 
     The purpose of this script is to automate the download of all files and scripts required for installing all services on ASDK, that are to be
     configured by the ASDK Configurator.
-    This includes:
-        * Validates all input parameters
-        * Ensures password for VMs meets complexity required for App Service installation
-        * Updated password expiration (180 days)
-        * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
-        * Tools installation (Azure Stack Tools)
-        * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
 
 .VERSION
 
-    1805.2  Initial version, to align with current ASDK Configurator version.
+    1807  Initial version, to align with current ASDK Configurator version.
 
 .AUTHOR
 
