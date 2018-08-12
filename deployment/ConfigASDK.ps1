@@ -4092,6 +4092,19 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
+
+    if ([bool](Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose)) {
+        # Move log files to Completed folder - first check for 'Completed' folder, and create if not existing
+        if (!$([System.IO.Directory]::Exists("$downloadPath\Completed"))) {
+            New-Item -Path "$downloadPath\Completed" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
+        }
+        # Then create the folder that corresponds to this completed run
+        $CompletedDate = $(Get-Date).ToString("MMdd-HHmm")
+        New-Item -Path "$downloadPath\Completed\$CompletedDate" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
+        # Then move the files to this folder
+        Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$downloadPath\Completed\$CompletedDate" -ErrorAction SilentlyContinue -Verbose
+    }
+    
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     try {Invoke-WebRequest "http://bit.ly/asdksuccessrun" -UseBasicParsing -DisableKeepAlive | Out-Null } catch {$_.Exception.Response.StatusCode.Value__}
