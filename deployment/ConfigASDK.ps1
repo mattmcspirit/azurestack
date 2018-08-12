@@ -1571,15 +1571,26 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             elseif (($registerASDK -or !$registerASDK) -and (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline"))) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
-            Start-Sleep -Seconds 5
+            #$Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
+            #Start-Sleep -Seconds 5
             $Retries = 0
-            # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+            # Sometimes the gallery item doesn't get added successfully, so perform checks and attempt multiple uploads if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
-                Write-CustomVerbose -Message "$azpkgPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
-                Start-Sleep -Seconds 5
+                try {
+                    Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
+                    Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                    $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
+                }
+                catch {
+                    Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    Start-Sleep -Seconds 5
+                }
+            }
+            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
+                throw "Uploading gallery item failed after $Retries attempts. Exiting process."
+                Set-Location $ScriptLocation
+                return
             }
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
@@ -2090,10 +2101,21 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         $Retries = 0
                         # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
                         while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$($azpkg.name)"}) -and ($Retries++ -lt 20)) {
-                            Write-CustomVerbose -Message "$($azpkg.name) doesn't exist in the gallery. Upload attempt #$Retries"
-                            Write-CustomVerbose -Message "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
-                            $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction SilentlyContinue
-                            Start-Sleep -Seconds 5
+                            try {
+                                Write-CustomVerbose -Message "$($azpkg.name) doesn't exist in the gallery. Upload attempt #$Retries"
+                                Write-CustomVerbose -Message "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
+                                $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction SilentlyContinue
+                            }
+                            catch {
+                                Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
+                                Write-CustomVerbose -Message "$_.Exception.Message"
+                                Start-Sleep -Seconds 5
+                            }
+                        }
+                        if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$($azpkg.name)"}) -and ($Retries++ -ge 20)) {
+                            throw "Uploading gallery item failed after $Retries attempts. Exiting process."
+                            Set-Location $ScriptLocation
+                            return
                         }
                     }
                 }
@@ -2122,47 +2144,69 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         #Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Ignore
                         #Start-Sleep -Seconds 5
                         $Retries = 0
-                        # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+                        # Sometimes the gallery item doesn't get added, so perform checks and attempt multiple times if necessary
                         While (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$wsPackage"}) -and ($Retries++ -lt 20)) {
-                            Write-CustomVerbose -Message "$wsPackage doesn't exist in the gallery. Upload attempt #$Retries"
-                            Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
-                            $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction SilentlyContinue
-                            Start-Sleep -Seconds 5
+                            try {
+                                Write-CustomVerbose -Message "$wsPackage doesn't exist in the gallery. Upload attempt #$Retries"
+                                Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
+                                $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction SilentlyContinue
+                            }
+                            catch {
+                                Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
+                                Write-CustomVerbose -Message "$_.Exception.Message"
+                                Start-Sleep -Seconds 5
+                            }
                         }
-                    }   
+                        if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$wsPackage"}) -and ($Retries++ -ge 20)) {
+                            throw "Uploading gallery item failed after $Retries attempts. Exiting process."
+                            Set-Location $ScriptLocation
+                            return
+                        }
+                    }
                 }
             }
-        }
-        elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $packageArray = @()
-            $packageArray.Clear()
-            $packageArray = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include "*WindowsServer*.azpkg" -ErrorAction Stop
-            if (!$registerASDK) {
-                Write-CustomVerbose -Message "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
-            }
-            # Check for existing gallery items
-            foreach ($package in $packageArray) {
-                $wsPackage = $null
-                $wsPackage = (Get-AzsGalleryItem | Where-Object {$_.name -like "$($package.Basename)"} | Sort-Object CreatedTime -Descending | Select-Object -First 1)
-                if ($wsPackage) {
-                    Write-CustomVerbose -Message "Found the following existing package in your gallery: $($wsPackage.Identity) - No need to upload a new one"
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+                Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                $packageArray = @()
+                $packageArray.Clear()
+                $packageArray = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include "*WindowsServer*.azpkg" -ErrorAction Stop
+                if (!$registerASDK) {
+                    Write-CustomVerbose -Message "You chose not to register your Azure Stack to Azure. Checking for existing Windows Server gallery items"
                 }
-                # If no gallery items found, sideload from the extracted zip file.
-                else {
-                    $azpkgPackageName = $package.Basename
-                    Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
-                    Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
-                    $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
-                    #$Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
-                    #Start-Sleep -Seconds 5
-                    $Retries = 0
-                    # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-                    while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
-                        Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload attempt #$Retries"
-                        Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                        $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
-                        Start-Sleep -Seconds 5
+                # Check for existing gallery items
+                foreach ($package in $packageArray) {
+                    $wsPackage = $null
+                    $wsPackage = (Get-AzsGalleryItem | Where-Object {$_.name -like "$($package.Basename)"} | Sort-Object CreatedTime -Descending | Select-Object -First 1)
+                    if ($wsPackage) {
+                        Write-CustomVerbose -Message "Found the following existing package in your gallery: $($wsPackage.Identity) - No need to upload a new one"
+                    }
+                    # If no gallery items found, sideload from the extracted zip file.
+                    else {
+                        $azpkgPackageName = $package.Basename
+                        Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
+                        Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
+                        $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
+                        #$Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
+                        #Start-Sleep -Seconds 5
+                        $Retries = 0
+                        # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
+                        while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
+                            try {
+                                Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload attempt #$Retries"
+                                Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                                $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
+                            }
+                            catch {
+                                Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
+                                Write-CustomVerbose -Message "$_.Exception.Message"
+                                Start-Sleep -Seconds 5
+                            }
+                        }
+                        if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
+                            throw "Uploading gallery item failed after $Retries attempts. Exiting process."
+                            Set-Location $ScriptLocation
+                            return
+                        }
                     }
                 }
             }
@@ -2213,15 +2257,26 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
-            Start-Sleep -Seconds 5
+            #$Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
+            #Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
-                Write-CustomVerbose -Message "$azpkgPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
-                Start-Sleep -Seconds 5
+                try {
+                    Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
+                    Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                    $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
+                }
+                catch {
+                    Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    Start-Sleep -Seconds 5
+                }
+            }
+            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
+                throw "Uploading gallery item failed after $Retries attempts. Exiting process."
+                Set-Location $ScriptLocation
+                return
             }
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
@@ -2271,15 +2326,26 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
-            Start-Sleep -Seconds 5
+            #$Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
+            #Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
-                Write-CustomVerbose -Message "$azpkgPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
-                Start-Sleep -Seconds 5
+                try {
+                    Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
+                    Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                    $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
+                }
+                catch {
+                    Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    Start-Sleep -Seconds 5
+                }
+            }
+            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
+                throw "Uploading gallery item failed after $Retries attempts. Exiting process."
+                Set-Location $ScriptLocation
+                return
             }
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
@@ -2328,15 +2394,26 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-            $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
-            Start-Sleep -Seconds 5
+            #$Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
+            #Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
-                Write-CustomVerbose -Message "$azpkgPackageName wasn't added to the gallery successfully. Retry Attempt #$Retries"
-                Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
-                Start-Sleep -Seconds 5
+                try {
+                    Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
+                    Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                    $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
+                }
+                catch {
+                    Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
+                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    Start-Sleep -Seconds 5
+                }
+            }
+            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
+                throw "Uploading gallery item failed after $Retries attempts. Exiting process."
+                Set-Location $ScriptLocation
+                return
             }
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
