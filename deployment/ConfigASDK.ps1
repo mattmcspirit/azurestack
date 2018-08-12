@@ -2467,7 +2467,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 # Cleanup old folder
                 Remove-Item "$asdkPath\databases\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 # Download and Expand the MySQL RP files
-                $mySqlRpURI = "https://aka.ms/azurestackmysqlrp1804"
+                $mySqlRpURI = "https://aka.ms/azurestackmysqlrp"
                 $mySqlRpDownloadLocation = "$ASDKpath\databases\MySQL.zip"
                 DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
             }
@@ -2562,7 +2562,7 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 # Cleanup old folder
                 Remove-Item "$asdkPath\databases\SQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 # Download and Expand the SQL Server RP files
-                $sqlRpURI = "https://aka.ms/azurestacksqlrp1804"
+                $sqlRpURI = "https://aka.ms/azurestacksqlrp"
                 $sqlRpDownloadLocation = "$ASDKpath\databases\SQL.zip"
                 DownloadWithRetry -downloadURI "$sqlRpURI" -downloadLocation "$sqlRpDownloadLocation" -retries 10
             }
