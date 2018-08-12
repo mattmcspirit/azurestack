@@ -316,7 +316,7 @@ try {
     $row.filename = "mysql-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server dependency"; $Table.Rows.Add($row)
 
     # SQL Server Install Script
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/blob/master/deployment/scripts/install_MSSQL_Offline.sh"
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/install_MSSQL_Offline.sh"
     $row.filename = "install_MSSQL.sh"; $row.path = "$scriptPath"; $row.productName = "SQL Server Install Script"; $Table.Rows.Add($row)
 
     ### Grab the SQL Server 2017 for Ubuntu Offline Binaries - used when ASDK is deployed in a completely offline mode
