@@ -1318,11 +1318,17 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $resources = Get-AzureRmResource
             $resource = $resources.resourcename
             $registrations = @($resource | Where-Object {$_ -like "asdkreg*" -or "AzureStack*"})
+            Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
             if ($registrations.count -gt 1) {
                 $Registration = $registrations[0]
             }
-            else {
+            elseif ($registrations.count -eq 1) {
                 $Registration = $registrations
+            }
+            elseif ($registrations.count -lt 1) {
+                throw "No registration records found in your chosen Azure subscription. Please validate the success of your ASDK registration and ensure records have been created successfully."
+                Set-Location $ScriptLocation
+                return
             }
 
             # Retrieve the access token
@@ -2014,11 +2020,17 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $resources = Get-AzureRmResource
                 $resource = $resources.resourcename
                 $registrations = @($resource | Where-Object {$_ -like "asdkreg*" -or "AzureStack*"})
+                Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
                 if ($registrations.count -gt 1) {
                     $Registration = $registrations[0]
                 }
-                else {
+                elseif ($registrations.count -eq 1) {
                     $Registration = $registrations
+                }
+                elseif ($registrations.count -lt 1) {
+                    throw "No registration records found in your chosen Azure subscription. Please validate the success of your ASDK registration and ensure records have been created successfully."
+                    Set-Location $ScriptLocation
+                    return
                 }
 
                 # Retrieve the access token
