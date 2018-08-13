@@ -231,6 +231,9 @@ try {
     # Convert-WindowsImage.ps1 Script
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
     $row.filename = "Convert-WindowsImage.ps1"; $row.path = "$imagesPath"; $row.productName = "Convert-WindowsImage.ps1 VHD Creation Tool"; $Table.Rows.Add($row)
+    # VM Endpoint Aliases Doc
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/Aliases/aliases.json"
+    $row.filename = "aliases.json"; $row.path = "$imagesPath"; $row.productName = "VM aliases endpoint doc"; $Table.Rows.Add($row)
     # Windows Server DC AZPKG
     $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/Microsoft.WindowsServer2016Datacenter-ARM.1.0.0.azpkg"
     $row.filename = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2016 Datacenter Marketplace Package"; $Table.Rows.Add($row)
