@@ -30,6 +30,8 @@
         * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
         * Creates a Base Plan and Offer containing all deployed services
         * Creates a user subscription for the logged in tenant, and activates all resource providers
+        * Installs a selection of useful apps via Chocolatey (Putty, Chrome, VS Code, WinDirStat, WinSCP, Python3)
+        * Configures Python & Azure CLI for usage with ASDK
         * MySQL, SQL, App Service and Host Customization can be optionally skipped
         * Cleans up download folder to ensure clean future runs
         * Transcript Log for errors and troubleshooting
@@ -39,6 +41,7 @@
 .VERSION
 
     1807    Updated to provide support for offline deployments, using zip file containing pre-downloaded binaries, tools and scripts along with PS 1.4.0 support
+            Also added support for Azure CLI and Python configuration
     1805.2  Update to Windows Image creation to handle adding of KB4132216 to update Servicing Stack (for build 14393) for future updates
             (<https://support.microsoft.com/en-us/help/4132216>)
     1805.1  Updates to handling Azure subscriptions with multiple Azure AD tenants, and error handling for random Add-AzureRmVhd pipeline error,
