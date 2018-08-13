@@ -4013,6 +4013,52 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
             Write-CustomVerbose -Message "Installing latest version of Azure CLI with Chocolatey"
             choco install azure-cli
 
+            # Python
+            Write-CustomVerbose -Message "Installing latest version of Python for Windows"
+            choco install python
+            Write-CustomVerbose -Message "Upgrading pip"
+            python -m pip install -U pip
+            Write-CustomVerbose -Message "Installing certifi"
+            pip install certifi
+
+            # Configure Python Certs
+            Write-CustomVerbose -Message "Retrieving Azure Stack Root Authority certificate..." -Verbose
+            $cert = Invoke-Command -ComputerName "$env:computername" -ScriptBlock { Get-ChildItem cert:\currentuser\root | where-object {$_.Subject -like "*AzureStackSelfSignedRootCert*"} }
+
+            if ($cert -ne $null) {
+                if ($cert.GetType().IsArray) {
+                    $cert = $cert[0] # take any that match the subject if multiple certs were deployed
+                }
+                $certFilePath = "$env:userprofile\desktop\$env:computername" + "-CA.cer"
+                Write-CustomVerbose -Message "Saving Azure Stack Root certificate in $certFilePath..." -Verbose
+                Export-Certificate -Cert $cert -FilePath $certFilePath -Force | Out-Null
+            }
+            else {
+                Write-CustomVerbose -Message "Certificate has not been retrieved - Python configuration cannot continue and will be skipped."
+            }
+            if ($certFilePath -ne $null) {
+                $pemFile = $certFilePath
+                $root = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+                $root.Import($pemFile)
+                Write-Host "Extracting needed information from the cert file"
+                $md5Hash = (Get-FileHash -Path $pemFile -Algorithm MD5).Hash.ToLower()
+                $sha1Hash = (Get-FileHash -Path $pemFile -Algorithm SHA1).Hash.ToLower()
+                $sha256Hash = (Get-FileHash -Path $pemFile -Algorithm SHA256).Hash.ToLower()
+                $issuerEntry = [string]::Format("# Issuer: {0}", $root.Issuer)
+                $subjectEntry = [string]::Format("# Subject: {0}", $root.Subject)
+                $labelEntry = [string]::Format("# Label: {0}", $root.Subject.Split('=')[-1])
+                $serialEntry = [string]::Format("# Serial: {0}", $root.GetSerialNumberString().ToLower())
+                $md5Entry = [string]::Format("# MD5 Fingerprint: {0}", $md5Hash)
+                $sha1Entry = [string]::Format("# SHA1 Finterprint: {0}", $sha1Hash)
+                $sha256Entry = [string]::Format("# SHA256 Fingerprint: {0}", $sha256Hash)
+                $certText = (Get-Content -Path $pemFile -Raw).ToString().Replace("`r`n", "`n")
+                $rootCertEntry = "`n" + $issuerEntry + "`n" + $subjectEntry + "`n" + $labelEntry + "`n" + `
+                    $serialEntry + "`n" + $md5Entry + "`n" + $sha1Entry + "`n" + $sha256Entry + "`n" + $certText
+                Write-CustomVerbose -Message "Adding the certificate content to Python Cert store"
+                Add-Content "${env:ProgramFiles(x86)}\Microsoft SDKs\Azure\CLI2\Lib\site-packages\certifi\cacert.pem" $rootCertEntry
+                Write-CustomVerbose -Message "Python Cert store was updated for allowing the Azure Stack CA root certificate"
+            }
+
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
