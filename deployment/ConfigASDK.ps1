@@ -1793,7 +1793,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     $CoreEdition = 'Windows Server 2016 SERVERDATACENTERCORE'
 
                     if ($serverCoreVHDExists -eq $false) {
-                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$CoreEdition" -VHDPath "$ASDKpath\images\ServerCore.vhd" `
+                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$CoreEdition" -VHDPath "$ASDKpath\images\ServerCore.vhd" `
                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                     }
 
@@ -1897,7 +1897,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     $FullEdition = 'Windows Server 2016 SERVERDATACENTER'
 
                     if ($serverFullVHDExists -eq $false) {
-                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$FullEdition" -VHDPath "$ASDKpath\images\ServerFull.vhd" `
+                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$FullEdition" -VHDPath "$ASDKpath\images\ServerFull.vhd" `
                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                     }
                     
