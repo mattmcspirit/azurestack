@@ -41,6 +41,8 @@ This includes:
 * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
 * Creates a Base Plan and Offer containing all deployed services
 * Creates a user subscription for the logged in tenant, and activates all resource providers
+* Installs a selection of useful apps via Chocolatey (Putty, Chrome, VS Code, WinDirStat, WinSCP, Python3)
+* Configures Python & Azure CLI for usage with ASDK - **NEW in 1807!**
 * MySQL, SQL, App Service and Host Customization can be optionally skipped
 * Cleans up download folder to ensure clean future runs
 * Transcript Log for errors and troubleshooting
