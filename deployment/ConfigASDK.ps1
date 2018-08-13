@@ -1870,7 +1870,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     }
 
                     if ($uploadVhdAttempt -gt 3) {
-                        Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
+                        Write-CustomVerbose "Uploading VHD to Azure Stack storage failed after 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
                         $serverCoreUploadSuccess = $false
                         throw "Uploading image failed"
                         Set-Location $ScriptLocation
@@ -1973,7 +1973,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     }
 
                     if ($uploadVhdAttempt -gt 3) {
-                        Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
+                        Write-CustomVerbose "Uploading VHD to Azure Stack storage failed after 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
                         $serverFullUploadSuccess = $false
                         throw "Uploading image failed"
                         Set-Location $ScriptLocation
@@ -2295,7 +2295,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Output $progress | Out-Host
     }
-    Catch {
+    catch {
         Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
@@ -2941,7 +2941,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                 catch {
                     Write-CustomVerbose -Message "Upload failed."
                     Write-CustomVerbose -Message "$_.Exception.Message"
-                    $uploadScriptAttempt++
+                    $uploadItemAttempt++
                 }
             }
         }
@@ -4015,48 +4015,93 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # Python
             Write-CustomVerbose -Message "Installing latest version of Python for Windows"
-            choco install python
+            choco install python3
+            refreshenv
             Write-CustomVerbose -Message "Upgrading pip"
+            python -m ensurepip --default-pip
             python -m pip install -U pip
+            refreshenv
             Write-CustomVerbose -Message "Installing certifi"
             pip install certifi
+            refreshenv
 
             # Configure Python Certs
             Write-CustomVerbose -Message "Retrieving Azure Stack Root Authority certificate..." -Verbose
-            $cert = Invoke-Command -ComputerName "$env:computername" -ScriptBlock { Get-ChildItem cert:\currentuser\root | where-object {$_.Subject -like "*AzureStackSelfSignedRootCert*"} }
-
+            $label = "AzureStackSelfSignedRootCert"
+            $cert = Get-ChildItem Cert:\CurrentUser\Root | Where-Object Subject -eq "CN=$label" -ErrorAction SilentlyContinue | Select-Object -First 1
+            
             if ($cert -ne $null) {
-                if ($cert.GetType().IsArray) {
-                    $cert = $cert[0] # take any that match the subject if multiple certs were deployed
+                try {
+                    New-Item -Path "$env:userprofile\desktop\Certs" -ItemType Directory -Force | Out-Null
+                    $certFileName = "$env:computername" + "-CA.cer"
+                    $certFilePath = "$env:userprofile\desktop\Certs\$certFileName"
+                    Write-CustomVerbose -Message "Saving Azure Stack Root certificate in $certFilePath..." -Verbose
+                    Export-Certificate -Cert $cert -FilePath $certFilePath -Force | Out-Null
+                    Write-CustomVerbose -Message "Converting certificate to PEM format"
+                    Set-Location "$env:userprofile\desktop\Certs"
+                    $pemFileName = $certFileName -replace ".cer", ".pem"
+                    certutil.exe -encode $certFileName $pemFileName
+                    $pemFilePath = "$env:userprofile\desktop\Certs\$pemFileName"
+                    $root = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+                    $root.Import($pemFilePath)
+                    Write-CustomVerbose -Message "Extracting required information from the cert file"
+                    $md5Hash = (Get-FileHash -Path $pemFilePath -Algorithm MD5).Hash.ToLower()
+                    $sha1Hash = (Get-FileHash -Path $pemFilePath -Algorithm SHA1).Hash.ToLower()
+                    $sha256Hash = (Get-FileHash -Path $pemFilePath -Algorithm SHA256).Hash.ToLower()
+                    $issuerEntry = [string]::Format("# Issuer: {0}", $root.Issuer)
+                    $subjectEntry = [string]::Format("# Subject: {0}", $root.Subject)
+                    $labelEntry = [string]::Format("# Label: {0}", $root.Subject.Split('=')[-1])
+                    $serialEntry = [string]::Format("# Serial: {0}", $root.GetSerialNumberString().ToLower())
+                    $md5Entry = [string]::Format("# MD5 Fingerprint: {0}", $md5Hash)
+                    $sha1Entry = [string]::Format("# SHA1 Finterprint: {0}", $sha1Hash)
+                    $sha256Entry = [string]::Format("# SHA256 Fingerprint: {0}", $sha256Hash)
+                    $certText = (Get-Content -Path $pemFilePath -Raw).ToString().Replace("`r`n", "`n")
+                    $rootCertEntry = "`n" + $issuerEntry + "`n" + $subjectEntry + "`n" + $labelEntry + "`n" + `
+                        $serialEntry + "`n" + $md5Entry + "`n" + $sha1Entry + "`n" + $sha256Entry + "`n" + $certText
+                    Write-CustomVerbose -Message "Adding the certificate content to Python Cert store"
+                    Add-Content "${env:ProgramFiles(x86)}\Microsoft SDKs\Azure\CLI2\Lib\site-packages\certifi\cacert.pem" $rootCertEntry -Force -ErrorAction SilentlyContinue
+                    $certifiPath = python -c "import certifi; print(certifi.where())"
+                    Add-Content "$certifiPath" $rootCertEntry
+                    Write-CustomVerbose -Message "Python Cert store was updated for allowing the Azure Stack CA root certificate"
+                    refreshenv
+    
+                    # Set up the VM alias Endpoint for Azure CLI & Python
+                    if ($deploymentMode -eq "Online") {
+                        $vmAliasEndpoint = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/Aliases/aliases.json"
+                    }
+                    elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+                        $item = Get-ChildItem -Path "$ASDKpath\images" -Recurse -Include ("aliases.json") -ErrorAction Stop
+                        $itemName = $item.Name
+                        $itemFullPath = $item.FullName
+                        $uploadItemAttempt = 1
+                        while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $itemName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
+                            try {
+                                # Log back into Azure Stack to ensure login hasn't timed out
+                                Write-CustomVerbose -Message "$itemName not found. Upload Attempt: $uploadItemAttempt"
+                                Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                                Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkImagesContainerName -Blob $itemName -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
+                            }
+                            catch {
+                                Write-CustomVerbose -Message "Upload failed."
+                                Write-CustomVerbose -Message "$_.Exception.Message"
+                                $uploadItemAttempt++
+                            }
+                        }
+                        $vmAliasEndpoint = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $itemName
+                    }
+                    # Register AZ CLI environment for Admin
+                    az cloud register -n AzureStackAdmin --endpoint-resource-manager "https://adminmanagement.local.azurestack.external" --suffix-storage-endpoint "local.azurestack.external" --suffix-keyvault-dns ".adminvault.local.azurestack.external" --endpoint-vm-image-alias-doc $vmAliasEndpoint
+                    # Set the active environment
+                    az cloud set -n AzureStackAdmin
+                    # Update the profile
+                    az cloud update --profile 2017-03-09-profile
                 }
-                $certFilePath = "$env:userprofile\desktop\$env:computername" + "-CA.cer"
-                Write-CustomVerbose -Message "Saving Azure Stack Root certificate in $certFilePath..." -Verbose
-                Export-Certificate -Cert $cert -FilePath $certFilePath -Force | Out-Null
+                catch {
+                    Write-CustomVerbose -Message "Something went wrong configuring Azure CLI and Python. Please follow the Azure Stack docs to configure for your ASDK"
+                }
             }
             else {
-                Write-CustomVerbose -Message "Certificate has not been retrieved - Python configuration cannot continue and will be skipped."
-            }
-            if ($certFilePath -ne $null) {
-                $pemFile = $certFilePath
-                $root = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
-                $root.Import($pemFile)
-                Write-Host "Extracting needed information from the cert file"
-                $md5Hash = (Get-FileHash -Path $pemFile -Algorithm MD5).Hash.ToLower()
-                $sha1Hash = (Get-FileHash -Path $pemFile -Algorithm SHA1).Hash.ToLower()
-                $sha256Hash = (Get-FileHash -Path $pemFile -Algorithm SHA256).Hash.ToLower()
-                $issuerEntry = [string]::Format("# Issuer: {0}", $root.Issuer)
-                $subjectEntry = [string]::Format("# Subject: {0}", $root.Subject)
-                $labelEntry = [string]::Format("# Label: {0}", $root.Subject.Split('=')[-1])
-                $serialEntry = [string]::Format("# Serial: {0}", $root.GetSerialNumberString().ToLower())
-                $md5Entry = [string]::Format("# MD5 Fingerprint: {0}", $md5Hash)
-                $sha1Entry = [string]::Format("# SHA1 Finterprint: {0}", $sha1Hash)
-                $sha256Entry = [string]::Format("# SHA256 Fingerprint: {0}", $sha256Hash)
-                $certText = (Get-Content -Path $pemFile -Raw).ToString().Replace("`r`n", "`n")
-                $rootCertEntry = "`n" + $issuerEntry + "`n" + $subjectEntry + "`n" + $labelEntry + "`n" + `
-                    $serialEntry + "`n" + $md5Entry + "`n" + $sha1Entry + "`n" + $sha256Entry + "`n" + $certText
-                Write-CustomVerbose -Message "Adding the certificate content to Python Cert store"
-                Add-Content "${env:ProgramFiles(x86)}\Microsoft SDKs\Azure\CLI2\Lib\site-packages\certifi\cacert.pem" $rootCertEntry
-                Write-CustomVerbose -Message "Python Cert store was updated for allowing the Azure Stack CA root certificate"
+                Write-CustomVerbose -Message "Certificate has not been retrieved - Azure CLI and Python configuration cannot continue and will be skipped."
             }
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
