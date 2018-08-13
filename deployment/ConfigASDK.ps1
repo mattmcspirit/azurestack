@@ -1561,11 +1561,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             if ($registerASDK -and ($deploymentMode -eq "Online")) {
                 $azpkgPackageURL = $($azpkg.azpkgPath)
                 Write-CustomVerbose -Message "Uploading $azpkgPackageName with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
-                $azpkgPackageURL = $($azpkg.azpkgPath)
             }
-            elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
-                Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"        
-                $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
+            elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {     
+                $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg" 
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
             elseif (($registerASDK -or !$registerASDK) -and (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline"))) {
