@@ -4035,7 +4035,7 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
             choco install azure-cli
             refreshenv
 
-            # Configure Python Certs
+            # Configure Python & Azure CLI Certs
             Write-CustomVerbose -Message "Retrieving Azure Stack Root Authority certificate..." -Verbose
             $label = "AzureStackSelfSignedRootCert"
             $cert = Get-ChildItem Cert:\CurrentUser\Root | Where-Object Subject -eq "CN=$label" -ErrorAction SilentlyContinue | Select-Object -First 1
