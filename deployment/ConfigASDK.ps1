@@ -4012,20 +4012,27 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
             Write-CustomVerbose -Message "Installing WinDirStat with Chocolatey"
             choco install windirstat
 
-            # Azure CLI
-            Write-CustomVerbose -Message "Installing latest version of Azure CLI with Chocolatey"
-            choco install azure-cli
-
             # Python
             Write-CustomVerbose -Message "Installing latest version of Python for Windows"
-            choco install python3
+            choco install python3 --params "/InstallDir:C:\Python"
             refreshenv
+            # Set Environment Variables
+            [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "Machine")
+            [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "User")
+            # Set Current Session Variable
+            $env:path = "$env:Path;C:\Python;C:\Python\Scripts"
+        
             Write-CustomVerbose -Message "Upgrading pip"
             python -m ensurepip --default-pip
             python -m pip install -U pip
             refreshenv
             Write-CustomVerbose -Message "Installing certifi"
             pip install certifi
+            refreshenv
+
+            # Azure CLI
+            Write-CustomVerbose -Message "Installing latest version of Azure CLI with Chocolatey"
+            choco install azure-cli
             refreshenv
 
             # Configure Python Certs
@@ -4066,7 +4073,7 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
                     $certifiPath = python -c "import certifi; print(certifi.where())"
                     Add-Content "$certifiPath" $rootCertEntry
                     Write-CustomVerbose -Message "Python Cert store was updated for allowing the Azure Stack CA root certificate"
-                    refreshenv
+                    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
     
                     # Set up the VM alias Endpoint for Azure CLI & Python
                     if ($deploymentMode -eq "Online") {
