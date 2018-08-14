@@ -3515,7 +3515,6 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
                 # Logout to clean up
                 Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force
-                # Grant permissions to Azure AD Service Principal
                 Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId "$azureDirectoryTenantName" -Credential $asdkCreds -ErrorAction Stop | Out-Null
                 Set-Location "$AppServicePath"
                 $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
@@ -3524,6 +3523,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
                 $identityApplicationID = $applicationId
                 New-Item $appIdPath -ItemType file -Force
                 Write-Output $identityApplicationID > $appIdPath
+                Write-CustomVerbose -Message "You don't need to sign into the Azure Portal to grant permissions, ASDK Configurator will automate this for you. Please wait."
                 Start-Sleep -Seconds 20
             }
             elseif ($authenticationType.ToString() -like "ADFS") {
@@ -3585,7 +3585,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         $RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
     }
-    if (($authenticationType.ToString() -like "AzureAd") -and ($deploymentMode -eq "Online" -or "PartialOnline")) {
+    if (($authenticationType.ToString() -like "AzureAd") -and (($deploymentMode -eq "Online") -or ($deploymentMode -eq "PartialOnline"))) {
         if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
             try {
                 # Logout to clean up
@@ -4073,7 +4073,7 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
                     $certifiPath = python -c "import certifi; print(certifi.where())"
                     Add-Content "$certifiPath" $rootCertEntry
                     Write-CustomVerbose -Message "Python Cert store was updated for allowing the Azure Stack CA root certificate"
-                    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
+                    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User") 
     
                     # Set up the VM alias Endpoint for Azure CLI & Python
                     if ($deploymentMode -eq "Online") {
@@ -4084,12 +4084,12 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
                         $itemName = $item.Name
                         $itemFullPath = $item.FullName
                         $uploadItemAttempt = 1
-                        while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $itemName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
+                        while (!$(Get-AzureStorageBlob -Container $asdkOfflineContainerName -Blob $itemName -Context $asdkOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
                             try {
                                 # Log back into Azure Stack to ensure login hasn't timed out
                                 Write-CustomVerbose -Message "$itemName not found. Upload Attempt: $uploadItemAttempt"
                                 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                                Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkImagesContainerName -Blob $itemName -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
+                                Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkOfflineContainerName -Blob $itemName -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
                             }
                             catch {
                                 Write-CustomVerbose -Message "Upload failed."
@@ -4097,12 +4097,19 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
                                 $uploadItemAttempt++
                             }
                         }
-                        $vmAliasEndpoint = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $itemName
+                        $vmAliasEndpoint = ('{0}{1}/{2}' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName, $itemName) -replace "https", "http"
                     }
+                    Write-CustomVerbose -Message "Virtual Machine Alias Endpoint for your ASDK = $vmAliasEndpoint"
+                    Write-CustomVerbose -Message "Configuring your Azure CLI environment on the ASDK host, for Admin and User"
                     # Register AZ CLI environment for Admin
+                    Write-CustomVerbose -Message "Configuring for AzureStackAdmin"
                     az cloud register -n AzureStackAdmin --endpoint-resource-manager "https://adminmanagement.local.azurestack.external" --suffix-storage-endpoint "local.azurestack.external" --suffix-keyvault-dns ".adminvault.local.azurestack.external" --endpoint-vm-image-alias-doc $vmAliasEndpoint
+                    Write-CustomVerbose -Message "Configuring for AzureStackUser"
+                    az cloud register -n AzureStackUser --endpoint-resource-manager "https://management.local.azurestack.external" --suffix-storage-endpoint "local.azurestack.external" --suffix-keyvault-dns ".vault.local.azurestack.external" --endpoint-vm-image-alias-doc $vmAliasEndpoint
+                    Write-CustomVerbose -Message "Setting Azure CLI active environment to AzureStackAdmin"
                     # Set the active environment
                     az cloud set -n AzureStackAdmin
+                    Write-CustomVerbose -Message "Updating profile for Azure CLI"
                     # Update the profile
                     az cloud update --profile 2017-03-09-profile
                 }
@@ -4148,39 +4155,30 @@ try {
     $txtPath = "$downloadPath\ConfigASDKOutput.txt"
     Remove-Item -Path $txtPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
     New-Item "$txtPath" -ItemType file -Force
-
     Write-Output "`r`nThis document contains useful information about your deployment" > $txtPath
     Write-Output "`r`nYour chosen authentication type was: $authenticationType" >> $txtPath
-
     if ($authenticationType.ToString() -like "ADFS") {
         Write-Output "Your ASDK admin account and the Azure Stack portal use the following account for login: $azureStackAdminUsername" >> $txtPath
     }
-
     elseif ($authenticationType.ToString() -like "AzureAD") {
         Write-Output "Use the following username to login to your ASDK host: $azureStackAdminUsername" >> $txtPath
         Write-Output "Use the following username to login to the Azure Stack portal: $azureAdUsername" >> $txtPath
     }
-
     Write-Output "`r`nASDK has been registered to Azure: $($registerASDK.IsPresent)" >> $txtPath
-
     if ($registerASDK) {
         Write-Output "Your Azure Stack was registered to this Azure subscription: $azureRegSubId" >> $txtPath
     }
-
     if ($useAzureCredsForRegistration -and $registerASDK) {
         Write-Output "Your Azure Stack was registered to Azure with the following username: $azureAdUsername" >> $txtPath
     }
     elseif ($authenticationType.ToString() -like "AzureAd" -and !$useAzureCredsForRegistration -and $registerASDK) {
         Write-Output "Your Azure Stack was registered to Azure with the following username: $azureRegUsername" >> $txtPath
     }
-
     if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
         Write-Output "Your Azure Stack was registered to Azure with the following username: $azureRegUsername" >> $txtPath
     }
-
     Write-Output "`r`nThe Azure Stack PowerShell tools have been downloaded to: $modulePath" >> $txtPath
     Write-Output "All other downloads have been stored here: $ASDKpath" >> $txtPath
-
     Write-Output "`r`nSQL & MySQL Resource Provider Information:" >> $txtPath
     if (!$skipMySQL) {
         Write-Output "MySQL Resource Provider VM Credentials = mysqlrpadmin | $VMpwd" >> $txtPath
