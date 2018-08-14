@@ -1318,22 +1318,14 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
             Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
-            $resources = Get-AzureRmResource
-            $resource = $resources.resourcename
-            $registrations = @($resource | Where-Object {$_ -like "asdkreg*" -or "AzureStack*"})
             Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
-            if ($registrations.count -gt 1) {
-                $Registration = $registrations[0]
-            }
-            elseif ($registrations.count -eq 1) {
-                $Registration = $registrations
-            }
-            elseif ($registrations.count -lt 1) {
+            $Registration = (Get-AzureRmResource | Where-Object { $_.ResourceType -eq "Microsoft.AzureStack/registrations"} | `
+                    Where-Object { ($_.ResourceName -like "asdkreg*") -or ($_.ResourceName -like "AzureStack*")}) | Select-Object -First 1 -ErrorAction SilentlyContinue -Verbose
+            if (!$Registration) {
                 throw "No registration records found in your chosen Azure subscription. Please validate the success of your ASDK registration and ensure records have been created successfully."
                 Set-Location $ScriptLocation
                 return
             }
-
             # Retrieve the access token
             $token = $null
             $tokens = $null
@@ -2020,22 +2012,14 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
                 Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
                 $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
-                $resources = Get-AzureRmResource
-                $resource = $resources.resourcename
-                $registrations = @($resource | Where-Object {$_ -like "asdkreg*" -or "AzureStack*"})
                 Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
-                if ($registrations.count -gt 1) {
-                    $Registration = $registrations[0]
-                }
-                elseif ($registrations.count -eq 1) {
-                    $Registration = $registrations
-                }
-                elseif ($registrations.count -lt 1) {
+                $Registration = (Get-AzureRmResource | Where-Object { $_.ResourceType -eq "Microsoft.AzureStack/registrations"} | `
+                        Where-Object { ($_.ResourceName -like "asdkreg*") -or ($_.ResourceName -like "AzureStack*")}) | Select-Object -First 1 -ErrorAction SilentlyContinue -Verbose
+                if (!$Registration) {
                     throw "No registration records found in your chosen Azure subscription. Please validate the success of your ASDK registration and ensure records have been created successfully."
                     Set-Location $ScriptLocation
                     return
                 }
-
                 # Retrieve the access token
                 $token = $null
                 $tokens = $null
