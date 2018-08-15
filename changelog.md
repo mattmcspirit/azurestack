@@ -7,7 +7,7 @@ Here you'll find information on key changes, bug fixes and improvements made by 
 
 ## What's new in version 1807?
 
-* Support for AzureStack PowerShell Modules 1.4.0
+* Support for AzureStack PowerShell Module 1.4.0
 * Script now installs PowerShell automatically as part of the process
 * Registers your ASDK with a unique but identifiable name, i.e. "asdkreg-hostname-MMdd-HHmmss", such as "asdkreg-azs-node1-0815-090155", which helps you identify which record in Azure, corresponds to which ASDK deployment.
 * Support for offline deployment using the new dependencies download script. This generates a .zip file, which will be used by the main ConfigASDK.ps1 script rather than download all dependencies from the internet.
