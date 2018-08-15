@@ -12,14 +12,14 @@ Here you'll find information on key changes, bug fixes and improvements made by 
 * Registers your ASDK with a unique but identifiable name, i.e. "asdkreg-hostname-MMdd-HHmmss", such as "asdkreg-azs-node1-0815-090155", which helps you identify which record in Azure, corresponds to which ASDK deployment.
 * Support for offline deployment using the new dependencies download script. This generates a .zip file, which will be used by the main ConfigASDK.ps1 script rather than download all dependencies from the internet.
 * ConfigASDK.ps1 now runs in 1 of 3 modes: Online, PartialOnline or Offline, depending on internet connectivity tests and availability of ConfigASDKfiles.zip
-* Install Python 3.x as p[art of host configuration step
+* Install Python 3.x as part of host configuration step
 * Configures Azure CLI and Python for ASDK integration, as part of host configuration step
 * Better cleanup of successful runs, for future runs.
 * Other fixes and improvements for efficiency
 
 ## What's new in version 1805.2?
 
-* Improvenents to Windows Server image VHD creation to handle adding of KB4132216 to update Servicing Stack (for build 14393) for future updates (<https://support.microsoft.com/en-us/help/4132216>)
+* Improvements to Windows Server image VHD creation to handle adding of KB4132216 to update Servicing Stack (for build 14393) for future updates (<https://support.microsoft.com/en-us/help/4132216>)
 
 ## What's new in version 1805.1?
 
@@ -37,10 +37,10 @@ Here you'll find information on key changes, bug fixes and improvements made by 
 
 ## Previous versions
 
-    1804    Updated with support for ASDK 1804 and PowerShell 1.3.0, bug fixes, reduced number of modules imported from GitHub tools repo
-    3.1     Update added App Service automation, bug fixes, MySQL Root account fix.
-    3.0     Major update for ASDK release 20180329.1
-    2.0     Update for release 1.0.280917.3 
+    1804:   Updated with support for ASDK 1804 and PowerShell 1.3.0, bug fixes, reduced number of modules imported from GitHub tools repo
+    3.1:    Update added App Service automation, bug fixes, MySQL Root account fix.
+    3.0:    Major update for ASDK release 20180329.1
+    2.0:    Update for release 1.0.280917.3 
     1.0:    Small bug fixes and adding quotas/plan/offer creation
     0.5:    Add SQL 2014 VM deployment
     0.4:    Add Windows update disable
