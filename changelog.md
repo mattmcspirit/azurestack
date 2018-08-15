@@ -25,7 +25,7 @@ Here you'll find information on key changes, bug fixes and improvements made by 
 
 * Updates to handling Azure subscriptions with multiple Azure AD tenants
 * Better error handling for random Add-AzureRmVhd pipeline error
-* Added automated App Service quota to base plan, created user subscription and activated RPs for that subscription.]
+* Added automated App Service quota to base plan, created user subscription and activated RPs for that subscription.
 
 ## What's new in version 1805?
 
