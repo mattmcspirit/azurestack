@@ -40,7 +40,7 @@ Here you'll find information on key changes, bug fixes and improvements made by 
     1804:   Updated with support for ASDK 1804 and PowerShell 1.3.0, bug fixes, reduced number of modules imported from GitHub tools repo
     3.1:    Update added App Service automation, bug fixes, MySQL Root account fix.
     3.0:    Major update for ASDK release 20180329.1
-    2.0:    Update for release 1.0.280917.3 
+    2.0:    Update for release 1.0.280917.3
     1.0:    Small bug fixes and adding quotas/plan/offer creation
     0.5:    Add SQL 2014 VM deployment
     0.4:    Add Windows update disable
