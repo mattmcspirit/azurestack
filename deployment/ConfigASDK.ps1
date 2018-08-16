@@ -40,6 +40,7 @@
 
 .VERSION
 
+    1807.1  Updated to support automatic downloading of Microsoft VM Extensions for registered ASDKs
     1807    Updated to provide support for offline deployments, using zip file containing pre-downloaded binaries, tools and scripts along with PS 1.4.0 support
             Also added support for Azure CLI and Python configuration
     1805.2  Update to Windows Image creation to handle adding of KB4132216 to update Servicing Stack (for build 14393) for future updates
