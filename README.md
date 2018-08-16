@@ -33,7 +33,7 @@ This includes:
 * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
 * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
 * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
-* App Service prerequisites installation (SQL Server and Standalone File Server)
+* App Service prerequisites installation (SQL Server PowerShell, SQL Server DB VM and Standalone File Server)
 * App Service Resource Provider sources download and certificates generation
 * App Service Service Principal Created (for Azure AD and ADFS)
 * Grants App Service Service Principal Admin Consent (for Azure AD)
