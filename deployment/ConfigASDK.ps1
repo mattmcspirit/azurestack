@@ -3372,6 +3372,20 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             # Get the FQDN of the VM
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
 
+            # Install SQL Server PowerShell on Host in order to configure 'Contained Database Authentication'
+            if ($deploymentMode -eq "Online") {
+                # Install SQL Server Module from Online PSrepository
+                Install-Module SqlServer -Force -Confirm:$false -Verbose -ErrorAction Stop
+            }
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+                # Need to grab module from the ConfigASDKfiles.zip
+                Install-Module SqlServer -Repository $RepoName -Force -Confirm:$false -Verbose -ErrorAction Stop
+            }
+
+            # Invoke the SQL Server query to turn on contained database authentication
+            $sqlQuery="sp_configure 'contained database authentication', 1;RECONFIGURE;"
+            Invoke-Sqlcmd -Query "$sqlQuery" -ServerInstance "$sqlAppServerFqdn" -Username sa -Password $VMpwd -Verbose -ErrorAction Stop
+
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
