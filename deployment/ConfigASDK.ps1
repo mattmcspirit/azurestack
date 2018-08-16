@@ -779,6 +779,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"ScaleSetGalleryItem","Incomplete"'
         '"MySQLGalleryItem","Incomplete"'
         '"SQLServerGalleryItem","Incomplete"'
+        '"VMExtensions","Incomplete"'
         '"MySQLRP","Incomplete"'
         '"SQLServerRP","Incomplete"'
         '"MySQLSKUQuota","Incomplete"'
@@ -2431,6 +2432,66 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+
+#### ADD VM EXTENSIONS #######################################################################################################################################
+##############################################################################################################################################################
+
+$RowIndex = [array]::IndexOf($progress.Stage, "VMExtensions")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+if ($registerASDK -and ($deploymentMode -ne "Offline")) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            $activationName = "default"
+            $activationRG = "azurestack-activation"
+            if ($(Get-AzsAzureBridgeActivation -Name $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose:$false)) {
+                Write-CustomVerbose -Message "Adding Microsoft VM Extensions from the from the Azure Stack Marketplace"
+                $getExtensions = ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose:$false | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")}).Name) -replace "default/", ""
+                foreach ($extension in $getExtensions) {
+                    while (!$(Get-AzsAzureBridgeDownloadedProduct -Name $extension -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose:$false)) {
+                        Write-CustomVerbose -Message "Didn't find $extension in your gallery. Downloading from the Azure Stack Marketplace"
+                        Invoke-AzsAzureBridgeProductDownload -ActivationName $activationName -Name $extension -ResourceGroupName $activationRG -Force -Confirm:$false -Verbose
+                    }
+                }
+                $getDownloads = (Get-AzsAzureBridgeDownloadedProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose:$false | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")})
+                Write-CustomVerbose -Message "Your Azure Stack gallery now has the following Microsoft VM Extensions for enhancing your deployments:`r`n"
+                foreach ($download in $getDownloads) {
+                    "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"
+                }
+            }
+            else {
+                # No Azure Bridge Activation Record found - Skip rather than fail
+                Write-CustomVerbose -Message "Skipping Microsoft VM Extension download, no Azure Bridge Activation Object called $activationName could be found within the resource group $activationRG on your Azure Stack"
+                Write-CustomVerbose -Message "Assuming registration of this ASDK was successful, you should be able to manually download the VM extensions from Marketplace Management in the admin portal`r`n"
+                # Update the ConfigASDKProgressLog.csv file with successful completion
+                $progress[$RowIndex].Status = "Skipped"
+                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+                Write-Output $progress | Out-Host
+            }
+        }
+        catch {
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progress[$RowIndex].Status -eq "Skipped") {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously skipped"
+    }
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    }
+}
+elseif (!$registerASDK) {
+    Write-CustomVerbose -Message "Skipping VM Extension download, as Azure Stack has not been registered`r`n"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress | Out-Host
 }
 
 #### INSTALL MYSQL RESOURCE PROVIDER #########################################################################################################################
