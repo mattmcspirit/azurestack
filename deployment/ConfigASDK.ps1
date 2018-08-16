@@ -4292,6 +4292,27 @@ $scriptSuccess = $progress | Where-Object {($_.Status -eq "Incomplete") -or ($_.
 if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-CustomVerbose -Message "Congratulations - all steps completed successfully:`r`n"
     Write-Output $progress | Out-Host
+
+    if ([bool](Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose)) {
+        # Move log files to Completed folder - first check for 'Completed' folder, and create if not existing
+        if (!$([System.IO.Directory]::Exists("$downloadPath\Completed"))) {
+            New-Item -Path "$downloadPath\Completed" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
+        }
+        # Then create the folder that corresponds to this completed run
+        $completedDate = $(Get-Date).ToString("MMdd-HHmm")
+        $completedPath = New-Item -Path "$downloadPath\Completed\$completedDate" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
+        # Then move the files to this folder
+        Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$completedPath" -ErrorAction SilentlyContinue -Verbose
+    }
+
+    Write-CustomVerbose -Message "Retaining App Service Certs for potential App Service updates in the future"
+    if (!$([System.IO.Directory]::Exists("$completedPath\certs"))) {
+        New-Item -Path "$completedPath\certs" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
+    }
+    while (Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose) {
+        Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$completedPath\certs" -ErrorAction SilentlyContinue -Verbose
+    }
+
     Write-CustomVerbose -Message "Cleaning up ASDK Folder"
     # Will attempt multiple times as sometimes it fails
     $ASDKpath = "$downloadPath\ASDK"
@@ -4307,18 +4328,6 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
-
-    if ([bool](Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose)) {
-        # Move log files to Completed folder - first check for 'Completed' folder, and create if not existing
-        if (!$([System.IO.Directory]::Exists("$downloadPath\Completed"))) {
-            New-Item -Path "$downloadPath\Completed" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
-        }
-        # Then create the folder that corresponds to this completed run
-        $CompletedDate = $(Get-Date).ToString("MMdd-HHmm")
-        New-Item -Path "$downloadPath\Completed\$CompletedDate" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
-        # Then move the files to this folder
-        Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$downloadPath\Completed\$CompletedDate" -ErrorAction SilentlyContinue -Verbose
-    }
     
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
