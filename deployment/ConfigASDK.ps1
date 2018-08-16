@@ -949,7 +949,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
             $SourceLocation = "$downloadPath\ASDK\PowerShell"
             $RepoName = "MyNuGetSource"
-            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation  -InstallationPolicy Trusted
+            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
             Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
             Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
         }
@@ -3379,11 +3379,16 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 # Need to grab module from the ConfigASDKfiles.zip
+                $SourceLocation = "$downloadPath\ASDK\PowerShell"
+                $RepoName = "MyNuGetSource"
+                if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
+                    Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+                }                
                 Install-Module SqlServer -Repository $RepoName -Force -Confirm:$false -Verbose -ErrorAction Stop
             }
 
             # Invoke the SQL Server query to turn on contained database authentication
-            $sqlQuery="sp_configure 'contained database authentication', 1;RECONFIGURE;"
+            $sqlQuery = "sp_configure 'contained database authentication', 1;RECONFIGURE;"
             Invoke-Sqlcmd -Query "$sqlQuery" -ServerInstance "$sqlAppServerFqdn" -Username sa -Password $VMpwd -Verbose -ErrorAction Stop
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
