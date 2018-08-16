@@ -8,6 +8,7 @@ Here you'll find information on key changes, bug fixes and improvements made by 
 ### What's new in version 1807.1?
 
 * For ASDKs that are registered, the script will now download all Microsoft VM Extensions
+* Supports App Service 1.3 (Update 3) - required SQL PS to enable 'Contained DB Authentication'
 
 ### What's new in version 1807?
 
