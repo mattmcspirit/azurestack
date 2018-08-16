@@ -37,7 +37,7 @@ This includes:
 * App Service Resource Provider sources download and certificates generation
 * App Service Service Principal Created (for Azure AD and ADFS)
 * Grants App Service Service Principal Admin Consent (for Azure AD)
-* Automates deployment of the App Service using dynamically constructed JSON
+* Automates deployment of the latest App Service release using dynamically constructed JSON
 * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
 * Creates a Base Plan and Offer containing all deployed services
 * Creates a user subscription for the logged in tenant, and activates all resource providers
