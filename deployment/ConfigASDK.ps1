@@ -16,6 +16,7 @@
         * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
         * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images.
         * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
+        * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs)
         * Creates VM Scale Set gallery item
         * MySQL Resource Provider installation
         * SQL Server Resource Provider installation
@@ -41,6 +42,7 @@
 .VERSION
 
     1807.1  Updated to support automatic downloading of Microsoft VM Extensions for registered ASDKs
+            Added SQL Server PowerShell installation to configure App Service SQL Server VM with Contained DB Authentication
     1807    Updated to provide support for offline deployments, using zip file containing pre-downloaded binaries, tools and scripts along with PS 1.4.0 support
             Also added support for Azure CLI and Python configuration
     1805.2  Update to Windows Image creation to handle adding of KB4132216 to update Servicing Stack (for build 14393) for future updates
