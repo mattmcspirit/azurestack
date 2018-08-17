@@ -406,7 +406,7 @@ try {
     $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
     $row.filename = "appservicehelper.zip"; $row.path = "$appServicePath"; $row.productName = "App Service Resource Provider Helper files"; $Table.Rows.Add($row)
     # App Service Installer
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvcupdate2installer"
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmasinstaller"
     $row.filename = "appservice.exe"; $row.path = "$appServicePath"; $row.productName = "App Service installer"; $Table.Rows.Add($row)
     # App Service PreDeployment JSON
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json"
