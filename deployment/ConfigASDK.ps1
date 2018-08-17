@@ -1141,6 +1141,7 @@ Disable-AzureRmDataCollection -WarningAction SilentlyContinue
 ### CONFIGURE THE AZURE STACK HOST & INFRA VIRTUAL MACHINES ############################################################################################
 ########################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "HostConfiguration")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -1204,6 +1205,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "Registration")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
@@ -1284,6 +1286,7 @@ $azsLocation = (Get-AzsLocation).Name
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "UbuntuImage")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 
@@ -1617,6 +1620,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ### ADD WINDOWS SERVER 2016 PLATFORM IMAGES ##################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "WindowsImage")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -2225,6 +2229,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ### ADD VM SCALE SET GALLERY ITEM ############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "ScaleSetGalleryItem")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -2291,6 +2296,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ### ADD MYSQL GALLERY ITEM ###################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -2358,6 +2364,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ### ADD SQL SERVER GALLERY ITEM ##############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -2424,7 +2431,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 #### ADD VM EXTENSIONS #######################################################################################################################################
 ##############################################################################################################################################################
 
-$progress = Import-Csv $ConfigASDKProgressLogPath
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "VMExtensions")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
@@ -2503,6 +2510,7 @@ elseif (!$registerASDK) {
 #### INSTALL MYSQL RESOURCE PROVIDER #########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLRP")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -2598,6 +2606,7 @@ elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### INSTALL SQL SERVER RESOURCE PROVIDER ####################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerRP")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -2678,6 +2687,7 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### ADD MYSQL SKU & QUOTA ###################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLSKUQuota")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -2811,6 +2821,7 @@ elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### ADD SQL SERVER SKU & QUOTA ##############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerSKUQuota")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -2949,6 +2960,7 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 # In the event of an offline deployment, you'll need to side-load script files into a storage account to be called by any MySQL, SQL and File Server template deployment
 # rather than try to reach out to GitHub to run the scripts directly
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "UploadScripts")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3027,6 +3039,7 @@ elseif ($deploymentMode -eq "Online") {
 #### DEPLOY MySQL VM TO HOST USER DATABASES ##################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLDBVM")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3091,6 +3104,7 @@ elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### DEPLOY SQL SERVER VM TO HOST USER DATABASES #############################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerDBVM")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3163,6 +3177,7 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### ADD MYSQL HOSTING SERVER ################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLAddHosting")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3225,6 +3240,7 @@ elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### ADD SQL SERVER HOSTING SERVER ###########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerAddHosting")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3287,6 +3303,7 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### DEPLOY APP SERVICE FILE SERVER ##########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceFileServer")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3353,6 +3370,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### DEPLOY APP SERVICE SQL SERVER ###########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceSQLServer")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3440,6 +3458,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### DOWNLOAD APP SERVICE ####################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "DownloadAppService")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3515,6 +3534,7 @@ if (!$skipAppService) {
 #### GENERATE APP SERVICE CERTS ##############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "GenerateAppServiceCerts")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3564,6 +3584,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### CREATE AD SERVICE PRINCIPAL #############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateServicePrincipal")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3641,6 +3662,7 @@ if (!$identityApplicationID -and !$skipAppService) {
 #### GRANT AZURE AD APP PERMISSION ###########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3712,6 +3734,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### DEPLOY APP SERVICE ######################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3874,6 +3897,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "RegisterNewRPs")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -3907,6 +3931,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -4039,6 +4064,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 #### CUSTOMIZE ASDK HOST #####################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallHostApps")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -4218,6 +4244,7 @@ elseif ($skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### GENERATE OUTPUT #########################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateOutput")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 try {
