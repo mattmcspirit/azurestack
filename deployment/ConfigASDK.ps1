@@ -2431,7 +2431,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 #### ADD VM EXTENSIONS #######################################################################################################################################
 ##############################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
+$progress = Import-Csv $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "VMExtensions")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
@@ -2442,7 +2442,7 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             Invoke-Command -Session $session -ArgumentList $verboseFunction, $scriptStep, $progress, $RowIndex, $ConfigASDKProgressLogPath, $ArmEndpoint, $TenantID, $asdkCreds -ScriptBlock {
                 Param($verboseFunction)
                 $scriptStep = "$Using:scriptStep"
-                . ([ScriptBlock]::Create($Using:verboseFunction))
+                . ([ScriptBlock]::Create($using:verboseFunction))
                 $Global:VerbosePreference = "Continue"
                 $Global:ErrorActionPreference = 'Stop'
                 $Global:ProgressPreference = 'SilentlyContinue'
@@ -2452,6 +2452,8 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $Using:TenantID -Credential $Using:asdkCreds -ErrorAction Stop | Out-Null
                 $activationName = "default"
                 $activationRG = "azurestack-activation"
+                $progress = $Using:progress
+                $RowIndex = $Using:RowIndex
                 if ($(Get-AzsAzureBridgeActivation -Name $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
                     Write-CustomVerbose -Message "Adding Microsoft VM Extensions from the from the Azure Stack Marketplace"
                     $getExtensions = ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")}).Name) -replace "default/", ""
@@ -2466,14 +2468,17 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                     foreach ($download in $getDownloads) {
                         "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"
                     }
+                    # Update the ConfigASDKProgressLog.csv file with successful completion
+                    Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+                    $progress[$RowIndex].Status = "Complete"
+                    $progress | Export-Csv $Using:ConfigASDKProgressLogPath -NoTypeInformation -Force
+                    Write-Output $progress | Out-Host
                 }
                 else {
                     # No Azure Bridge Activation Record found - Skip rather than fail
                     Write-CustomVerbose -Message "Skipping Microsoft VM Extension download, no Azure Bridge Activation Object called $activationName could be found within the resource group $activationRG on your Azure Stack"
                     Write-CustomVerbose -Message "Assuming registration of this ASDK was successful, you should be able to manually download the VM extensions from Marketplace Management in the admin portal`r`n"
                     # Update the ConfigASDKProgressLog.csv file with successful completion
-                    $progress = $Using:progress
-                    $RowIndex = $Using:RowIndex
                     $progress[$RowIndex].Status = "Skipped"
                     $progress | Export-Csv $Using:ConfigASDKProgressLogPath -NoTypeInformation -Force
                     Write-Output $progress | Out-Host
