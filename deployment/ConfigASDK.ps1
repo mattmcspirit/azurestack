@@ -2437,6 +2437,30 @@ $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
+            # Currently an infinite loop bug exists in Azs.AzureBridge.Admin 0.1.1 - this section fixes it by editing the Get-TaskResult.ps1 file
+            # Also then launches the VM Extension important in a fresh PSSession as a precaution.
+            if (!(Get-Module -Name Azs.AzureBridge.Admin)) {
+                Import-Module Azs.AzureBridge.Admin -Force
+            }
+            if ((((Get-Module -Name Azs.AzureBridge*).Version).ToString()) -eq "0.1.1") {
+                $TaskResult = (Get-ChildItem -Path "$((Get-Module -Name Azs.AzureBridge*).ModuleBase)" -Recurse -Include "Get-TaskResult.ps1" -ErrorAction Stop).FullName
+                $old = 'Write-Debug -Message "$($result | Out-String)"'
+                $new = '#Write-Debug -Message "$($result | Out-String)"'
+                $pattern1 = [RegEx]::Escape($old)
+                $pattern2 = [RegEx]::Escape($new)
+                if (!((Get-Content $TaskResult) | select-string $pattern2)) {
+                    if ((Get-Content $TaskResult) | select-string $pattern1) {
+                        Write-CustomVerbose -Message "Known issue with Azs.AzureBridge.Admin Module Version 0.1.1 - editing Get-TaskResult.ps1"
+                        Write-CustomVerbose -Message "Removing module before editing file"
+                        Remove-Module Azs.AzureBridge.Admin -Force -Confirm:$false -Verbose
+                        Write-CustomVerbose -Message "Editing file"
+                        (Get-Content $TaskResult) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $TaskResult -Verbose -ErrorAction Stop
+                        Write-CustomVerbose -Message "Editing completed. Reimporting module"
+                        Import-Module Azs.AzureBridge.Admin -force
+                    }
+                }
+            }
+
             $verboseFunction = "function Write-CustomVerbose { ${function:Write-CustomVerbose} }"
             $session = New-PSSession -Name VMExtensions
             Invoke-Command -Session $session -ArgumentList $verboseFunction, $scriptStep, $progress, $RowIndex, $ConfigASDKProgressLogPath, $ArmEndpoint, $TenantID, $asdkCreds -ScriptBlock {
