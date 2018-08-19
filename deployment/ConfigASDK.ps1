@@ -4397,17 +4397,18 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
         }
         # Then create the folder that corresponds to this completed run
         $completedDate = $(Get-Date).ToString("MMdd-HHmm")
-        $completedPath = New-Item -Path "$downloadPath\Completed\$completedDate" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
+        $completedPath = "$downloadPath\Completed\$completedDate"
+        New-Item -Path "$completedPath" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
         # Then move the files to this folder
         Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$completedPath" -ErrorAction SilentlyContinue -Verbose
     }
 
     Write-CustomVerbose -Message "Retaining App Service Certs for potential App Service updates in the future"
-    if (!$([System.IO.Directory]::Exists("$completedPath\certs"))) {
-        New-Item -Path "$completedPath\certs" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
+    if (!$([System.IO.Directory]::Exists("$completedPath\AppServiceCerts"))) {
+        New-Item -Path "$completedPath\AppServiceCerts" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
     }
     while (Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose) {
-        Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$completedPath\certs" -ErrorAction SilentlyContinue -Verbose
+        Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$completedPath\AppServiceCerts" -ErrorAction SilentlyContinue -Verbose
     }
 
     Write-CustomVerbose -Message "Cleaning up ASDK Folder"
