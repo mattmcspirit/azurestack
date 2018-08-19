@@ -4,40 +4,40 @@
 
     The purpose of this script is to automate as much as possible post deployment tasks in Azure Stack Development Kit
     This includes:
-        * Supports deployment in an internet-disconnected environment
-        * Installs AzureRM and Azure Stack PowerShell modules
-        * Validates all input parameters
-        * Ensures password for VMs meets complexity required for App Service installation
-        * Updated password expiration (180 days)
-        * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
-        * Tools installation (Azure Stack Tools)
-        * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
-        * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
-        * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
-        * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images.
-        * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
-        * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs)
-        * Creates VM Scale Set gallery item
-        * MySQL Resource Provider installation
-        * SQL Server Resource Provider installation
-        * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
-        * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
-        * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
-        * App Service prerequisites installation (SQL Server and Standalone File Server)
-        * App Service Resource Provider sources download and certificates generation
-        * App Service Service Principal Created (for Azure AD and ADFS)
-        * Grants App Service Service Principal Admin Consent (for Azure AD)
-        * Automates deployment of the App Service using dynamically constructed JSON
-        * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
-        * Creates a Base Plan and Offer containing all deployed services
-        * Creates a user subscription for the logged in tenant, and activates all resource providers
-        * Installs a selection of useful apps via Chocolatey (Putty, Chrome, VS Code, WinDirStat, WinSCP, Python3)
-        * Configures Python & Azure CLI for usage with ASDK
-        * MySQL, SQL, App Service and Host Customization can be optionally skipped
-        * Cleans up download folder to ensure clean future runs
-        * Transcript Log for errors and troubleshooting
-        * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
-        * Stores script output in a ConfigASDKOutput.txt, for future reference
+    * Validates all input parameters
+    * Installs Azure Stack PowerShell and AzureRM modules - **NEW in 1807!**
+    * Ensures password for VMs meets complexity required for App Service installation
+    * Updated password expiration (180 days)
+    * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
+    * Tools installation (Azure Stack Tools)
+    * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
+    * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
+    * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
+    * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
+    * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
+    * Creates VM Scale Set gallery item
+    * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs) - **NEW in 1807.1**
+    * MySQL Resource Provider installation
+    * SQL Server Resource Provider installation
+    * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
+    * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
+    * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
+    * App Service prerequisites installation (SQL Server PowerShell, SQL Server DB VM and Standalone File Server)
+    * App Service Resource Provider sources download and certificates generation
+    * App Service Service Principal Created (for Azure AD and ADFS)
+    * Grants App Service Service Principal Admin Consent (for Azure AD)
+    * Automates deployment of the latest App Service release using dynamically constructed JSON
+    * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
+    * Creates a Base Plan and Offer containing all deployed services
+    * Creates a user subscription for the logged in tenant, and activates all resource providers
+    * Installs a selection of useful apps via Chocolatey (Putty, Chrome, VS Code, WinDirStat, WinSCP, Python3)
+    * Configures Python & Azure CLI for usage with ASDK - **NEW in 1807!**
+    * MySQL, SQL, App Service and Host Customization can be optionally skipped
+    * Cleans up download folder to ensure clean future runs
+    * Transcript Log for errors and troubleshooting
+    * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
+    * Stores script output in a ConfigASDKOutput.txt, for future reference
+    * Supports usage in offline/disconnected environments - **NEW in 1807!**
 
 .VERSION
 

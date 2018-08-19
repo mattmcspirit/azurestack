@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1807
+Azure Stack Development Kit Configurator 1807.1
 ==============
 
 Version Compatibility
@@ -28,6 +28,7 @@ This includes:
 * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
 * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
 * Creates VM Scale Set gallery item
+* Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs) - **NEW in 1807.1**
 * MySQL Resource Provider installation
 * SQL Server Resource Provider installation
 * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
