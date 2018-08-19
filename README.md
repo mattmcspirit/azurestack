@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1807
+Azure Stack Development Kit Configurator 1807.1
 ==============
 
 Version Compatibility
@@ -28,16 +28,17 @@ This includes:
 * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
 * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
 * Creates VM Scale Set gallery item
+* Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs) - **NEW in 1807.1**
 * MySQL Resource Provider installation
 * SQL Server Resource Provider installation
 * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
 * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
 * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
-* App Service prerequisites installation (SQL Server and Standalone File Server)
+* App Service prerequisites installation (SQL Server PowerShell, SQL Server DB VM and Standalone File Server)
 * App Service Resource Provider sources download and certificates generation
 * App Service Service Principal Created (for Azure AD and ADFS)
 * Grants App Service Service Principal Admin Consent (for Azure AD)
-* Automates deployment of the App Service using dynamically constructed JSON
+* Automates deployment of the latest App Service release using dynamically constructed JSON
 * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
 * Creates a Base Plan and Offer containing all deployed services
 * Creates a user subscription for the logged in tenant, and activates all resource providers

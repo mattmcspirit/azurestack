@@ -4,42 +4,45 @@
 
     The purpose of this script is to automate as much as possible post deployment tasks in Azure Stack Development Kit
     This includes:
-        * Supports deployment in an internet-disconnected environment
-        * Installs AzureRM and Azure Stack PowerShell modules
-        * Validates all input parameters
-        * Ensures password for VMs meets complexity required for App Service installation
-        * Updated password expiration (180 days)
-        * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
-        * Tools installation (Azure Stack Tools)
-        * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
-        * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
-        * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
-        * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images.
-        * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
-        * Creates VM Scale Set gallery item
-        * MySQL Resource Provider installation
-        * SQL Server Resource Provider installation
-        * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
-        * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
-        * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
-        * App Service prerequisites installation (SQL Server and Standalone File Server)
-        * App Service Resource Provider sources download and certificates generation
-        * App Service Service Principal Created (for Azure AD and ADFS)
-        * Grants App Service Service Principal Admin Consent (for Azure AD)
-        * Automates deployment of the App Service using dynamically constructed JSON
-        * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
-        * Creates a Base Plan and Offer containing all deployed services
-        * Creates a user subscription for the logged in tenant, and activates all resource providers
-        * Installs a selection of useful apps via Chocolatey (Putty, Chrome, VS Code, WinDirStat, WinSCP, Python3)
-        * Configures Python & Azure CLI for usage with ASDK
-        * MySQL, SQL, App Service and Host Customization can be optionally skipped
-        * Cleans up download folder to ensure clean future runs
-        * Transcript Log for errors and troubleshooting
-        * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
-        * Stores script output in a ConfigASDKOutput.txt, for future reference
+    * Validates all input parameters
+    * Installs Azure Stack PowerShell and AzureRM modules - **NEW in 1807!**
+    * Ensures password for VMs meets complexity required for App Service installation
+    * Updated password expiration (180 days)
+    * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
+    * Tools installation (Azure Stack Tools)
+    * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
+    * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
+    * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
+    * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
+    * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
+    * Creates VM Scale Set gallery item
+    * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs) - **NEW in 1807.1**
+    * MySQL Resource Provider installation
+    * SQL Server Resource Provider installation
+    * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
+    * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
+    * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
+    * App Service prerequisites installation (SQL Server PowerShell, SQL Server DB VM and Standalone File Server)
+    * App Service Resource Provider sources download and certificates generation
+    * App Service Service Principal Created (for Azure AD and ADFS)
+    * Grants App Service Service Principal Admin Consent (for Azure AD)
+    * Automates deployment of the latest App Service release using dynamically constructed JSON
+    * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
+    * Creates a Base Plan and Offer containing all deployed services
+    * Creates a user subscription for the logged in tenant, and activates all resource providers
+    * Installs a selection of useful apps via Chocolatey (Putty, Chrome, VS Code, WinDirStat, WinSCP, Python3)
+    * Configures Python & Azure CLI for usage with ASDK - **NEW in 1807!**
+    * MySQL, SQL, App Service and Host Customization can be optionally skipped
+    * Cleans up download folder to ensure clean future runs
+    * Transcript Log for errors and troubleshooting
+    * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
+    * Stores script output in a ConfigASDKOutput.txt, for future reference
+    * Supports usage in offline/disconnected environments - **NEW in 1807!**
 
 .VERSION
 
+    1807.1  Updated to support automatic downloading of Microsoft VM Extensions for registered ASDKs
+            Added SQL Server PowerShell installation to configure App Service SQL Server VM with Contained DB Authentication
     1807    Updated to provide support for offline deployments, using zip file containing pre-downloaded binaries, tools and scripts along with PS 1.4.0 support
             Also added support for Azure CLI and Python configuration
     1805.2  Update to Windows Image creation to handle adding of KB4132216 to update Servicing Stack (for build 14393) for future updates
@@ -779,6 +782,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"ScaleSetGalleryItem","Incomplete"'
         '"MySQLGalleryItem","Incomplete"'
         '"SQLServerGalleryItem","Incomplete"'
+        '"VMExtensions","Incomplete"'
         '"MySQLRP","Incomplete"'
         '"SQLServerRP","Incomplete"'
         '"MySQLSKUQuota","Incomplete"'
@@ -947,7 +951,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
             $SourceLocation = "$downloadPath\ASDK\PowerShell"
             $RepoName = "MyNuGetSource"
-            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation  -InstallationPolicy Trusted
+            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
             Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
             Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
         }
@@ -1137,6 +1141,7 @@ Disable-AzureRmDataCollection -WarningAction SilentlyContinue
 ### CONFIGURE THE AZURE STACK HOST & INFRA VIRTUAL MACHINES ############################################################################################
 ########################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "HostConfiguration")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -1200,6 +1205,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "Registration")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
@@ -1280,6 +1286,7 @@ $azsLocation = (Get-AzsLocation).Name
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "UbuntuImage")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 
@@ -1570,15 +1577,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             elseif (($registerASDK -or !$registerASDK) -and (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline"))) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-            #$Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
-            #Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added successfully, so perform checks and attempt multiple uploads if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
                 try {
                     Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
                     Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                    $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
+                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
                 }
                 catch {
                     Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
@@ -1615,6 +1620,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ### ADD WINDOWS SERVER 2016 PLATFORM IMAGES ##################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "WindowsImage")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -2092,16 +2098,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     else {
                         Write-CustomVerbose -Message "Didn't find this package: $($azpkg.name)"
                         Write-CustomVerbose -Message "Will need to side load it in to the gallery"
-                        #Write-CustomVerbose -Message "Uploading $($azpkg.name) with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
-                        #$Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction SilentlyContinue
-                        #Start-Sleep -Seconds 5
                         $Retries = 0
                         # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
                         while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$($azpkg.name)"}) -and ($Retries++ -lt 20)) {
                             try {
                                 Write-CustomVerbose -Message "$($azpkg.name) doesn't exist in the gallery. Upload attempt #$Retries"
                                 Write-CustomVerbose -Message "Uploading $($azpkg.name) from $($azpkg.azpkgPath)"
-                                $Upload = Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction SilentlyContinue
+                                Add-AzsGalleryItem -GalleryItemUri $($azpkg.azpkgPath) -Force -Confirm:$false -ErrorAction SilentlyContinue
                             }
                             catch {
                                 Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
@@ -2137,16 +2140,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         Write-CustomVerbose -Message "Didn't find this package: $wsPackage"
                         Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
                         $galleryItemUri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/$wsPackage.azpkg"
-                        #Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
-                        #Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction Ignore
-                        #Start-Sleep -Seconds 5
                         $Retries = 0
                         # Sometimes the gallery item doesn't get added, so perform checks and attempt multiple times if necessary
                         While (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "$wsPackage"}) -and ($Retries++ -lt 20)) {
                             try {
                                 Write-CustomVerbose -Message "$wsPackage doesn't exist in the gallery. Upload attempt #$Retries"
                                 Write-CustomVerbose -Message "Uploading $wsPackage from $galleryItemUri"
-                                $Upload = Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction SilentlyContinue
+                                Add-AzsGalleryItem -GalleryItemUri $galleryItemUri -Force -Confirm:$false -ErrorAction SilentlyContinue
                             }
                             catch {
                                 Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
@@ -2183,15 +2183,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
                         Write-CustomVerbose -Message "Will need to sideload it in to the gallery"
                         $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
-                        #$Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
-                        #Start-Sleep -Seconds 5
                         $Retries = 0
                         # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
                         while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
                             try {
                                 Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload attempt #$Retries"
                                 Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                                $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
+                                Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
                             }
                             catch {
                                 Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
@@ -2231,6 +2229,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ### ADD VM SCALE SET GALLERY ITEM ############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "ScaleSetGalleryItem")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -2254,15 +2253,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-            #$Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
-            #Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
                 try {
                     Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
                     Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                    $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
+                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
                 }
                 catch {
                     Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
@@ -2299,6 +2296,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ### ADD MYSQL GALLERY ITEM ###################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -2323,15 +2321,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-            #$Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
-            #Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
                 try {
                     Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
                     Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                    $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
+                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
                 }
                 catch {
                     Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
@@ -2368,6 +2364,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 ### ADD SQL SERVER GALLERY ITEM ##############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -2391,15 +2388,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
-            #$Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
-            #Start-Sleep -Seconds 5
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
                 try {
                     Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
                     Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                    $Upload = Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
+                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
                 }
                 catch {
                     Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
@@ -2433,9 +2428,119 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
+#### ADD VM EXTENSIONS #######################################################################################################################################
+##############################################################################################################################################################
+
+$progress = Import-Csv $ConfigASDKProgressLogPath
+$RowIndex = [array]::IndexOf($progress.Stage, "VMExtensions")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+if ($registerASDK -and ($deploymentMode -ne "Offline")) {
+    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+        try {
+            # Currently an infinite loop bug exists in Azs.AzureBridge.Admin 0.1.1 - this section fixes it by editing the Get-TaskResult.ps1 file
+            # Also then launches the VM Extension important in a fresh PSSession as a precaution.
+            if (!(Get-Module -Name Azs.AzureBridge.Admin)) {
+                Import-Module Azs.AzureBridge.Admin -Force
+            }
+            if ((((Get-Module -Name Azs.AzureBridge*).Version).ToString()) -eq "0.1.1") {
+                $taskResult = (Get-ChildItem -Path "$((Get-Module -Name Azs.AzureBridge*).ModuleBase)" -Recurse -Include "Get-TaskResult.ps1" -ErrorAction Stop).FullName
+                foreach ($task in $taskResult) {
+                    $old = 'Write-Debug -Message "$($result | Out-String)"'
+                    $new = '#Write-Debug -Message "$($result | Out-String)"'
+                    $pattern1 = [RegEx]::Escape($old)
+                    $pattern2 = [RegEx]::Escape($new)
+                    if (!((Get-Content $taskResult) | Select-String $pattern2)) {
+                        if ((Get-Content $taskResult) | Select-String $pattern1) {
+                            Write-CustomVerbose -Message "Known issue with Azs.AzureBridge.Admin Module Version 0.1.1 - editing Get-TaskResult.ps1"
+                            Write-CustomVerbose -Message "Removing module before editing file"
+                            Remove-Module Azs.AzureBridge.Admin -Force -Confirm:$false -Verbose
+                            Write-CustomVerbose -Message "Editing file"
+                            (Get-Content $taskResult) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $taskResult -Verbose -ErrorAction Stop
+                            Write-CustomVerbose -Message "Editing completed. Reimporting module"
+                            Import-Module Azs.AzureBridge.Admin -Force
+                        }
+                    }
+                }
+            }
+            $verboseFunction = "function Write-CustomVerbose { ${function:Write-CustomVerbose} }"
+            $session = New-PSSession -Name VMExtensions
+            Invoke-Command -Session $session -ArgumentList $verboseFunction, $scriptStep, $progress, $RowIndex, $ConfigASDKProgressLogPath, $ArmEndpoint, $TenantID, $asdkCreds -ScriptBlock {
+                Param($verboseFunction)
+                $scriptStep = "$Using:scriptStep"
+                . ([ScriptBlock]::Create($using:verboseFunction))
+                $Global:VerbosePreference = "Continue"
+                $Global:ErrorActionPreference = 'Stop'
+                $Global:ProgressPreference = 'SilentlyContinue'
+                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+                Clear-AzureRmContext -Scope CurrentUser -Force
+                Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$Using:ArmEndpoint" -ErrorAction Stop | Out-Null
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $Using:TenantID -Credential $Using:asdkCreds -ErrorAction Stop | Out-Null
+                $activationName = "default"
+                $activationRG = "azurestack-activation"
+                $progress = $Using:progress
+                $RowIndex = $Using:RowIndex
+                if ($(Get-AzsAzureBridgeActivation -Name $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
+                    Write-CustomVerbose -Message "Adding Microsoft VM Extensions from the from the Azure Stack Marketplace"
+                    $getExtensions = ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")}).Name) -replace "default/", ""
+                    foreach ($extension in $getExtensions) {
+                        while (!$(Get-AzsAzureBridgeDownloadedProduct -Name $extension -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
+                            Write-CustomVerbose -Message "Didn't find $extension in your gallery. Downloading from the Azure Stack Marketplace"
+                            Invoke-AzsAzureBridgeProductDownload -ActivationName $activationName -Name $extension -ResourceGroupName $activationRG -Force -Confirm:$false -Verbose
+                        }
+                    }
+                    $getDownloads = (Get-AzsAzureBridgeDownloadedProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")})
+                    Write-CustomVerbose -Message "Your Azure Stack gallery now has the following Microsoft VM Extensions for enhancing your deployments:`r`n"
+                    foreach ($download in $getDownloads) {
+                        "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"
+                    }
+                    # Update the ConfigASDKProgressLog.csv file with successful completion
+                    Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+                    $progress[$RowIndex].Status = "Complete"
+                    $progress | Export-Csv $Using:ConfigASDKProgressLogPath -NoTypeInformation -Force
+                    Write-Output $progress | Out-Host
+                }
+                else {
+                    # No Azure Bridge Activation Record found - Skip rather than fail
+                    Write-CustomVerbose -Message "Skipping Microsoft VM Extension download, no Azure Bridge Activation Object called $activationName could be found within the resource group $activationRG on your Azure Stack"
+                    Write-CustomVerbose -Message "Assuming registration of this ASDK was successful, you should be able to manually download the VM extensions from Marketplace Management in the admin portal`r`n"
+                    # Update the ConfigASDKProgressLog.csv file with successful completion
+                    $progress[$RowIndex].Status = "Skipped"
+                    $progress | Export-Csv $Using:ConfigASDKProgressLogPath -NoTypeInformation -Force
+                    Write-Output $progress | Out-Host
+                }
+            }
+            Remove-PSSession -Name VMExtensions -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
+        }
+        catch {
+            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+            $progress[$RowIndex].Status = "Failed"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progress[$RowIndex].Status -eq "Skipped") {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously skipped"
+    }
+    elseif ($progress[$RowIndex].Status -eq "Complete") {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    }
+}
+elseif (!$registerASDK) {
+    Write-CustomVerbose -Message "Skipping VM Extension download, as Azure Stack has not been registered`r`n"
+    # Update the ConfigASDKProgressLog.csv file with successful completion
+    $progress[$RowIndex].Status = "Skipped"
+    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+    Write-Output $progress | Out-Host
+}
+
 #### INSTALL MYSQL RESOURCE PROVIDER #########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLRP")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -2531,6 +2636,7 @@ elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### INSTALL SQL SERVER RESOURCE PROVIDER ####################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerRP")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -2611,6 +2717,7 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### ADD MYSQL SKU & QUOTA ###################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLSKUQuota")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -2744,6 +2851,7 @@ elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### ADD SQL SERVER SKU & QUOTA ##############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerSKUQuota")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -2882,6 +2990,7 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 # In the event of an offline deployment, you'll need to side-load script files into a storage account to be called by any MySQL, SQL and File Server template deployment
 # rather than try to reach out to GitHub to run the scripts directly
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "UploadScripts")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -2960,6 +3069,7 @@ elseif ($deploymentMode -eq "Online") {
 #### DEPLOY MySQL VM TO HOST USER DATABASES ##################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLDBVM")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3024,6 +3134,7 @@ elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### DEPLOY SQL SERVER VM TO HOST USER DATABASES #############################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerDBVM")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3096,6 +3207,7 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### ADD MYSQL HOSTING SERVER ################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "MySQLAddHosting")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3158,6 +3270,7 @@ elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### ADD SQL SERVER HOSTING SERVER ###########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerAddHosting")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3220,6 +3333,7 @@ elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### DEPLOY APP SERVICE FILE SERVER ##########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceFileServer")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3286,6 +3400,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### DEPLOY APP SERVICE SQL SERVER ###########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "AppServiceSQLServer")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3373,6 +3488,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### DOWNLOAD APP SERVICE ####################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "DownloadAppService")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3448,6 +3564,7 @@ if (!$skipAppService) {
 #### GENERATE APP SERVICE CERTS ##############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "GenerateAppServiceCerts")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3497,6 +3614,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### CREATE AD SERVICE PRINCIPAL #############################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateServicePrincipal")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3574,6 +3692,7 @@ if (!$identityApplicationID -and !$skipAppService) {
 #### GRANT AZURE AD APP PERMISSION ###########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3645,6 +3764,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### DEPLOY APP SERVICE ######################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -3807,6 +3927,7 @@ elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "RegisterNewRPs")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -3840,6 +3961,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -3972,6 +4094,7 @@ elseif ($progress[$RowIndex].Status -eq "Complete") {
 #### CUSTOMIZE ASDK HOST #####################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallHostApps")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
@@ -4151,6 +4274,7 @@ elseif ($skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
 #### GENERATE OUTPUT #########################################################################################################################################
 ##############################################################################################################################################################
 
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "CreateOutput")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 try {
@@ -4265,6 +4389,28 @@ $scriptSuccess = $progress | Where-Object {($_.Status -eq "Incomplete") -or ($_.
 if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-CustomVerbose -Message "Congratulations - all steps completed successfully:`r`n"
     Write-Output $progress | Out-Host
+
+    if ([bool](Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose)) {
+        # Move log files to Completed folder - first check for 'Completed' folder, and create if not existing
+        if (!$([System.IO.Directory]::Exists("$downloadPath\Completed"))) {
+            New-Item -Path "$downloadPath\Completed" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
+        }
+        # Then create the folder that corresponds to this completed run
+        $completedDate = $(Get-Date).ToString("MMdd-HHmm")
+        $completedPath = "$downloadPath\Completed\$completedDate"
+        New-Item -Path "$completedPath" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
+        # Then move the files to this folder
+        Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$completedPath" -ErrorAction SilentlyContinue -Verbose
+    }
+
+    Write-CustomVerbose -Message "Retaining App Service Certs for potential App Service updates in the future"
+    if (!$([System.IO.Directory]::Exists("$completedPath\AppServiceCerts"))) {
+        New-Item -Path "$completedPath\AppServiceCerts" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
+    }
+    while (Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose) {
+        Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$completedPath\AppServiceCerts" -ErrorAction SilentlyContinue -Verbose
+    }
+
     Write-CustomVerbose -Message "Cleaning up ASDK Folder"
     # Will attempt multiple times as sometimes it fails
     $ASDKpath = "$downloadPath\ASDK"
@@ -4280,18 +4426,6 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
-
-    if ([bool](Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose)) {
-        # Move log files to Completed folder - first check for 'Completed' folder, and create if not existing
-        if (!$([System.IO.Directory]::Exists("$downloadPath\Completed"))) {
-            New-Item -Path "$downloadPath\Completed" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
-        }
-        # Then create the folder that corresponds to this completed run
-        $CompletedDate = $(Get-Date).ToString("MMdd-HHmm")
-        New-Item -Path "$downloadPath\Completed\$CompletedDate" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
-        # Then move the files to this folder
-        Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$downloadPath\Completed\$CompletedDate" -ErrorAction SilentlyContinue -Verbose
-    }
     
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
