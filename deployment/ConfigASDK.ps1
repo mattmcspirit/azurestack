@@ -4017,9 +4017,24 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
         $quotaIDs = $null
         $quotaIDs = @()
-        $quotaIDs += (New-AzsNetworkQuota @netParams).ID
-        $quotaIDs += (New-AzsComputeQuota @computeParams).ID
-        $quotaIDs += (New-AzsStorageQuota @storageParams).ID
+        while (!$(Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation)) {
+            New-AzsNetworkQuota @netParams
+        }
+        if ($(Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation)) {
+            $quotaIDs += (Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation).ID
+        }
+        while (!$(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation)) {
+            New-AzsComputeQuota @computeParams
+        }
+        if ($(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation)) {
+            $quotaIDs += (Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation).ID
+        }
+        while (!$(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation)) {
+            New-AzsStorageQuota @storageParams
+        }
+        if ($(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation)) {
+            $quotaIDs += (Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation).ID
+        }
         $quotaIDs += (Get-AzsKeyVaultQuota @kvParams).ID
 
         # If MySQL, MSSQL and App Service haven't been skipped, add them to the Base Plan too
