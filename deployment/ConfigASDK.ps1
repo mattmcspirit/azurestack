@@ -3455,7 +3455,6 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
                 }                
                 Install-Module SqlServer -Repository $RepoName -Force -Confirm:$false -Verbose -ErrorAction Stop
             }
-
             # Invoke the SQL Server query to turn on contained database authentication
             $sqlQuery = "sp_configure 'contained database authentication', 1;RECONFIGURE;"
             Invoke-Sqlcmd -Query "$sqlQuery" -ServerInstance "$sqlAppServerFqdn" -Username sa -Password $VMpwd -Verbose -ErrorAction Stop
