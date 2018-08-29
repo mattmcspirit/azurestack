@@ -4023,14 +4023,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         if ($(Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation)) {
             $quotaIDs += (Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation).ID
         }
-
         while (!$(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation)) {
             New-AzsComputeQuota @computeParams
         }
         if ($(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation)) {
             $quotaIDs += (Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation).ID
         }
-
         while (!$(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation)) {
             New-AzsStorageQuota @storageParams
         }
