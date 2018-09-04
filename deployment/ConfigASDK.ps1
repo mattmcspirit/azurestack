@@ -293,8 +293,9 @@ $logPath = "$ScriptLocation\Logs\$logDate"
 Write-CustomVerbose -Message "Log folder full path is $logPath"
 
 ### START LOGGING ###
-$logTime = $(Get-Date).ToString("MMdd-HHmmss")
-$logStart = Start-Transcript -Path "$logPath\ConfigASDKLog$logTime.txt" -Append
+$runTime = $(Get-Date).ToString("MMdd-HHmmss")
+$fullLogPath = "$logPath\ConfigASDKLog$runTime.txt"
+$logStart = Start-Transcript -Path "$fullLogPath" -Append
 Write-CustomVerbose -Message $logStart
 
 ### INTERNET CONNECTION TEST #################################################################################################################################
@@ -1220,9 +1221,8 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             Import-Module $modulePath\Registration\RegisterWithAzure.psm1 -Force -Verbose
             #Register Azure Stack
             $AzureContext = Get-AzureRmContext
-            $registrationTime = $(Get-Date).ToString("MMdd-HHmmss")
             $asdkHostName = ($env:computername).ToLower()
-            Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "asdkreg-$asdkHostName-$registrationTime" -BillingModel Development -ErrorAction Stop
+            Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "asdkreg-$asdkHostName-$runTime" -BillingModel Development -ErrorAction Stop
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
             $progress[$RowIndex].Status = "Complete"
@@ -4410,9 +4410,8 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
         if (!$([System.IO.Directory]::Exists("$downloadPath\Completed"))) {
             New-Item -Path "$downloadPath\Completed" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
         }
-        # Then create the folder that corresponds to this completed run
-        $completedDate = $(Get-Date).ToString("MMdd-HHmm")
-        $completedPath = "$downloadPath\Completed\$completedDate"
+        # Then create the folder that corresponds to this completed run using the time the script was started as the folder name
+        $completedPath = "$downloadPath\Completed\$runTime"
         New-Item -Path "$completedPath" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
         # Then move the files to this folder
         Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$completedPath" -ErrorAction SilentlyContinue -Verbose
@@ -4445,6 +4444,10 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     try {Invoke-WebRequest "http://bit.ly/asdksuccessrun" -UseBasicParsing -DisableKeepAlive | Out-Null } catch {$_.Exception.Response.StatusCode.Value__}
+
+    # Take a copy of the log file at this point
+    Write-CustomVerbose -Message "Copying log file for future reference"
+    Copy-Item "$fullLogPath" -Destination "$completedPath" -Force -ErrorAction SilentlyContinue -Verbose
 }
 else {
     Write-CustomVerbose -Message "Script hasn't completed successfully"
