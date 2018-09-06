@@ -5,6 +5,10 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1808?
+* Removal of VMSS gallery item installation - this is now built in to the ASDK
+* Support for ASDK build 1.1808.0.97
+
 ### What's new in version 1807.1?
 
 * Supports App Service 1.3 (Update 3) - required SQL PS to enable 'Contained DB Authentication'
