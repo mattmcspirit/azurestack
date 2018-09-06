@@ -5,7 +5,7 @@
     The purpose of this script is to automate as much as possible post deployment tasks in Azure Stack Development Kit
     This includes:
     * Validates all input parameters
-    * Installs Azure Stack PowerShell and AzureRM modules - **NEW in 1807!**
+    * Installs Azure Stack PowerShell and AzureRM modules
     * Ensures password for VMs meets complexity required for App Service installation
     * Updated password expiration (180 days)
     * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
@@ -15,8 +15,7 @@
     * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
     * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
     * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
-    * Creates VM Scale Set gallery item
-    * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs) - **NEW in 1807.1**
+    * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs)
     * MySQL Resource Provider installation
     * SQL Server Resource Provider installation
     * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
@@ -31,16 +30,18 @@
     * Creates a Base Plan and Offer containing all deployed services
     * Creates a user subscription for the logged in tenant, and activates all resource providers
     * Installs a selection of useful apps via Chocolatey (Putty, Chrome, VS Code, WinDirStat, WinSCP, Python3)
-    * Configures Python & Azure CLI for usage with ASDK - **NEW in 1807!**
+    * Configures Python & Azure CLI for usage with ASDK
     * MySQL, SQL, App Service and Host Customization can be optionally skipped
     * Cleans up download folder to ensure clean future runs
     * Transcript Log for errors and troubleshooting
     * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
     * Stores script output in a ConfigASDKOutput.txt, for future reference
-    * Supports usage in offline/disconnected environments - **NEW in 1807!**
+    * Supports usage in offline/disconnected environments
 
 .VERSION
 
+    1808    No longer adds VMSS gallery item as this is built it
+            Updated to support ASDK build 1.1808.0.97
     1807.1  Updated to support automatic downloading of Microsoft VM Extensions for registered ASDKs
             Added SQL Server PowerShell installation to configure App Service SQL Server VM with Contained DB Authentication
     1807    Updated to provide support for offline deployments, using zip file containing pre-downloaded binaries, tools and scripts along with PS 1.4.0 support
@@ -780,7 +781,6 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"Registration","Incomplete"'
         '"UbuntuImage","Incomplete"'
         '"WindowsImage","Incomplete"'
-        '"ScaleSetGalleryItem","Incomplete"'
         '"MySQLGalleryItem","Incomplete"'
         '"SQLServerGalleryItem","Incomplete"'
         '"VMExtensions","Incomplete"'
@@ -2204,73 +2204,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         }
                     }
                 }
-            }
-        }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-    }
-    catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-
-### ADD VM SCALE SET GALLERY ITEM ############################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "ScaleSetGalleryItem")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        ### Login to Azure Stack, then confirm if the VM Scale Set Gallery Item is already present ###
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $azpkgPackageName = "microsoft.vmss.1.3.6"
-        Write-CustomVerbose -Message "Checking for the VM Scale Set gallery item"
-        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
-            Write-CustomVerbose -Message "Found a suitable VM Scale Set Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
-        }
-        else {
-            Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
-            Write-CustomVerbose -Message "Will need to side load it in to the gallery"
-
-            if ($deploymentMode -eq "Online") {
-                Write-CustomVerbose -Message "Uploading $azpkgPackageName"
-                $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/VMSS/microsoft.vmss.1.3.6.azpkg"
-            }
-            # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
-            }
-            $Retries = 0
-            # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
-                try {
-                    Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
-                    Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
-                }
-                catch {
-                    Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
-                    Write-CustomVerbose -Message "$_.Exception.Message"
-                    Start-Sleep -Seconds 5
-                }
-            }
-            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
-                throw "Uploading gallery item failed after $Retries attempts. Exiting process."
-                Set-Location $ScriptLocation
-                return
             }
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
