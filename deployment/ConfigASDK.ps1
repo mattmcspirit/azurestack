@@ -4403,22 +4403,4 @@ Set-Location $ScriptLocation -ErrorAction SilentlyContinue
 Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
 Write-Output "You started the ASDK Configurator deployment at $startTime." -ErrorAction SilentlyContinue
 Write-Output "ASDK Configurator deployment completed at $endTime." -ErrorAction SilentlyContinue
-
-### Launch browser to activate admin and user portal for Azure AD deployments
-### Will launch in Chrome if Host has been customized
-if ($authenticationType.ToString() -like "AzureAd") {
-    Write-Output "Launching browser to activate admin and user portals"
-    if (!$skipCustomizeHost) {
-        [System.Diagnostics.Process]::Start("chrome.exe", "https://adminportal.local.azurestack.external/guest/signup")
-        Start-Sleep -Seconds 10
-        [System.Diagnostics.Process]::Start("chrome.exe", "https://portal.local.azurestack.external/guest/signup")
-    }
-    elseif ($skipCustomizeHost) {
-        Start-Process iexplore.exe https://adminportal.local.azurestack.external/guest/signup
-        Start-Sleep -Seconds 10
-        # Open in 2nd tab in same browser
-        $ie = (New-Object -COM "Shell.Application").Windows() | Where-Object { $_.Name -eq "Internet Explorer" }
-        $ie.Navigate("https://portal.local.azurestack.external/guest/signup", 2048)
-    }
-}
 Stop-Transcript -ErrorAction SilentlyContinue
