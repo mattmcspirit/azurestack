@@ -7,6 +7,7 @@ Here you'll find information on key changes, bug fixes and improvements made by 
 
 ### What's new in version 1808?
 * Removal of VMSS gallery item installation - this is now built in to the ASDK
+* Removal of guest signup launch for admin/user portal
 * Support for ASDK build 1.1808.0.97
 
 ### What's new in version 1807.1?

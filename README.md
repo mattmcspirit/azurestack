@@ -55,12 +55,12 @@ Important Considerations
 ------------
 Firstly, **you must have already deployed the ASDK**. Secondly, for an **Azure AD deployment of the ASDK** (or if you want use ConfigASDK.ps1 with an ADFS deployment of the ASDK, but **register** it to Azure), to run the ConfigASDK.ps1 script, you need to be using a true **organizational account**, such as admin@contoso.onmicrosoft.com or admin@contoso.com, and this account should have global admin credentials for the specified Azure AD directory. Even if you have a non-organizational account, such as an outlook.com account, that has the right level of privilege in Azure AD, the ConfigASDK.ps1 script **uses a -Credential switch for non-interactive login, which doesn’t work with non-organizational accounts**. You will receive an error.
 
-Offline/Disconnected Support - New in ASDK Configurator 1807
+Offline/Disconnected Support
 ------------
 * Do you want to deploy your ASDK in an environment that **doesn't have internet connectivity**?
 * Do you want to download the 5GB+ of required dependencies (Ubuntu image, Database resource providers, App Service binaries, JSON files etc) in advance of running the script?
 
-If you answered **yes** to any of those, then the new functionality introduced in the ASDK Configurator 1807 will be of interest to you!  There are however, some specific instructions associated with running in an offline/disconnected mode, and you should **[read the documentation](</deployment/offline/README.md>)** for those scenarios.
+If you answered **yes** to any of those, you can deploy the ConfigASDK in an offline/disconnected mode. To do so, you should **[read the documentation.](</deployment/offline/README.md>)**
 
 Step by Step Guidance (for internet-connected ASDK)
 ------------
@@ -164,14 +164,6 @@ In addition, you can choose to skip a particular resource provider deployment, s
 Post-Script Actions
 -------------------
 This script can take over 6 hours to finish, depending on your hardware and download speeds.
-
-Assuming the script has completed successfully, after **deployments that use Azure AD**, you **must** activate both the Azure Stack administrator and tenant portals. This activation consents to giving the Azure Stack portal and Azure Resource Manager the correct permissions (listed on the consent page) for all users of the directory.
-
-* For the administrator portal, navigate to <https://adminportal.local.azurestack.external/guest/signup>, read the information, and then click Accept. After accepting, you can add service administrators who are not also directory tenant administrators.
-
-* For the tenant portal, navigate to <https://portal.local.azurestack.external/guest/signup>, read the information, and then click Accept. After accepting, users in the directory can sign in to the tenant portal.
-
-The script does open the browser to prompt you to perform these tasks, but for more information, go here: <https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-post-deploy#activate-the-administrator-and-tenant-portals>
 
 ### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
