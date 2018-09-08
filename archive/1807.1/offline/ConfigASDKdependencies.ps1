@@ -240,6 +240,9 @@ try {
     # Windows Server DC Core AZPKG
     $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"
     $row.filename = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2016 Datacenter Core Marketplace Package"; $Table.Rows.Add($row)
+    # VMSS AZPKG
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/VMSS/microsoft.vmss.1.3.6.azpkg"
+    $row.filename = "microsoft.vmss.1.3.6.azpkg"; $row.path = "$packagePath"; $row.productName = "Virtual Machine Scale Set Marketplace Package"; $Table.Rows.Add($row)
     # MYSQL AZPKG
     $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
     $row.filename = "ASDK.MySQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "MySQL Marketplace Package"; $Table.Rows.Add($row)
