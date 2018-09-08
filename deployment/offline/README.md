@@ -1,4 +1,4 @@
-ASDK Configurator 1807.1 | Offline Mode
+ASDK Configurator 1808 | Offline Mode
 ==============
 
 Who is this for?
@@ -11,7 +11,7 @@ If you answered **Yes** to either of those questions, read on....
 Version Compatibility
 -----------
 The current version of the ConfigASDKdependencies.ps1 script has been **tested with the following versions**:
-* ASDK Configurator (ConfigASDK.ps1) **1807.1 and 1805.3**
+* ASDK Configurator (ConfigASDK.ps1) **1808**
 
 Description
 -----------
@@ -152,14 +152,6 @@ In addition, you can choose to skip a particular resource provider deployment, s
 Post-Script Actions
 -------------------
 The ConfigASDK.ps1 script can take over 6 hours to finish, depending on your hardware. An offline deployment will generally be quicker than a connected one, as you have already downloaded the relevant files in advance.
-
-Assuming the script has completed successfully, after **deployments that use Azure AD**, you **must** activate both the Azure Stack administrator and tenant portals. This activation consents to giving the Azure Stack portal and Azure Resource Manager the correct permissions (listed on the consent page) for all users of the directory.
-
-* For the administrator portal, navigate to <https://adminportal.local.azurestack.external/guest/signup>, read the information, and then click Accept. After accepting, you can add service administrators who are not also directory tenant administrators.
-
-* For the tenant portal, navigate to <https://portal.local.azurestack.external/guest/signup>, read the information, and then click Accept. After accepting, users in the directory can sign in to the tenant portal.
-
-The script does open the browser to prompt you to perform these tasks, but for more information, go here: <https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-post-deploy#activate-the-administrator-and-tenant-portals>
 
 #### Troubleshooting & Improvements ####
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
