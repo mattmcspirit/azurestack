@@ -60,7 +60,7 @@ Offline/Disconnected Support
 * Do you want to deploy your ASDK in an environment that **doesn't have internet connectivity**?
 * Do you want to download the 5GB+ of required dependencies (Ubuntu image, Database resource providers, App Service binaries, JSON files etc) in advance of running the script?
 
-If you answered **yes** to any of those, you can deploy the ConfigASDK in an offline/disconnected mode. To do so, you should **[read the documentation.](</deployment/offline/README.md>)**
+If you answered **yes** to any of those, you can deploy the ConfigASDK in an offline/disconnected mode. To do so, you should **[read the offline/disconnected documentation.](</deployment/offline/README.md>)**
 
 Step by Step Guidance (for internet-connected ASDK)
 ------------
