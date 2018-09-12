@@ -2396,6 +2396,8 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                 }
             }
             $verboseFunction = "function Write-CustomVerbose { ${function:Write-CustomVerbose} }"
+            Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
+            Get-Variable -Name session -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
             $session = New-PSSession -Name VMExtensions -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
             Invoke-Command -Session $session -ArgumentList $verboseFunction, $scriptStep, $progress, $RowIndex, $ConfigASDKProgressLogPath, $ArmEndpoint, $TenantID, $asdkCreds -ScriptBlock {
                 Param($verboseFunction)
@@ -2520,6 +2522,8 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # If this is an offline/partial online deployment, ensure you create a directory to store certs, and hold the MySQL Connector MSI.
             if ($deploymentMode -eq "Online") {
+                Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
+                Get-Variable -Name session -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
                 $session = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
                 Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
                     Set-Location "$Using:ASDKpath\databases\MySQL"
@@ -2532,6 +2536,8 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 $dependencyFilePath = New-Item -ItemType Directory -Path "$ASDKpath\databases\MySQL\Dependencies" -Force | ForEach-Object { $_.FullName }
                 $MySQLMSI = Get-ChildItem -Path "$ASDKpath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                 Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
+                Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
+                Get-Variable -Name session -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
                 $session = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
                 Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd, $dependencyFilePath -ScriptBlock {
                     Set-Location "$Using:ASDKpath\databases\MySQL"
@@ -2613,6 +2619,8 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # Define the additional credentials for the local virtual machine username/password and certificates password
             $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
+            Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
+            Get-Variable -Name session -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
             $session = New-PSSession -Name InstallMSSQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
             Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
                 Set-Location "$Using:ASDKpath\databases\SQL"
