@@ -2397,9 +2397,9 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             }
             $verboseFunction = "function Write-CustomVerbose { ${function:Write-CustomVerbose} }"
             Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
-            Get-Variable -Name session -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
-            $session = New-PSSession -Name VMExtensions -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
-            Invoke-Command -Session $session -ArgumentList $verboseFunction, $scriptStep, $progress, $RowIndex, $ConfigASDKProgressLogPath, $ArmEndpoint, $TenantID, $asdkCreds -ScriptBlock {
+            Get-Variable -Name vmSession -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
+            $vmSession = New-PSSession -Name VMExtensions -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
+            Invoke-Command -Session $vmSession -ArgumentList $verboseFunction, $scriptStep, $progress, $RowIndex, $ConfigASDKProgressLogPath, $ArmEndpoint, $TenantID, $asdkCreds -ScriptBlock {
                 Param($verboseFunction)
                 $scriptStep = "$Using:scriptStep"
                 . ([ScriptBlock]::Create($using:verboseFunction))
@@ -2445,7 +2445,7 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                 }
             }
             Remove-PSSession -Name VMExtensions -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-            Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
+            Remove-Variable -Name vmSession -Force -ErrorAction SilentlyContinue -Verbose
         }
         catch {
             Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
@@ -2523,9 +2523,9 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             # If this is an offline/partial online deployment, ensure you create a directory to store certs, and hold the MySQL Connector MSI.
             if ($deploymentMode -eq "Online") {
                 Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
-                Get-Variable -Name session -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
-                $session = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
-                Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
+                Get-Variable -Name mySQLsession -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
+                $mySQLsession = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
+                Invoke-Command -Session $mySQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
                     Set-Location "$Using:ASDKpath\databases\MySQL"
                     .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -AcceptLicense
                 }
@@ -2537,14 +2537,14 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 $MySQLMSI = Get-ChildItem -Path "$ASDKpath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                 Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
                 Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
-                Get-Variable -Name session -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
-                $session = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
-                Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd, $dependencyFilePath -ScriptBlock {
+                Get-Variable -Name mySQLsession -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
+                $mySQLsession = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
+                Invoke-Command -Session $mySQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd, $dependencyFilePath -ScriptBlock {
                     Set-Location "$Using:ASDKpath\databases\MySQL"
                     .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -DependencyFilesLocalPath $Using:dependencyFilePath -AcceptLicense
                 }
                 Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-                Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
+                Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
             }
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
@@ -2620,14 +2620,14 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             # Define the additional credentials for the local virtual machine username/password and certificates password
             $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
             Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
-            Get-Variable -Name session -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
-            $session = New-PSSession -Name InstallMSSQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
-            Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
+            Get-Variable -Name SQLsession -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
+            $SQLsession = New-PSSession -Name InstallMSSQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
+            Invoke-Command -Session $SQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
                 Set-Location "$Using:ASDKpath\databases\SQL"
                 .\DeploySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd
             }
             Remove-PSSession -Name InstallMSSQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-            Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
+            Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
