@@ -90,8 +90,8 @@ Usage Examples:
 
 ```powershell
 .\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -configAsdkOfflineZipPath "D:\ConfigASDKfiles.zip" -azureStackAdminPwd "Passw0rd123!" `
--VMpwd "Passw0rd123!" -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd "Passw0rd123!" `
+-downloadPath "D:\ASDKfiles" -configAsdkOfflineZipPath "D:\ConfigASDKfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
+-VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -99,9 +99,9 @@ Usage Examples:
 
 ```powershell
 .\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -configAsdkOfflineZipPath "D:\ConfigASDKfiles.zip" -azureStackAdminPwd "Passw0rd123!" `
--VMpwd "Passw0rd123!" -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd "Passw0rd123!" `
--registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd "Passw0rd123!" `
+-downloadPath "D:\ASDKfiles" -configAsdkOfflineZipPath "D:\ConfigASDKfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
+-VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
+-registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -109,16 +109,16 @@ Usage Examples:
 
 ```powershell
 .\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -configAsdkOfflineZipPath "D:\ConfigASDKfiles.zip" -azureStackAdminPwd "Passw0rd123!" `
--VMpwd "Passw0rd123!" -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd "Passw0rd123!"
+-downloadPath "D:\ASDKfiles" -configAsdkOfflineZipPath "D:\ConfigASDKfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
+-VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!'
 ```
 
 **Scenario 4** - Using ADFS for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you will have to use a different set of Azure AD credentials as your ASDK was deployed with ADFS. You have provided a valid -configAsdkOfflineZipPath:
 
 ```powershell
 .\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -configAsdkOfflineZipPath "D:\ConfigASDKfiles.zip" `
--azureStackAdminPwd "Passw0rd123!" -VMpwd "Passw0rd123!" -registerASDK `
--azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd "Passw0rd123!" `
+-azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerASDK `
+-azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -126,7 +126,7 @@ Usage Examples:
 
 ```powershell
 .\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -configAsdkOfflineZipPath "D:\ConfigASDKfiles.zip" `
--azureStackAdminPwd "Passw0rd123!" -VMpwd "Passw0rd123!"
+-azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
 ```
 
 ### Offline Scenarios
@@ -135,7 +135,7 @@ Usage Examples:
 
 ```powershell
 .\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -configAsdkOfflineZipPath "D:\ConfigASDKfiles.zip" `
--azureStackAdminPwd "Passw0rd123!" -VMpwd "Passw0rd123!"
+-azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
 ```
 
 ### Optional Actions
