@@ -2522,29 +2522,62 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # If this is an offline/partial online deployment, ensure you create a directory to store certs, and hold the MySQL Connector MSI.
             if ($deploymentMode -eq "Online") {
-                Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
-                Get-Variable -Name mySQLsession -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
-                $mySQLsession = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
+                Set-Location "$ASDKpath\databases\MySQL"
+                
+
+
+
                 Invoke-Command -Session $mySQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
                     Set-Location "$Using:ASDKpath\databases\MySQL"
                     .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -AcceptLicense
                 }
-                Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-                Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $dependencyFilePath = New-Item -ItemType Directory -Path "$ASDKpath\databases\MySQL\Dependencies" -Force | ForEach-Object { $_.FullName }
                 $MySQLMSI = Get-ChildItem -Path "$ASDKpath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                 Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
-                Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
-                Get-Variable -Name mySQLsession -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
-                $mySQLsession = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
                 Invoke-Command -Session $mySQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd, $dependencyFilePath -ScriptBlock {
                     Set-Location "$Using:ASDKpath\databases\MySQL"
                     .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -DependencyFilesLocalPath $Using:dependencyFilePath -AcceptLicense
                 }
-                Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-                Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
+            }
+
+            # Validate the MySQL RP Deployment based on Resource Group success and DNS Zone Updates
+            # Validate RG Success first - RG exists | Contains 'something' | Contains succeeded items 
+            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.mysqladapter"}) {
+                Write-CustomVerbose -Message "MySQL Resource Provider Resource Group exists. Checking for deployments"
+                if ((Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.mysqladapter") -ne $null) {
+                    Write-CustomVerbose -Message "MySQL Resource Provider deployments exist - checking for successful deployments"
+                    if (($deployments = Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.mysqladapter") | Where-Object {$_.ProvisioningState -ne "Succeeded"}) {
+                        Write-CustomVerbose -Message "Found failed deployments. Details below."
+                        $deployments | Format-Table
+                        throw "MySQL Resource Provider installation was not successful. Check the MySQL Resource Provider deployment logs for further information and troubleshooting."
+                    }
+                    else {
+                        Write-CustomVerbose -Message "All deployments for the MySQL Resource Provider appear to be successful. Details below:"
+                        $deployments | Format-Table DeploymentName, ResourceGroupName, ProvisioningState, TimeStamp -AutoSize 
+                    }
+                }
+                else {
+                    throw "MySQL Resource Provider Resource Group exists, but is empty. No deployments have been performed, therefore the MySQL Resource Provider was unsuccessful. Check the MySQL Resource Provider deployment logs for further information and troubleshooting"
+                }
+            }
+            else {
+                throw "MySQL Resource Provider Resource Group does not exist. The MySQL Resource Provider deployment may have failed in the early stages. Check the MySQL Resource Provider deployment logs for further information and troubleshooting"
+            }
+
+            # Validate DNS Zone info
+            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.dbadapter.dns"}) {
+                if ($dnsExists = ((Get-AzureRmDnsZone -ResourceGroupName "system.local.dbadapter.dns" | Get-AzureRmDnsRecordSet) | Where-Object {$_.Name -eq "MySQLAdapter"})) {
+                    Write-Host "The MySQL Resource Provider deployment process has successfully added a DNS record. Details below:"
+                    $dnsExists | Format-Table
+                }
+                else {
+                    throw "No DNS record for the MySQL Adapter can be found. An error must have occurred in the MySQL Resource Provider deployment. Check the MySQL Resource Provider deployment logs for further information and troubleshooting."
+                }
+            }
+            else {
+                throw "DBAdapter DNS Resource Group does not exist. The MySQL Resource Provider deployment may have failed in the early stages. Check the MySQL Resource Provider deployment logs for further information and troubleshooting"
             }
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
@@ -2628,6 +2661,44 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             }
             Remove-PSSession -Name InstallMSSQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
             Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
+
+            # Validate the MySQL RP Deployment based on Resource Group success and DNS Zone Updates
+            # Validate RG Success first - RG exists | Contains 'something' | Contains succeeded items 
+            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.sqladapter"}) {
+                Write-Host "SQL Server Resource Provider Resource Group exists. Checking for deployments"
+                if ((Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.sqladapter") -ne $null) {
+                    Write-Host "SQL Server Resource Provider deployments exist - checking for successful deployments"
+                    if (($deployments = Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.sqladapter") | Where-Object {$_.ProvisioningState -ne "Succeeded"}) {
+                        Write-Host "Found failed deployments. Details below."
+                        $deployments | Format-Table
+                        throw "SQL Server Resource Provider installation was not successful. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting."
+                    }
+                    else {
+                        Write-Host "All deployments for the SQL Server Resource Provider appear to be successful. Details below:"
+                        $deployments | Format-Table DeploymentName, ResourceGroupName, ProvisioningState, TimeStamp -AutoSize 
+                    }
+                }
+                else {
+                    throw "SQL Server Resource Provider Resource Group exists, but is empty. No deployments have been performed, therefore the SQL Server Resource Provider was unsuccessful. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting"
+                }
+            }
+            else {
+                throw "SQL Server Resource Provider Resource Group does not exist. The SQL Server Resource Provider deployment may have failed in the early stages. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting"
+            }
+
+            # Validate DNS Zone info
+            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.dbadapter.dns"}) {
+                if ($dnsExists = ((Get-AzureRmDnsZone -ResourceGroupName "system.local.dbadapter.dns" | Get-AzureRmDnsRecordSet) | Where-Object {$_.Name -eq "SQLAdapter"})) {
+                    Write-Host "The SQL Server Resource Provider deployment process has successfully added a DNS record. Details below:"
+                    $dnsExists | Format-Table
+                }
+                else {
+                    throw "No DNS record for the SQL Server Adapter can be found. An error must have occurred in the SQL Server Resource Provider deployment. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting."
+                }
+            }
+            else {
+                throw "DBAdapter DNS Resource Group does not exist. The SQL Server Resource Provider deployment may have failed in the early stages. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting"
+            }
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
