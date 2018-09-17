@@ -2546,6 +2546,9 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 }
             }
 
+            Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
+
             <# Validate the MySQL RP Deployment based on Resource Group success and DNS Zone Updates
             # Validate RG Success first - RG exists | Contains 'something' | Contains succeeded items 
             if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.mysqladapter"}) {
