@@ -2523,11 +2523,11 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             # If this is an offline/partial online deployment, ensure you create a directory to store certs, and hold the MySQL Connector MSI.
             if ($deploymentMode -eq "Online") {
                 Set-Location "$ASDKpath\databases\MySQL"
-                
-
-
-
+                Get-PSSession | Remove-PSSession
+                $mySQLsession = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
                 Invoke-Command -Session $mySQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
+                    Get-Service BITS | Restart-Service
+                    Get-BitsTransfer | Remove-BitsTransfer
                     Set-Location "$Using:ASDKpath\databases\MySQL"
                     .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -AcceptLicense
                 }
@@ -2536,13 +2536,17 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 $dependencyFilePath = New-Item -ItemType Directory -Path "$ASDKpath\databases\MySQL\Dependencies" -Force | ForEach-Object { $_.FullName }
                 $MySQLMSI = Get-ChildItem -Path "$ASDKpath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                 Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
+                Get-PSSession | Remove-PSSession
+                $mySQLsession = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
                 Invoke-Command -Session $mySQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd, $dependencyFilePath -ScriptBlock {
+                    Get-Service BITS | Restart-Service
+                    Get-BitsTransfer | Remove-BitsTransfer
                     Set-Location "$Using:ASDKpath\databases\MySQL"
                     .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -DependencyFilesLocalPath $Using:dependencyFilePath -AcceptLicense
                 }
             }
 
-            # Validate the MySQL RP Deployment based on Resource Group success and DNS Zone Updates
+            <# Validate the MySQL RP Deployment based on Resource Group success and DNS Zone Updates
             # Validate RG Success first - RG exists | Contains 'something' | Contains succeeded items 
             if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.mysqladapter"}) {
                 Write-CustomVerbose -Message "MySQL Resource Provider Resource Group exists. Checking for deployments"
@@ -2578,7 +2582,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
             }
             else {
                 throw "DBAdapter DNS Resource Group does not exist. The MySQL Resource Provider deployment may have failed in the early stages. Check the MySQL Resource Provider deployment logs for further information and troubleshooting"
-            }
+            } #>
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
