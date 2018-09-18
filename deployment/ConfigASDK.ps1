@@ -3440,6 +3440,21 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
+            # Install SQL Server PowerShell on Host in order to configure 'Contained Database Authentication'
+            if ($deploymentMode -eq "Online") {
+                # Install SQL Server Module from Online PSrepository
+                Install-Module SqlServer -Force -Confirm:$false -Verbose -ErrorAction Stop
+            }
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+                # Need to grab module from the ConfigASDKfiles.zip
+                $SourceLocation = "$downloadPath\ASDK\PowerShell"
+                $RepoName = "MyNuGetSource"
+                if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
+                    Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+                }                
+                Install-Module SqlServer -Repository $RepoName -Force -Confirm:$false -Verbose -ErrorAction Stop
+            }
+
             # Deploy a SQL Server 2017 on Ubuntu VM for App Service
             Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu Server 16.04 LTS for App Service"
             New-AzureRmResourceGroup -Name "appservice-sql" -Location $azsLocation -Force
@@ -3461,21 +3476,6 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # Get the FQDN of the VM
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
-
-            # Install SQL Server PowerShell on Host in order to configure 'Contained Database Authentication'
-            if ($deploymentMode -eq "Online") {
-                # Install SQL Server Module from Online PSrepository
-                Install-Module SqlServer -Force -Confirm:$false -Verbose -ErrorAction Stop
-            }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                # Need to grab module from the ConfigASDKfiles.zip
-                $SourceLocation = "$downloadPath\ASDK\PowerShell"
-                $RepoName = "MyNuGetSource"
-                if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
-                    Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
-                }                
-                Install-Module SqlServer -Repository $RepoName -Force -Confirm:$false -Verbose -ErrorAction Stop
-            }
             
             # Invoke the SQL Server query to turn on contained database authentication
             $sqlQuery = "sp_configure 'contained database authentication', 1;RECONFIGURE;"
