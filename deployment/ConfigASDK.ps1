@@ -40,7 +40,9 @@
 
 .VERSION
 
-    1808    No longer adds VMSS gallery item as this is built it
+    1808.1  Updated to support PowerShell 1.5.0 and AzureRmProfile 2018-03-01-hybrid
+            Added fix for BITS issues with MySQL/SQL RP installations
+    1808    No longer adds VMSS gallery item as this is built in.
             Updated to support ASDK build 1.1808.0.97
     1807.1  Updated to support automatic downloading of Microsoft VM Extensions for registered ASDKs
             Added SQL Server PowerShell installation to configure App Service SQL Server VM with Contained DB Authentication
@@ -933,9 +935,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Import-Module -Name PowerShellGet -ErrorAction Stop
         Import-Module -Name PackageManagement -ErrorAction Stop
         Write-CustomVerbose -Message "Uninstalling previously existing Azure Stack modules"
-        Uninstall-Module AzureRM.AzureStackAdmin -Force -ErrorAction Ignore
-        Uninstall-Module AzureRM.AzureStackStorage -Force -ErrorAction Ignore
-        Uninstall-Module -Name AzureStack -Force -ErrorAction Ignore
+        Uninstall-Module AzureRM.AzureStackAdmin -Force
+        Uninstall-Module AzureRM.AzureStackStorage -Force
+        Uninstall-Module -Name AzureStack -Force
+        Get-Module Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
         if ($deploymentMode -eq "Online") {
             # If this is an online deployment, pull down the PowerShell modules from the Internet
             Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
@@ -945,8 +948,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
             Get-PSRepository -Name "PSGallery"
             Install-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
-            Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop
-            Install-Module -Name AzureStack -RequiredVersion 1.4.0 -Force -ErrorAction Stop
+            Use-AzureRmProfile -Profile 2018-03-01-hybrid -Force -ErrorAction Stop
+            Install-Module -Name AzureStack -RequiredVersion 1.5.0 -Force -ErrorAction Stop
         }
         elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
