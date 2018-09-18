@@ -1,13 +1,13 @@
-Azure Stack Development Kit Configurator 1808
+Azure Stack Development Kit Configurator 1808.1
 ==============
 
 Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
 * ASDK build **1.1808.0.97 (1808)**
-* Azure Stack PowerShell Module **1.4.0**
+* Azure Stack PowerShell Module **1.5.0**
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1808, with Azure Stack PowerShell 1.4.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1808, with Azure Stack PowerShell 1.5.0. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
@@ -107,8 +107,8 @@ Usage Examples:
 
 ```powershell
 .\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd "Passw0rd123!" `
--VMpwd "Passw0rd123!" -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd "Passw0rd123!" `
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
+-VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -116,9 +116,9 @@ Usage Examples:
 
 ```powershell
 .\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd "Passw0rd123!" `
--VMpwd "Passw0rd123!" -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd "Passw0rd123!" `
--registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd "Passw0rd123!" `
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
+-VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
+-registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -129,16 +129,16 @@ Usage Examples:
 
 ```powershell
 .\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd "Passw0rd123!" `
--VMpwd "Passw0rd123!" -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd "Passw0rd123!"
+-downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
+-VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!'
 ```
 
 **Scenario 4** - Using ADFS for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you will have to use a different set of Azure AD credentials as your ASDK was deployed with ADFS:
 
 ```powershell
 .\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd "Passw0rd123!" -VMpwd "Passw0rd123!" -registerASDK `
--azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd "Passw0rd123!" `
+-azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerASDK `
+-azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -146,7 +146,7 @@ Usage Examples:
 
 ```powershell
 .\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd "Passw0rd123!" -VMpwd "Passw0rd123!"
+-azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
 ```
 
 Optional Actions

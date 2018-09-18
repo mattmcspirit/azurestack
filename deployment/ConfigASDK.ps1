@@ -40,7 +40,9 @@
 
 .VERSION
 
-    1808    No longer adds VMSS gallery item as this is built it
+    1808.1  Updated to support PowerShell 1.5.0 and AzureRmProfile 2018-03-01-hybrid
+            Added fix for BITS issues with MySQL/SQL RP installations
+    1808    No longer adds VMSS gallery item as this is built in.
             Updated to support ASDK build 1.1808.0.97
     1807.1  Updated to support automatic downloading of Microsoft VM Extensions for registered ASDKs
             Added SQL Server PowerShell installation to configure App Service SQL Server VM with Contained DB Authentication
@@ -933,9 +935,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Import-Module -Name PowerShellGet -ErrorAction Stop
         Import-Module -Name PackageManagement -ErrorAction Stop
         Write-CustomVerbose -Message "Uninstalling previously existing Azure Stack modules"
-        Uninstall-Module AzureRM.AzureStackAdmin -Force -ErrorAction Ignore
-        Uninstall-Module AzureRM.AzureStackStorage -Force -ErrorAction Ignore
-        Uninstall-Module -Name AzureStack -Force -ErrorAction Ignore
+        Uninstall-Module AzureRM.AzureStackAdmin -Force
+        Uninstall-Module AzureRM.AzureStackStorage -Force
+        Uninstall-Module -Name AzureStack -Force
+        Get-Module Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
         if ($deploymentMode -eq "Online") {
             # If this is an online deployment, pull down the PowerShell modules from the Internet
             Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
@@ -945,8 +948,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
             Get-PSRepository -Name "PSGallery"
             Install-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
-            Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop
-            Install-Module -Name AzureStack -RequiredVersion 1.4.0 -Force -ErrorAction Stop
+            Use-AzureRmProfile -Profile 2018-03-01-hybrid -Force -ErrorAction Stop
+            Install-Module -Name AzureStack -RequiredVersion 1.5.0 -Force -ErrorAction Stop
         }
         elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
@@ -2396,8 +2399,10 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                 }
             }
             $verboseFunction = "function Write-CustomVerbose { ${function:Write-CustomVerbose} }"
-            $session = New-PSSession -Name VMExtensions
-            Invoke-Command -Session $session -ArgumentList $verboseFunction, $scriptStep, $progress, $RowIndex, $ConfigASDKProgressLogPath, $ArmEndpoint, $TenantID, $asdkCreds -ScriptBlock {
+            Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
+            Get-Variable -Name vmSession -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
+            $vmSession = New-PSSession -Name VMExtensions -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
+            Invoke-Command -Session $vmSession -ArgumentList $verboseFunction, $scriptStep, $progress, $RowIndex, $ConfigASDKProgressLogPath, $ArmEndpoint, $TenantID, $asdkCreds -ScriptBlock {
                 Param($verboseFunction)
                 $scriptStep = "$Using:scriptStep"
                 . ([ScriptBlock]::Create($using:verboseFunction))
@@ -2443,7 +2448,7 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                 }
             }
             Remove-PSSession -Name VMExtensions -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-            Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
+            Remove-Variable -Name vmSession -Force -ErrorAction SilentlyContinue -Verbose
         }
         catch {
             Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
@@ -2520,26 +2525,70 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # If this is an offline/partial online deployment, ensure you create a directory to store certs, and hold the MySQL Connector MSI.
             if ($deploymentMode -eq "Online") {
-                $session = New-PSSession -Name InstallMySQLRP
-                Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
+                Set-Location "$ASDKpath\databases\MySQL"
+                Get-PSSession | Remove-PSSession
+                $mySQLsession = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
+                Invoke-Command -Session $mySQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
+                    Get-Service BITS | Restart-Service
+                    Get-BitsTransfer | Remove-BitsTransfer
                     Set-Location "$Using:ASDKpath\databases\MySQL"
                     .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -AcceptLicense
                 }
-                Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-                Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $dependencyFilePath = New-Item -ItemType Directory -Path "$ASDKpath\databases\MySQL\Dependencies" -Force | ForEach-Object { $_.FullName }
                 $MySQLMSI = Get-ChildItem -Path "$ASDKpath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                 Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
-                $session = New-PSSession -Name InstallMySQLRP
-                Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd, $dependencyFilePath -ScriptBlock {
+                Get-PSSession | Remove-PSSession
+                $mySQLsession = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
+                Invoke-Command -Session $mySQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd, $dependencyFilePath -ScriptBlock {
+                    Get-Service BITS | Restart-Service
+                    Get-BitsTransfer | Remove-BitsTransfer
                     Set-Location "$Using:ASDKpath\databases\MySQL"
                     .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -DependencyFilesLocalPath $Using:dependencyFilePath -AcceptLicense
                 }
-                Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-                Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
             }
+
+            Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
+
+            <# Validate the MySQL RP Deployment based on Resource Group success and DNS Zone Updates
+            # Validate RG Success first - RG exists | Contains 'something' | Contains succeeded items 
+            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.mysqladapter"}) {
+                Write-CustomVerbose -Message "MySQL Resource Provider Resource Group exists. Checking for deployments"
+                if ((Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.mysqladapter") -ne $null) {
+                    Write-CustomVerbose -Message "MySQL Resource Provider deployments exist - checking for successful deployments"
+                    if (($deployments = Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.mysqladapter") | Where-Object {$_.ProvisioningState -ne "Succeeded"}) {
+                        Write-CustomVerbose -Message "Found failed deployments. Details below."
+                        $deployments | Format-Table
+                        throw "MySQL Resource Provider installation was not successful. Check the MySQL Resource Provider deployment logs for further information and troubleshooting."
+                    }
+                    else {
+                        Write-CustomVerbose -Message "All deployments for the MySQL Resource Provider appear to be successful. Details below:"
+                        $deployments | Format-Table DeploymentName, ResourceGroupName, ProvisioningState, TimeStamp -AutoSize 
+                    }
+                }
+                else {
+                    throw "MySQL Resource Provider Resource Group exists, but is empty. No deployments have been performed, therefore the MySQL Resource Provider was unsuccessful. Check the MySQL Resource Provider deployment logs for further information and troubleshooting"
+                }
+            }
+            else {
+                throw "MySQL Resource Provider Resource Group does not exist. The MySQL Resource Provider deployment may have failed in the early stages. Check the MySQL Resource Provider deployment logs for further information and troubleshooting"
+            }
+
+            # Validate DNS Zone info
+            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.dbadapter.dns"}) {
+                if ($dnsExists = ((Get-AzureRmDnsZone -ResourceGroupName "system.local.dbadapter.dns" | Get-AzureRmDnsRecordSet) | Where-Object {$_.Name -eq "MySQLAdapter"})) {
+                    Write-Host "The MySQL Resource Provider deployment process has successfully added a DNS record. Details below:"
+                    $dnsExists | Format-Table
+                }
+                else {
+                    throw "No DNS record for the MySQL Adapter can be found. An error must have occurred in the MySQL Resource Provider deployment. Check the MySQL Resource Provider deployment logs for further information and troubleshooting."
+                }
+            }
+            else {
+                throw "DBAdapter DNS Resource Group does not exist. The MySQL Resource Provider deployment may have failed in the early stages. Check the MySQL Resource Provider deployment logs for further information and troubleshooting"
+            } #>
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -2613,14 +2662,53 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # Define the additional credentials for the local virtual machine username/password and certificates password
             $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
-
-            $session = New-PSSession -Name InstallMSSQLRP
-            Invoke-Command -Session $session -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
+            Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
+            Get-Variable -Name SQLsession -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
+            $SQLsession = New-PSSession -Name InstallMSSQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
+            Invoke-Command -Session $SQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
                 Set-Location "$Using:ASDKpath\databases\SQL"
                 .\DeploySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd
             }
             Remove-PSSession -Name InstallMSSQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-            Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
+            Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
+
+            # Validate the MySQL RP Deployment based on Resource Group success and DNS Zone Updates
+            # Validate RG Success first - RG exists | Contains 'something' | Contains succeeded items 
+            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.sqladapter"}) {
+                Write-Host "SQL Server Resource Provider Resource Group exists. Checking for deployments"
+                if ((Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.sqladapter") -ne $null) {
+                    Write-Host "SQL Server Resource Provider deployments exist - checking for successful deployments"
+                    if (($deployments = Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.sqladapter") | Where-Object {$_.ProvisioningState -ne "Succeeded"}) {
+                        Write-Host "Found failed deployments. Details below."
+                        $deployments | Format-Table
+                        throw "SQL Server Resource Provider installation was not successful. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting."
+                    }
+                    else {
+                        Write-Host "All deployments for the SQL Server Resource Provider appear to be successful. Details below:"
+                        $deployments | Format-Table DeploymentName, ResourceGroupName, ProvisioningState, TimeStamp -AutoSize 
+                    }
+                }
+                else {
+                    throw "SQL Server Resource Provider Resource Group exists, but is empty. No deployments have been performed, therefore the SQL Server Resource Provider was unsuccessful. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting"
+                }
+            }
+            else {
+                throw "SQL Server Resource Provider Resource Group does not exist. The SQL Server Resource Provider deployment may have failed in the early stages. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting"
+            }
+
+            # Validate DNS Zone info
+            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.dbadapter.dns"}) {
+                if ($dnsExists = ((Get-AzureRmDnsZone -ResourceGroupName "system.local.dbadapter.dns" | Get-AzureRmDnsRecordSet) | Where-Object {$_.Name -eq "SQLAdapter"})) {
+                    Write-Host "The SQL Server Resource Provider deployment process has successfully added a DNS record. Details below:"
+                    $dnsExists | Format-Table
+                }
+                else {
+                    throw "No DNS record for the SQL Server Adapter can be found. An error must have occurred in the SQL Server Resource Provider deployment. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting."
+                }
+            }
+            else {
+                throw "DBAdapter DNS Resource Group does not exist. The SQL Server Resource Provider deployment may have failed in the early stages. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting"
+            }
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -3352,6 +3440,21 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
     }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
+            # Install SQL Server PowerShell on Host in order to configure 'Contained Database Authentication'
+            if ($deploymentMode -eq "Online") {
+                # Install SQL Server Module from Online PSrepository
+                Install-Module SqlServer -Force -Confirm:$false -Verbose -ErrorAction Stop
+            }
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+                # Need to grab module from the ConfigASDKfiles.zip
+                $SourceLocation = "$downloadPath\ASDK\PowerShell"
+                $RepoName = "MyNuGetSource"
+                if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
+                    Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+                }                
+                Install-Module SqlServer -Repository $RepoName -Force -Confirm:$false -Verbose -ErrorAction Stop
+            }
+
             # Deploy a SQL Server 2017 on Ubuntu VM for App Service
             Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu Server 16.04 LTS for App Service"
             New-AzureRmResourceGroup -Name "appservice-sql" -Location $azsLocation -Force
@@ -3373,21 +3476,6 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
 
             # Get the FQDN of the VM
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
-
-            # Install SQL Server PowerShell on Host in order to configure 'Contained Database Authentication'
-            if ($deploymentMode -eq "Online") {
-                # Install SQL Server Module from Online PSrepository
-                Install-Module SqlServer -Force -Confirm:$false -Verbose -ErrorAction Stop
-            }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                # Need to grab module from the ConfigASDKfiles.zip
-                $SourceLocation = "$downloadPath\ASDK\PowerShell"
-                $RepoName = "MyNuGetSource"
-                if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
-                    Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
-                }                
-                Install-Module SqlServer -Repository $RepoName -Force -Confirm:$false -Verbose -ErrorAction Stop
-            }
             
             # Invoke the SQL Server query to turn on contained database authentication
             $sqlQuery = "sp_configure 'contained database authentication', 1;RECONFIGURE;"
