@@ -935,9 +935,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Import-Module -Name PowerShellGet -ErrorAction Stop
         Import-Module -Name PackageManagement -ErrorAction Stop
         Write-CustomVerbose -Message "Uninstalling previously existing Azure Stack modules"
-        Uninstall-Module AzureRM.AzureStackAdmin -Force
-        Uninstall-Module AzureRM.AzureStackStorage -Force
-        Uninstall-Module -Name AzureStack -Force
+        Uninstall-Module AzureRM.AzureStackAdmin -Force -ErrorAction SilentlyContinue
+        Uninstall-Module AzureRM.AzureStackStorage -Force -ErrorAction SilentlyContinue
+        Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue
         Get-Module Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
         if ($deploymentMode -eq "Online") {
             # If this is an online deployment, pull down the PowerShell modules from the Internet
