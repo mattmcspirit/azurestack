@@ -40,8 +40,7 @@
 
 .VERSION
 
-    1808.1  Updated to support PowerShell 1.5.0 and AzureRmProfile 2018-03-01-hybrid
-            Added fix for BITS issues with MySQL/SQL RP installations
+    1808.1  Added fix for BITS issues with MySQL/SQL RP installations
     1808    No longer adds VMSS gallery item as this is built in.
             Updated to support ASDK build 1.1808.0.97
     1807.1  Updated to support automatic downloading of Microsoft VM Extensions for registered ASDKs
@@ -473,7 +472,7 @@ if ($VMpwd -cmatch $regex -eq $true) {
 elseif ($VMpwd -cmatch $regex -eq $false) {
     Write-CustomVerbose -Message "Virtual Machine password doesn't meet complexity requirements, it needs to be at least 12 characters in length."
     Write-CustomVerbose -Message "Your password should also have at least 3 of the following 4 options: 1 upper case, 1 lower case, 1 number, 1 special character."
-    Write-CustomVerbose -Message "The App Service installation requires a password of this strength. An Example would be p@ssw0rd123!" 
+    Write-CustomVerbose -Message 'The App Service installation requires a password of this strength. An Example would be p@ssw0rd123!'
     # Obtain new password and store as a secure string
     $secureVMpwd = Read-Host -AsSecureString "Enter VM password again"
     # Convert to plain text to test regex complexity
@@ -949,7 +948,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Get-PSRepository -Name "PSGallery"
             Install-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
             Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop
-            Install-Module -Name AzureStack -RequiredVersion 1.5.0 -Force -ErrorAction Stop
+            Install-Module -Name AzureStack -RequiredVersion 1.4.0 -Force -ErrorAction Stop
         }
         elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
