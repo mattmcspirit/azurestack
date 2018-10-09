@@ -781,7 +781,9 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"HostConfiguration","Incomplete"'
         '"Registration","Incomplete"'
         '"UbuntuImage","Incomplete"'
-        '"WindowsImage","Incomplete"'
+        '"WindowsUpdates","Incomplete"'
+        '"ServerCoreImage","Incomplete"'
+        '"ServerFullImage","Incomplete"'
         '"MySQLGalleryItem","Incomplete"'
         '"SQLServerGalleryItem","Incomplete"'
         '"VMExtensions","Incomplete"'
@@ -1288,336 +1290,61 @@ $azsLocation = (Get-AzsLocation).Name
 ### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
 ##############################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "UbuntuImage")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+# Get current free space on the drive used to hold the Azure Stack images
+$freeSpace = [int](((Get-WmiObject win32_logicaldisk | Where-Object {$_.DeviceId -eq (Split-Path -Path "$ASDKpath" -Qualifier) }).FreeSpace)/1GB)
 
-# Create RG & images folder
-$asdkImagesRGName = "azurestack-images"
-$asdkImagesStorageAccountName = "asdkimagesstor"
-$asdkImagesContainerName = "asdkimagescontainer"
-
-if (!$([System.IO.Directory]::Exists("$ASDKpath\images"))) {
-    New-Item -Path "$ASDKpath\images" -ItemType Directory -Force | Out-Null
+if ($freeSpace -ge 31) {
+    # Start the Ubuntu image 
+    $AddUbuntuJob = Start-Job -Name "AddUbuntuImage" -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
+    $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation -ScriptBlock {
+    Set-Location $Using:ScriptLocation; .\AddUbuntuImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+        -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
+        -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
+        -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation
+} -Verbose -ErrorAction Stop
+Write-Verbose "Beginning new background job: $($AddUbuntuJob.Name)"
+$freeSpace = $freeSpace-30
+}
+elseif ($freeSpace -lt 31) {
+    throw "Available disk space is less than required to create the Ubuntu Image. At least 30GB is required."
 }
 
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        # Test/Create RG
-        if (-not (Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
-            New-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
-        }
-        # Test/Create Storage
-        $asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName -ErrorAction SilentlyContinue
-        if (-not ($asdkStorageAccount)) {
-            $asdkStorageAccount = New-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -Location $azsLocation -ResourceGroupName $asdkImagesRGName -Type Standard_LRS -ErrorAction Stop
-        }
-        Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName
-        # Test/Create Container
-        $asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
-        if (-not ($asdkContainer)) {
-            $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop
-        }
-        if ($registerASDK -and ($deploymentMode -eq "Online")) {
-            # Logout to clean up
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
+$Jobs = Get-Job | Where-Object { $_.state -eq "running" }
 
-            ### Login to Azure to get all the details about the syndicated Ubuntu Server 16.04 marketplace offering ###
-            Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
-            Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-            $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
-            Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
-            $Registration = ((Get-AzureRmResource | Where-Object { $_.ResourceType -eq "Microsoft.AzureStack/registrations"} | `
-                        Where-Object { ($_.ResourceName -like "asdkreg*") -or ($_.ResourceName -like "AzureStack*")}) | Select-Object -First 1 -ErrorAction SilentlyContinue -Verbose).ResourceName
-            if (!$Registration) {
-                throw "No registration records found in your chosen Azure subscription. Please validate the success of your ASDK registration and ensure records have been created successfully."
-                Set-Location $ScriptLocation
-                return
-            }
-            # Retrieve the access token
-            $token = $null
-            $tokens = $null
-            $tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-            $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object TenantId -EQ $azureRegTenantID | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+if ($freeSpace -ge 3) {
+# Start the Windows Update download job
+}
 
-            # Define variables and create an array to store all information
-            $package = "*Canonical.UbuntuServer1604LTS*"
-            $azpkg = $null
-            $azpkg = @{
-                id         = ""
-                publisher  = ""
-                sku        = ""
-                offer      = ""
-                azpkgPath  = ""
-                name       = ""
-                type       = ""
-                vhdPath    = ""
-                vhdVersion = ""
-                osVersion  = ""
-            }
 
-            ### Get the package information ###
-            $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
-            $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-            $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object -Property @{Expression = {$_.properties.offerVersion}; Ascending = $true} | Select-Object -Last 1 -ErrorAction Stop
 
-            $azpkg.id = $product.name.Split('/')[-1]
-            $azpkg.type = $product.properties.productKind
-            $azpkg.publisher = $product.properties.publisherDisplayName
-            $azpkg.sku = $product.properties.sku
-            $azpkg.offer = $product.properties.offer
-
-            # Get product info
-            $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
-            $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-            $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
-            $azpkg.name = $productDetails.properties.galleryItemIdentity
-
-            # Get download location for Ubuntu Server 16.04 LTS AZPKG file
-            $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
-            $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
-            $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
-
-            # Display Legal Terms
-            $legalTerms = $productDetails.properties.description
-            $legalDisplay = $legalTerms -replace '<.*?>', ''
-            Write-Host "$legalDisplay" -ForegroundColor Yellow
-
-            # Get download information for Ubuntu Server 16.04 LTS VHD file
-            $azpkg.vhdPath = $downloadDetails.properties.osDiskImage.sourceBlobSasUri
-            $azpkg.vhdVersion = $downloadDetails.properties.version
-            $azpkg.osVersion = $downloadDetails.properties.osDiskImage.operatingSystem
-
-        }
-
-        elseif ((!$registerASDK) -or ($registerASDK -and ($deploymentMode -ne "Online"))) {
-            $azpkg = $null
-            $azpkg = @{
-                publisher  = "Canonical"
-                sku        = "16.04-LTS"
-                offer      = "UbuntuServer"
-                vhdVersion = "1.0.0"
-                osVersion  = "Linux"
-                name       = "Canonical.UbuntuServer1604LTS-ARM.1.0.0"
-            }
-        }
-
-        ### Log back into Azure Stack to check for existing images and push new ones if required ###
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-
-        Write-CustomVerbose -Message "Checking to see if an Ubuntu Server 16.04-LTS VM Image is present in your Azure Stack Platform Image Repository"
-        if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-            Write-CustomVerbose -Message "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
-            Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
-        }
-
-        else {
-            Write-CustomVerbose -Message "No existing suitable Ubuntu Server 1604-LTS VM image exists." 
-            Write-CustomVerbose -Message "The Ubuntu Server VM Image in the Azure Stack Platform Image Repository must have the following properties:"
-            Write-CustomVerbose -Message "Publisher Name = $($azpkg.publisher)"
-            Write-CustomVerbose -Message "Offer = $($azpkg.offer)"
-            Write-CustomVerbose -Message "SKU = $($azpkg.sku)"
-            Write-CustomVerbose -Message "Version = $($azpkg.vhdVersion)"
-            Write-CustomVerbose -Message "Unfortunately, no image was found with these properties."
-            Write-CustomVerbose -Message "Checking to see if the Ubuntu Server VHD already exists in ASDK Configurator folder"
-
-            $validDownloadPathVHD = [System.IO.File]::Exists("$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).vhd")
-            $validDownloadPathZIP = [System.IO.File]::Exists("$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip")
-
-            if ($validDownloadPathVHD -eq $true) {
-                Write-CustomVerbose -Message "Located Ubuntu Server VHD in this folder. No need to download again..."
-                $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).vhd"
-                Write-CustomVerbose -Message "Ubuntu Server VHD located at $UbuntuServerVHD"
-            }
-            elseif ($validDownloadPathZIP -eq $true) {
-                Write-CustomVerbose -Message "Cannot find a previously extracted Ubuntu Server VHD with name $($azpkg.offer)$($azpkg.vhdVersion).vhd"
-                Write-CustomVerbose -Message "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
-                $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip"
-                Write-CustomVerbose -Message "Ubuntu Server ZIP located at $UbuntuServerZIP"
-                Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$ASDKpath\images" -Force -ErrorAction Stop
-                $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath\images\" -Filter *.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
-            }
-            else {
-                # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
-                # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
-                Write-CustomVerbose -Message "Cannot find a previously extracted Ubuntu Server download or ZIP file"
-                Write-CustomVerbose -Message "Begin download of correct Ubuntu Server ZIP and extraction of VHD into $ASDKpath"
-
-                if ($registerASDK -and ($deploymentMode -eq "Online")) {
-                    $ubuntuBuild = $azpkg.vhdVersion
-                    $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
-                    $ubuntuBuild = $ubuntuBuild.split('.')[2]
-                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-
-                }
-                elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
-                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-                }
-                $ubuntuDownloadLocation = "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip"
-                DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
-       
-                Expand-Archive -Path "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip" -DestinationPath "$ASDKpath\images\" -Force -ErrorAction Stop
-                $UbuntuServerVHD = Get-ChildItem -Path "$ASDKpath\images\" -Filter *disk1.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
-            }
-
-            # Upload the image to the Azure Stack Platform Image Repository
-            Write-CustomVerbose -Message "Extraction Complete. Beginning upload of VHD to Platform Image Repository"
-            
-            # Upload VHD to Storage Account
-            $asdkStorageAccount.PrimaryEndpoints.Blob
-            $ubuntuServerURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $UbuntuServerVHD.Name
-
-            # Check there's not a VHD already uploaded to storage
-            if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($ubuntuUploadSuccess)) {
-                Write-CustomVerbose -Message "You already have an upload of $($UbuntuServerVHD.Name) within your Storage Account. No need to re-upload."
-                Write-CustomVerbose -Message "Core VHD path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
-            }
-
-            # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
-            # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
-            $uploadVhdAttempt = 1
-            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
-                Try {
-                    # Log back into Azure Stack to ensure login hasn't timed out
-                    Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                    $ubuntuUploadSuccess = $true
-                }
-                catch {
-                    Write-CustomVerbose -Message "Upload failed."
-                    Write-CustomVerbose -Message "$_.Exception.Message"
-                    $uploadVhdAttempt++
-                    $ubuntuUploadSuccess = $false
-                }
-            }
-
-            # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
-            # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
-
-            while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$ubuntuUploadSuccess) -and ($uploadVhdAttempt -le 3)) {
-                Try {
-                    # Log back into Azure Stack to ensure login hasn't timed out
-                    Write-CustomVerbose -Message "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                    $ubuntuUploadSuccess = $true
-                }
-                catch {
-                    Write-CustomVerbose -Message "Upload failed."
-                    Write-CustomVerbose -Message "$_.Exception.Message"
-                    $uploadVhdAttempt++
-                    $ubuntuUploadSuccess = $false
-                }
-            }
-
-            # This is one final catch-all for the upload process
-            # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
-            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $UbuntuServerVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
-                Try {
-                    # Log back into Azure Stack to ensure login hasn't timed out
-                    Write-CustomVerbose -Message "No existing image found. Upload Attempt: $uploadVhdAttempt"
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    Add-AzureRmVhd -Destination $ubuntuServerURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $UbuntuServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                    $ubuntuUploadSuccess = $true
-                }
-                catch {
-                    Write-CustomVerbose -Message "Upload failed."
-                    Write-CustomVerbose -Message "$_.Exception.Message"
-                    $uploadVhdAttempt++
-                    $ubuntuUploadSuccess = $false
-                }
-            }
-
-            if ($uploadVhdAttempt -gt 3) {
-                Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
-                $ubuntuUploadSuccess = $false
-                throw "Uploading image failed"
-                Set-Location $ScriptLocation
-                return
-            }
-
-            # Add the Platform Image
-            Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$ubuntuServerURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
-            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-                Write-CustomVerbose -Message ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
-                Write-CustomVerbose -Message "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
-                Get-ChildItem -Path "$ASDKpath\images" -Filter *.vhd | Remove-Item -Force
-                Write-CustomVerbose -Message "Cleaning up VHD from storage account"
-                Remove-AzureStorageBlob -Blob $UbuntuServerVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
-            }
-            elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
-                throw "Adding VM image failed"
-            }
-            elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Canceled') {
-                throw "Adding VM image was canceled"
-            }
-        }
-
-        ### Add Packages ###
-        ### If the user has chosen to register the ASDK as part of the process, the script will side load an AZPKG from the Azure Marketplace, otherwise ###
-        ### it will add one from GitHub (assuming an online deployment choice) ###
-
-        $azpkgPackageName = "$($azpkg.name)"
-        Write-CustomVerbose -Message "Checking for the following package: $azpkgPackageName"
-        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
-            Write-CustomVerbose -Message "Found the following existing package in your Gallery: $azpkgPackageName. No need to upload a new one"
-        }
-        else {
-            Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
-            Write-CustomVerbose -Message "Will need to side load it in to the gallery"
-
-            if ($registerASDK -and ($deploymentMode -eq "Online")) {
-                $azpkgPackageURL = $($azpkg.azpkgPath)
-                Write-CustomVerbose -Message "Uploading $azpkgPackageName with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
-            }
-            elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {     
-                $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg" 
-            }
-            # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
-            elseif (($registerASDK -or !$registerASDK) -and (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline"))) {
-                $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
-            }
-            $Retries = 0
-            # Sometimes the gallery item doesn't get added successfully, so perform checks and attempt multiple uploads if necessary
-            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
-                try {
-                    Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
-                    Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
-                }
-                catch {
-                    Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
-                    Write-CustomVerbose -Message "$_.Exception.Message"
-                    Start-Sleep -Seconds 5
-                }
-            }
-            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
-                throw "Uploading gallery item failed after $Retries attempts. Exiting process."
-                Set-Location $ScriptLocation
-                return
-            }
-        }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+# Get all the running jobs
+$Jobs = Get-Job | Where-Object { $_.state -eq "running" }
+While (($runningJobs.count) -gt 0) {
+    Clear-Host
+    $runningJobs = (Get-Job | Where-Object { $_.state -eq "running" })
+    Write-Verbose "`nCurrent number of running jobs: $($runningJobs.count)"
+    Get-Job | Format-Table Name, State, @{L = 'StartTime'; E = {$_.PSBeginTime}}, @{L = 'EndTime'; E = {$_.PSEndTime}}
+    foreach ($runningJob in $runningJobs) {
+        $jobDuration = (Get-Date) - ($runningJob.PSBeginTime)
+        Write-Host "$($runningJob.Name) has been running for $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
     }
-    catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
+    $completedJobs = (Get-Job | Where-Object { $_.state -ne "Running" })
+    foreach ($completeJob in $completedJobs) {
+        $jobDuration = ($completeJob.PSEndTime) - ($completeJob.PSBeginTime)
+        Write-Host "$($completeJob.Name) finished in $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
     }
+    Start-Sleep 10
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+
+if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
+    Write-Verbose "A job failed"
 }
+elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
+    Write-Host "`nThis shouldn't execute until the end, but all jobs succeeded"
+    $freeSpace = [int](((Get-WmiObject win32_logicaldisk | Where-Object {$_.DeviceId -eq (Split-Path -Path "$ASDKpath" -Qualifier) }).FreeSpace)/1GB)
+}
+
+#Receive-Job -Name AddUbuntuImage -Keep
 
 ### ADD WINDOWS SERVER 2016 PLATFORM IMAGES ##################################################################################################################
 ##############################################################################################################################################################
