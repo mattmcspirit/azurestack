@@ -1287,11 +1287,10 @@ else {
 # Get Azure Stack location
 $azsLocation = (Get-AzsLocation).Name
 
-### ADD UBUNTU PLATFORM IMAGE ################################################################################################################################
+### ADD VM IMAGES ################################################################################################################################
 ##############################################################################################################################################################
 
 $scriptStep = "VMIMAGES"
-
 # Define the image jobs
 $UbuntuJob = {
     Start-Job -Name "AddUbuntuImage" -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
@@ -1302,6 +1301,15 @@ $UbuntuJob = {
             -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation
     } -Verbose -ErrorAction Stop
 }
+
+$WindowsUpdateJob = {
+    Start-Job -Name "DownloadWindowsUpdates" -ArgumentList $ConfigASDKProgressLogPath, $ISOpath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\DownloadWinUpdates.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ISOpath $Using:ISOpath -ASDKpath $Using:ASDKpath `
+            -azsLocation $Using:azsLocation  -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation
+    } -Verbose -ErrorAction Stop
+}
+
+
 
 # Get current free space on the drive used to hold the Azure Stack images
 Write-CustomVerbose -Message "Calculating free disk space to plan image upload concurrency"
@@ -1318,19 +1326,19 @@ elseif ($freeSpace -ge 45 -and $freeSpace -lt 82) {
     Write-CustomVerbose -Message "Free space is less than 82GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
     Write-CustomVerbose -Message "Your Ubuntu Server and Windows Server images will be created serially.  This could take some time."
     # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core 3. Windows Server Full
-    & $UbuntuJob; 
+    & $UbuntuJob; & $WindowsUpdateJob
 }
 elseif ($freeSpace -ge 82 -and $freeSpace -lt 115) {
     Write-CustomVerbose -Message "Free space is less than 115GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
     Write-CustomVerbose -Message "Your Ubuntu Server will be created first, then Windows Server images will be created in parallel.  This could take some time."
     # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after both prior jobs have finished.
-    & $UbuntuJob; 
+    & $UbuntuJob; & $WindowsUpdateJob
 }
 elseif ($freeSpace -ge 115) {
     Write-CustomVerbose -Message "Free space is more than 115GB - you have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
     Write-CustomVerbose -Message "This is the fastest way to populate the Azure Stack Platform Image Repository."
     # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after Windows Update job is finished.
-    & $UbuntuJob; 
+    & $UbuntuJob; & $WindowsUpdateJob
 }
 
 
@@ -1344,7 +1352,7 @@ if ($freeSpace -ge 3) {
 
 
 # Get all the running jobs
-$Jobs = Get-Job | Where-Object { $_.state -eq "running" }
+$runningJobs = Get-Job | Where-Object { $_.state -eq "running" }
 While (($runningJobs.count) -gt 0) {
     Clear-Host
     $runningJobs = (Get-Job | Where-Object { $_.state -eq "running" })

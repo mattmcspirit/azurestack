@@ -7,6 +7,9 @@ param (
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
+    [String] $ISOPath,
+
+    [Parameter(Mandatory = $true)]
     [String] $azsLocation,
 
     [Parameter(Mandatory = $true)]
@@ -52,8 +55,8 @@ function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [i
 
 ### SET LOG LOCATION ###
 $logDate = Get-Date -Format FileDate
-New-Item -ItemType Directory -Path "$ScriptLocation\WindowsUpdates\$logDate\" -Force | Out-Null
-$logPath = "$ScriptLocation\WindowsUpdates\$logDate"
+New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\WindowsUpdates" -Force | Out-Null
+$logPath = "$ScriptLocation\Logs\$logDate\WindowsUpdates"
 
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
@@ -210,7 +213,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Output $progress | Out-Host
-        Write-Verbose "$_.Exception.Message" -ErrorAction Stop
+        throw "$_.Exception.Message"
         Set-Location $ScriptLocation
         return
     }

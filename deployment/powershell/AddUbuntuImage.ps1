@@ -9,7 +9,7 @@ param (
     [Parameter(Mandatory = $true)]
     [String] $azsLocation,
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [String] $registerASDK,
 
     [Parameter(Mandatory = $true)]
@@ -18,16 +18,16 @@ param (
     [parameter(Mandatory = $true)]
     [String] $modulePath,
 
-    [parameter(Mandatory = $true)]
+    [parameter(Mandatory = $false)]
     [String] $azureRegSubId,
 
-    [parameter(Mandatory = $true)]
+    [parameter(Mandatory = $false)]
     [String] $azureRegTenantID,
 
-    [parameter(Mandatory = $true)]
+    [parameter(Mandatory = $false)]
     [String] $tenantID,
 
-    [parameter(Mandatory = $true)]
+    [parameter(Mandatory = $false)]
     [pscredential] $azureRegCreds,
 
     [parameter(Mandatory = $true)]
@@ -113,8 +113,8 @@ function Add-OfflineAZPKG {
 
 ### SET LOG LOCATION ###
 $logDate = Get-Date -Format FileDate
-New-Item -ItemType Directory -Path "$ScriptLocation\Ubuntu\$logDate\" -Force | Out-Null
-$logPath = "$ScriptLocation\Ubuntu\$logDate"
+New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\Ubuntu" -Force | Out-Null
+$logPath = "$ScriptLocation\Logs\$logDate\Ubuntu"
 
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
