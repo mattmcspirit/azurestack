@@ -1346,10 +1346,15 @@ $ServerCoreJob = {
     Start-Job -Name "AddServerCoreImage" -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
         $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode -ScriptBlock {
         Wait-Job -Name "DownloadWindowsUpdate";
+        if ((Get-Job -Name "DownloadWindowsUpdate" | Where-Object { $_.state -eq "Failed" })) {
+            throw "The job to download Windows Updates has failed. Stopping process. Examine logs and rerun."
+        }
         # If the WU job completed successfully, move on to this section.
         if (($Using:runMode -eq "partialParallel") -or ($Using:runMode -eq "serial")) {
             Wait-Job -Name "AddUbuntuImage";
-            # Check it completed successfully
+            if ((Get-Job -Name "AddUbuntuImage" | Where-Object { $_.state -eq "Failed" })) {
+                throw "The job to add an Ubuntu Server image has failed. Stopping process. Examine logs and rerun."
+            }
         }
         Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
@@ -1362,13 +1367,22 @@ $ServerFullJob = {
     Start-Job -Name "AddServerFullImage" -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
         $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode -ScriptBlock {
         Wait-Job -Name "DownloadWindowsUpdate";
+        if ((Get-Job -Name "DownloadWindowsUpdate" | Where-Object { $_.state -eq "Failed" })) {
+            throw "The job to download Windows Updates has failed. Stopping process. Examine logs and rerun."
+        }
         # If the WU job completed successfully, move on to this section.
         if ($Using:runMode -ne "parallel") {
             Wait-Job -Name "AddUbuntuImage";
             # Check it completed successfully
+            if ((Get-Job -Name "AddUbuntuImage" | Where-Object { $_.state -eq "Failed" })) {
+                throw "The job to add an Ubuntu Server image has failed. Stopping process. Examine logs and rerun."
+            }
             if ($Using:runMode -eq "serial") {
                 Wait-Job -Name "AddServerCoreImage";
                 # Check it completed successfully
+                if ((Get-Job -Name "AddServerCoreImage" | Where-Object { $_.state -eq "Failed" })) {
+                    throw "The job to add a Windows Server 2016 Core image has failed. Stopping process. Examine logs and rerun."
+                }
             }
         }
         Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1401,13 +1415,11 @@ While (($runningJobs.count) -gt 0) {
 }
 
 if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
-    Write-Verbose "A job failed"
+    throw "At least one of the jobs failed. Please review the logs to determine the root cause and rerun."
 }
 elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
     Write-Host "`nThis shouldn't execute until the end, but all jobs succeeded"
 }
-
-#Receive-Job -Name AddUbuntuImage -Keep
 
 # Cleanup if all jobs completed successfully. - Need to clean Storage Account (Remove blobs) and jobs
 
