@@ -300,13 +300,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
             if (-not ($asdkContainer)) { $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop }
             if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$($image).vhd" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
-                Write-CustomVerbose -Message "You already have an upload of $($image).vhd within your Storage Account. No need to re-upload."
+                Write-Verbose "You already have an upload of $($image).vhd within your Storage Account. No need to re-upload."
                 $imageURI = "$((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $($image).vhd -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
-                Write-CustomVerbose -Message "VHD path = $imageURI"
+                Write-Verbose "VHD path = $imageURI"
             }
             else {
-                Write-CustomVerbose -Message "There is no suitable $($image).vhd image within your Storage Account. We'll need to upload a new one."
-                Write-CustomVerbose -Message "Checking for a local copy first..."
+                Write-Verbose "There is no suitable $($image).vhd image within your Storage Account. We'll need to upload a new one."
+                Write-Verbose "Checking for a local copy first..."
                 # Check for local VHD first
                 $validDownloadPathVHD = [System.IO.File]::Exists("$ASDKpath\images\$($image).vhd")
                 # If there's no local VHD, create one.
@@ -358,8 +358,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                             $convertWindowsDownloadLocation = "$ASDKpath\images\Convert-WindowsImage.ps1"
                             $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\Convert-WindowsImage.ps1")
                             if ($convertWindowsImageExists -eq $false) {
-                                Write-CustomVerbose -Message "Downloading Convert-WindowsImage.ps1 to create the VHD from the ISO"
-                                Write-CustomVerbose -Message "The download will be stored in $ASDKpath\images"
+                                Write-Verbose "Downloading Convert-WindowsImage.ps1 to create the VHD from the ISO"
+                                Write-Verbose "The download will be stored in $ASDKpath\images"
                                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                                 DownloadWithRetry -downloadURI "$convertWindowsURI" -downloadLocation "$convertWindowsDownloadLocation" -retries 10
                             }
