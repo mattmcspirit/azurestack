@@ -145,6 +145,13 @@ if (!$([System.IO.Directory]::Exists("$ASDKpath\images"))) {
 
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
+        # Need to confirm if Windows Update stage previously completed
+        if ($image -ne "UbuntuServer") {
+            $windowsUpdateCheck = [array]::IndexOf($progress.Stage, "WindowsUpdates")
+            if (($progress[$windowsUpdateCheck].Status -eq "Incomplete") -or ($progress[$windowsUpdateCheck].Status -eq "Failed")) {
+                throw "The WindowsUpdates stage of the process has not completed. This is required before the Windows Server images can be created. Check the WindowsUpdates log, and rerun."
+            }
+        }
         # Set path for Windows Updates (for Windows images)
         $target = "$ASDKpath\images"
         Set-Location "$ASDKpath\images"

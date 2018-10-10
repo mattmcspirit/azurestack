@@ -1294,7 +1294,6 @@ $azsLocation = (Get-AzsLocation).Name
 # They will execute serially or in parallel, depending on host capacity
 
 $scriptStep = "VMIMAGES"
-
 # Get current free space on the drive used to hold the Azure Stack images
 Write-CustomVerbose -Message "Calculating free disk space to plan image upload concurrency"
 Start-Sleep 5
@@ -1347,7 +1346,7 @@ $ServerCoreJob = {
     Start-Job -Name "AddServerCoreImage" -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
         $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode -ScriptBlock {
         Wait-Job -Name "DownloadWindowsUpdate";
-        # If the WU job completed successfully, move on to this section. Need to add check in AddImage.ps1 to check for completed WU phase or throw exception.
+        # If the WU job completed successfully, move on to this section.
         if (($Using:runMode -eq "partialParallel") -or ($Using:runMode -eq "serial")) {
             Wait-Job -Name "AddUbuntuImage";
             # Check it completed successfully
@@ -1363,7 +1362,7 @@ $ServerFullJob = {
     Start-Job -Name "AddServerFullImage" -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
         $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode -ScriptBlock {
         Wait-Job -Name "DownloadWindowsUpdate";
-        # If the WU job completed successfully, move on to this section. Need to add check in AddImage.ps1 to check for completed WU phase or throw exception.
+        # If the WU job completed successfully, move on to this section.
         if ($Using:runMode -ne "parallel") {
             Wait-Job -Name "AddUbuntuImage";
             # Check it completed successfully
@@ -1379,6 +1378,7 @@ $ServerFullJob = {
     } -Verbose -ErrorAction Stop
 }
 
+# Launch the jobs
 & $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob
 
 # Get all the running jobs
@@ -1405,13 +1405,12 @@ if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
 }
 elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
     Write-Host "`nThis shouldn't execute until the end, but all jobs succeeded"
-    $freeSpace = [int](((Get-WmiObject win32_logicaldisk | Where-Object {$_.DeviceId -eq (Split-Path -Path "$ASDKpath" -Qualifier) }).FreeSpace) / 1GB)
 }
 
 #Receive-Job -Name AddUbuntuImage -Keep
 
-# Cleanup if all jobs completed successfully.
-Get-ChildItem -Path "$ASDKpath\images" -Filter *.vhd | Remove-Item -Force
+# Cleanup if all jobs completed successfully. - Need to clean Storage Account (Remove blobs) and jobs
+
 Write-Verbose "Cleaning up VHD from storage account"
 Remove-AzureStorageBlob -Blob $windowsServerVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
 
