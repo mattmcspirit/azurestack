@@ -1294,6 +1294,37 @@ $azsLocation = (Get-AzsLocation).Name
 # They will execute serially or in parallel, depending on host capacity
 
 $scriptStep = "VMIMAGES"
+
+# Get current free space on the drive used to hold the Azure Stack images
+Write-CustomVerbose -Message "Calculating free disk space to plan image upload concurrency"
+Start-Sleep 5
+$freeSpace = [int](((Get-WmiObject win32_logicaldisk | Where-Object {$_.DeviceId -eq (Split-Path -Path "$ASDKpath" -Qualifier) }).FreeSpace) / 1GB)
+Write-CustomVerbose -Message "Free space on drive $(Split-Path -Path "$ASDKpath" -Qualifier) = $($freeSpace)GB"
+Start-Sleep 3
+
+if ($freeSpace -lt 45) {
+    Write-CustomVerbose -Message "Free space is less than 45GB - you don't have enough room on the drive to create the Windows Server image with updates"
+    throw "You need additional space to create a Windows Server image. Minimum required free space is 45GB"
+}
+elseif ($freeSpace -ge 45 -and $freeSpace -lt 82) {
+    Write-CustomVerbose -Message "Free space is less than 82GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
+    Write-CustomVerbose -Message "Your Ubuntu Server and Windows Server images will be created serially.  This could take some time."
+    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core 3. Windows Server Full
+    $runMode = "serial"
+}
+elseif ($freeSpace -ge 82 -and $freeSpace -lt 115) {
+    Write-CustomVerbose -Message "Free space is less than 115GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
+    Write-CustomVerbose -Message "Your Ubuntu Server will be created first, then Windows Server images will be created in parallel.  This could take some time."
+    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after both prior jobs have finished.
+    $runMode = "partialParallel"
+}
+elseif ($freeSpace -ge 115) {
+    Write-CustomVerbose -Message "Free space is more than 115GB - you have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
+    Write-CustomVerbose -Message "This is the fastest way to populate the Azure Stack Platform Image Repository."
+    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after Windows Update job is finished.
+    $runMode = "parallel"
+}
+
 # Define the image jobs
 $UbuntuJob = {
     Start-Job -Name "AddUbuntuImage" -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
@@ -1314,7 +1345,13 @@ $WindowsUpdateJob = {
 
 $ServerCoreJob = {
     Start-Job -Name "AddServerCoreImage" -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
-        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation -ScriptBlock {
+        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode -ScriptBlock {
+        Wait-Job -Name "DownloadWindowsUpdate";
+        # If the WU job completed successfully, move on to this section. Need to add check in AddImage.ps1 to check for completed WU phase or throw exception.
+        if (($Using:runMode -eq "partialParallel") -or ($Using:runMode -eq "serial")) {
+            Wait-Job -Name "AddUbuntuImage";
+            # Check it completed successfully
+        }
         Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
@@ -1323,8 +1360,18 @@ $ServerCoreJob = {
 }
 
 $ServerFullJob = {
-    Start-Job -Name "AddServerCoreImage" -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
-        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation -ScriptBlock {
+    Start-Job -Name "AddServerFullImage" -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
+        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode -ScriptBlock {
+        Wait-Job -Name "DownloadWindowsUpdate";
+        # If the WU job completed successfully, move on to this section. Need to add check in AddImage.ps1 to check for completed WU phase or throw exception.
+        if ($Using:runMode -ne "parallel") {
+            Wait-Job -Name "AddUbuntuImage";
+            # Check it completed successfully
+            if ($Using:runMode -eq "serial") {
+                Wait-Job -Name "AddServerCoreImage";
+                # Check it completed successfully
+            }
+        }
         Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
@@ -1332,35 +1379,7 @@ $ServerFullJob = {
     } -Verbose -ErrorAction Stop
 }
 
-# Get current free space on the drive used to hold the Azure Stack images
-Write-CustomVerbose -Message "Calculating free disk space to plan image upload concurrency"
-Start-Sleep 5
-$freeSpace = [int](((Get-WmiObject win32_logicaldisk | Where-Object {$_.DeviceId -eq (Split-Path -Path "$ASDKpath" -Qualifier) }).FreeSpace) / 1GB)
-Write-CustomVerbose -Message "Free space on drive $(Split-Path -Path "$ASDKpath" -Qualifier) = $($freeSpace)GB"
-Start-Sleep 3
-
-if ($freeSpace -lt 45) {
-    Write-CustomVerbose -Message "Free space is less than 45GB - you don't have enough room on the drive to create the Windows Server image with updates"
-    throw "You need additional space to create a Windows Server image. Minimum required free space is 45GB"
-}
-elseif ($freeSpace -ge 45 -and $freeSpace -lt 82) {
-    Write-CustomVerbose -Message "Free space is less than 82GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
-    Write-CustomVerbose -Message "Your Ubuntu Server and Windows Server images will be created serially.  This could take some time."
-    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core 3. Windows Server Full
-    & $UbuntuJob; & $WindowsUpdateJob
-}
-elseif ($freeSpace -ge 82 -and $freeSpace -lt 115) {
-    Write-CustomVerbose -Message "Free space is less than 115GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
-    Write-CustomVerbose -Message "Your Ubuntu Server will be created first, then Windows Server images will be created in parallel.  This could take some time."
-    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after both prior jobs have finished.
-    & $UbuntuJob; & $WindowsUpdateJob
-}
-elseif ($freeSpace -ge 115) {
-    Write-CustomVerbose -Message "Free space is more than 115GB - you have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
-    Write-CustomVerbose -Message "This is the fastest way to populate the Azure Stack Platform Image Repository."
-    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after Windows Update job is finished.
-    & $UbuntuJob; & $WindowsUpdateJob
-}
+& $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob
 
 # Get all the running jobs
 $runningJobs = Get-Job | Where-Object { $_.state -eq "running" }
