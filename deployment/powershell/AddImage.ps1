@@ -311,7 +311,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             if ($image -eq "UbuntuServer") {
                 if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
                     Write-Verbose "You already have an upload of $($azpkg.offer)$($azpkg.vhdVersion).vhd within your Storage Account. No need to re-upload."
-                    $imageURI = "$((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+                    $imageURI = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)
                     Write-Verbose "VHD path = $imageURI"
                     $imageExistsInStorageAccount = $true
                 }
@@ -319,7 +319,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             else {
                 if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$($image).vhd" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
                     Write-Verbose "You already have an upload of $($image).vhd within your Storage Account. No need to re-upload."
-                    $imageURI = "$((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $($image).vhd -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+                    $imageURI = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$($image).vhd" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)
                     Write-Verbose "VHD path = $imageURI"
                     $imageExistsInStorageAccount = $true
                 }
