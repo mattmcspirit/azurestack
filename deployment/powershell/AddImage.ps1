@@ -306,160 +306,182 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # Test/Create Container
             $asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
             if (-not ($asdkContainer)) { $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop }
-            if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$($image).vhd" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
-                Write-Verbose "You already have an upload of $($image).vhd within your Storage Account. No need to re-upload."
-                $imageURI = "$((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $($image).vhd -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
-                Write-Verbose "VHD path = $imageURI"
+
+            # Check for VHD within storage account
+            if ($image -eq "UbuntuServer") {
+                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $($azpkg.offer)$($azpkg.vhdVersion).vhd -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
+                    Write-Verbose "You already have an upload of $($azpkg.offer)$($azpkg.vhdVersion).vhd within your Storage Account. No need to re-upload."
+                    $imageURI = "$((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $($azpkg.offer)$($azpkg.vhdVersion).vhd -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+                    Write-Verbose "VHD path = $imageURI"
+                    $imageExistsInStorageAccount = $true
+                }
+            }
+            else {
+                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$($image).vhd" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
+                    Write-Verbose "You already have an upload of $($image).vhd within your Storage Account. No need to re-upload."
+                    $imageURI = "$((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $($image).vhd -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+                    Write-Verbose "VHD path = $imageURI"
+                    $imageExistsInStorageAccount = $true
+                }
+            }
+        }
+        # At this point, if the image exists in a storage account, the following section will be skipped.
+        if (!$imageExistsInStorageAccount) {
+            # Check for local VHD
+            if ($image -eq "UbuntuServer") {
+                Write-Verbose "There is no suitable $($azpkg.offer)$($azpkg.vhdVersion).vhd image within your Storage Account. We'll need to upload a new one."
+                $validDownloadPathVHD = [System.IO.File]::Exists("$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).vhd")
             }
             else {
                 Write-Verbose "There is no suitable $($image).vhd image within your Storage Account. We'll need to upload a new one."
-                Write-Verbose "Checking for a local copy first..."
-                # Check for local VHD first
                 $validDownloadPathVHD = [System.IO.File]::Exists("$ASDKpath\images\$($image).vhd")
-                # If there's no local VHD, create one.
-                if ($validDownloadPathVHD -eq $true) {
-                    Write-Verbose "Located suitable VHD in this folder. No need to download again..."
-                    $serverVHD = Get-ChildItem -Path "$ASDKpath\images\$($image).vhd"
-                    Write-Verbose "VHD located at $serverVHD"
+            }
+            Write-Verbose "Checking for a local copy first..."
+            # If there's no local VHD, create one.
+            if ($validDownloadPathVHD -eq $true) {
+                Write-Verbose "Located suitable VHD in this folder. No need to download again..."
+                if ($image = "UbuntuServer") {
+                    $serverVHD = Get-ChildItem -Path "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).vhd"
                 }
                 else {
-                    if ($image = "UbuntuServer") {
-                        # Split for Ubuntu Image
-                        $validDownloadPathZIP = [System.IO.File]::Exists("$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip")
-                        if ($validDownloadPathZIP -eq $true) {
-                            Write-Verbose "Cannot find a previously extracted Ubuntu Server VHD with name $($azpkg.offer)$($azpkg.vhdVersion).vhd"
-                            Write-Verbose "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
-                            $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip"
-                            Write-Verbose "Ubuntu Server ZIP located at $UbuntuServerZIP"
-                            Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$ASDKpath\images" -Force -ErrorAction Stop
-                            $serverVHD = Get-ChildItem -Path "$ASDKpath\images\" -Filter $($image).vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
-                        }
-                        else {
-                            # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
-                            # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
-                            Write-Verbose "Cannot find a previously extracted Ubuntu Server download or ZIP file"
-                            Write-Verbose "Begin download of correct Ubuntu Server ZIP and extraction of VHD into $ASDKpath"
+                    $serverVHD = Get-ChildItem -Path "$ASDKpath\images\$($image).vhd"
+                }
+                Write-Verbose "VHD located at $serverVHD"
+            }
+            else {
+                if ($image -eq "UbuntuServer") {
+                    # Split for Ubuntu Image
+                    $validDownloadPathZIP = [System.IO.File]::Exists("$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip")
+                    if ($validDownloadPathZIP -eq $true) {
+                        Write-Verbose "Cannot find a previously extracted Ubuntu Server VHD with name $($azpkg.offer)$($azpkg.vhdVersion).vhd"
+                        Write-Verbose "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
+                        $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                        Write-Verbose "Ubuntu Server ZIP located at $UbuntuServerZIP"
+                        Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$ASDKpath\images" -Force -ErrorAction Stop
+                        $serverVHD = Get-ChildItem -Path "$ASDKpath\images\" -Filter *disk1.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
+                    }
+                    else {
+                        # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
+                        # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
+                        Write-Verbose "Cannot find a previously extracted Ubuntu Server download or ZIP file"
+                        Write-Verbose "Begin download of correct Ubuntu Server ZIP and extraction of VHD into $ASDKpath"
 
-                            if ($registerASDK -and ($deploymentMode -eq "Online")) {
-                                $ubuntuBuild = $azpkg.vhdVersion
-                                $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
-                                $ubuntuBuild = $ubuntuBuild.split('.')[2]
-                                $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-
-                            }
-                            elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
-                                $ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-                            }
-                            $ubuntuDownloadLocation = "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip"
-                            DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
-                            Expand-Archive -Path "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip" -DestinationPath "$ASDKpath\images\" -Force -ErrorAction Stop
-                            $serverVHD = Get-ChildItem -Path "$ASDKpath\images\" -Filter *disk1.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
+                        if ($registerASDK -and ($deploymentMode -eq "Online")) {
+                            $ubuntuBuild = $azpkg.vhdVersion
+                            $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
+                            $ubuntuBuild = $ubuntuBuild.split('.')[2]
+                            $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
 
                         }
-                    }
-                    elseif ($image -ne "UbuntuServer") {
-                        # Split for Windows Server Images
-                        if ($deploymentMode -eq "Online") {
-                            # Download Convert-WindowsImage.ps1
-                            $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
-                            $convertWindowsDownloadLocation = "$ASDKpath\images\Convert-WindowsImage.ps1"
-                            $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\Convert-WindowsImage.ps1")
-                            if ($convertWindowsImageExists -eq $false) {
-                                Write-Verbose "Downloading Convert-WindowsImage.ps1 to create the VHD from the ISO"
-                                Write-Verbose "The download will be stored in $ASDKpath\images"
-                                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                                DownloadWithRetry -downloadURI "$convertWindowsURI" -downloadLocation "$convertWindowsDownloadLocation" -retries 10
-                            }
+                        elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
+                            $ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
                         }
-                        Set-Location "$ASDKpath\images"
-                        .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$ASDKpath\images\$($image).vhd" `
-                            -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
-                        $serverVHD = Get-ChildItem -Path "$ASDKpath\images\$($image).vhd"
+                        $ubuntuDownloadLocation = "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                        DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
+                        Expand-Archive -Path "$ASDKpath\images\$($azpkg.offer)$($azpkg.vhdVersion).zip" -DestinationPath "$ASDKpath\images\" -Force -ErrorAction Stop
+                        $serverVHD = Get-ChildItem -Path "$ASDKpath\images\" -Filter *disk1.vhd | Rename-Item -NewName "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -PassThru -Force -ErrorAction Stop
                     }
                 }
-                # At this point, there is a local image (either existing or new, that needs uploading, first to a Storage Account
-                Write-Verbose "Beginning upload of VHD to Azure Stack Storage Account"
-                # Upload VHD to Storage Account
-                $imageURI = "$((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $($image).vhd -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
-
-                # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
-                # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
-                $uploadVhdAttempt = 1
-                while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$uploadSuccess) -and ($uploadVhdAttempt -le 3)) {
-                    Try {
-                        # Log back into Azure Stack to ensure login hasn't timed out
-                        Write-Verbose "No existing image found. Upload Attempt: $uploadVhdAttempt"
-                        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                        Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $windowsServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                        $uploadSuccess = $true
+                elseif ($image -ne "UbuntuServer") {
+                    # Split for Windows Server Images
+                    if ($deploymentMode -eq "Online") {
+                        # Download Convert-WindowsImage.ps1
+                        $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
+                        $convertWindowsDownloadLocation = "$ASDKpath\images\Convert-WindowsImage.ps1"
+                        $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\Convert-WindowsImage.ps1")
+                        if ($convertWindowsImageExists -eq $false) {
+                            Write-Verbose "Downloading Convert-WindowsImage.ps1 to create the VHD from the ISO"
+                            Write-Verbose "The download will be stored in $ASDKpath\images"
+                            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                            DownloadWithRetry -downloadURI "$convertWindowsURI" -downloadLocation "$convertWindowsDownloadLocation" -retries 10
+                        }
                     }
-                    catch {
-                        Write-Verbose "Upload failed."
-                        Write-Verbose "$_.Exception.Message"
-                        $uploadVhdAttempt++
-                        $uploadSuccess = $false
-                    }
-                }
-
-                # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
-                # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
-
-                while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$uploadSuccess) -and ($uploadVhdAttempt -le 3)) {
-                    Try {
-                        # Log back into Azure Stack to ensure login hasn't timed out
-                        Write-Verbose "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
-                        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                        Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $windowsServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                        $uploadSuccess = $true
-                    }
-                    catch {
-                        Write-Verbose "Upload failed."
-                        Write-Verbose "$_.Exception.Message"
-                        $uploadVhdAttempt++
-                        $uploadSuccess = $false
-                    }
-                }
-
-                # This is one final catch-all for the upload process
-                # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
-                while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
-                    Try {
-                        # Log back into Azure Stack to ensure login hasn't timed out
-                        Write-Verbose "No existing image found. Upload Attempt: $uploadVhdAttempt"
-                        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                        Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $windowsServerVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                        $uploadSuccess = $true
-                    }
-                    catch {
-                        Write-Verbose "Upload failed."
-                        Write-Verbose "$_.Exception.Message"
-                        $uploadVhdAttempt++
-                        $uploadSuccess = $false
-                    }
-                }
-
-                if ($uploadVhdAttempt -gt 3) {
-                    Write-CustomVerbose "Uploading VHD to Azure Stack storage failed and 3 upload attempts. Rerun the ConfigASDK.ps1 script to retry."
-                    $uploadSuccess = $false
-                    throw "Uploading image failed"
-                    Set-Location $ScriptLocation
-                    return
+                    Set-Location "$ASDKpath\images"
+                    .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$ASDKpath\images\$($image).vhd" `
+                        -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+                    $serverVHD = Get-ChildItem -Path "$ASDKpath\images\$($image).vhd"
                 }
             }
-
-            # To reach this stage, there is now a valid image in the Storage Account, ready to be uploaded into the PIR
-            # Add the Platform Image
-            Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$imageURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
-            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-                Write-Verbose ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
+            # At this point, there is a local image (either existing or new, that needs uploading, first to a Storage Account
+            Write-Verbose "Beginning upload of VHD to Azure Stack Storage Account"
+            $imageURI = "$((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+            # Upload VHD to Storage Account
+            # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+            # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
+            $uploadVhdAttempt = 1
+            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$uploadSuccess) -and ($uploadVhdAttempt -le 3)) {
+                Try {
+                    # Log back into Azure Stack to ensure login hasn't timed out
+                    Write-Verbose "No existing image found. Upload Attempt: $uploadVhdAttempt"
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                    $uploadSuccess = $true
+                }
+                catch {
+                    Write-Verbose "Upload failed."
+                    Write-Verbose "$_.Exception.Message"
+                    $uploadVhdAttempt++
+                    $uploadSuccess = $false
+                }
+            }
+            # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
+            # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
+            while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$uploadSuccess) -and ($uploadVhdAttempt -le 3)) {
+                Try {
+                    # Log back into Azure Stack to ensure login hasn't timed out
+                    Write-Verbose "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                    $uploadSuccess = $true
+                }
+                catch {
+                    Write-Verbose "Upload failed."
+                    Write-Verbose "$_.Exception.Message"
+                    $uploadVhdAttempt++
+                    $uploadSuccess = $false
+                }
+            }
+            # This is one final catch-all for the upload process
+            # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
+            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
+                Try {
+                    # Log back into Azure Stack to ensure login hasn't timed out
+                    Write-Verbose "No existing image found. Upload Attempt: $uploadVhdAttempt"
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                    $uploadSuccess = $true
+                }
+                catch {
+                    Write-Verbose "Upload failed."
+                    Write-Verbose "$_.Exception.Message"
+                    $uploadVhdAttempt++
+                    $uploadSuccess = $false
+                }
+            }
+            if ($uploadVhdAttempt -gt 3) {
+                $uploadSuccess = $false
+                throw "Uploading VHD to Azure Stack storage failed after 3 upload attempts. Review the logs, then rerun the ConfigASDK.ps1 script to retry."
+                Set-Location $ScriptLocation
+                return
+            }
+        }
+        # To reach this stage, there is now a valid image in the Storage Account, ready to be uploaded into the PIR
+        # Add the Platform Image
+        Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$imageURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
+        if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+            Write-Verbose ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
+            if ($image -eq "UbuntuServer") {
+                Get-ChildItem -Path "$ASDKpath\images" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).vhd" | Remove-Item -Force
+            }
+            else {
                 Get-ChildItem -Path "$ASDKpath\images" -Filter "$($image).vhd" | Remove-Item -Force
             }
-            elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
-                throw "Adding VM image failed. Please check the logs and clean up the Azure Stack Platform Image Repository to remove the failed image, then retry."
-            }
-            elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Canceled') {
-                throw "Adding VM image was canceled. Confirm the image doesn't show in the Azure Stack Platform Image Repository and if it does, remove it, then retry."
-            }
+        }
+        elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
+            throw "Adding VM image failed. Please check the logs and clean up the Azure Stack Platform Image Repository to remove the failed image, then retry."
+        }
+        elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Canceled') {
+            throw "Adding VM image was canceled. Confirm the image doesn't show in the Azure Stack Platform Image Repository and if it does, remove it, then retry."
         }
 
         ### Add Packages ###
@@ -523,13 +545,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Output $progress | Out-Host
         Set-Location $ScriptLocation
-        throw "$_.Exception.Message"
+        throw $_.Exception.Message
         return
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
-
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue
