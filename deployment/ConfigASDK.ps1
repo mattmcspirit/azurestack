@@ -1010,8 +1010,6 @@ if ($authenticationType.ToString() -like "AzureAd") {
 
         ### TEST AZURE STACK LOGIN - Login to Azure Stack
         Write-CustomVerbose -Message "Testing Azure Stack login with Azure Active Directory"
-        Write-CustomVerbose -Message "Setting GraphEndpointResourceId value for Azure AD`r`n`r`n"
-        Set-AzureRmEnvironment -Name "AzureStackAdmin" -GraphAudience "https://graph.windows.net/" -ErrorAction Stop
         Write-CustomVerbose -Message "Getting Tenant ID for Login to Azure Stack"
         $endpt = "{0}{1}/.well-known/openid-configuration" -f $ADauth, $azureDirectoryTenantName
         $OauthMetadata = (Invoke-WebRequest -UseBasicParsing $endpt).Content | ConvertFrom-Json
