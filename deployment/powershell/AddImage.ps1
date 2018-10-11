@@ -309,9 +309,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             # Check for VHD within storage account
             if ($image -eq "UbuntuServer") {
-                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $($azpkg.offer)$($azpkg.vhdVersion).vhd -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
+                if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
                     Write-Verbose "You already have an upload of $($azpkg.offer)$($azpkg.vhdVersion).vhd within your Storage Account. No need to re-upload."
-                    $imageURI = "$((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $($azpkg.offer)$($azpkg.vhdVersion).vhd -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+                    $imageURI = "$((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$($azpkg.offer)$($azpkg.vhdVersion).vhd" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
                     Write-Verbose "VHD path = $imageURI"
                     $imageExistsInStorageAccount = $true
                 }
@@ -404,7 +404,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
             # At this point, there is a local image (either existing or new, that needs uploading, first to a Storage Account
             Write-Verbose "Beginning upload of VHD to Azure Stack Storage Account"
-            $imageURI = "$((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+            $imageURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $serverVHD.Name
             # Upload VHD to Storage Account
             # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
             # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
