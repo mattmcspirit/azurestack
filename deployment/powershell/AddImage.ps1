@@ -24,7 +24,7 @@ param (
     [parameter(Mandatory = $false)]
     [String] $azureRegTenantID,
 
-    [parameter(Mandatory = $false)]
+    [parameter(Mandatory = $true)]
     [String] $tenantID,
 
     [parameter(Mandatory = $true)]
@@ -309,7 +309,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             if ($image -eq "UbuntuServer") { $blobName = "$($azpkg.offer)$($azpkg.vhdVersion).vhd" }
             else { $blobName = "$($image).vhd" }
-            
+
             if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$blobName" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
                 Write-Verbose "You already have an upload of $blobName within your Storage Account. No need to re-upload."
                 $imageURI = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$blobName" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)
