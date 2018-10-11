@@ -149,7 +149,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         if ($image -ne "UbuntuServer") {
             $windowsUpdateCheck = [array]::IndexOf($progress.Stage, "WindowsUpdates")
             if (($progress[$windowsUpdateCheck].Status -eq "Incomplete") -or ($progress[$windowsUpdateCheck].Status -eq "Failed")) {
-                throw "The WindowsUpdates stage of the process has not completed. This is required before the Windows Server images can be created. Check the WindowsUpdates log, and rerun."
+                throw "The WindowsUpdates stage of the process has not completed. This is required before the Windows Server images can be created. Check the WindowsUpdates log, ensure that step is completed first, and rerun."
             }
         }
         # Set path for Windows Updates (for Windows images)
