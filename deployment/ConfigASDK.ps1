@@ -780,7 +780,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"DownloadTools","Incomplete"'
         '"HostConfiguration","Incomplete"'
         '"Registration","Incomplete"'
-        '"UbuntuImage","Incomplete"'
+        '"UbuntuServerImage","Incomplete"'
         '"WindowsUpdates","Incomplete"'
         '"ServerCoreImage","Incomplete"'
         '"ServerFullImage","Incomplete"'
