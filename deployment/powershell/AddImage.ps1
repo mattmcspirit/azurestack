@@ -412,7 +412,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$uploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                 Try {
                     # Log back into Azure Stack to ensure login hasn't timed out
-                    Write-Verbose "No existing image found. Upload Attempt: $uploadVhdAttempt"
+                    Write-Verbose "Upload Attempt: $uploadVhdAttempt"
                     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                     $uploadSuccess = $true
@@ -471,10 +471,16 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
             Write-Verbose ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
             if ($image -eq "UbuntuServer") {
+                Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
                 Get-ChildItem -Path "$ASDKpath\images" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).vhd" | Remove-Item -Force
+                Write-Verbose "Cleaning up VHD from storage account"
+                #Remove-AzureStorageBlob -Blob $serverVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
             }
             else {
-                Get-ChildItem -Path "$ASDKpath\images" -Filter "$($image).vhd" | Remove-Item -Force
+                Write-Verbose "Cleaning up local hard drive space - deleting VHD file"
+                #Get-ChildItem -Path "$ASDKpath\images" -Filter "$($image).vhd" | Remove-Item -Force
+                Write-Verbose "Cleaning up VHD from storage account"
+                #Remove-AzureStorageBlob -Blob $serverVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
             }
         }
         elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
