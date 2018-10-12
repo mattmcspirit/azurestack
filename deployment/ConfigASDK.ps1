@@ -1366,6 +1366,7 @@ $ServerFullJob = {
 }
 
 # Launch the jobs
+Get-Job | Remove-Job
 & $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob
 
 # Get all the running jobs
@@ -1373,7 +1374,7 @@ $runningJobs = Get-Job | Where-Object { $_.state -eq "running" }
 While (($runningJobs.count) -gt 0) {
     Clear-Host
     $runningJobs = (Get-Job | Where-Object { $_.state -eq "running" })
-    Write-Verbose "Current number of running jobs: $($runningJobs.count)"
+    Write-Verbose "Current number of running jobs: $($runningJobs.count). The Windows Server image creation jobs may each take multiple hours. Please be patient."
     Get-Job | Format-Table Name, State, @{L = 'StartTime'; E = {$_.PSBeginTime}}, @{L = 'EndTime'; E = {$_.PSEndTime}}
     foreach ($runningJob in $runningJobs) {
         $jobDuration = (Get-Date) - ($runningJob.PSBeginTime)
@@ -1397,12 +1398,13 @@ if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
 }
 elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
     Write-Host "All jobs completed successfully. Cleaning up jobs."
+    Get-Job | Remove-Job
 }
 
 # Cleanup if all jobs completed successfully. - Need to clean Storage Account (Remove blobs) and jobs
 
 Write-Verbose "Cleaning up VHD from storage account"
-Remove-AzureStorageBlob -Blob $windowsServerVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
+Remove-AzureStorageBlob -Blob $windowsServerVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force -ErrorAction Stop
 
 ### ADD MYSQL GALLERY ITEM ###################################################################################################################################
 ##############################################################################################################################################################
