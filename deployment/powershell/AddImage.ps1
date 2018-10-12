@@ -41,6 +41,9 @@ param (
     [String] $ScriptLocation,
 
     [parameter(Mandatory = $true)]
+    [String] $ISOpath,
+
+    [parameter(Mandatory = $true)]
     [ValidateSet("serial", "partialParallel", "parallel")]
     [String] $runMode
 )
