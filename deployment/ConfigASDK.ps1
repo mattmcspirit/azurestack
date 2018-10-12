@@ -1329,12 +1329,12 @@ elseif ($freeSpace -ge 115) {
 
 # Define the image jobs
 $UbuntuJob = {
-    Start-Job -Name AddUbuntuImage -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
+    Start-Job -Name AddUbuntuImage -ArgumentList $ConfigASDKProgressLogPath, $ISOpath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
         $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -image "UbuntuServer" -runMode $Using:runMode
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "UbuntuServer" -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
 
@@ -1391,7 +1391,7 @@ if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
     Write-Verbose "At least one of the jobs failed."
     $failedJobs = (Get-Job | Where-Object { $_.state -eq "Failed" })
     foreach ($fail in $failedJobs) {
-        Write-Verbose "Failed job error message: $($fail.ChildJobs.JobStateInfo.Reason.Message)"
+        Write-Verbose "FAILED JOB: Job Name: $($fail.Name) | Error Message: $($fail.ChildJobs.JobStateInfo.Reason.Message)"
     }
     throw "Please review the logs for further troubleshooting"
 }
