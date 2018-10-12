@@ -1381,12 +1381,22 @@ While (($runningJobs.count) -gt 0) {
     Get-Job | Format-Table Name, State, @{L = 'StartTime'; E = {$_.PSBeginTime}}, @{L = 'EndTime'; E = {$_.PSEndTime}}
     foreach ($runningJob in $runningJobs) {
         $jobDuration = (Get-Date) - ($runningJob.PSBeginTime)
-        Write-Host "$($runningJob.Name) has been running for $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        if ($jobDuration.Hours -gt 0) {
+            Write-Host "$($runningJob.Name) has been running for $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        }
+        else {
+            Write-Host "$($runningJob.Name) has been running for $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        }
     }
     $completedJobs = (Get-Job | Where-Object { $_.state -ne "Running" })
     foreach ($completeJob in $completedJobs) {
         $jobDuration = ($completeJob.PSEndTime) - ($completeJob.PSBeginTime)
-        Write-Host "$($completeJob.Name) finished in $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        if ($jobDuration.Hours -gt 0) {
+            Write-Host "$($runningJob.Name) has been running for $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        }
+        else {
+            Write-Host "$($runningJob.Name) has been running for $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        }
     }
     Start-Sleep 10
 }
