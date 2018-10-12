@@ -1334,7 +1334,7 @@ $UbuntuJob = {
         Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -image "UbuntuServer"
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -image "UbuntuServer" -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
 
@@ -1346,52 +1346,22 @@ $WindowsUpdateJob = {
 }
 
 $ServerCoreJob = {
-    Wait-Job -Name DownloadWindowsUpdates;
-    if ((Get-Job -Name DownloadWindowsUpdates | Where-Object { $_.state -eq "Failed" })) {
-        throw "The job to download Windows Updates has failed. Stopping process. Examine logs and rerun."
-    }
-    # If the WU job completed successfully, move on to this section.
-    if (($Using:runMode -eq "partialParallel") -or ($Using:runMode -eq "serial")) {
-        Wait-Job -Name AddUbuntuImage;
-        if ((Get-Job -Name AddUbuntuImage | Where-Object { $_.state -eq "Failed" })) {
-            throw "The job to add an Ubuntu Server image has failed. Stopping process. Examine logs and rerun."
-        }
-    }
     Start-Job -Name AddServerCoreImage -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
-        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode -ScriptBlock {
+        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -image "ServerCore"
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "ServerCore" -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
 
 $ServerFullJob = {
-    Wait-Job -Name DownloadWindowsUpdates;
-    if ((Get-Job -Name DownloadWindowsUpdates | Where-Object { $_.state -eq "Failed" })) {
-        throw "The job to download Windows Updates has failed. Stopping process. Examine logs and rerun."
-    }
-    # If the WU job completed successfully, move on to this section.
-    if ($Using:runMode -ne "parallel") {
-        Wait-Job -Name AddUbuntuImage;
-        # Check it completed successfully
-        if ((Get-Job -Name AddUbuntuImage | Where-Object { $_.state -eq "Failed" })) {
-            throw "The job to add an Ubuntu Server image has failed. Stopping process. Examine logs and rerun."
-        }
-        if ($Using:runMode -eq "serial") {
-            Wait-Job -Name AddServerCoreImage;
-            # Check it completed successfully
-            if ((Get-Job -Name AddServerCoreImage | Where-Object { $_.state -eq "Failed" })) {
-                throw "The job to add a Windows Server 2016 Core image has failed. Stopping process. Examine logs and rerun."
-            }
-        }
-    }
     Start-Job -Name AddServerFullImage -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
-        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode -ScriptBlock {
+        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -image "ServerFull"
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "ServerFull" -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
 
