@@ -68,6 +68,7 @@ $RowIndex = [array]::IndexOf($progress.Stage, "WindowsUpdates")
 
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
+        $ErrorActionPreference = "Stop";
         # Log into Azure Stack to check for existing images and push new ones if required ###
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
@@ -184,6 +185,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     Write-Verbose "Update will be stored at $target"
                     Write-Verbose "These can be larger than 1GB, so may take a few minutes."
                     if (!(Test-Path -Path $target)) {
+                        if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393UpdateServicingStack.msu")) {
+                            Write-Verbose "The 14393 Servicing Stack Update has already been downloaded."
+                        }
                         DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
                     }
                     else {
@@ -193,8 +197,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
                 # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied first when patching the WIM file.
                 if ($buildVersion -eq "14393") {
-                    Write-Verbose "Renaming the Servicing Stack Update to ensure it is applied first"
-                    Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -Verbose
+                    if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393UpdateServicingStack.msu")) {
+                        Write-Verbose "The 14393 Servicing Stack Update already exists within the target folder"
+                    }
+                    else {
+                        Write-Verbose "Renaming the Servicing Stack Update to ensure it is applied first"
+                        Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -ErrorAction Stop -Verbose
+                    }
                     $target = "$ASDKpath\images"
                 }
             }
