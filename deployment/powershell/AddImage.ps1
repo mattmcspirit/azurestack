@@ -425,18 +425,33 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         if ($deploymentMode -eq "Online") {
                             # Download Convert-WindowsImage.ps1
                             $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
-                            $convertWindowsDownloadLocation = "$ASDKpath\images\Convert-WindowsImage.ps1"
-                            $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\Convert-WindowsImage.ps1")
+                            $convertWindowsDownloadLocation = "$ASDKpath\images\Convert-Windows$($image)Image.ps1"
+                            $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\Convert-Windows$($image)Image.ps1")
                             if ($convertWindowsImageExists -eq $false) {
-                                Write-Verbose "Downloading Convert-WindowsImage.ps1 to create the VHD from the ISO"
+                                Write-Verbose "Downloading Convert-Windows$($image)Image.ps1 to create the VHD from the ISO"
                                 Write-Verbose "The download will be stored in $ASDKpath\images"
                                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                                 DownloadWithRetry -downloadURI "$convertWindowsURI" -downloadLocation "$convertWindowsDownloadLocation" -retries 10
                             }
                         }
+                        elseif ($deploymentMode -ne "Online") {
+                            $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\Convert-WindowsImage.ps1")
+                            if ($convertWindowsImageExists -eq $true) {
+                                Copy-Item -Path "$ASDKpath\images\Convert-WindowsImage.ps1" -Destination "$ASDKpath\images\Convert-Windows$($image)Image.ps1" -Force -Verbose -ErrorAction Stop
+                            }
+                            else {
+                                throw "Convert-WindowsImage.ps1 is missing from your download folder. This is required for the image creation and should be located here: $ASDKpath\images"
+                            }
+                        }
                         Set-Location "$ASDKpath\images"
-                        .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$ASDKpath\images\$($image).vhd" `
-                            -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+                        if ($image -eq "ServerCore") {
+                            .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$ASDKpath\images\$($image).vhd" `
+                                -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+                        }
+                        elseif ($image -eq "ServerFull") {
+                            .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$ASDKpath\images\$($image).vhd" `
+                                -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+                        }
                         $serverVHD = Get-ChildItem -Path "$ASDKpath\images\$blobName"
                     }
                 }
