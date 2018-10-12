@@ -1298,10 +1298,13 @@ $azsLocation = (Get-AzsLocation).Name
 
 $scriptStep = "VMIMAGES"
 # Get current free space on the drive used to hold the Azure Stack images
-Write-CustomVerbose -Message "Calculating free disk space to plan image upload concurrency"
+Write-CustomVerbose -Message "Calculating free disk space on Cluster Shared Volumes, to plan image upload concurrency"
 Start-Sleep 5
 $freeSpace = [int](((Get-WmiObject win32_logicaldisk | Where-Object {$_.DeviceId -eq (Split-Path -Path "$ASDKpath" -Qualifier) }).FreeSpace) / 1GB)
+$freeCSVSpace = [int](((Get-ClusterSharedVolume | Select-Object -Property Name -ExpandProperty SharedVolumeInfo).Partition.FreeSpace) / 1GB)
+
 Write-CustomVerbose -Message "Free space on drive $(Split-Path -Path "$ASDKpath" -Qualifier) = $($freeSpace)GB"
+Write-CustomVerbose -Message "Free space on Cluster Shared Volume = $($freeCSVSpace)GB"
 Start-Sleep 3
 
 if ($freeSpace -lt 45) {
