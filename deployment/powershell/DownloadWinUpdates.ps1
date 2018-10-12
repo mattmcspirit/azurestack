@@ -186,7 +186,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     Write-Verbose "These can be larger than 1GB, so may take a few minutes."
                     if (!(Test-Path -Path $target)) {
                         if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393UpdateServicingStack.msu")) {
-                            Write-Verbose "The 14393 Servicing Stack Update has already been downloaded."
+                            Remove-Item -Path "$((Get-Item $ASDKpath).FullName)\images\14393UpdateServicingStack.msu" -Force -Verbose -ErrorAction Stop
                         }
                         DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
                     }
