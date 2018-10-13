@@ -447,7 +447,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         if ($deploymentMode -eq "Online") {
                             # Download Convert-WindowsImage.ps1
                             $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
-                            $convertWindowsDownloadLocation = "$ASDKpath\images\Convert-Windows$($image)Image.ps1"
+                            $convertWindowsDownloadLocation = "$ASDKpath\images\$image\Convert-Windows$($image)Image.ps1"
                             $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\$image\Convert-Windows$($image)Image.ps1")
                             if ($convertWindowsImageExists -eq $false) {
                                 Write-Verbose "Downloading Convert-Windows$($image)Image.ps1 to create the VHD from the ISO"
