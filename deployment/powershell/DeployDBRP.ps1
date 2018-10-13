@@ -7,9 +7,6 @@ param (
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
-
-    [Parameter(Mandatory = $true)]
     [String] $deploymentMode,
 
     [Parameter(Mandatory = $true)]
@@ -73,6 +70,22 @@ function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [i
 $logFolder = "$($dbrp)RP"
 $logName = $logFolder
 $progressName = $logFolder
+if ($dbrp -eq "MySQL") {
+    if ($skipMySQL -eq $true) {
+        $skipRP = $true
+    }
+    else {
+        $skipRP = $false
+    }
+}
+elseif ($dbrp -eq "SQLServer") {
+    if ($skipMSSQL -eq $true) {
+        $skipRP = $true
+    }
+    else {
+        $skipRP = $false
+    }
+}
 
 ### SET LOG LOCATION ###
 $logDate = Get-Date -Format FileDate
@@ -88,12 +101,12 @@ $progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
 
 if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-Verbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
-elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
+elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
+        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
         # Update the ConfigASDKProgressLog.csv file with successful completion
         $progress = Import-Csv -Path $ConfigASDKProgressLogPath
         $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
@@ -127,7 +140,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 }
             }
             # Login to Azure Stack
-            Write-CustomVerbose -Message "Downloading and installing $dbrp Resource Provider"
+            Write-Verbose -Message "Downloading and installing $dbrp Resource Provider"
             ### Login to Azure Stack ###
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
@@ -195,8 +208,8 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
         }
     }
 }
-elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip MySQL Resource Provider Deployment`r`n"
+elseif (($skipRP) -and ($progress[$RowIndex].Status -ne "Complete")) {
+    Write-Verbose -Message "Operator chose to skip Resource Provider Deployment`r`n"
     # Update the ConfigASDKProgressLog.csv file with successful completion
     $progress = Import-Csv -Path $ConfigASDKProgressLogPath
     $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
