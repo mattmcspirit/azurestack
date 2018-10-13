@@ -1405,17 +1405,17 @@ $AddMySQLRPJob = {
         Set-Location $Using:ScriptLocation; .\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
             -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -registerASDK $Using:registerASDK
     } -Verbose -ErrorAction Stop
 }
 
 $AddMSSQLRPJob = {
-    Start-Job -Name AddMySQLRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $registerASDK, $secureVMpwd, $deploymentMode, `
+    Start-Job -Name AddSQLServerRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $registerASDK, $secureVMpwd, $deploymentMode, `
         $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
             -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -registerASDK $Using:registerASDK
     } -Verbose -ErrorAction Stop
 }
 
