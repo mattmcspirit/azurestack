@@ -552,7 +552,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     Write-Verbose "Cleaning up local hard drive space - deleting VHD file and ZIP from Cluster Shared Volume"
                     Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).vhd" | Remove-Item -Force
                     Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).ZIP" | Remove-Item -Force
-                    Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "*.msu" | Remove-Item -Force
+                    Get-ChildItem -Path "$csvImagePath\Images\$image\*" -Include "*.msu" | Remove-Item -Force
                     Write-Verbose "Cleaning up VHD from storage account"
                     Remove-AzureStorageBlob -Blob $serverVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                 }
