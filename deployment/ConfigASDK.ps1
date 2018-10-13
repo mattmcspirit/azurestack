@@ -1399,15 +1399,33 @@ $AddVMExtensionsJob = {
 ### ADD DB RPS - JOB SETUP ###################################################################################################################################
 ##############################################################################################################################################################
 
+$AddMySQLRPJob = {
+    Start-Job -Name AddMySQLRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $registerASDK, $secureVMpwd, $deploymentMode, `
+        $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+            -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
+            -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+    } -Verbose -ErrorAction Stop
+}
 
-
+$AddMSSQLRPJob = {
+    Start-Job -Name AddMySQLRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $registerASDK, $secureVMpwd, $deploymentMode, `
+        $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+            -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
+            -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+    } -Verbose -ErrorAction Stop
+}
 
 ### JOB LAUNCHER & TRACKER ###################################################################################################################################
 ##############################################################################################################################################################
 
 # Launch the jobs
 Get-Job | Remove-Job
-& $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob; & $AddMySQLAzpkgJob; & $AddMSSQLAzpkgJob; & $AddVMExtensionsJob;
+& $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob; & $AddMySQLAzpkgJob; & $AddMSSQLAzpkgJob; & $AddVMExtensionsJob; `
+& $AddMySQLRPJob; $AddMSSQLRPJob;
 
 # Get all the running jobs
 $runningJobs = Get-Job | Where-Object { $_.state -eq "running" }
@@ -1449,266 +1467,6 @@ if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
 elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
     Write-Host "All jobs completed successfully. Cleaning up jobs."
     Get-Job | Remove-Job
-}
-
-#### INSTALL MYSQL RESOURCE PROVIDER #########################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "MySQLRP")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "MySQLRP")
-    }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-        try {
-            # Login to Azure Stack
-            Write-CustomVerbose -Message "Downloading and installing MySQL Resource Provider"
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-
-            if (!$([System.IO.Directory]::Exists("$ASDKpath\databases"))) {
-                New-Item -Path "$ASDKpath\databases" -ItemType Directory -Force | Out-Null
-            }
-
-            if ($deploymentMode -eq "Online") {
-                # Cleanup old folder
-                Remove-Item "$asdkPath\databases\MySQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-                # Download and Expand the MySQL RP files
-                $mySqlRpURI = "https://aka.ms/azurestackmysqlrp"
-                $mySqlRpDownloadLocation = "$ASDKpath\databases\MySQL.zip"
-                DownloadWithRetry -downloadURI "$mySqlRpURI" -downloadLocation "$mySqlRpDownloadLocation" -retries 10
-            }
-            elseif ($deploymentMode -ne "Online") {
-                if (-not [System.IO.File]::Exists("$ASDKpath\databases\MySQL.zip")) {
-                    throw "Missing MySQL Zip file in extracted dependencies folder. Please ensure this exists at $ASDKpath\databases\MySQL.zip - Exiting process"
-                }
-            }
-
-            Set-Location "$ASDKpath\databases"
-            Expand-Archive "$ASDKpath\databases\MySql.zip" -DestinationPath .\MySQL -Force -ErrorAction Stop
-
-            # Define the additional credentials for the local virtual machine username/password and certificates password
-            $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
-
-            # If this is an offline/partial online deployment, ensure you create a directory to store certs, and hold the MySQL Connector MSI.
-            if ($deploymentMode -eq "Online") {
-                Set-Location "$ASDKpath\databases\MySQL"
-                Get-PSSession | Remove-PSSession
-                $mySQLsession = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
-                Invoke-Command -Session $mySQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
-                    Get-Service BITS | Restart-Service
-                    Get-BitsTransfer | Remove-BitsTransfer
-                    Set-Location "$Using:ASDKpath\databases\MySQL"
-                    .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -AcceptLicense
-                }
-            }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $dependencyFilePath = New-Item -ItemType Directory -Path "$ASDKpath\databases\MySQL\Dependencies" -Force | ForEach-Object { $_.FullName }
-                $MySQLMSI = Get-ChildItem -Path "$ASDKpath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
-                Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
-                Get-PSSession | Remove-PSSession
-                $mySQLsession = New-PSSession -Name InstallMySQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
-                Invoke-Command -Session $mySQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd, $dependencyFilePath -ScriptBlock {
-                    Get-Service BITS | Restart-Service
-                    Get-BitsTransfer | Remove-BitsTransfer
-                    Set-Location "$Using:ASDKpath\databases\MySQL"
-                    .\DeployMySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd -DependencyFilesLocalPath $Using:dependencyFilePath -AcceptLicense
-                }
-            }
-
-            Remove-PSSession -Name InstallMySQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-            Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
-
-            <# Validate the MySQL RP Deployment based on Resource Group success and DNS Zone Updates
-            # Validate RG Success first - RG exists | Contains 'something' | Contains succeeded items 
-            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.mysqladapter"}) {
-                Write-CustomVerbose -Message "MySQL Resource Provider Resource Group exists. Checking for deployments"
-                if ((Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.mysqladapter") -ne $null) {
-                    Write-CustomVerbose -Message "MySQL Resource Provider deployments exist - checking for successful deployments"
-                    if (($deployments = Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.mysqladapter") | Where-Object {$_.ProvisioningState -ne "Succeeded"}) {
-                        Write-CustomVerbose -Message "Found failed deployments. Details below."
-                        $deployments | Format-Table
-                        throw "MySQL Resource Provider installation was not successful. Check the MySQL Resource Provider deployment logs for further information and troubleshooting."
-                    }
-                    else {
-                        Write-CustomVerbose -Message "All deployments for the MySQL Resource Provider appear to be successful. Details below:"
-                        $deployments | Format-Table DeploymentName, ResourceGroupName, ProvisioningState, TimeStamp -AutoSize 
-                    }
-                }
-                else {
-                    throw "MySQL Resource Provider Resource Group exists, but is empty. No deployments have been performed, therefore the MySQL Resource Provider was unsuccessful. Check the MySQL Resource Provider deployment logs for further information and troubleshooting"
-                }
-            }
-            else {
-                throw "MySQL Resource Provider Resource Group does not exist. The MySQL Resource Provider deployment may have failed in the early stages. Check the MySQL Resource Provider deployment logs for further information and troubleshooting"
-            }
-
-            # Validate DNS Zone info
-            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.dbadapter.dns"}) {
-                if ($dnsExists = ((Get-AzureRmDnsZone -ResourceGroupName "system.local.dbadapter.dns" | Get-AzureRmDnsRecordSet) | Where-Object {$_.Name -eq "MySQLAdapter"})) {
-                    Write-Host "The MySQL Resource Provider deployment process has successfully added a DNS record. Details below:"
-                    $dnsExists | Format-Table
-                }
-                else {
-                    throw "No DNS record for the MySQL Adapter can be found. An error must have occurred in the MySQL Resource Provider deployment. Check the MySQL Resource Provider deployment logs for further information and troubleshooting."
-                }
-            }
-            else {
-                throw "DBAdapter DNS Resource Group does not exist. The MySQL Resource Provider deployment may have failed in the early stages. Check the MySQL Resource Provider deployment logs for further information and troubleshooting"
-            } #>
-
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-        }
-        catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-}
-elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip MySQL Resource Provider Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
-}
-
-#### INSTALL SQL SERVER RESOURCE PROVIDER ####################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "SQLServerRP")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerRP")
-    }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-        try {
-            # Login to Azure Stack
-            Write-CustomVerbose -Message "Downloading and installing SQL Server Resource Provider"
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-
-            if (!$([System.IO.Directory]::Exists("$ASDKpath\databases"))) {
-                New-Item -Path "$ASDKpath\databases" -ItemType Directory -Force | Out-Null
-            }
-
-            if ($deploymentMode -eq "Online") {
-                # Cleanup old folder
-                Remove-Item "$asdkPath\databases\SQL" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-                # Download and Expand the SQL Server RP files
-                $sqlRpURI = "https://aka.ms/azurestacksqlrp"
-                $sqlRpDownloadLocation = "$ASDKpath\databases\SQL.zip"
-                DownloadWithRetry -downloadURI "$sqlRpURI" -downloadLocation "$sqlRpDownloadLocation" -retries 10
-            }
-            elseif ($deploymentMode -ne "Online") {
-                if (-not [System.IO.File]::Exists("$ASDKpath\databases\SQL.zip")) {
-                    throw "Missing SQL Server Zip file in extracted dependencies folder. Please ensure this exists at $ASDKpath\databases\SQL.zip - Exiting process"
-                }
-            }
-
-            Set-Location "$ASDKpath\databases\"
-            Expand-Archive "$ASDKpath\databases\SQL.zip" -DestinationPath .\SQL -Force -ErrorAction Stop
-
-            # Define the additional credentials for the local virtual machine username/password and certificates password
-            $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
-            Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
-            Get-Variable -Name SQLsession -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
-            $SQLsession = New-PSSession -Name InstallMSSQLRP -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
-            Invoke-Command -Session $SQLsession -ArgumentList $asdkCreds, $vmLocalAdminCreds, $cloudAdminCreds, $ERCSip, $secureVMpwd -ScriptBlock {
-                Set-Location "$Using:ASDKpath\databases\SQL"
-                .\DeploySQLProvider.ps1 -AzCredential $Using:asdkCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:cloudAdminCreds -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureVMpwd
-            }
-            Remove-PSSession -Name InstallMSSQLRP -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-            Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
-
-            # Validate the MySQL RP Deployment based on Resource Group success and DNS Zone Updates
-            # Validate RG Success first - RG exists | Contains 'something' | Contains succeeded items 
-            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.sqladapter"}) {
-                Write-Host "SQL Server Resource Provider Resource Group exists. Checking for deployments"
-                if ((Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.sqladapter") -ne $null) {
-                    Write-Host "SQL Server Resource Provider deployments exist - checking for successful deployments"
-                    if (($deployments = Get-AzureRmResourceGroupDeployment -ResourceGroupName "system.local.sqladapter") | Where-Object {$_.ProvisioningState -ne "Succeeded"}) {
-                        Write-Host "Found failed deployments. Details below."
-                        $deployments | Format-Table
-                        throw "SQL Server Resource Provider installation was not successful. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting."
-                    }
-                    else {
-                        Write-Host "All deployments for the SQL Server Resource Provider appear to be successful. Details below:"
-                        $deployments | Format-Table DeploymentName, ResourceGroupName, ProvisioningState, TimeStamp -AutoSize 
-                    }
-                }
-                else {
-                    throw "SQL Server Resource Provider Resource Group exists, but is empty. No deployments have been performed, therefore the SQL Server Resource Provider was unsuccessful. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting"
-                }
-            }
-            else {
-                throw "SQL Server Resource Provider Resource Group does not exist. The SQL Server Resource Provider deployment may have failed in the early stages. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting"
-            }
-
-            # Validate DNS Zone info
-            if (Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "system.local.dbadapter.dns"}) {
-                if ($dnsExists = ((Get-AzureRmDnsZone -ResourceGroupName "system.local.dbadapter.dns" | Get-AzureRmDnsRecordSet) | Where-Object {$_.Name -eq "SQLAdapter"})) {
-                    Write-Host "The SQL Server Resource Provider deployment process has successfully added a DNS record. Details below:"
-                    $dnsExists | Format-Table
-                }
-                else {
-                    throw "No DNS record for the SQL Server Adapter can be found. An error must have occurred in the SQL Server Resource Provider deployment. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting."
-                }
-            }
-            else {
-                throw "DBAdapter DNS Resource Group does not exist. The SQL Server Resource Provider deployment may have failed in the early stages. Check the SQL Server Resource Provider deployment logs for further information and troubleshooting"
-            }
-
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-        }
-        catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-}
-elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip SQL Server Resource Provider Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
 }
 
 #### ADD MYSQL SKU & QUOTA ###################################################################################################################################
