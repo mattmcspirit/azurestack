@@ -34,6 +34,7 @@ $Global:ProgressPreference = 'SilentlyContinue'
 function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
     while ($true) {
         try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
             break
         }
