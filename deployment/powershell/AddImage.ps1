@@ -224,7 +224,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
         }
         Set-Location "$ASDKpath\images"
-
         # Check which image is being deployed
         if ($image -eq "ServerCore") {
             $sku = "2016-Datacenter-Server-Core"
@@ -232,7 +231,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $onlinePackage = "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*"
             $offlinePackage = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0"
             $vhdVersion = "1.0.0"
-            $publisher = "Microsoft"
+            $publisher = "MicrosoftWindowsServer"
             $offer = "WindowsServer"
             $osVersion = "Windows"
         }
@@ -242,7 +241,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $onlinePackage = "*Microsoft.WindowsServer2016Datacenter-ARM*"
             $offlinePackage = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0"
             $vhdVersion = "1.0.0"
-            $publisher = "Microsoft"
+            $publisher = "MicrosoftWindowsServer"
             $offer = "WindowsServer"
             $osVersion = "Windows"
         }
@@ -309,7 +308,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
             $azpkg.id = $product.name.Split('/')[-1]
             $azpkg.type = $product.properties.productKind
-            $azpkg.publisher = $product.properties.publisherDisplayName
+            $azpkg.publisher = $product.properties.publisherIdentifier
             $azpkg.sku = $product.properties.sku
             $azpkg.offer = $product.properties.offer
 
