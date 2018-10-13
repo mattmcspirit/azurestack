@@ -92,25 +92,27 @@ Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
 
-# Set Storage Variables
-$asdkImagesRGName = "azurestack-images"
-$asdkImagesStorageAccountName = "asdkimagesstor"
-$asdkImagesContainerName = "asdkimagescontainer"
-
-# Test/Create RG
-if (-not (Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) { New-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop }
-# Test/Create Storage
-$asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName -ErrorAction SilentlyContinue
-if (-not ($asdkStorageAccount)) { $asdkStorageAccount = New-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -Location $azsLocation -ResourceGroupName $asdkImagesRGName -Type Standard_LRS -ErrorAction Stop }
-Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName | Out-Null
-# Test/Create Container
-$asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
-if (-not ($asdkContainer)) { $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop }
-
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
+        $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        # Set Storage Variables
+        $asdkImagesRGName = "azurestack-images"
+        $asdkImagesStorageAccountName = "asdkimagesstor"
+        $asdkImagesContainerName = "asdkimagescontainer"
+
+        # Test/Create RG
+        if (-not (Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) { New-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop }
+        # Test/Create Storage
+        $asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName -ErrorAction SilentlyContinue
+        if (-not ($asdkStorageAccount)) { $asdkStorageAccount = New-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -Location $azsLocation -ResourceGroupName $asdkImagesRGName -Type Standard_LRS -ErrorAction Stop }
+        Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName | Out-Null
+        # Test/Create Container
+        $asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
+        if (-not ($asdkContainer)) { $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop }
+
         if ($azpkg -eq "MySQL") {
             $azpkgPackageName = "ASDK.MySQL.1.0.0"
         }
@@ -118,16 +120,16 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $azpkgPackageName = "ASDK.MSSQL.1.0.0"
         }
         
-        Write-CustomVerbose -Message "Checking for the $azpkg gallery item"
+        Write-Verbose -Message "Checking for the $azpkg gallery item"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
-            Write-CustomVerbose -Message "Found a suitable $azpkg Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
+            Write-Verbose -Message "Found a suitable $azpkg Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
         }
         else {
-            Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
-            Write-CustomVerbose -Message "Will need to side load it in to the gallery"
+            Write-Verbose -Message "Didn't find this package: $azpkgPackageName"
+            Write-Verbose -Message "Will need to side load it in to the gallery"
 
             if ($deploymentMode -eq "Online") {
-                Write-CustomVerbose -Message "Uploading $azpkgPackageName"
+                Write-Verbose -Message "Uploading $azpkgPackageName"
                 if ($azpkg -eq "MySQL") {
                     $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
                 }
@@ -143,13 +145,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
                 try {
-                    Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
-                    Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                    Write-Verbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
+                    Write-Verbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
                     Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
                 }
                 catch {
-                    Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
-                    Write-CustomVerbose -Message "$_.Exception.Message"
+                    Write-Verbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
+                    Write-Verbose -Message "$_.Exception.Message"
                     Start-Sleep -Seconds 5
                 }
             }
