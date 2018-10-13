@@ -1298,7 +1298,7 @@ $azsLocation = (Get-AzsLocation).Name
 
 $scriptStep = "VMIMAGES"
 # Get current free space on the drive used to hold the Azure Stack images
-Write-CustomVerbose -Message "Calculating free disk space on Cluster Shared Volumes, to plan image upload concurrency"
+Write-CustomVerbose -Message "Calculating free disk space on Cluster Shared Volume, to plan image upload concurrency"
 Start-Sleep 5
 $freeSpace = [int](((Get-WmiObject win32_logicaldisk | Where-Object {$_.DeviceId -eq (Split-Path -Path "$ASDKpath" -Qualifier) }).FreeSpace) / 1GB)
 $freeCSVSpace = [int](((Get-ClusterSharedVolume | Select-Object -Property Name -ExpandProperty SharedVolumeInfo).Partition.FreeSpace) / 1GB)
@@ -1392,10 +1392,10 @@ While (($runningJobs.count) -gt 0) {
     foreach ($completeJob in $completedJobs) {
         $jobDuration = ($completeJob.PSEndTime) - ($completeJob.PSBeginTime)
         if ($jobDuration.Hours -gt 0) {
-            Write-Host "$($runningJob.Name) has been running for $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+            Write-Host "$($completeJob.Name) finished in $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
         else {
-            Write-Host "$($runningJob.Name) has been running for $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+            Write-Host "$($completeJob.Name) finished in $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
     }
     Start-Sleep 10
