@@ -57,6 +57,7 @@ $Global:ProgressPreference = 'SilentlyContinue'
 function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
     while ($true) {
         try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
             break
         }
@@ -148,10 +149,16 @@ $asdkImagesContainerName = "asdkimagescontainer"
 $csvImagePath = "C:\ClusterStorage\Volume1"
 
 if (!$([System.IO.Directory]::Exists("$ASDKpath\images"))) {
-    New-Item -Path "$ASDKpath\images" -ItemType Directory -Force | Out-Null
+    New-Item -Path "$ASDKpath\images" -ItemType Directory -Force | Out-Null   
+}
+if (!$([System.IO.Directory]::Exists("$ASDKpath\images\$image"))) {
+    New-Item -Path "$ASDKpath\images\$image" -ItemType Directory -Force | Out-Null
 }
 if (!$([System.IO.Directory]::Exists("$csvImagePath\images"))) {
     New-Item -Path "$csvImagePath\images" -ItemType Directory -Force | Out-Null
+}
+if (!$([System.IO.Directory]::Exists("$csvImagePath\Images\$image"))) {
+    New-Item -Path "$csvImagePath\Images\$image" -ItemType Directory -Force | Out-Null
 }
 
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
@@ -379,12 +386,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
             else {
                 "There is no suitable $blobName image within your Storage Account. We'll need to upload a new one."
-                $validDownloadPathVHD = [System.IO.File]::Exists("$csvImagePath\images\$image\$blobName")
+                $validDownloadPathVHD = [System.IO.File]::Exists("$csvImagePath\Images\$image\$blobName")
                 Write-Verbose "Checking for a local copy first..."
                 # If there's no local VHD, create one.
                 if ($validDownloadPathVHD -eq $true) {
                     Write-Verbose "Located suitable VHD in this folder. No need to download again..."
-                    $serverVHD = Get-ChildItem -Path "$csvImagePath\images\$image\$blobName"
+                    $serverVHD = Get-ChildItem -Path "$csvImagePath\Images\$image\$blobName"
                     Write-Verbose "VHD located at $serverVHD"
                 }
                 else {
@@ -396,21 +403,21 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                             Write-Verbose "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
                             $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                             Write-Verbose "Ubuntu Server ZIP located at $UbuntuServerZIP"
-                            if (!([System.IO.File]::Exists("$csvImagePath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"))) {
-                                Copy-Item -Path "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Destination "$csvImagePath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
-                                $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                            if (!([System.IO.File]::Exists("$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"))) {
+                                Copy-Item -Path "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Destination "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
+                                $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                             }
                             else {
-                                $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                                $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                             }
-                            Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$csvImagePath\images\$image\" -Force -ErrorAction Stop
-                            $serverVHD = Get-ChildItem -Path "$csvImagePath\images\$image\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                            Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$csvImagePath\Images\$image\" -Force -ErrorAction Stop
+                            $serverVHD = Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
                         }
                         else {
                             # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
                             # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
                             Write-Verbose "Cannot find a previously extracted Ubuntu Server download or ZIP file"
-                            Write-Verbose "Begin download of correct Ubuntu Server ZIP and extraction of VHD into $ASDKpath"
+                            Write-Verbose "Begin download of correct Ubuntu Server ZIP to $ASDKpath"
 
                             if ($registerASDK -and ($deploymentMode -eq "Online")) {
                                 $ubuntuBuild = $azpkg.vhdVersion
@@ -424,15 +431,15 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                             }
                             $ubuntuDownloadLocation = "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                             DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
-                            if (!([System.IO.File]::Exists("$csvImagePath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"))) {
-                                Copy-Item -Path "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Destination "$csvImagePath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
-                                $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                            if (!([System.IO.File]::Exists("$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"))) {
+                                Copy-Item -Path "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Destination "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
+                                $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                             }
                             else {
-                                $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                                $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                             }
-                            Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$csvImagePath\images\$image\" -Force -ErrorAction Stop
-                            $serverVHD = Get-ChildItem -Path "$csvImagePath\images\$image\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                            Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$csvImagePath\Images\$image\" -Force -ErrorAction Stop
+                            $serverVHD = Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
                         }
                     }
                     elseif ($image -ne "UbuntuServer") {
@@ -460,17 +467,17 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         }
                         Set-Location "$ASDKpath\images"
                         # Set path for Windows Updates (for Windows images). Copy to CSV first
-                        Copy-Item -Path "$ASDKpath\images" -Filter *.msu -Destination "$csvImagePath\images\$image\" -Force -Verbose -ErrorAction Stop
-                        $target = "$csvImagePath\images\$image\"
+                        Copy-Item -Path "$ASDKpath\images\*" -Include "*.msu" -Destination "$csvImagePath\Images\$image\" -Force -Verbose -ErrorAction Stop
+                        $target = "$csvImagePath\Images\$image\"
                         if ($image -eq "ServerCore") {
-                            .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\images\$image\$($image).vhd" `
+                            .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\Images\$image\$($image).vhd" `
                                 -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                         }
                         elseif ($image -eq "ServerFull") {
-                            .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\images\$image\$($image).vhd" `
+                            .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\Images\$image\$($image).vhd" `
                                 -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                         }
-                        $serverVHD = Get-ChildItem -Path "$csvImagePath\images\$image\$blobName"
+                        $serverVHD = Get-ChildItem -Path "$csvImagePath\Images\$image\$blobName"
                     }
                 }
                 # At this point, there is a local image (either existing or new, that needs uploading, first to a Storage Account
@@ -543,15 +550,15 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Write-Verbose ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                 if ($image -eq "UbuntuServer") {
                     Write-Verbose "Cleaning up local hard drive space - deleting VHD file, but keeping ZIP"
-                    Get-ChildItem -Path "$csvImagePath\images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).vhd" | Remove-Item -Force
+                    Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).vhd" | Remove-Item -Force
                     Write-Verbose "Cleaning up VHD from storage account"
                     Remove-AzureStorageBlob -Blob $serverVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                 }
                 else {
                     Write-Verbose "Cleaning up local hard drive space - deleting VHD file"
-                    Get-ChildItem -Path "$csvImagePath\images\$image\" -Filter "$($image).vhd" | Remove-Item -Force
+                    Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($image).vhd" | Remove-Item -Force
                     Write-Verbose "Cleaning up VHD from storage account"
-                    Remove-AzureStorageBlob -Blob $serverVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
+                    #Remove-AzureStorageBlob -Blob $serverVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                 }
             }
             elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
