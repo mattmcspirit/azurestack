@@ -448,7 +448,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                             # Download Convert-WindowsImage.ps1
                             $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
                             $convertWindowsDownloadLocation = "$ASDKpath\images\Convert-Windows$($image)Image.ps1"
-                            $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\Convert-Windows$($image)Image.ps1")
+                            $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\$image\Convert-Windows$($image)Image.ps1")
                             if ($convertWindowsImageExists -eq $false) {
                                 Write-Verbose "Downloading Convert-Windows$($image)Image.ps1 to create the VHD from the ISO"
                                 Write-Verbose "The download will be stored in $ASDKpath\images"
@@ -459,13 +459,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         elseif ($deploymentMode -ne "Online") {
                             $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\Convert-WindowsImage.ps1")
                             if ($convertWindowsImageExists -eq $true) {
-                                Copy-Item -Path "$ASDKpath\images\Convert-WindowsImage.ps1" -Destination "$ASDKpath\images\Convert-Windows$($image)Image.ps1" -Force -Verbose -ErrorAction Stop
+                                Copy-Item -Path "$ASDKpath\images\Convert-WindowsImage.ps1" -Destination "$ASDKpath\images\$image\Convert-Windows$($image)Image.ps1" -Force -Verbose -ErrorAction Stop
                             }
                             else {
                                 throw "Convert-WindowsImage.ps1 is missing from your download folder. This is required for the image creation and should be located here: $ASDKpath\images"
                             }
                         }
-                        Set-Location "$ASDKpath\images"
+                        Set-Location "$ASDKpath\images\$image"
                         # Set path for Windows Updates (for Windows images). Copy to CSV first
                         Copy-Item -Path "$ASDKpath\images\*" -Include "*.msu" -Destination "$csvImagePath\Images\$image\" -Force -Verbose -ErrorAction Stop
                         $target = "$csvImagePath\Images\$image\"
