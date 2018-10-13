@@ -786,7 +786,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"ServerFullImage","Incomplete"'
         '"MySQLGalleryItem","Incomplete"'
         '"SQLServerGalleryItem","Incomplete"'
-        '"VMExtensions","Incomplete"'
+        '"AddVMExtensions","Incomplete"'
         '"MySQLRP","Incomplete"'
         '"SQLServerRP","Incomplete"'
         '"MySQLSKUQuota","Incomplete"'
@@ -1374,14 +1374,14 @@ $ServerFullJob = {
 # Define the image jobs
 $AddMySQLAzpkgJob = {
     Start-Job -Name AddMySQLAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
+        Set-Location $Using:ScriptLocation; .\AddGalleryItems.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
         -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "MySQL"
     } -Verbose -ErrorAction Stop
 }
 
 $AddMSSQLAzpkgJob = {
     Start-Job -Name AddSQLServerAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
+        Set-Location $Using:ScriptLocation; .\AddGalleryItems.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
         -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "SQLServer"
     } -Verbose -ErrorAction Stop
 }
@@ -1389,7 +1389,14 @@ $AddMSSQLAzpkgJob = {
 ### ADD VM EXTENSIONS - JOB SETUP ############################################################################################################################
 ##############################################################################################################################################################
 
-### ADD DB RP ITEMS - JOB SETUP ##############################################################################################################################
+$AddVMExtensionsJob = {
+    Start-Job -Name AddVMExtensions -ArgumentList $ConfigASDKProgressLogPath, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $registerASDK -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\AddVMExtensions.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -deploymentMode $Using:deploymentMode `
+        -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -registerASDK $Using:registerASDK
+    } -Verbose -ErrorAction Stop
+}
+
+### ADD DB RPS - JOB SETUP ###################################################################################################################################
 ##############################################################################################################################################################
 
 
@@ -1400,7 +1407,7 @@ $AddMSSQLAzpkgJob = {
 
 # Launch the jobs
 Get-Job | Remove-Job
-& $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob; & $AddMySQLAzpkgJob; & $AddMSSQLAzpkgJob;
+& $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob; & $AddMySQLAzpkgJob; & $AddMSSQLAzpkgJob; & $AddVMExtensionsJob;
 
 # Get all the running jobs
 $runningJobs = Get-Job | Where-Object { $_.state -eq "running" }
@@ -1442,252 +1449,6 @@ if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
 elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
     Write-Host "All jobs completed successfully. Cleaning up jobs."
     Get-Job | Remove-Job
-}
-
-### ADD MYSQL GALLERY ITEM ###################################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $azpkgPackageName = "ASDK.MySQL.1.0.0"
-        
-        Write-CustomVerbose -Message "Checking for the MySQL gallery item"
-        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
-            Write-CustomVerbose -Message "Found a suitable MySQL Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
-        }
-        else {
-            Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
-            Write-CustomVerbose -Message "Will need to side load it in to the gallery"
-
-            if ($deploymentMode -eq "Online") {
-                Write-CustomVerbose -Message "Uploading $azpkgPackageName"        
-                $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
-            }
-            # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
-            }
-            $Retries = 0
-            # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
-                try {
-                    Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
-                    Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
-                }
-                catch {
-                    Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
-                    Write-CustomVerbose -Message "$_.Exception.Message"
-                    Start-Sleep -Seconds 5
-                }
-            }
-            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
-                throw "Uploading gallery item failed after $Retries attempts. Exiting process."
-                Set-Location $ScriptLocation
-                return
-            }
-        }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-    }
-    catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-
-### ADD SQL SERVER GALLERY ITEM ##############################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-    try {
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $azpkgPackageName = "ASDK.MSSQL.1.0.0"
-        
-        Write-CustomVerbose -Message "Checking for the SQL Server 2017 gallery item"
-        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
-            Write-CustomVerbose -Message "Found a suitable SQL Server 2017 Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
-        }
-        else {
-            Write-CustomVerbose -Message "Didn't find this package: $azpkgPackageName"
-            Write-CustomVerbose -Message "Will need to side load it in to the gallery"
-
-            if ($deploymentMode -eq "Online") {
-                Write-CustomVerbose -Message "Uploading $azpkgPackageName"        
-                $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
-            }
-            # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
-            }
-            $Retries = 0
-            # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
-                try {
-                    Write-CustomVerbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
-                    Write-CustomVerbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
-                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
-                }
-                catch {
-                    Write-CustomVerbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
-                    Write-CustomVerbose -Message "$_.Exception.Message"
-                    Start-Sleep -Seconds 5
-                }
-            }
-            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
-                throw "Uploading gallery item failed after $Retries attempts. Exiting process."
-                Set-Location $ScriptLocation
-                return
-            }
-        }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-    }
-    catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-
-#### ADD VM EXTENSIONS #######################################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "VMExtensions")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($registerASDK -and ($deploymentMode -ne "Offline")) {
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-        try {
-            # Currently an infinite loop bug exists in Azs.AzureBridge.Admin 0.1.1 - this section fixes it by editing the Get-TaskResult.ps1 file
-            # Also then launches the VM Extension important in a fresh PSSession as a precaution.
-            if (!(Get-Module -Name Azs.AzureBridge.Admin)) {
-                Import-Module Azs.AzureBridge.Admin -Force
-            }
-            if ((((Get-Module -Name Azs.AzureBridge*).Version).ToString()) -eq "0.1.1") {
-                $taskResult = (Get-ChildItem -Path "$((Get-Module -Name Azs.AzureBridge*).ModuleBase)" -Recurse -Include "Get-TaskResult.ps1" -ErrorAction Stop).FullName
-                foreach ($task in $taskResult) {
-                    $old = 'Write-Debug -Message "$($result | Out-String)"'
-                    $new = '#Write-Debug -Message "$($result | Out-String)"'
-                    $pattern1 = [RegEx]::Escape($old)
-                    $pattern2 = [RegEx]::Escape($new)
-                    if (!((Get-Content $taskResult) | Select-String $pattern2)) {
-                        if ((Get-Content $taskResult) | Select-String $pattern1) {
-                            Write-CustomVerbose -Message "Known issue with Azs.AzureBridge.Admin Module Version 0.1.1 - editing Get-TaskResult.ps1"
-                            Write-CustomVerbose -Message "Removing module before editing file"
-                            Remove-Module Azs.AzureBridge.Admin -Force -Confirm:$false -Verbose
-                            Write-CustomVerbose -Message "Editing file"
-                            (Get-Content $taskResult) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $taskResult -Verbose -ErrorAction Stop
-                            Write-CustomVerbose -Message "Editing completed. Reimporting module"
-                            Import-Module Azs.AzureBridge.Admin -Force
-                        }
-                    }
-                }
-            }
-            $verboseFunction = "function Write-CustomVerbose { ${function:Write-CustomVerbose} }"
-            Get-PSSession | Remove-PSSession -Confirm:$false -ErrorAction SilentlyContinue
-            Get-Variable -Name vmSession -ErrorAction SilentlyContinue | Remove-Variable -Force -ErrorAction SilentlyContinue -Verbose
-            $vmSession = New-PSSession -Name VMExtensions -ComputerName $Env:COMPUTERNAME -EnableNetworkAccess -Verbose
-            Invoke-Command -Session $vmSession -ArgumentList $verboseFunction, $scriptStep, $progress, $RowIndex, $ConfigASDKProgressLogPath, $ArmEndpoint, $TenantID, $asdkCreds -ScriptBlock {
-                Param($verboseFunction)
-                $scriptStep = "$Using:scriptStep"
-                . ([ScriptBlock]::Create($using:verboseFunction))
-                $Global:VerbosePreference = "Continue"
-                $Global:ErrorActionPreference = 'Stop'
-                $Global:ProgressPreference = 'SilentlyContinue'
-                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
-                Clear-AzureRmContext -Scope CurrentUser -Force
-                Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$Using:ArmEndpoint" -ErrorAction Stop | Out-Null
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $Using:TenantID -Credential $Using:asdkCreds -ErrorAction Stop | Out-Null
-                $activationName = "default"
-                $activationRG = "azurestack-activation"
-                $progress = $Using:progress
-                $RowIndex = $Using:RowIndex
-                if ($(Get-AzsAzureBridgeActivation -Name $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
-                    Write-CustomVerbose -Message "Adding Microsoft VM Extensions from the from the Azure Stack Marketplace"
-                    $getExtensions = ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")}).Name) -replace "default/", ""
-                    foreach ($extension in $getExtensions) {
-                        while (!$(Get-AzsAzureBridgeDownloadedProduct -Name $extension -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
-                            Write-CustomVerbose -Message "Didn't find $extension in your gallery. Downloading from the Azure Stack Marketplace"
-                            Invoke-AzsAzureBridgeProductDownload -ActivationName $activationName -Name $extension -ResourceGroupName $activationRG -Force -Confirm:$false -Verbose
-                        }
-                    }
-                    $getDownloads = (Get-AzsAzureBridgeDownloadedProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")})
-                    Write-CustomVerbose -Message "Your Azure Stack gallery now has the following Microsoft VM Extensions for enhancing your deployments:`r`n"
-                    foreach ($download in $getDownloads) {
-                        "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"
-                    }
-                    # Update the ConfigASDKProgressLog.csv file with successful completion
-                    Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-                    $progress[$RowIndex].Status = "Complete"
-                    $progress | Export-Csv $Using:ConfigASDKProgressLogPath -NoTypeInformation -Force
-                    Write-Output $progress | Out-Host
-                }
-                else {
-                    # No Azure Bridge Activation Record found - Skip rather than fail
-                    Write-CustomVerbose -Message "Skipping Microsoft VM Extension download, no Azure Bridge Activation Object called $activationName could be found within the resource group $activationRG on your Azure Stack"
-                    Write-CustomVerbose -Message "Assuming registration of this ASDK was successful, you should be able to manually download the VM extensions from Marketplace Management in the admin portal`r`n"
-                    # Update the ConfigASDKProgressLog.csv file with successful completion
-                    $progress[$RowIndex].Status = "Skipped"
-                    $progress | Export-Csv $Using:ConfigASDKProgressLogPath -NoTypeInformation -Force
-                    Write-Output $progress | Out-Host
-                }
-            }
-            Remove-PSSession -Name VMExtensions -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-            Remove-Variable -Name vmSession -Force -ErrorAction SilentlyContinue -Verbose
-        }
-        catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-    elseif ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously skipped"
-    }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    }
-}
-elseif (!$registerASDK) {
-    Write-CustomVerbose -Message "Skipping VM Extension download, as Azure Stack has not been registered`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
 }
 
 #### INSTALL MYSQL RESOURCE PROVIDER #########################################################################################################################
