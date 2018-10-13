@@ -1290,7 +1290,7 @@ else {
 # Get Azure Stack location
 $azsLocation = (Get-AzsLocation).Name
 
-### ADD VM IMAGES ############################################################################################################################################
+### ADD VM IMAGES - JOB SETUP ################################################################################################################################
 ##############################################################################################################################################################
 
 # This section now includes 4 key steps - Ubuntu Image, Windows Updates, Server Core Image and Server Full Image
@@ -1368,9 +1368,39 @@ $ServerFullJob = {
     } -Verbose -ErrorAction Stop
 }
 
+### ADD DB GALLERY ITEMS - JOB SETUP #########################################################################################################################
+##############################################################################################################################################################
+
+# Define the image jobs
+$AddMySQLAzpkgJob = {
+    Start-Job -Name AddMySQLAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
+        -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "MySQL"
+    } -Verbose -ErrorAction Stop
+}
+
+$AddMSSQLAzpkgJob = {
+    Start-Job -Name AddSQLServerAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
+        -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "SQLServer"
+    } -Verbose -ErrorAction Stop
+}
+
+### ADD VM EXTENSIONS - JOB SETUP ############################################################################################################################
+##############################################################################################################################################################
+
+### ADD DB RP ITEMS - JOB SETUP ##############################################################################################################################
+##############################################################################################################################################################
+
+
+
+
+### JOB LAUNCHER & TRACKER ###################################################################################################################################
+##############################################################################################################################################################
+
 # Launch the jobs
 Get-Job | Remove-Job
-& $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob
+& $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob; & $AddMySQLAzpkgJob; & $AddMSSQLAzpkgJob;
 
 # Get all the running jobs
 $runningJobs = Get-Job | Where-Object { $_.state -eq "running" }
@@ -1413,11 +1443,6 @@ elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
     Write-Host "All jobs completed successfully. Cleaning up jobs."
     Get-Job | Remove-Job
 }
-
-# Cleanup if all jobs completed successfully. - Need to clean Storage Account (Remove blobs) and jobs
-
-Write-Verbose "Cleaning up VHD from storage account"
-Remove-AzureStorageBlob -Blob $windowsServerVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force -ErrorAction Stop
 
 ### ADD MYSQL GALLERY ITEM ###################################################################################################################################
 ##############################################################################################################################################################
