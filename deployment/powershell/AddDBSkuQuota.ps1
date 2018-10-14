@@ -12,6 +12,9 @@ param (
 
     [parameter(Mandatory = $true)]
     [pscredential] $asdkCreds,
+
+    [Parameter(Mandatory = $true)]
+    [String] $azsLocation,
     
     [parameter(Mandatory = $true)]
     [String] $ScriptLocation,
@@ -27,10 +30,7 @@ $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
-### DOWNLOADER FUNCTION #####################################################################################################################################
-#############################################################################################################################################################
-
-$logFolder = "$($dbsku)Sku"
+$logFolder = "$($dbsku)SKUQuota"
 $logName = $logFolder
 $progressName = $logFolder
 if ($dbsku -eq "MySQL") {
@@ -86,7 +86,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
             $progress = Import-Csv -Path $ConfigASDKProgressLogPath
             $dbJobCheck = [array]::IndexOf($progress.Stage, "$($dbsku)RP")
-            while (($progress[$mySQLJobCheck].Status -ne "Complete")) {
+            while (($progress[$dbJobCheck].Status -ne "Complete")) {
                 Write-Verbose -Message "The $($dbsku)RP stage of the process has not yet completed. Checking again in 10 seconds"
                 Start-Sleep -Seconds 10
                 if ($progress[$dbJobCheck].Status -eq "Failed") {
@@ -95,8 +95,17 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $dbJobCheck = [array]::IndexOf($progress.Stage, "$($dbsku)RP")
             }
-            # Set the variables and gather token for creating the SKU & Quota
 
+            ### Login to Azure Stack ###
+            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+            $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
+
+            # Set the variables and gather token for creating the SKU & Quota
             if ($dbsku -eq "MySQL") {
                 $skuFamily = "MySQL"
                 $skuName = "MySQL57"
@@ -120,15 +129,6 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $quotaResourceCount = "10"
                 $quotaResourceSizeMB = "1024"
             }
-
-            ### Login to Azure Stack ###
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $subID = $azureContext.Subscription.Id
-            $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
 
             # Fetch the tokens
             $dbToken = $null
@@ -191,7 +191,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
 
             # Create the SKU
-            Write-CustomVerbose -Message "Creating new $($dbsku) Resource Provider SKU with name: $($skuName), adapter namespace: $($databaseAdapterNamespace)" -Verbose
+            Write-Verbose -Message "Creating new $($dbsku) Resource Provider SKU with name: $($skuName), adapter namespace: $($databaseAdapterNamespace)" -Verbose
             try {
                 # Make the REST call
                 $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $dbHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
@@ -202,7 +202,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create $($dbsku) Resource Provider SKU with name {0}, failed with error: {1}" -f $skuName, $message) 
             }
             # Create the Quota
-            Write-CustomVerbose -Message "Creating new $($dbsku) Resource Provider Quota with name: $($quotaName), adapter namespace: $($databaseAdapterNamespace)" -Verbose
+            Write-Verbose -Message "Creating new $($dbsku) Resource Provider Quota with name: $($quotaName), adapter namespace: $($databaseAdapterNamespace)" -Verbose
             try {
                 # Make the REST call
                 $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $dbHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing
