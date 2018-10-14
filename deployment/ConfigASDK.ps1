@@ -1424,7 +1424,7 @@ $AddMSSQLRPJob = {
 
 $AddMySQLSkuJob = {
     Start-Job -Name AddMySQLSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
+        Set-Location $Using:ScriptLocation; .\AddDBSkuQuota.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
             -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -dbsku "MySQL" `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
     } -Verbose -ErrorAction Stop
@@ -1432,12 +1432,11 @@ $AddMySQLSkuJob = {
 
 $AddMSSQLSkuJob = {
     Start-Job -Name AddSQLServerSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
+        Set-Location $Using:ScriptLocation; .\AddDBSkuQuota.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
             -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -dbsku "SQLServer" `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
     } -Verbose -ErrorAction Stop
 }
-
 
 ### JOB LAUNCHER & TRACKER ###################################################################################################################################
 ##############################################################################################################################################################
@@ -1445,7 +1444,7 @@ $AddMSSQLSkuJob = {
 # Launch the jobs
 Get-Job | Remove-Job
 & $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob; & $AddMySQLAzpkgJob; & $AddMSSQLAzpkgJob; & $AddVMExtensionsJob; `
-& $AddMySQLRPJob; $AddMSSQLRPJob; & $AddMySQLSkuJob; $AddMSSQLSkuJob;
+& $AddMySQLRPJob; & $AddMSSQLRPJob; & $AddMySQLSkuJob; & $AddMSSQLSkuJob;
 
 # Get all the running jobs
 $runningJobs = Get-Job | Where-Object { $_.state -eq "running" }
