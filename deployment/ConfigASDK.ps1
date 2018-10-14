@@ -2844,17 +2844,7 @@ try {
         Write-Output "App Service SQL Server VM FQDN: $sqlAppServerFqdn" >> $txtPath
         Write-Output "App Service SQL Server VM Credentials = sqladmin | $VMpwd" >> $txtPath
         Write-Output "App Service SQL Server SA Credentials = sa | $VMpwd" >> $txtPath
-
-        if ($authenticationType.ToString() -like "AzureAd") {
-            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
-            Write-Output "Sign in to the Azure portal as Azure Active Directory Service Admin ($azureAdUsername) -> Search for Application Id and grant permissions." >> $txtPath
-            Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application" >> $txtPath
-        }
-        elseif ($authenticationType.ToString() -like "ADFS") {
-            Write-Output "`r`nTo complete the App Service deployment, use this Application Id: $identityApplicationID" >> $txtPath
-            Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-active-directory-federation-services-application" >> $txtPath
-        }
-
+        Write-Output "App Service Application Id: $identityApplicationID" >> $txtPath
         Write-Output "`r`nOther useful information for reference:" >> $txtPath
         Write-Output "`r`nAzure Stack Admin ARM Endpoint: adminmanagement.local.azurestack.external" >> $txtPath
         Write-Output "Azure Stack Tenant ARM Endpoint: management.local.azurestack.external" >> $txtPath
