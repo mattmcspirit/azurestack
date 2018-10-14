@@ -1419,13 +1419,33 @@ $AddMSSQLRPJob = {
     } -Verbose -ErrorAction Stop
 }
 
+### ADD DB SKUs - JOB SETUP ##################################################################################################################################
+##############################################################################################################################################################
+
+$AddMySQLSkuJob = {
+    Start-Job -Name AddMySQLSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
+            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -dbsku "MySQL" `
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+    } -Verbose -ErrorAction Stop
+}
+
+$AddMSSQLSkuJob = {
+    Start-Job -Name AddSQLServerSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
+            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -dbsku "SQLServer" `
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+    } -Verbose -ErrorAction Stop
+}
+
+
 ### JOB LAUNCHER & TRACKER ###################################################################################################################################
 ##############################################################################################################################################################
 
 # Launch the jobs
 Get-Job | Remove-Job
 & $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob; & $AddMySQLAzpkgJob; & $AddMSSQLAzpkgJob; & $AddVMExtensionsJob; `
-& $AddMySQLRPJob; $AddMSSQLRPJob;
+& $AddMySQLRPJob; $AddMSSQLRPJob; & $AddMySQLSkuJob; $AddMSSQLSkuJob;
 
 # Get all the running jobs
 $runningJobs = Get-Job | Where-Object { $_.state -eq "running" }
@@ -1467,276 +1487,6 @@ if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
 elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
     Write-Host "All jobs completed successfully. Cleaning up jobs."
     Get-Job | Remove-Job
-}
-
-#### ADD MYSQL SKU & QUOTA ###################################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "MySQLSKUQuota")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "MySQLSKUQuota")
-    }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-        try {
-            # Logout to clean up
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
-
-            # Set the variables and gather token for creating the SKU & Quota
-            $mySqlSkuFamily = "MySQL"
-            $mySqlSkuName = "MySQL57"
-            $mySqlSkuTier = "Standalone"
-            $mySqlLocation = "$azsLocation"
-            $mySqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
-            $mySqlDatabaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
-            $mySqlApiVersion = "2017-08-28" 
-            $mySqlQuotaName = "mysqldefault"
-            $mySqlQuotaResourceCount = "10"
-            $mySqlQuotaResourceSizeMB = "1024"
-
-            # Login to Azure Stack and populate variables
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $subID = $azureContext.Subscription.Id
-            $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
-
-            # Fetch the tokens
-            $mySqlToken = $null
-            $mySqlTokens = $null
-            $mySqlTokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-            $mySqlToken = $mySqlTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $AzureContext.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
-
-            # Build the header for authorization
-            $mySqlHeaders = @{ 'authorization' = "Bearer $($mySqlToken.AccessToken)"}
-
-            # Build the URIs
-            $skuUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/skus/{4}?api-version={5}' -f $mySqlArmEndpoint, $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlSkuName, $mySqlApiVersion)
-            $quotaUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/quotas/{4}?api-version={5}' -f $mySqlArmEndpoint, $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName, $mySqlApiVersion)
-
-            # Create the request body for SKU
-            $skuTenantNamespace = $mySqlDatabaseAdapterNamespace.TrimEnd(".Admin");
-            $skuResourceType = '{0}/databases' -f $skuTenantNamespace
-            $skuIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/skus/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlSkuName
-            $skuRequestBody = @{
-                properties = @{
-                    resourceType = $skuResourceType
-                    sku          = @{
-                        family = $mySqlSkuFamily
-                        name   = $mySqlSkuName
-                        tier   = $mySqlSkuTier
-                    }
-                }
-                id         = $skuIdForRequestBody
-                name       = $mySqlSkuName
-            }
-            $skuRequestBodyJson = $skuRequestBody | ConvertTo-Json
-
-            # Create the request body for Quota
-            $quotaIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $mySqlDatabaseAdapterNamespace, $mySqlLocation, $mySqlQuotaName
-            $quotaRequestBody = @{
-                properties = @{
-                    resourceCount       = $mySqlQuotaResourceCount
-                    totalResourceSizeMB = $mySqlQuotaResourceSizeMB
-                }
-                id         = $quotaIdForRequestBody
-                name       = $mySqlQuotaName
-            }
-            $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
-
-            # Create the SKU
-            Write-CustomVerbose -Message "Creating new MySQL Resource Provider SKU with name: $($mySqlSkuName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
-            try {
-                # Make the REST call
-                $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $mySqlHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
-                $skuResponse
-            }
-            catch {
-                $message = $_.Exception.Message
-                Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create MySQL Resource Provider SKU with name {0}, failed with error: {1}" -f $mySqlSkuName, $message) 
-            }
-
-            # Create the Quota
-            Write-CustomVerbose -Message "Creating new MySQL Resource Provider Quota with name: $($mySqlQuotaName), adapter namespace: $($mySqlDatabaseAdapterNamespace)" -Verbose
-            try {
-                # Make the REST call
-                $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $mySqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing
-                $quotaResponse
-            }
-            catch {
-                $message = $_.Exception.Message
-                Write-Error -Message ("Failed to create MySQL Resource Provider Quota with name {0}, failed with error: {1}" -f $mySqlQuotaName, $message) 
-            }
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-        }
-        catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-}
-elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip MySQL Quota and SKU Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
-}
-
-#### ADD SQL SERVER SKU & QUOTA ##############################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "SQLServerSKUQuota")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerSKUQuota")
-    }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-        try {
-            # Logout to clean up
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
-
-            # Set the variables and gather token for creating the SKU & Quota
-            $sqlSkuFamily = "SQLServer"
-            $sqlSkuEdition = "Evaluation"
-            $sqlSkuName = "MSSQL2017"
-            $sqlSkuTier = "Standalone"
-            $sqlLocation = "$azsLocation"
-            $sqlArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
-            $sqlDatabaseAdapterNamespace = "Microsoft.SQLAdapter.Admin"
-            $sqlApiVersion = "2017-08-28"
-            $sqlQuotaName = "sqldefault"
-            $sqlQuotaResourceCount = "10"
-            $sqlQuotaResourceSizeMB = "1024"
-
-            # Login to Azure Stack and populate variables
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $subID = $azureContext.Subscription.Id
-            $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
-
-            # Fetch the tokens
-            $sqlToken = $null
-            $sqlTokens = $null
-            $sqlTokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-            $sqlToken = $sqlTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $AzureContext.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
-
-            # Build the header for authorization
-            $sqlHeaders = @{ 'authorization' = "Bearer $($sqlToken.AccessToken)"}
-
-            # Build the URIs
-            $skuUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/skus/{4}?api-version={5}' -f $sqlArmEndpoint, $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlSkuName, $sqlApiVersion)
-            $quotaUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/quotas/{4}?api-version={5}' -f $sqlArmEndpoint, $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlQuotaName, $sqlApiVersion)
-
-            # Create the request body for SKU
-            $skuTenantNamespace = $sqlDatabaseAdapterNamespace.TrimEnd(".Admin");
-            $skuResourceType = '{0}/databases' -f $skuTenantNamespace
-            $skuIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/skus/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlSkuName
-            $skuRequestBody = @{
-                properties = @{
-                    resourceType = $skuResourceType
-                    sku          = @{
-                        family = $sqlSkuFamily
-                        kind   = $sqlSkuEdition
-                        name   = $sqlSkuName
-                        tier   = $sqlSkuTier
-                    }
-                }
-                id         = $skuIdForRequestBody
-                name       = $sqlSkuName
-            }
-            $skuRequestBodyJson = $skuRequestBody | ConvertTo-Json
-
-            # Create the request body for Quota
-            $quotaIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlQuotaName
-            $quotaRequestBody = @{
-                properties = @{
-                    resourceCount       = $sqlQuotaResourceCount
-                    totalResourceSizeMB = $sqlQuotaResourceSizeMB
-                }
-                id         = $quotaIdForRequestBody
-                name       = $sqlQuotaName
-            }
-            $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
-
-            # Create the SKU
-            Write-CustomVerbose -Message "Creating new SQL Server Resource Provider SKU with name: $($sqlSkuName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
-            try {
-                # Make the REST call
-                $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $sqlHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
-                $skuResponse
-            }
-            catch {
-                $message = $_.Exception.Message
-                Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create SQL Server Resource Provider SKU with name {0}, failed with error: {1}" -f $sqlSkuName, $message) 
-            }
-
-            # Create the Quota
-            Write-CustomVerbose -Message "Creating new SQL Server Resource Provider Quota with name: $($sqlQuotaName), adapter namespace: $($sqlDatabaseAdapterNamespace)" -Verbose
-            try {
-                # Make the REST call
-                $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $sqlHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing
-                $quotaResponse
-            }
-            catch {
-                $message = $_.Exception.Message
-                Write-Error -Message ("Failed to create SQL Server Resource Provider Quota with name {0}, failed with error: {1}" -f $sqlQuotaName, $message) 
-            }
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-        }
-        catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-}
-elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip SQL Server Quota and SKU Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
 }
 
 #### DOWNLOAD SCRIPTS/BINARIES FOR OFFLINE DATABASE/FILE SERVER DEPLOYMENT ###################################################################################
