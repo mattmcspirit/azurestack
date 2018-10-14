@@ -71,6 +71,8 @@ $logFolder = "$($dbrp)RP"
 $logName = $logFolder
 $progressName = $logFolder
 if ($dbrp -eq "MySQL") {
+    $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
+    $rp = "mysql"
     if ($skipMySQL -eq $true) {
         $skipRP = $true
     }
@@ -79,6 +81,8 @@ if ($dbrp -eq "MySQL") {
     }
 }
 elseif ($dbrp -eq "SQLServer") {
+    $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
+    $rp = "sql"
     if ($skipMSSQL -eq $true) {
         $skipRP = $true
     }
@@ -130,7 +134,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             }
             # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
             if ($dbrp -eq "SQLServer") {
-                if (($skipMySQL -eq $null) -and ($skipMSSQL -eq $null)) {
+                if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
                     $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                     $mySQLProgressCheck = [array]::IndexOf($progress.Stage, "MySQLRP")
                     if (($progress[$mySQLProgressCheck].Status -ne "Complete")) {
@@ -152,8 +156,9 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             if ($deploymentMode -eq "Online") {
                 # Cleanup old folder
                 Remove-Item "$asdkPath\databases\$dbrp" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+                Remove-Item "$ASDKpath\databases\$($dbrp).zip" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 # Download and Expand the RP files
-                $rpURI = "https://aka.ms/azurestack$($dbrp)rp"
+                $rpURI = "https://aka.ms/azurestack$($rp)rp"
                 $rpDownloadLocation = "$ASDKpath\databases\$($dbrp).zip"
                 DownloadWithRetry -downloadURI "$rpURI" -downloadLocation "$rpDownloadLocation" -retries 10
             }
@@ -164,14 +169,6 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             }
             Set-Location "$ASDKpath\databases"
             Expand-Archive "$ASDKpath\databases\$($dbrp).zip" -DestinationPath .\$dbrp -Force -ErrorAction Stop
-            # Define the additional credentials for the local virtual machine username/password and certificates password
-            if ($dbrp -eq "MySQL") {
-                $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
-            }
-            elseif ($dbrp -eq "SQLServer") {
-                $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
-            }
-
             Set-Location "$ASDKpath\databases\$($dbrp)"
             if ($dbrp -eq "MySQL") {
                 if ($deploymentMode -eq "Online") {
