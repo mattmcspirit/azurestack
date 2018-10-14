@@ -139,7 +139,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                     $mySQLProgressCheck = [array]::IndexOf($progress.Stage, "MySQLRP")
                     if (($progress[$mySQLProgressCheck].Status -ne "Complete")) {
                         Write-Verbose -Message "To avoid deployment conflicts, delaying the SQL Server RP deployment by 2 minutes"
-                        Start-Sleep -Seconds 120           
+                        Start-Sleep -Seconds 120
                     }
                 }
             }
