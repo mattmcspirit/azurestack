@@ -29,28 +29,6 @@ $Global:ProgressPreference = 'SilentlyContinue'
 
 ### DOWNLOADER FUNCTION #####################################################################################################################################
 #############################################################################################################################################################
-function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
-    while ($true) {
-        try {
-            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
-            break
-        }
-        catch {
-            $exceptionMessage = $_.Exception.Message
-            Write-Verbose "Failed to download '$downloadURI': $exceptionMessage"
-            if ($retries -gt 0) {
-                $retries--
-                Write-Verbose "Waiting 10 seconds before retrying. Retries left: $retries"
-                Start-Sleep -Seconds 10
-            }
-            else {
-                $exception = $_.Exception
-                throw $exception
-            }
-        }
-    }
-}
 
 $logFolder = "$($dbsku)Sku"
 $logName = $logFolder
