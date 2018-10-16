@@ -16,9 +16,6 @@ param (
     [securestring] $secureVMpwd,
 
     [parameter(Mandatory = $true)]
-    [String] $VMpwd,
-
-    [parameter(Mandatory = $true)]
     [pscredential] $asdkCreds,
     
     [parameter(Mandatory = $true)]
