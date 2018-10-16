@@ -49,7 +49,7 @@ $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
-$logFolder = "$($dbrp)DBVM"
+$logFolder = "$($dbvm)DBVM"
 $logName = $logFolder
 $progressName = $logFolder
 if ($dbvm -eq "MySQL") {
