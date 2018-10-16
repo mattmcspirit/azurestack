@@ -201,7 +201,7 @@ function Write-CustomVerbose {
     param
     (
         [parameter(Mandatory = $true)]
-        [string]$Message = ''
+        [string] $Message
     )
     begin {}
     process {
@@ -1423,18 +1423,28 @@ $AddMSSQLRPJob = {
 ##############################################################################################################################################################
 
 $AddMySQLSkuJob = {
-    Start-Job -Name AddMySQLSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
+    Start-Job -Name AddMySQLSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\AddDBSkuQuota.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
-            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -dbsku "MySQL" `
+            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation -dbsku "MySQL" `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
     } -Verbose -ErrorAction Stop
 }
 
 $AddMSSQLSkuJob = {
-    Start-Job -Name AddSQLServerSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
+    Start-Job -Name AddSQLServerSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\AddDBSkuQuota.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
-            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -dbsku "SQLServer" `
+            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation -dbsku "SQLServer" `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+    } -Verbose -ErrorAction Stop
+}
+
+### UPLOAD SCRIPTS - JOB SETUP ###############################################################################################################################
+##############################################################################################################################################################
+
+$UploadScriptsJob = {
+    Start-Job -Name UploadScripts -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\UploadScripts.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
+            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation
     } -Verbose -ErrorAction Stop
 }
 
@@ -1444,7 +1454,7 @@ $AddMSSQLSkuJob = {
 # Launch the jobs
 Get-Job | Remove-Job
 & $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob; & $AddMySQLAzpkgJob; & $AddMSSQLAzpkgJob; & $AddVMExtensionsJob; `
-& $AddMySQLRPJob; & $AddMSSQLRPJob; & $AddMySQLSkuJob; & $AddMSSQLSkuJob;
+& $AddMySQLRPJob; & $AddMSSQLRPJob; & $AddMySQLSkuJob; & $AddMSSQLSkuJob; & $UploadScriptsJob;
 
 # Get all the running jobs
 $runningJobs = Get-Job | Where-Object { $_.state -eq "running" }
@@ -1488,88 +1498,6 @@ elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
     Get-Job | Remove-Job
 }
 
-#### DOWNLOAD SCRIPTS/BINARIES FOR OFFLINE DATABASE/FILE SERVER DEPLOYMENT ###################################################################################
-##############################################################################################################################################################
-
-# In the event of an offline deployment, you'll need to side-load script files into a storage account to be called by any MySQL, SQL and File Server template deployment
-# rather than try to reach out to GitHub to run the scripts directly
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "UploadScripts")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) -and (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed"))) {
-    try {
-        # Firstly create the appropriate RG, storage account and container
-        # Scan the $asdkPath\scripts folder and retrieve both files, add to an array, then upload to the storage account
-        # Save URI of the container to a variable to use later
-        $asdkOfflineRGName = "azurestack-offline"
-        $asdkOfflineStorageAccountName = "offlinestor"
-        $asdkOfflineContainerName = "offlinecontainer"
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        if (-not (Get-AzureRmResourceGroup -Name $asdkOfflineRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
-            New-AzureRmResourceGroup -Name $asdkOfflineRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
-        }
-        # Test/Create Storage
-        $asdkOfflineStorageAccount = Get-AzureRmStorageAccount -Name $asdkOfflineStorageAccountName -ResourceGroupName $asdkOfflineRGName -ErrorAction SilentlyContinue
-        if (-not ($asdkOfflineStorageAccount)) {
-            $asdkOfflineStorageAccount = New-AzureRmStorageAccount -Name $asdkOfflineStorageAccountName -Location $azsLocation -ResourceGroupName $asdkOfflineRGName -Type Standard_LRS -ErrorAction Stop
-        }
-        Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkOfflineStorageAccountName -ResourceGroupName $asdkOfflineRGName
-        # Test/Create Container
-        $asdkOfflineContainer = Get-AzureStorageContainer -Name $asdkOfflineContainerName -ErrorAction SilentlyContinue
-        if (-not ($asdkOfflineContainer)) {
-            $asdkOfflineContainer = New-AzureStorageContainer -Name $asdkOfflineContainerName -Permission Blob -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop
-        }
-        $offlineArray = @()
-        $offlineArray.Clear()
-        $offlineArray = Get-ChildItem -Path "$ASDKpath\scripts" -Recurse -Include ("*.sh", "*.cr.zip", "*FileServer.ps1") -ErrorAction Stop
-        $offlineArray += Get-ChildItem -Path "$ASDKpath\binaries" -Recurse -Include "*.deb" -ErrorAction Stop
-        foreach ($item in $offlineArray) {
-            $itemName = $item.Name
-            $itemFullPath = $item.FullName
-            $uploadItemAttempt = 1
-            while (!$(Get-AzureStorageBlob -Container $asdkOfflineContainerName -Blob $itemName -Context $asdkOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
-                try {
-                    # Log back into Azure Stack to ensure login hasn't timed out
-                    Write-CustomVerbose -Message "$itemName not found. Upload Attempt: $uploadItemAttempt"
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkOfflineContainerName -Blob "$itemName" -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
-                }
-                catch {
-                    Write-CustomVerbose -Message "Upload failed."
-                    Write-CustomVerbose -Message "$_.Exception.Message"
-                    $uploadItemAttempt++
-                }
-            }
-        }
-        $offlineBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName) -replace "https", "http"
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-    }
-    catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-        Set-Location $ScriptLocation
-        return
-    }
-}
-elseif ($deploymentMode -eq "Online") {
-    Write-CustomVerbose -Message "This is not an offline deployent, skipping step`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
-}
-
 #### DEPLOY MySQL VM TO HOST USER DATABASES ##################################################################################################################
 ##############################################################################################################################################################
 
@@ -1601,7 +1529,7 @@ elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $dbScriptBaseURI = $offlineBaseURI
+                $dbScriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName) -replace "https", "http"
                 # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
             Write-CustomVerbose -Message "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
@@ -1663,7 +1591,7 @@ elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
                 $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $dbScriptBaseURI = $offlineBaseURI
+                $dbScriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName) -replace "https", "http"
                 # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
             # Deploy a SQL Server 2017 on Ubuntu VM for hosting tenant db
@@ -1868,7 +1796,7 @@ elseif ((!$skipAppService) -and ($progress[$RowIndex].Status -ne "Complete")) {
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $templateFile = "FileServerTemplate.json"
                 $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
-                $configFilesURI = $offlineBaseUri
+                $configFilesURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName) -replace "https", "http"
                 New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName "appservice-fileshare" -vmName "fileserver" -TemplateUri $templateURI `
                     -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -vmExtensionScriptLocation $configFilesURI -Mode Incremental -Verbose -ErrorAction Stop
             }
@@ -1949,7 +1877,7 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
                 $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $dbScriptBaseURI = $offlineBaseURI
+                $dbScriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName) -replace "https", "http"
                 # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
 
