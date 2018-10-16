@@ -1321,7 +1321,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $platformImageCore = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverCoreVMImageAlreadyAvailable = $false
 
-        if ($platformImageCore -ne $null -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
+        if ($null -ne $platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
             Write-CustomVerbose -Message "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverCoreVMImageAlreadyAvailable = $true
         }
@@ -1332,7 +1332,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $platformImageFull = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverFullVMImageAlreadyAvailable = $false
 
-        if ($platformImageFull -ne $null -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
+        if ($null -ne $platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
             Write-CustomVerbose -Message "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverFullVMImageAlreadyAvailable = $true
         }
@@ -1380,7 +1380,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
 
                 # If innerHTML is empty or does not exist, use outerHTML instead
-                if ($servicingKbIDs -eq $Null) {
+                if ($null -eq $servicingKbIDs) {
                     $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
                 }
             }
@@ -1397,7 +1397,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
 
             # If innerHTML is empty or does not exist, use outerHTML instead
-            If ($kbIDs -eq $Null) {
+            If ($null -eq $kbIDs) {
                 $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
             }
             
@@ -1474,7 +1474,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     $CoreEdition = 'Windows Server 2016 SERVERDATACENTERCORE'
 
                     if ($serverCoreVHDExists -eq $false) {
-                        $VHD = .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$CoreEdition" -VHDPath "$ASDKpath\ServerCore.vhd" `
+                        .\Convert-WindowsImage.ps1 -SourcePath $ISOpath -WorkingDirectory $ASDKpath -SizeBytes 40GB -Edition "$CoreEdition" -VHDPath "$ASDKpath\ServerCore.vhd" `
                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                     }
 
@@ -3021,34 +3021,34 @@ elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
         try {
             Write-CustomVerbose -Message "Checking variables are present before creating JSON"
             # Check Variables #
-            if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -ne $null)) {
+            if (($authenticationType.ToString() -like "AzureAd") -and ($null -ne $azureDirectoryTenantName)) {
                 Write-CustomVerbose -Message "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
             }
             elseif ($authenticationType.ToString() -like "ADFS") {
                 Write-CustomVerbose -Message "ADFS deployment, no need for Azure Directory Tenant Name"
             }
-            elseif (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName -eq $null)) {
+            elseif (($authenticationType.ToString() -like "AzureAd") -and ($null -eq $azureDirectoryTenantName)) {
                 throw "Missing Azure Directory Tenant Name - Exiting process"
             }
-            if ($fileServerFqdn -ne $null) {
+            if ($null -ne $fileServerFqdn) {
                 Write-CustomVerbose -Message "File Server FQDN is present: $fileServerFqdn"
             }
             else {
                 throw "Missing File Server FQDN - Exiting process"
             }
-            if ($VMpwd -ne $null) {
+            if ($null -ne $VMpwd) {
                 Write-CustomVerbose -Message "Virtual Machine password is present: $VMpwd"
             }
             else {
                 throw "Missing Virtual Machine password - Exiting process"
             }
-            if ($sqlAppServerFqdn -ne $null) {
+            if ($null -ne $sqlAppServerFqdn) {
                 Write-CustomVerbose -Message "SQL Server FQDN is present: $sqlAppServerFqdn"
             }
             else {
                 throw "Missing SQL Server FQDN - Exiting process"
             }
-            if ($identityApplicationID -ne $null) {
+            if ($null -ne $identityApplicationID) {
                 Write-CustomVerbose -Message "Identity Application ID present: $identityApplicationID"
             }
             else {
