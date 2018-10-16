@@ -1448,13 +1448,36 @@ $UploadScriptsJob = {
     } -Verbose -ErrorAction Stop
 }
 
+### DEPLOY DB VMs - JOB SETUP ###############################################################################################################################
+##############################################################################################################################################################
+
+$DeployMySQLHostJob = {
+    Start-Job -Name DeployMySQLHost -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd `
+    $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\DeployDBVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -dbvm "MySQL" -tenantID $Using:TenantID -dbrg "azurestack-dbhosting" `
+            -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+    } -Verbose -ErrorAction Stop
+}
+
+$DeploySQLServerHostJob = {
+    Start-Job -Name DeploySQLServerHost -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd `
+    $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\DeployDBVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -dbvm "SQLServer" -tenantID $Using:TenantID -dbrg "azurestack-dbhosting" `
+            -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+    } -Verbose -ErrorAction Stop
+}
+
 ### JOB LAUNCHER & TRACKER ###################################################################################################################################
 ##############################################################################################################################################################
 
 # Launch the jobs
 Get-Job | Remove-Job
 & $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob; & $AddMySQLAzpkgJob; & $AddMSSQLAzpkgJob; & $AddVMExtensionsJob; `
-& $AddMySQLRPJob; & $AddMSSQLRPJob; & $AddMySQLSkuJob; & $AddMSSQLSkuJob; & $UploadScriptsJob;
+& $AddMySQLRPJob; & $AddMSSQLRPJob; & $AddMySQLSkuJob; & $AddMSSQLSkuJob; & $UploadScriptsJob; & $DeployMySQLHostJob; & $DeploySQLServerHostJob
 
 # Get all the running jobs
 $runningJobs = Get-Job | Where-Object { $_.state -eq "running" }
@@ -1496,144 +1519,6 @@ if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
 elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
     Write-Host "All jobs completed successfully. Cleaning up jobs."
     Get-Job | Remove-Job
-}
-
-#### DEPLOY MySQL VM TO HOST USER DATABASES ##################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "MySQLDBVM")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif ((!$skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "MySQLDBVM")
-    }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-        try {
-            Write-CustomVerbose -Message "Creating a dedicated Resource Group for all database hosting assets"
-            New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
-
-            # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
-            $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.MySQL*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
-
-            # Deploy a MySQL VM for hosting tenant db
-            if ($deploymentMode -eq "Online") {
-                $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
-            }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $dbScriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName) -replace "https", "http"
-                # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
-            }
-            Write-CustomVerbose -Message "Creating a dedicated MySQL5.7 on Ubuntu VM for database hosting"
-            New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $mainTemplateURI `
-                -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
-                -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" `
-                -vmSize Standard_A3 -mode Incremental -scriptBaseUrl $dbScriptBaseURI -Verbose -ErrorAction Stop
-
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-        }
-        catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-}
-elseif (($skipMySQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip MySQL Hosting Server Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
-}
-
-#### DEPLOY SQL SERVER VM TO HOST USER DATABASES #############################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "SQLServerDBVM")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif ((!$skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "SQLServerDBVM")
-    }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-        try {
-            # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
-            $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.MSSQL*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
-
-            # Deploy a MySQL VM for hosting tenant db
-            if ($deploymentMode -eq "Online") {
-                $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
-            }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $dbScriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName) -replace "https", "http"
-                # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
-            }
-            # Deploy a SQL Server 2017 on Ubuntu VM for hosting tenant db
-            if ($skipMySQL) {
-                #if MySQL RP was skipped, DB hosting resources should be created here
-                Write-CustomVerbose -Message "Creating a dedicated Resource Group for all database hosting assets"
-                New-AzureRmResourceGroup -Name "azurestack-dbhosting" -Location $azsLocation -Force
-                Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
-                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $mainTemplateURI `
-                    -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $dbScriptBaseURI `
-                    -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
-            }
-            else {
-                # Assume MySQL RP was deployed, and DB Hosting RG and networks were previously created
-                Write-CustomVerbose -Message "Creating a dedicated SQL Server 2017 on Ubuntu 16.04 LTS for database hosting"
-                New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName "azurestack-dbhosting" -TemplateUri $mainTemplateURI `
-                    -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $dbScriptBaseURI `
-                    -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
-            }
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-        }
-        catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-}
-elseif (($skipMSSQL) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip SQL Server 2017 Hosting Server Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
 }
 
 #### ADD MYSQL HOSTING SERVER ################################################################################################################################
