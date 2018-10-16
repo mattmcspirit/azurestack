@@ -113,29 +113,33 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $ubuntuImageJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
             }
-            # Then need to confirm the gallery items are in place
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $MySQLGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
-            while (($progress[$MySQLGalleryItemJobCheck].Status -ne "Complete")) {
-                Write-Verbose -Message "The MySQLGalleryItem stage of the process has not yet completed. Checking again in 10 seconds"
-                Start-Sleep -Seconds 10
-                if ($progress[$MySQLGalleryItemJobCheck].Status -eq "Failed") {
-                    throw "The MySQLGalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the MySQLGalleryItem log, ensure that step is completed first, and rerun."
-                }
+            if ($dbvm -eq "MySQL") {
+                # Then need to confirm the gallery items are in place
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $MySQLGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
-            }
-            # Then need to confirm the gallery items are in place
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $SQLServerGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
-            while (($progress[$SQLServerGalleryItemJobCheck].Status -ne "Complete")) {
-                Write-Verbose -Message "The SQLServerGalleryItem stage of the process has not yet completed. Checking again in 10 seconds"
-                Start-Sleep -Seconds 10
-                if ($progress[$SQLServerGalleryItemJobCheck].Status -eq "Failed") {
-                    throw "The SQLServerGalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the SQLServerGalleryItem log, ensure that step is completed first, and rerun."
+                while (($progress[$MySQLGalleryItemJobCheck].Status -ne "Complete")) {
+                    Write-Verbose -Message "The MySQLGalleryItem stage of the process has not yet completed. Checking again in 10 seconds"
+                    Start-Sleep -Seconds 10
+                    if ($progress[$MySQLGalleryItemJobCheck].Status -eq "Failed") {
+                        throw "The MySQLGalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the MySQLGalleryItem log, ensure that step is completed first, and rerun."
+                    }
+                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                    $MySQLGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
                 }
+            }
+            elseif ($dbvm -eq "SQLServer") {
+                # Then need to confirm the gallery items are in place
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $SQLServerGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
+                while (($progress[$SQLServerGalleryItemJobCheck].Status -ne "Complete")) {
+                    Write-Verbose -Message "The SQLServerGalleryItem stage of the process has not yet completed. Checking again in 10 seconds"
+                    Start-Sleep -Seconds 10
+                    if ($progress[$SQLServerGalleryItemJobCheck].Status -eq "Failed") {
+                        throw "The SQLServerGalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the SQLServerGalleryItem log, ensure that step is completed first, and rerun."
+                    }
+                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                    $SQLServerGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
+                }
             }
             # Need to check if the UploadScripts stage has finished (for an partial/offline deployment)
             if (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
@@ -180,6 +184,10 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $dbScriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+                $asdkOfflineRGName = "azurestack-offline"
+                $asdkOfflineStorageAccountName = "offlinestor"
+                $asdkOfflineContainerName = "offlinecontainer"
+                $asdkOfflineStorageAccount = Get-AzureRmStorageAccount -Name $asdkOfflineStorageAccountName -ResourceGroupName $asdkOfflineRGName -ErrorAction SilentlyContinue
                 $dbScriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName) -replace "https", "http"
                 # This should pull from the internally accessible template files already added when the MySQL and SQL Server 2017 gallery packages were added
             }
