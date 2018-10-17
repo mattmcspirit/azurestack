@@ -40,7 +40,7 @@ $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
-$logFolder = "$($dbrp)AddHosting"
+$logFolder = "$($dbhosting)AddHosting"
 $logName = $logFolder
 $progressName = $logFolder
 if ($dbhosting -eq "MySQL") {
