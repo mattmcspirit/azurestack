@@ -157,7 +157,7 @@
         "virtualNetworkResourceGroup": "[resourceGroup().name]",
         "publicIPAddressResourceGroup": "[resourceGroup().name]",
         "vmDeploymentName": "[concat('DeployVM_', uniqueString(parameters('vmName')))]",
-        "vnetDeploymentName": "[concat('DeployVNET_', uniqueString(parameters('vmName'))]",
+        "vnetDeploymentName": "[concat('DeployVNET_', uniqueString(parameters('vmName')))]",
         "nsgDeploymentName": "[concat('DeployNSG_', uniqueString(parameters('vmName')))]",
         "storDeploymentName": "[concat('DeploySTOR_', uniqueString(parameters('vmName')))]",
         "pipDeploymentName": "[concat('DeployPIP_', uniqueString(parameters('vmName')))]",
