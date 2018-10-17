@@ -24,6 +24,9 @@ param (
 
     [parameter(Mandatory = $true)]
     [pscredential] $asdkCreds,
+
+    [parameter(Mandatory = $true)]
+    [String] $VMpwd,
     
     [parameter(Mandatory = $true)]
     [String] $ScriptLocation,
