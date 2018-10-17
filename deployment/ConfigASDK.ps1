@@ -800,10 +800,8 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
         '"AppServiceFileServer","Incomplete"'
         '"AppServiceSQLServer","Incomplete"'
         '"DownloadAppService","Incomplete"'
-        '"GenerateAppServiceCerts","Incomplete"'
-        '"CreateServicePrincipal","Incomplete"'
-        '"GrantAzureADAppPermissions","Incomplete"'
-        '"InstallAppService","Incomplete"'
+        '"AddAppServicePreReqs","Incomplete"'
+        '"DeployAppService","Incomplete"'
         '"RegisterNewRPs","Incomplete"'
         '"CreatePlansOffers","Incomplete"'
         '"InstallHostApps","Incomplete"'
@@ -949,7 +947,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         }
         $scriptArray = @()
         $scriptArray.Clear()
-        $scriptArray = "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadWinUpdates.ps1", "UploadScripts.ps1"
+        $scriptArray = "AddAppServicePreReqs.ps1", "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", `
+            "DeployAppService.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadAppService.ps1", "DownloadWinUpdates.ps1", "UploadScripts.ps1"
 
         if ($deploymentMode -eq "Online") {
             # If this is an online deployment, pull down the PowerShell scripts from GitHub
@@ -1549,6 +1548,56 @@ $AddSQLHostingJob = {
     } -Verbose -ErrorAction Stop
 }
 
+### APP SERVICE - JOB SETUP ##################################################################################################################################
+##############################################################################################################################################################
+
+$DeployAppServiceFSJob = {
+    Start-Job -Name DeployAppServiceFS -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd `
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "AppServiceFS" -tenantID $Using:TenantID `
+            -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
+    } -Verbose -ErrorAction Stop
+}
+
+$DeployAppServiceDBJob = {
+    Start-Job -Name DeployAppServiceDB -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd `
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "AppServiceDB" -tenantID $Using:TenantID `
+            -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
+    } -Verbose -ErrorAction Stop
+}
+
+$DownloadAppServiceJob = {
+    Start-Job -Name DownloadAppService -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $ScriptLocation, $skipAppService -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\DownloadAppService.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+        -deploymentMode $Using:deploymentMode -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService
+    } -Verbose -ErrorAction Stop
+}
+
+$AddAppServicePreReqsJob = {
+    Start-Job -Name AddAppServicePreReqs -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $authenticationType, `
+    $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $asdkCreds, $cloudAdminCreds, $ScriptLocation, $skipAppService -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\AddAppServicePreReqs.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+        -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -authenticationType $Using:authenticationType `
+        -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -secureVMpwd $Using:secureVMpwd -ERCSip $Using:ERCSip `
+        -asdkCreds $Using:asdkCreds -cloudAdminCreds $Using:cloudAdminCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService
+    } -Verbose -ErrorAction Stop
+}
+
+$DeployAppServiceJob = {
+    Start-Job -Name DeployAppService -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $authenticationType, `
+    $azureDirectoryTenantName, $tenantID, $VMpwd, $asdkCreds, $ScriptLocation, $skipAppService -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\AddAppServicePreReqs.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+        -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -authenticationType $Using:authenticationType `
+        -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -VMpwd $Using:VMpwd `
+        -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService
+    } -Verbose -ErrorAction Stop
+}
+
 ### JOB LAUNCHER & TRACKER ###################################################################################################################################
 ##############################################################################################################################################################
 
@@ -1569,6 +1618,9 @@ Get-Job | Remove-Job
 
 # Launch DB Hosting Jobs
 & $DeployMySQLHostJob; & $DeploySQLServerHostJob; & $AddMySQLHostingJob; & $AddSQLHostingJob;
+
+# Launch App Service Jobs
+& $DeployAppServiceFSJob; & $DeployAppServiceDBJob; & $DownloadAppServiceJob; & $AddAppServicePreReqsJob; & $DeployAppServiceJob;
 
 # Get all the running jobs
 $runningJobs = Get-Job | Where-Object { $_.state -eq "running" }
@@ -1610,471 +1662,6 @@ if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
 elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
     Write-Host "All jobs completed successfully. Cleaning up jobs."
     Get-Job | Remove-Job
-}
-
-### BEGIN APP SERVICE ########################################################################################################################################
-##############################################################################################################################################################
-
-$DeployAppServiceFSJob = {
-    Start-Job -Name DeployAppServiceFS -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd `
-        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "AppServiceFS" -tenantID $Using:TenantID `
-            -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
-    } -Verbose -ErrorAction Stop
-}
-
-$DeployAppServiceDBJob = {
-    Start-Job -Name DeployAppServiceDB -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd `
-        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "AppServiceDB" -tenantID $Using:TenantID `
-            -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
-    } -Verbose -ErrorAction Stop
-}
-
-# Launch App Service Jobs
-& $DeployAppServiceFSJob; & $DeployAppServiceDBJob;
-
-#### DOWNLOAD APP SERVICE ####################################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "DownloadAppService")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
-    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "DownloadAppService")
-    }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-        try {
-            if ($deploymentMode -eq "Online") {
-                if (!$([System.IO.Directory]::Exists("$ASDKpath\appservice"))) {
-                    New-Item -Path "$ASDKpath\appservice" -ItemType Directory -Force | Out-Null
-                }
-                # Install App Service To be added
-                Write-CustomVerbose -Message "Downloading App Service Installer"
-                Set-Location "$ASDKpath\appservice"
-                # Clean up old App Service Path if it exists
-                Remove-Item "$asdkPath\appservice\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-                $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
-                $appServiceHelperDownloadLocation = "$ASDKpath\appservice\appservicehelper.zip"
-                DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
-                $appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
-                $appServiceExeDownloadLocation = "$ASDKpath\appservice\appservice.exe"
-                DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
-            }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                if (-not [System.IO.File]::Exists("$ASDKpath\appservice\appservicehelper.zip")) {
-                    throw "Missing appservice.zip file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\appservicehelper.zip - Exiting process"
-                }
-                if (-not [System.IO.File]::Exists("$ASDKpath\appservice\appservice.exe")) {
-                    throw "Missing appservice.exe file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\appservice.exe - Exiting process"
-                }
-            }
-            Expand-Archive "$ASDKpath\appservice\appservicehelper.zip" -DestinationPath "$ASDKpath\appservice" -Force
-            Set-Location "$ASDKpath\appservice"
-
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-        }
-        catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-}
-elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
-}
-
-if (!$skipAppService) {
-    $AppServicePath = "$ASDKpath\appservice"
-}
-
-#### GENERATE APP SERVICE CERTS ##############################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "GenerateAppServiceCerts")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
-    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "GenerateAppServiceCerts")
-    }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-        try {
-            Write-CustomVerbose -Message "Generating Certificates"
-            Set-Location "$AppServicePath"
-            .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName "local.azurestack.external"
-            .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $cloudAdminCreds
-
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-        }
-        catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-}
-elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
-}
-
-#### CREATE AD SERVICE PRINCIPAL #############################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "CreateServicePrincipal")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
-    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "CreateServicePrincipal")
-    }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-        try {
-            # Create Azure AD or ADFS Service Principal
-            if (($authenticationType.ToString() -like "AzureAd") -and ($deploymentMode -eq "Online" -or "PartialOnline")) {
-                # Logout to clean up
-                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
-                Clear-AzureRmContext -Scope CurrentUser -Force
-                Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId "$azureDirectoryTenantName" -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                Set-Location "$AppServicePath"
-                $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
-                    -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
-                $appIdPath = "$downloadPath\ApplicationIDBackup.txt"
-                $identityApplicationID = $applicationId
-                New-Item $appIdPath -ItemType file -Force
-                Write-Output $identityApplicationID > $appIdPath
-                Write-CustomVerbose -Message "You don't need to sign into the Azure Portal to grant permissions, ASDK Configurator will automate this for you. Please wait."
-                Start-Sleep -Seconds 20
-            }
-            elseif ($authenticationType.ToString() -like "ADFS") {
-                Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                Set-Location "$AppServicePath"
-                $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
-                    -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds
-                $appIdPath = "$downloadPath\ApplicationIDBackup.txt"
-                $identityApplicationID = $appID
-                New-Item $appIdPath -ItemType file -Force
-                Write-Output $identityApplicationID > $appIdPath
-            }
-            else {
-                Write-CustomVerbose -Message ("No valid application was created, please perform this step after the script has completed") -ErrorAction SilentlyContinue
-            }
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-        }
-        catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-}
-elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
-}
-
-if (!$identityApplicationID -and !$skipAppService) {
-    $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
-}
-
-#### GRANT AZURE AD APP PERMISSION ###########################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
-    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "GrantAzureADAppPermissions")
-    }
-    if (($authenticationType.ToString() -like "AzureAd") -and (($deploymentMode -eq "Online") -or ($deploymentMode -eq "PartialOnline"))) {
-        if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-            try {
-                # Logout to clean up
-                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
-                Clear-AzureRmContext -Scope CurrentUser -Force
-                # Grant permissions to Azure AD Service Principal
-                Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $azureDirectoryTenantName -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                $context = Get-AzureRmContext
-                $tenantId = $context.Tenant.Id
-                $refreshToken = $context.TokenCache.ReadItems().RefreshToken
-                $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
-                $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
-                $header = @{
-                    'Authorization'          = 'Bearer ' + $apiToken.access_token
-                    'X-Requested-With'       = 'XMLHttpRequest'
-                    'x-ms-client-request-id' = [guid]::NewGuid()
-                    'x-ms-correlation-id'    = [guid]::NewGuid()
-                }
-                $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
-                Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction SilentlyContinue
-                # Update the ConfigASDKProgressLog.csv file with successful completion
-                Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-                $progress[$RowIndex].Status = "Complete"
-                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-                Write-Output $progress | Out-Host
-            }
-            catch {
-                Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-                $progress[$RowIndex].Status = "Failed"
-                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-                Write-Output $progress | Out-Host
-                Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-                Set-Location $ScriptLocation
-                return
-            }
-        }
-    }
-    elseif ($authenticationType.ToString() -like "ADFS") {
-        Write-CustomVerbose -Message "Skipping Azure AD App Permissions, as this is an ADFS deployment`r`n"
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Skipped"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-    }
-}
-elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
-}
-
-#### DEPLOY APP SERVICE ######################################################################################################################################
-##############################################################################################################################################################
-
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-}
-elseif (!$skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
-    # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "InstallAppService")
-    }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
-        try {
-            Write-CustomVerbose -Message "Checking variables are present before creating JSON"
-            # Check Variables #
-            if (($authenticationType.ToString() -like "AzureAd") -and ($null -ne $azureDirectoryTenantName)) {
-                Write-CustomVerbose -Message "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
-            }
-            elseif ($authenticationType.ToString() -like "ADFS") {
-                Write-CustomVerbose -Message "ADFS deployment, no need for Azure Directory Tenant Name"
-            }
-            elseif (($authenticationType.ToString() -like "AzureAd") -and ($null -eq $azureDirectoryTenantName)) {
-                throw "Missing Azure Directory Tenant Name - Exiting process"
-            }
-            if ($null -ne $fileServerFqdn) {
-                Write-CustomVerbose -Message "File Server FQDN is present: $fileServerFqdn"
-            }
-            else {
-                throw "Missing File Server FQDN - Exiting process"
-            }
-            if ($null -ne $VMpwd) {
-                Write-CustomVerbose -Message "Virtual Machine password is present: $VMpwd"
-            }
-            else {
-                throw "Missing Virtual Machine password - Exiting process"
-            }
-            if ($null -ne $sqlAppServerFqdn) {
-                Write-CustomVerbose -Message "SQL Server FQDN is present: $sqlAppServerFqdn"
-            }
-            else {
-                throw "Missing SQL Server FQDN - Exiting process"
-            }
-            if ($null -ne $identityApplicationID) {
-                Write-CustomVerbose -Message "Identity Application ID present: $identityApplicationID"
-            }
-            else {
-                throw "Missing Identity Application ID - Exiting process"
-            }
-
-            # Pull the pre-deployment JSON file from online, or the local zip file.
-            if ($deploymentMode -eq "Online") {
-                $appServiceJsonURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json"
-                $appServiceJsonDownloadLocation = "$AppServicePath\AppServicePreDeploymentSettings.json"
-                DownloadWithRetry -downloadURI "$appServiceJsonURI" -downloadLocation "$appServiceJsonDownloadLocation" -retries 10
-            }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                if ([System.IO.File]::Exists("$ASDKpath\appservice\AppServicePreDeploymentSettings.json")) {
-                    Write-CustomVerbose -Message "Located AppServicePreDeploymentSettings.json file"
-                }
-                if (-not [System.IO.File]::Exists("$ASDKpath\appservice\AppServicePreDeploymentSettings.json")) {
-                    throw "Missing AppServicePreDeploymentSettings.json file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\ - Exiting process"
-                }
-            }
-            
-            $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
-            # Edit the JSON from deployment
-
-            if ($authenticationType.ToString() -like "AzureAd") {
-                $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $azureDirectoryTenantName)
-            }
-            elseif ($authenticationType.ToString() -like "ADFS") {
-                $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", "adfs")
-            }
-
-            $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $fileServerFqdn)
-            $JsonConfig = $JsonConfig.Replace("<<Password>>", $VMpwd)
-            $CertPathDoubleSlash = $AppServicePath.Replace("\", "\\")
-            $JsonConfig = $JsonConfig.Replace("<<CertPathDoubleSlash>>", $CertPathDoubleSlash)
-            $JsonConfig = $JsonConfig.Replace("<<SQLServerName>>", $sqlAppServerFqdn)
-            $SQLServerUser = "sa"
-            $JsonConfig = $JsonConfig.Replace("<<SQLServerUser>>", $SQLServerUser)
-            $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $identityApplicationID)
-            Out-File -FilePath "$AppServicePath\AppServiceDeploymentSettings.json" -InputObject $JsonConfig
-
-            # Deploy App Service EXE
-            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
-            $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-            $appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
-            $appServiceLogPath = "$AppServicePath\AppServiceLog$appServiceLogTime.txt"
-            Set-Location "$AppServicePath"
-            Write-CustomVerbose -Message "Starting deployment of the App Service"
-
-            if ($deploymentMode -eq "Online") {
-                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
-            }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy OfflineInstallationPackageFile=$AppServicePath\appserviceoffline.zip UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
-            }
-
-            while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-                Write-CustomVerbose -Message "App Service is deploying. Checking in 10 seconds"
-                Start-Sleep -Seconds 10
-            }
-            if (!(Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-                Write-CustomVerbose -Message "App Service deployment has finished executing."
-            }
-
-            $appServiceErrorCode = "Exit code: 0xffffffff"
-            Write-CustomVerbose -Message "Checking App Service log file for issues"
-            if ($(Select-String -Path $appServiceLogPath -Pattern "$appServiceErrorCode" -SimpleMatch -Quiet) -eq "True") {
-                Write-CustomVerbose -Message "App Service install failed with $appServiceErrorCode"
-                Write-CustomVerbose -Message "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
-                throw "App Service install failed with $appServiceErrorCode. Please check the App Service logs at $appServiceLogPath"
-            }
-            else {
-                Write-CustomVerbose -Message "App Service log file indicates successful deployment"
-            }
-            Write-CustomVerbose -Message "Checking App Service resource group for successful deployment"
-            # Ensure logged into Azure Stack
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
-            if ($appServiceRgCheck.ProvisioningState -ne 'Succeeded') {
-                Write-CustomVerbose -Message "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
-                throw "$($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState). Please check the App Service logs at $appServiceLogPath"
-            }
-            else {
-                Write-CustomVerbose -Message "App Service deployment with name: $($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState)"
-            }
-
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-        }
-        catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-}
-elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip App Service Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
 }
 
 #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
@@ -2205,7 +1792,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $sqlQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $sqlDatabaseAdapterNamespace, $sqlLocation, $sqlQuotaName
             $quotaIDs += $sqlQuotaId
         }
-
         if (!$skipAppService) {
             $appServiceNamespace = "Microsoft.Web.Admin"
             $appServiceLocation = "$azsLocation"
@@ -2213,7 +1799,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $appServiceQuotaId = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $appServiceNamespace, $appServiceLocation, $appServiceQuotaName
             $quotaIDs += $appServiceQuotaId
         }
-
         # Create the Plan and Offer
         New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
         $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
@@ -2281,31 +1866,24 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
         try {
             # Install useful ASDK Host Apps via Chocolatey
             Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-
             # Enable Choco Global Confirmation
             Write-CustomVerbose -Message "Enabling global confirmation to streamline installs"
             choco feature enable -n allowGlobalConfirmation
-
             # Visual Studio Code
             Write-CustomVerbose -Message "Installing VS Code with Chocolatey"
             choco install vscode
-
             # Putty
             Write-CustomVerbose -Message "Installing Putty with Chocolatey"
             choco install putty.install
-
             # WinSCP
             Write-CustomVerbose -Message "Installing WinSCP with Chocolatey"
             choco install winscp.install
-
             # Chrome
             Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
             choco install googlechrome
-
             # WinDirStat
             Write-CustomVerbose -Message "Installing WinDirStat with Chocolatey"
             choco install windirstat
-
             # Python
             Write-CustomVerbose -Message "Installing latest version of Python for Windows"
             choco install python3 --params "/InstallDir:C:\Python"
@@ -2315,7 +1893,6 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
             [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "User")
             # Set Current Session Variable
             $env:path = "$env:Path;C:\Python;C:\Python\Scripts"
-        
             Write-CustomVerbose -Message "Upgrading pip"
             python -m ensurepip --default-pip
             python -m pip install -U pip
@@ -2323,17 +1900,14 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
             Write-CustomVerbose -Message "Installing certifi"
             pip install certifi
             refreshenv
-
             # Azure CLI
             Write-CustomVerbose -Message "Installing latest version of Azure CLI with Chocolatey"
             choco install azure-cli
             refreshenv
-
             # Configure Python & Azure CLI Certs
             Write-CustomVerbose -Message "Retrieving Azure Stack Root Authority certificate..." -Verbose
             $label = "AzureStackSelfSignedRootCert"
             $cert = Get-ChildItem Cert:\CurrentUser\Root | Where-Object Subject -eq "CN=$label" -ErrorAction SilentlyContinue | Select-Object -First 1
-            
             if ($cert -ne $null) {
                 try {
                     New-Item -Path "$env:userprofile\desktop\Certs" -ItemType Directory -Force | Out-Null
@@ -2368,7 +1942,6 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
                     Add-Content "$certifiPath" $rootCertEntry
                     Write-CustomVerbose -Message "Python Cert store was updated for allowing the Azure Stack CA root certificate"
                     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User") 
-    
                     # Set up the VM alias Endpoint for Azure CLI & Python
                     if ($deploymentMode -eq "Online") {
                         $vmAliasEndpoint = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/Aliases/aliases.json"
@@ -2486,6 +2059,12 @@ try {
         Write-Output "SQL Server Database Hosting VM Credentials = sqladmin | $VMpwd" >> $txtPath
     }
     if (!$skipAppService) {
+        $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
+        $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
+        $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
         Write-Output "`r`nApp Service Resource Provider Information:" >> $txtPath
         Write-Output "App Service File Server VM FQDN: $fileServerFqdn" >> $txtPath
         Write-Output "App Service File Server VM Credentials = fileshareowner or fileshareuser | $VMpwd" >> $txtPath
