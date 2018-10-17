@@ -223,7 +223,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
 
             if ($vmType -eq "MySQL") {
                 Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server 16.04 LTS for database hosting"
-                New-AzureRmResourceGroupDeployment -Name "MySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
+                New-AzureRmResourceGroupDeployment -Name "DeployMySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                     -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
                     -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" `
                     -vmSize Standard_A3 -mode Incremental -scriptBaseUrl $scriptBaseURI -Verbose -ErrorAction Stop
@@ -232,7 +232,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 if ($skipMySQL -eq $true) {
                     Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server 16.04 LTS for database hosting"
                     #if MySQL RP was skipped, DB hosting resources should be created here
-                    New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
+                    New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                         -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
                         -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" `
                         -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
@@ -240,7 +240,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 else {
                     Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server 16.04 LTS for database hosting"
                     # Assume MySQL RP was deployed, and DB Hosting RG and networks were previously created
-                    New-AzureRmResourceGroupDeployment -Name "SQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
+                    New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                         -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
                         -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" `
                         -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
@@ -248,7 +248,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             }
             elseif ($vmType -eq "AppServiceFS") {
                 Write-Verbose -Message "Creating a dedicated File Server on Windows Server 2016 for the App Service"
-                New-AzureRmResourceGroupDeployment -Name "fileshareserver" -ResourceGroupName $rg -vmName "fileserver" -TemplateUri $templateURI `
+                New-AzureRmResourceGroupDeployment -Name "DeployAppServiceFileServer" -ResourceGroupName $rg -vmName "fileserver" -TemplateUri $templateURI `
                     -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd `
                     -vmExtensionScriptLocation $scriptBaseURI -Mode Incremental -Verbose -ErrorAction Stop
             }
@@ -267,7 +267,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                     }                
                     Install-Module SqlServer -Repository $RepoName -Force -Confirm:$false -Verbose -ErrorAction Stop
                 }
-                New-AzureRmResourceGroupDeployment -Name "sqlapp" -ResourceGroupName $rg -TemplateUri $mainTemplateURI -scriptBaseUrl $scriptBaseURI `
+                New-AzureRmResourceGroupDeployment -Name "DeployAppServiceDB" -ResourceGroupName $rg -TemplateUri $mainTemplateURI -scriptBaseUrl $scriptBaseURI `
                     -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
                     -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
             
