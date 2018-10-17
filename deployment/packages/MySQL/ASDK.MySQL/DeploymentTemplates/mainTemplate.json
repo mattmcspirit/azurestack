@@ -156,7 +156,7 @@
         "storageAccountResourceGroup": "[resourceGroup().name]",
         "virtualNetworkResourceGroup": "[resourceGroup().name]",
         "publicIPAddressResourceGroup": "[resourceGroup().name]",
-        "vmDeploymentName": "[concat('DeployVM-_', uniqueString(parameters('vmName'))]",
+        "vmDeploymentName": "[concat('DeployVM_', uniqueString(parameters('vmName'))]",
         "vnetDeploymentName": "[concat('DeployVNET_', uniqueString(parameters('vmName'))]",
         "nsgDeploymentName": "[concat('DeployNSG_', uniqueString(parameters('vmName'))]",
         "storDeploymentName": "[concat('DeploySTOR_', uniqueString(parameters('vmName'))]",
