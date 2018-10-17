@@ -156,6 +156,11 @@
         "storageAccountResourceGroup": "[resourceGroup().name]",
         "virtualNetworkResourceGroup": "[resourceGroup().name]",
         "publicIPAddressResourceGroup": "[resourceGroup().name]",
+        "vmDeploymentName": "[concat('DeployVM_', uniqueString(parameters('vmName'))]",
+        "vnetDeploymentName": "[concat('DeployVNET_', uniqueString(parameters('vmName'))]",
+        "nsgDeploymentName": "[concat('DeployNSG_', uniqueString(parameters('vmName'))]",
+        "storDeploymentName": "[concat('DeploySTOR_', uniqueString(parameters('vmName'))]",
+        "pipDeploymentName": "[concat('DeployPIP_', uniqueString(parameters('vmName'))]",
         "nsgName": "[toLower(concat(parameters('vmName'), '_nsg'))]",
         "nicName": "[toLower(concat(parameters('vmName'), '_nic'))]",
         "imagePublisher": "Canonical",
@@ -172,7 +177,7 @@
     },
     "resources": [
         {
-            "name": "ProvisioningStorageAccount",
+            "name": "[variables('storDeploymentName')]",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "properties": {
@@ -195,7 +200,7 @@
             }
         },
         {
-            "name": "ProvisioningNetworkSecurityGroup",
+            "name": "[variables('nsgDeploymentName')]",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "dependsOn": [],
@@ -213,11 +218,11 @@
             }
         },
         {
-            "name": "ProvisioningVirtualNetwork",
+            "name": "[variables('vnetDeploymentName')]",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "dependsOn": [
-                "Microsoft.Resources/deployments/ProvisioningNetworkSecurityGroup"
+                "[concat('Microsoft.Resources/deployments/', variables('nsgDeploymentName'))]"
             ],
             "properties": {
                 "mode": "Incremental",
@@ -245,7 +250,7 @@
             }
         },
         {
-            "name": "ProvisioningPublicIPs",
+            "name": "[variables('pipDeploymentName')]",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "dependsOn": [],
@@ -274,9 +279,9 @@
             "name": "[variables('nicName')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "Microsoft.Resources/deployments/ProvisioningPublicIPs",
-                "Microsoft.Resources/deployments/ProvisioningVirtualNetwork",
-                "Microsoft.Resources/deployments/ProvisioningNetworkSecurityGroup"
+                "[concat('Microsoft.Resources/deployments/', variables('pipDeploymentName'))]",
+                "[concat('Microsoft.Resources/deployments/', variables('vnetDeploymentName'))]",
+                "[concat('Microsoft.Resources/deployments/', variables('nsgDeploymentName'))]"
             ],
             "properties": {
                 "networkSecurityGroup": {
@@ -288,10 +293,10 @@
                         "properties": {
                             "privateIPAllocationMethod": "Dynamic",
                             "publicIPAddress": {
-                                "id": "[reference('ProvisioningPublicIPs').outputs.publicIpId.value]"
+                                "id": "[reference(variables('pipDeploymentName')).outputs.publicIpId.value]"
                             },
                             "subnet": {
-                                "id": "[reference('ProvisioningVirtualNetwork').outputs.subnetRef.value]"
+                                "id": "[reference(variables('vnetDeploymentName')).outputs.subnetRef.value]"
                             }
                         }
                     }
@@ -299,11 +304,11 @@
             }
         },
         {
-            "name": "ProvisioningVirtualMachine",
+            "name": "[variables('vmDeploymentName')]",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2015-01-01",
             "dependsOn": [
-                "Microsoft.Resources/deployments/ProvisioningStorageAccount",
+                "[concat('Microsoft.Resources/deployments/', variables('storDeploymentName'))]",
                 "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
             ],
             "properties": {
@@ -364,7 +369,7 @@
     ],
     "outputs": {
         "MySQLVMFQDN:": {
-            "value": "[reference('ProvisioningPublicIPs').outputs.fqdn.value]",
+            "value": "[reference(variables('pipDeploymentName')).outputs.fqdn.value]",
             "type": "string"
         },
         "MySQLAdminUsername ": {
