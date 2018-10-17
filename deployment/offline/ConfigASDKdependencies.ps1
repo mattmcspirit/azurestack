@@ -492,7 +492,8 @@ try {
     $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/powershell"
     $scriptArray = @()
     $scriptArray.Clear()
-    $scriptArray = "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadWinUpdates.ps1", "UploadScripts.ps1"
+    $scriptArray = "AddAppServicePreReqs.ps1", "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", `
+        "DeployAppService.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadAppService.ps1", "DownloadWinUpdates.ps1", "UploadScripts.ps1"
     foreach ($script in $scriptArray) {
         $scriptDownloadPath = "$psScriptPath\$script"
         DownloadWithRetry -downloadURI "$scriptBaseURI/$script" -downloadLocation $scriptDownloadPath -retries 10
