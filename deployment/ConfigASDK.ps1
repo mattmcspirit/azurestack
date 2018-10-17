@@ -1499,9 +1499,9 @@ $AddMSSQLSkuJob = {
 ##############################################################################################################################################################
 
 $UploadScriptsJob = {
-    Start-Job -Name UploadScripts -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
+    Start-Job -Name UploadScripts -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $deploymentMode, $azsLocation, $ScriptLocation -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\UploadScripts.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
-            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation
+            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -deploymentMode $Using:deploymentMode -azsLocation $Using:azsLocation -ScriptLocation $Using:ScriptLocation
     } -Verbose -ErrorAction Stop
 }
 

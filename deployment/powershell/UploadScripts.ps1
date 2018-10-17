@@ -10,6 +10,12 @@ param (
     [pscredential] $asdkCreds,
 
     [Parameter(Mandatory = $true)]
+    [String] $deploymentMode,
+
+    [Parameter(Mandatory = $true)]
+    [String] $ASDKpath,
+
+    [Parameter(Mandatory = $true)]
     [String] $azsLocation,
     
     [parameter(Mandatory = $true)]
