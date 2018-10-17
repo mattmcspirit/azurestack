@@ -198,6 +198,7 @@ $templatePath = mkdir "$ASDKpath\templates" -Force
 $scriptPath = mkdir "$ASDKpath\scripts" -Force
 $binaryPath = mkdir "$ASDKpath\binaries" -Force
 $psPath = mkdir "$ASDKpath\powershell" -Force
+$psScriptPath = mkdir "$ASDKpath\powershell\psscripts" -Force
 $dbPath = mkdir "$ASDKpath\databases" -Force
 $imagesPath = mkdir "$ASDKpath\images" -Force
 $appServicePath = mkdir "$ASDKpath\appservice" -Force
@@ -475,6 +476,27 @@ try {
     Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath -Force -RequiredVersion 1.2.11 | Out-Null
     Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath -Force -RequiredVersion 1.4.0 | Out-Null
     Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name SQLServer -Path $psPath -Force | Out-Null
+}
+catch {
+    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    Set-Location $ScriptLocation
+    return
+}
+
+### Download PowerShell Scripts ########################################################################################################################
+########################################################################################################################################################
+
+$scriptStep = "POWERSHELLSCRIPTS"
+try {
+    Write-CustomVerbose -Message "Downloading PowerShell scripts used for deployment" -ErrorAction Stop
+    $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/powershell"
+    $scriptArray = @()
+    $scriptArray.Clear()
+    $scriptArray = "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadWinUpdates.ps1", "UploadScripts.ps1"
+    foreach ($script in $scriptArray) {
+        $scriptDownloadPath = "$psScriptPath\$script"
+        DownloadWithRetry -downloadURI "$scriptBaseURI/$script" -downloadLocation $scriptDownloadPath -retries 10
+    }
 }
 catch {
     Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop

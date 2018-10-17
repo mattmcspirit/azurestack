@@ -947,19 +947,22 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $scriptPath = "$ScriptLocation\Scripts"
             Write-CustomVerbose -Message "PowerShell scripts will be placed in $scriptPath"
         }
+        $scriptArray = @()
+        $scriptArray.Clear()
+        $scriptArray = "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadWinUpdates.ps1", "UploadScripts.ps1"
 
         if ($deploymentMode -eq "Online") {
             # If this is an online deployment, pull down the PowerShell scripts from GitHub
-            $powershellScripts = ""
-
+            foreach ($script in $scriptArray) {
+                $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/powershell"
+                $scriptDownloadPath = "$scriptPath\$script"
+                DownloadWithRetry -downloadURI "$scriptBaseURI/$script" -downloadLocation $scriptDownloadPath -retries 10
+            }
         }
         elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
-            $SourceLocation = "$downloadPath\ASDK\PowerShell"
-            $RepoName = "MyNuGetSource"
-            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
-            Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
-            Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
+            $SourceLocation = "$downloadPath\ASDK\PowerShell\Scripts"
+            Copy-Item -Path "$SourceLocation\*" -Destination "$scriptPath" -Include "*.ps1" -Verbose -ErrorAction Stop
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
         Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -1427,14 +1430,14 @@ $ServerFullJob = {
 $AddMySQLAzpkgJob = {
     Start-Job -Name AddMySQLAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\AddGalleryItems.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
-        -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "MySQL"
+            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "MySQL"
     } -Verbose -ErrorAction Stop
 }
 
 $AddMSSQLAzpkgJob = {
     Start-Job -Name AddSQLServerAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\AddGalleryItems.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
-        -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "SQLServer"
+            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "SQLServer"
     } -Verbose -ErrorAction Stop
 }
 
@@ -1444,7 +1447,7 @@ $AddMSSQLAzpkgJob = {
 $AddVMExtensionsJob = {
     Start-Job -Name AddVMExtensions -ArgumentList $ConfigASDKProgressLogPath, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $registerASDK -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\AddVMExtensions.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -deploymentMode $Using:deploymentMode `
-        -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -registerASDK $Using:registerASDK
+            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -registerASDK $Using:registerASDK
     } -Verbose -ErrorAction Stop
 }
 
@@ -1505,7 +1508,7 @@ $UploadScriptsJob = {
 
 $DeployMySQLHostJob = {
     Start-Job -Name DeployMySQLHost -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd `
-    $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "MySQL" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
@@ -1515,7 +1518,7 @@ $DeployMySQLHostJob = {
 
 $DeploySQLServerHostJob = {
     Start-Job -Name DeploySQLServerHost -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd `
-    $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "SQLServer" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
@@ -1528,7 +1531,7 @@ $DeploySQLServerHostJob = {
 
 $AddMySQLHostingJob = {
     Start-Job -Name AddMySQLHosting -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
-    $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\AddDBHosting.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -deploymentMode $Using:deploymentMode -dbhosting "MySQL" -tenantID $Using:TenantID -dbrg "azurestack-dbhosting" `
             -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
@@ -1538,7 +1541,7 @@ $AddMySQLHostingJob = {
 
 $AddSQLHostingJob = {
     Start-Job -Name AddSQLHosting -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
-    $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\AddDBHosting.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -deploymentMode $Using:deploymentMode -dbhosting "SQLServer" -tenantID $Using:TenantID -dbrg "azurestack-dbhosting" `
             -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
@@ -1614,7 +1617,7 @@ elseif ((Get-Job | Where-Object { $_.state -eq "Completed" })) {
 
 $DeployAppServiceFSJob = {
     Start-Job -Name DeployAppServiceFS -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd `
-    $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "AppServiceFS" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
@@ -1624,7 +1627,7 @@ $DeployAppServiceFSJob = {
 
 $DeployAppServiceDBJob = {
     Start-Job -Name DeployAppServiceDB -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd `
-    $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "AppServiceDB" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
