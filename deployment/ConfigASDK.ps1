@@ -776,6 +776,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
     Add-Content -Path $ConfigASDKProgressLogPath -Value '"Stage","Status"' -Force -Confirm:$false
     $ConfigASDKprogress = @(
         '"ExtractZip","Incomplete"'
+        '"GetScripts","Incomplete"'
         '"InstallPowerShell","Incomplete"'
         '"DownloadTools","Incomplete"'
         '"HostConfiguration","Incomplete"'
@@ -927,7 +928,58 @@ catch {
 ### VALIDATE PS SCRIPTS LOCATION ############################################################################################################################
 #############################################################################################################################################################
 
-# Need to validate whether all the additional PS1 files have been downloaded.
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
+$RowIndex = [array]::IndexOf($progress.Stage, "InstallPowerShell")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+
+if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    try {
+        $scriptPath = [System.IO.Directory]::Exists("$ScriptLocation\Scripts")
+        if ($scriptPath -eq $true) {
+            $scriptPath = "$ScriptLocation\Scripts"
+            Write-CustomVerbose -Message "Scripts folder exists at $scriptPath - no need to create it."
+            Write-CustomVerbose -Message "PowerShell scripts will be placed in $scriptPath"
+        }
+        elseif ($scriptPath -eq $false) {
+            # Create the ASDK folder.
+            Write-CustomVerbose -Message "Scripts folder doesn't exist within $ScriptLocation, creating it"
+            mkdir "$ScriptLocation\Scripts" -Force | Out-Null
+            $scriptPath = "$ScriptLocation\Scripts"
+            Write-CustomVerbose -Message "PowerShell scripts will be placed in $scriptPath"
+        }
+
+        if ($deploymentMode -eq "Online") {
+            # If this is an online deployment, pull down the PowerShell scripts from GitHub
+            $powershellScripts = ""
+
+        }
+        elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+            # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
+            $SourceLocation = "$downloadPath\ASDK\PowerShell"
+            $RepoName = "MyNuGetSource"
+            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+            Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
+            Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
+        }
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+    }
+    catch {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return        
+    }
+}
+elseif ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
 
 ### INSTALL POWERSHELL ######################################################################################################################################
 #############################################################################################################################################################
