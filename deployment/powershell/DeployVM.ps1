@@ -76,6 +76,8 @@ else {
 }
 
 ### SET LOG LOCATION ###
+$logName = $logFolder
+$progressName = $logFolder
 $logDate = Get-Date -Format FileDate
 New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\$logFolder" -Force | Out-Null
 $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
