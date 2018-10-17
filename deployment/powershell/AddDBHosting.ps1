@@ -89,6 +89,9 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
     }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
+            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             if ($dbhosting -eq "MySQL") {
                 $hostingJobCheck = "MySQLDBVM"
                 $hostingPath = "MySQLHosting"
@@ -113,11 +116,6 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $addHostingJobCheck = [array]::IndexOf($progress.Stage, "$hostingJobCheck")
             }
-            ### Login to Azure Stack ###
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-
             # Add host server to MySQL RP
             Write-Verbose -Message "Attaching $dbhosting hosting server to $dbhosting resource provider"
             if ($deploymentMode -eq "Online") {
