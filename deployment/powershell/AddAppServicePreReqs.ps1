@@ -77,9 +77,6 @@ elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Comp
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
     }
-
-
-
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Need to ensure this stage doesn't start before the App Service components have been downloaded
