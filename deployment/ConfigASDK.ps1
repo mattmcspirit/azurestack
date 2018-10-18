@@ -777,6 +777,7 @@ elseif ($validConfigASDKProgressLogPath -eq $false) {
     $ConfigASDKprogress = @(
         '"ExtractZip","Incomplete"'
         '"GetScripts","Incomplete"'
+        '"CheckPowerShell","Incomplete"'
         '"InstallPowerShell","Incomplete"'
         '"DownloadTools","Incomplete"'
         '"HostConfiguration","Incomplete"'
@@ -977,6 +978,77 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
         return        
+    }
+}
+elseif ($progress[$RowIndex].Status -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+}
+
+### POWERSHELL CHECK #########################################################################################################################################
+##############################################################################################################################################################
+
+$progress = Import-Csv -Path $ConfigASDKProgressLogPath
+$RowIndex = [array]::IndexOf($progress.Stage, "CheckPowerShell")
+$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+
+if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    try {
+        Clear-Host
+        Write-Host "Checking for a previous installation of PowerShell. If found, to ensure full compatibility with the ConfigASDK, this will be cleaned up...please wait..."
+        $cleanupRequired = $false
+        $psRepositoryName = "PSGallery"
+        $psRepositoryInstallPolicy = "Trusted"
+        $psRepositorySourceLocation = "https://www.powershellgallery.com/api/v2"
+        $psRepository = Get-PSRepository | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}
+        if ($null -ne $psRepository) {
+            $cleanupRequired = $true
+        }
+        $psRmProfle = Get-AzureRmProfile | Where-Object {($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile")}
+        if ($null -ne $psRmProfle) {
+            $cleanupRequired = $true
+        }
+        $psAzureStackAdminModuleCheck = Get-Module -Name AzureRM.AzureStackAdmin -ListAvailable
+        $psAzureStackStorageModuleCheck = Get-Module -Name AzureRM.AzureStackStorage -ListAvailable
+        $psAzureStackModuleCheck = Get-Module -Name AzureStack -ListAvailable
+        $psAzsModuleCheck = Get-Module -Name Azs.* -ListAvailable
+        if (($null -ne $psAzureStackAdminModuleCheck) -or ($null -ne $psAzureStackStorageModuleCheck) -or ($null -ne $psAzureStackModuleCheck) -or ($null -ne $psAzsModuleCheck) ) {
+            $cleanupRequired = $true
+        }
+
+        if ($cleanupRequired -eq $true) {
+            Write-Host "A previous installation of PowerShell has been detected. To ensure full compatibility with the ConfigASDK, this will be cleaned up"
+            Write-Host "Cleaning...."
+            Uninstall-AzureRmProfile -Profile '2017-03-09-profile' -Force -ErrorAction Continue
+            Uninstall-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction Continue
+            Uninstall-AzureRmProfile -Profile latest -Force -ErrorAction Continue
+            Uninstall-Module -Name AzureRM.AzureStackAdmin -Force -ErrorAction Continue
+            Uninstall-Module -Name AzureRM.AzureStackStorage -Force -ErrorAction Continue
+            Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction Continue
+            Uninstall-Module -Name AzureStack -Force -ErrorAction Continue
+            Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction Continue
+            Get-PSRepository -Name "PSGallery" | Unregister-PSRepository -Force -ErrorAction Continue
+            Get-ChildItem -Path $Env:PSModulePath\Azure* -Recurse | Remove-Item -Recurse -Force -ErrorAction Continue
+            Get-ChildItem -Path $Env:PSModulePath\Azs* -Recurse | Remove-Item -Recurse -Force -ErrorAction Continue
+        }
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+        if ($cleanupRequired -eq $true) {
+            Write-Host "A previous installation of PowerShell has been removed from this system. To continue
+            please close all PowerShell windows and sessions, then rerun the ConfigASDK script. This will reinstall PowerShell for you."
+            BREAK
+        }
+    }
+    catch {
+        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+        $progress[$RowIndex].Status = "Failed"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return  
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
