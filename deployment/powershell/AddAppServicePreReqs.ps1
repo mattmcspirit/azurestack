@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
     [String] $ConfigASDKProgressLogPath,
@@ -67,6 +67,7 @@ if ($progress[$RowIndex].Status -eq "Complete") {
 }
 elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
+    
     if ($progress[$RowIndex].Status -eq "Skipped") {
         Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
         # Update the ConfigASDKProgressLog.csv file with successful completion
@@ -76,6 +77,9 @@ elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Comp
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
     }
+
+
+
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
             # Need to ensure this stage doesn't start before the App Service components have been downloaded
