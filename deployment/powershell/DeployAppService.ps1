@@ -154,6 +154,9 @@ elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Comp
                 throw "Missing Identity Application ID - Exiting process"
             }
 
+            $AppServicePath = "$ASDKpath\appservice"
+            Set-Location "$AppServicePath"
+
             # Pull the pre-deployment JSON file from online, or the local zip file.
             if ($deploymentMode -eq "Online") {
                 $appServiceJsonURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json"
