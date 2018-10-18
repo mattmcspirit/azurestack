@@ -999,36 +999,48 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $psRepositoryName = "PSGallery"
         $psRepositoryInstallPolicy = "Trusted"
         $psRepositorySourceLocation = "https://www.powershellgallery.com/api/v2"
-        $psRepository = Get-PSRepository | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}
-        if ($null -ne $psRepository) {
-            $cleanupRequired = $true
-        }
-        $psRmProfle = Get-AzureRmProfile | Where-Object {($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile")}
-        if ($null -ne $psRmProfle) {
-            $cleanupRequired = $true
-        }
+        $psRepository = Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}
+        $psRmProfle = Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile")}
         $psAzureStackAdminModuleCheck = Get-Module -Name AzureRM.AzureStackAdmin -ListAvailable
         $psAzureStackStorageModuleCheck = Get-Module -Name AzureRM.AzureStackStorage -ListAvailable
+        $psAzureStackBootstrapperModuleCheck = Get-Module -Name AzureRM.Bootstrapper -ListAvailable
         $psAzureStackModuleCheck = Get-Module -Name AzureStack -ListAvailable
         $psAzsModuleCheck = Get-Module -Name Azs.* -ListAvailable
-        if (($null -ne $psAzureStackAdminModuleCheck) -or ($null -ne $psAzureStackStorageModuleCheck) -or ($null -ne $psAzureStackModuleCheck) -or ($null -ne $psAzsModuleCheck) ) {
+        if (($null -ne $psRepository) -or ($null -ne $psRmProfle) -or ($null -ne $psAzureStackAdminModuleCheck) -or ($null -ne $psAzureStackStorageModuleCheck) -or ($null -ne $psAzureStackModuleCheck) -or ($null -ne $psAzsModuleCheck) ) {
             $cleanupRequired = $true
         }
-
         if ($cleanupRequired -eq $true) {
             Write-Host "A previous installation of PowerShell has been detected. To ensure full compatibility with the ConfigASDK, this will be cleaned up"
             Write-Host "Cleaning...."
-            Uninstall-AzureRmProfile -Profile '2017-03-09-profile' -Force -ErrorAction Continue
-            Uninstall-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction Continue
-            Uninstall-AzureRmProfile -Profile latest -Force -ErrorAction Continue
-            Uninstall-Module -Name AzureRM.AzureStackAdmin -Force -ErrorAction Continue
-            Uninstall-Module -Name AzureRM.AzureStackStorage -Force -ErrorAction Continue
-            Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction Continue
-            Uninstall-Module -Name AzureStack -Force -ErrorAction Continue
-            Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction Continue
-            Get-PSRepository -Name "PSGallery" | Unregister-PSRepository -Force -ErrorAction Continue
-            Get-ChildItem -Path $Env:PSModulePath\Azure* -Recurse | Remove-Item -Recurse -Force -ErrorAction Continue
-            Get-ChildItem -Path $Env:PSModulePath\Azs* -Recurse | Remove-Item -Recurse -Force -ErrorAction Continue
+            if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "2018-03-01-hybrid")})) {
+                Uninstall-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
+            }
+            if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "2017-03-09-profile")})) {
+                Uninstall-AzureRmProfile -Profile '2017-03-09-profile' -Force -ErrorAction SilentlyContinue | Out-Null
+            }
+            if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "latest")})) {
+                Uninstall-AzureRmProfile -Profile 'latest' -Force -ErrorAction SilentlyContinue | Out-Null
+            }
+            if ($null -ne $psAzureStackAdminModuleCheck) {
+                Uninstall-Module -Name AzureRM.AzureStackAdmin -Force -ErrorAction SilentlyContinue
+            }
+            if ($null -ne $psAzureStackStorageModuleCheck) {
+                Uninstall-Module -Name AzureRM.AzureStackStorage -Force -ErrorAction SilentlyContinue
+            }
+            if ($null -ne $psAzureStackBootstrapperModuleCheck) {
+                Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction SilentlyContinue
+            }
+            if ($null -ne $psAzureStackModuleCheck) {
+                Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue
+            }
+            if ($null -ne $psAzsModuleCheck) {
+                Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
+            }
+            if ($null -ne $psRepository) {
+                Get-PSRepository -Name "PSGallery" | Unregister-PSRepository -ErrorAction SilentlyContinue
+            }
+            Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azure* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azs* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
         Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
