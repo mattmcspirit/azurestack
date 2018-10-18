@@ -2030,6 +2030,7 @@ try {
         $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
         $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
         $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
+        $AppServicePath = "$ASDKpath\appservice"
         Write-Output "`r`nApp Service Resource Provider Information:" >> $txtPath
         Write-Output "App Service File Server VM FQDN: $fileServerFqdn" >> $txtPath
         Write-Output "App Service File Server VM Credentials = fileshareowner or fileshareuser | $VMpwd" >> $txtPath
@@ -2118,13 +2119,24 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     $i = 1
     While ($i -le 5) {
         Write-CustomVerbose -Message "Cleanup Attempt: $i"
-        Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-        Remove-Item "$AppServicePath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-        Remove-Item -Path "$ASDKpath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-        Remove-Item -Path "$AppServicePath" -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        if ($([System.IO.Directory]::Exists("$ASDKpath"))) {
+            Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            Remove-Item -Path "$ASDKpath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        }
+        if ($([System.IO.Directory]::Exists("$AppServicePath"))) {
+            Remove-Item -Path "$AppServicePath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            Remove-Item "$AppServicePath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        }
+        $csvPath = "C:\ClusterStorage\Volume1\images"
+        if ($([System.IO.Directory]::Exists("$csvPath"))) {
+            Remove-Item -Path "$csvPath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            Remove-Item "$csvPath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        }
         $i++
     }
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
+    $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
     
