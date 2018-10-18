@@ -120,7 +120,7 @@ elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Comp
                     $identityApplicationID = $applicationId
                     New-Item $appIdPath -ItemType file -Force
                     Write-Output $identityApplicationID > $appIdPath
-                    Write-CustomVerbose -Message "You don't need to sign into the Azure Portal to grant permissions, ASDK Configurator will automate this for you. Please wait."
+                    Write-Verbose -Message "You don't need to sign into the Azure Portal to grant permissions, ASDK Configurator will automate this for you. Please wait."
                     Start-Sleep -Seconds 20
                 }
                 elseif ($authenticationType.ToString() -like "ADFS") {
@@ -136,7 +136,7 @@ elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Comp
                     Write-Output $identityApplicationID > $appIdPath
                 }
                 else {
-                    Write-CustomVerbose -Message ("No valid application was created, please perform this step after the script has completed") -ErrorAction SilentlyContinue
+                    Write-Verbose -Message ("No valid application was created, please perform this step after the script has completed") -ErrorAction SilentlyContinue
                 }       
             }
             else {
