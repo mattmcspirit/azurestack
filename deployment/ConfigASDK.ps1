@@ -1654,6 +1654,56 @@ While (($runningJobs.count) -gt 0) {
     Start-Sleep 10
 }
 
+# Get all the running jobs
+$jobsStillExecuting = $true
+While ($jobsStillExecuting -eq $true) {
+    Clear-Host
+    $runningJobs = (Get-Job | Where-Object { $_.state -eq "running" })
+    if ($runningJobs.count -eq 0) {
+        $jobsStillExecuting = $false
+    }
+    Write-Verbose "Current number of running jobs: $($runningJobs.count). The Windows Server image creation jobs may each take multiple hours. Please be patient."
+    Get-Job | Where-Object { $_.state -eq "running" } | Format-Table Name, State, @{L = 'StartTime'; E = {$_.PSBeginTime}}, @{L = 'EndTime'; E = {$_.PSEndTime}}
+    foreach ($runningJob in $runningJobs) {
+        $jobDuration = (Get-Date) - ($runningJob.PSBeginTime)
+        if ($jobDuration.Hours -gt 0) {
+            Write-Host "$($runningJob.Name) has been running for $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        }
+        else {
+            Write-Host "$($runningJob.Name) has been running for $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        }
+    }
+    $completedJobs = (Get-Job | Where-Object { $_.state -eq "Completed" })
+    if ($completedJobs.count -ge 0) {
+        $jobsStillExecuting = $true
+    }
+    Get-Job | Where-Object { $_.state -eq "Completed" } | Format-Table Name, State, @{L = 'StartTime'; E = {$_.PSBeginTime}}, @{L = 'EndTime'; E = {$_.PSEndTime}}
+    foreach ($completeJob in $completedJobs) {
+        $jobDuration = ($completeJob.PSEndTime) - ($completeJob.PSBeginTime)
+        if ($jobDuration.Hours -gt 0) {
+            Write-Host "$($completeJob.Name) finished in $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        }
+        else {
+            Write-Host "$($completeJob.Name) finished in $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        }
+    }
+    $failedJobs = (Get-Job | Where-Object { $_.state -eq "Failed" })
+    if ($failedJobs.count -gt 0) {
+        $jobsStillExecuting = $false
+    }
+    Get-Job | Where-Object { $_.state -eq "Failed" } | Format-Table Name, State, @{L = 'StartTime'; E = {$_.PSBeginTime}}, @{L = 'EndTime'; E = {$_.PSEndTime}}
+    foreach ($failedJob in $failedJobs) {
+        $jobDuration = ($failedJob.PSEndTime) - ($failedJob.PSBeginTime)
+        if ($jobDuration.Hours -gt 0) {
+            Write-Host "$($failedJob.Name) failed after $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        }
+        else {
+            Write-Host "$($failedJob.Name) failed after $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+        }
+    }
+    Start-Sleep 10
+}
+
 if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
     Write-Verbose "At least one of the jobs failed."
     $failedJobs = (Get-Job | Where-Object { $_.state -eq "Failed" })
