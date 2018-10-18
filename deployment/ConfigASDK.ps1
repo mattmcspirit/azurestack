@@ -1535,7 +1535,7 @@ $AddMySQLHostingJob = {
     Start-Job -Name AddMySQLHosting -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
         $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -deploymentMode $Using:deploymentMode -dbhosting "MySQL" -tenantID $Using:TenantID -dbrg "azurestack-dbhosting" `
+            -deploymentMode $Using:deploymentMode -dbHost "MySQL" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
     } -Verbose -ErrorAction Stop
@@ -1545,7 +1545,7 @@ $AddSQLHostingJob = {
     Start-Job -Name AddSQLHosting -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
         $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -deploymentMode $Using:deploymentMode -dbhosting "SQLServer" -tenantID $Using:TenantID -dbrg "azurestack-dbhosting" `
+            -deploymentMode $Using:deploymentMode -dbHost "SQLServer" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
     } -Verbose -ErrorAction Stop

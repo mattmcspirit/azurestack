@@ -11,14 +11,10 @@ param (
 
     [Parameter(Mandatory = $true)]
     [ValidateSet("MySQL", "SQLServer")]
-    [String] $dbhosting,
+    [String] $dbHost,
 
     [parameter(Mandatory = $true)]
     [String] $tenantID,
-
-    [parameter(Mandatory = $true)]
-    [ValidateSet("azurestack-dbhosting")]
-    [String] $dbrg,
 
     [parameter(Mandatory = $true)]
     [securestring] $secureVMpwd,
@@ -40,24 +36,15 @@ $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
-$logFolder = "$($dbhosting)AddHosting"
+$logFolder = "$($dbHost)AddHosting"
 $logName = $logFolder
 $progressName = $logFolder
-if ($dbhosting -eq "MySQL") {
-    if ($skipMySQL -eq $true) {
-        $skipRP = $true
-    }
-    else {
-        $skipRP = $false
-    }
+
+if (($skipMySQL -eq $true) -or ($skipMSSQL -eq $true) -or ($skipAppService -eq $true)) {
+    $skipRP = $true
 }
-elseif ($dbhosting -eq "SQLServer") {
-    if ($skipMSSQL -eq $true) {
-        $skipRP = $true
-    }
-    else {
-        $skipRP = $false
-    }
+else {
+    $skipRP = $false
 }
 
 ### SET LOG LOCATION ###
@@ -92,13 +79,14 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            if ($dbhosting -eq "MySQL") {
+            $dbrg = "azurestack-dbhosting"
+            if ($dbHost -eq "MySQL") {
                 $hostingJobCheck = "MySQLDBVM"
                 $hostingPath = "MySQLHosting"
                 $hostingTemplate = "mySqlHostingTemplate.json"
                 $dbFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
             }
-            elseif ($dbhosting -eq "SQLServer") {
+            elseif ($dbHost -eq "SQLServer") {
                 $hostingJobCheck = "SQLServerDBVM"
                 $hostingPath = "SQLHosting"
                 $hostingTemplate = "sqlHostingTemplate.json"
@@ -117,22 +105,22 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $addHostingJobCheck = [array]::IndexOf($progress.Stage, "$hostingJobCheck")
             }
             # Add host server to MySQL RP
-            Write-Verbose -Message "Attaching $dbhosting hosting server to $dbhosting resource provider"
+            Write-Verbose -Message "Attaching $dbHost hosting server to $dbHost resource provider"
             if ($deploymentMode -eq "Online") {
                 $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/$hostingPath/azuredeploy.json"
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$hostingTemplate" | ForEach-Object { $_.FullName }
             }
-            if ($dbhosting -eq "MySQL") {
-            New-AzureRmResourceGroupDeployment -ResourceGroupName $dbrg -TemplateUri $templateURI `
-                -username "root" -password $secureVMpwd -hostingServerName $dbFqdn -totalSpaceMB 20480 `
-                -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
+            if ($dbHost -eq "MySQL") {
+                New-AzureRmResourceGroupDeployment -Name AddMySQLHostingServer -ResourceGroupName $dbrg -TemplateUri $templateURI `
+                    -username "root" -password $secureVMpwd -hostingServerName $dbFqdn -totalSpaceMB 20480 `
+                    -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
             }
-            elseif ($dbhosting -eq "SQLServer") {
-                New-AzureRmResourceGroupDeployment -ResourceGroupName $dbrg -TemplateUri $templateURI `
-                -hostingServerName $dbFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 20480 `
-                -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
+            elseif ($dbHost -eq "SQLServer") {
+                New-AzureRmResourceGroupDeployment -Name AddSQLServerHostingServer -ResourceGroupName $dbrg -TemplateUri $templateURI `
+                    -hostingServerName $dbFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 20480 `
+                    -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
             }
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
