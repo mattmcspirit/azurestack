@@ -198,6 +198,8 @@ $templatePath = mkdir "$ASDKpath\templates" -Force
 $scriptPath = mkdir "$ASDKpath\scripts" -Force
 $binaryPath = mkdir "$ASDKpath\binaries" -Force
 $psPath = mkdir "$ASDKpath\powershell" -Force
+$psPath140 = mkdir "$ASDKpath\powershell\1.4.0" -Force
+$psPath150 = mkdir "$ASDKpath\powershell\1.5.0" -Force
 $psScriptPath = mkdir "$ASDKpath\powershell\psscripts" -Force
 $dbPath = mkdir "$ASDKpath\databases" -Force
 $imagesPath = mkdir "$ASDKpath\images" -Force
@@ -473,8 +475,10 @@ else {
 $scriptStep = "POWERSHELL"
 try {
     Write-CustomVerbose -Message "Downloading PowerShell Modules for AzureRM, Azure Stack and SQL Server" -ErrorAction Stop
-    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath -Force -RequiredVersion 1.2.11 | Out-Null
-    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath -Force -RequiredVersion 1.4.0 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath140 -Force -RequiredVersion 1.2.11 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath140 -Force -RequiredVersion 1.4.0 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath150 -Force -RequiredVersion 2.3.0 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath150 -Force -RequiredVersion 1.5.0 | Out-Null
     Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name SQLServer -Path $psPath -Force | Out-Null
 }
 catch {

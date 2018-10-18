@@ -1107,7 +1107,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         }
         elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
-            $SourceLocation = "$downloadPath\ASDK\PowerShell"
+            $SourceLocation = "$downloadPath\ASDK\PowerShell\1.4.0"
             $RepoName = "MyNuGetSource"
             Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
             Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
@@ -2233,6 +2233,22 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
+
+    # Installing newest version of PowerShell - this section is only required while the ConfigASDK requires 1.4.0 / 2017-03-09-profile to install correctly
+    if ($deploymentMode -eq "Online") {
+        Install-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction Stop
+        Install-Module AzureStack -RequiredVersion 1.5.0 -Force -Verbose -ErrorAction Stop
+        Set-AzureRmDefaultProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction Stop
+    }
+    elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+        # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
+        $SourceLocation = "$downloadPath\ASDK\PowerShell\1.5.0"
+        $RepoName = "MyNuGetSource"
+        Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+        Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
+        Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
+        Set-AzureRmDefaultProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction SilentlyContinue
+    }
     
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
