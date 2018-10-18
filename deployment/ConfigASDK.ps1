@@ -994,53 +994,62 @@ $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
         Clear-Host
-        Write-Host "Checking for a previous installation of PowerShell. If found, to ensure full compatibility with the ConfigASDK, this will be cleaned up...please wait..."
+        Write-CustomVerbose -Message "Checking for a previous installation of PowerShell. If found, to ensure full compatibility with the ConfigASDK, this will be cleaned up...please wait..."
         $cleanupRequired = $false
         $psRepositoryName = "PSGallery"
         $psRepositoryInstallPolicy = "Trusted"
         $psRepositorySourceLocation = "https://www.powershellgallery.com/api/v2"
         $psRepository = Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}
-        $psRmProfle = Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile")}
-        $psAzureStackAdminModuleCheck = Get-Module -Name AzureRM.AzureStackAdmin -ListAvailable
-        $psAzureStackStorageModuleCheck = Get-Module -Name AzureRM.AzureStackStorage -ListAvailable
-        $psAzureStackBootstrapperModuleCheck = Get-Module -Name AzureRM.Bootstrapper -ListAvailable
-        $psAzureStackModuleCheck = Get-Module -Name AzureStack -ListAvailable
-        $psAzsModuleCheck = Get-Module -Name Azs.* -ListAvailable
-        if (($null -ne $psRepository) -or ($null -ne $psRmProfle) -or ($null -ne $psAzureStackAdminModuleCheck) -or ($null -ne $psAzureStackStorageModuleCheck) -or ($null -ne $psAzureStackModuleCheck) -or ($null -ne $psAzsModuleCheck) ) {
+        if ($null -ne $psRepository) {
             $cleanupRequired = $true
         }
+        try {
+            $psRmProfle = Get-AzureRmProfile -ErrorAction Ignore | Where-Object {($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile")}
+        }
+        catch [System.Management.Automation.CommandNotFoundException] {
+            $error.Clear()
+        }
+        if ($null -ne $psRmProfle) {
+            $cleanupRequired = $true
+        }
+        $psAzureStackAdminModuleCheck = Get-Module -Name AzureRM.AzureStackAdmin -ListAvailable
+        $psAzureStackStorageModuleCheck = Get-Module -Name AzureRM.AzureStackStorage -ListAvailable
+        $psAzureStackModuleCheck = Get-Module -Name AzureStack -ListAvailable
+        $psAzsModuleCheck = Get-Module -Name Azs.* -ListAvailable
+        if (($null -ne $psAzureStackAdminModuleCheck) -or ($null -ne $psAzureStackStorageModuleCheck) -or ($null -ne $psAzureStackModuleCheck) -or ($null -ne $psAzsModuleCheck) ) {
+            $cleanupRequired = $true
+        }
+
         if ($cleanupRequired -eq $true) {
-            Write-Host "A previous installation of PowerShell has been detected. To ensure full compatibility with the ConfigASDK, this will be cleaned up"
-            Write-Host "Cleaning...."
-            if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "2018-03-01-hybrid")})) {
-                Uninstall-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
+            Write-CustomVerbose -Message "A previous installation of PowerShell has been detected. To ensure full compatibility with the ConfigASDK, this will be cleaned up"
+            Write-CustomVerbose -Message "Cleaning...."
+            try {
+                if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "2018-03-01-hybrid")})) {
+                    Uninstall-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "2017-03-09-profile")})) {
+                    Uninstall-AzureRmProfile -Profile '2017-03-09-profile' -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "latest")})) {
+                    Uninstall-AzureRmProfile -Profile 'latest' -Force -ErrorAction SilentlyContinue | Out-Null
+                }
             }
-            if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "2017-03-09-profile")})) {
-                Uninstall-AzureRmProfile -Profile '2017-03-09-profile' -Force -ErrorAction SilentlyContinue | Out-Null
+            catch [System.Management.Automation.CommandNotFoundException] {
+                $error.Clear()
             }
-            if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "latest")})) {
-                Uninstall-AzureRmProfile -Profile 'latest' -Force -ErrorAction SilentlyContinue | Out-Null
-            }
-            if ($null -ne $psAzureStackAdminModuleCheck) {
-                Uninstall-Module -Name AzureRM.AzureStackAdmin -Force -ErrorAction SilentlyContinue
-            }
-            if ($null -ne $psAzureStackStorageModuleCheck) {
-                Uninstall-Module -Name AzureRM.AzureStackStorage -Force -ErrorAction SilentlyContinue
-            }
-            if ($null -ne $psAzureStackBootstrapperModuleCheck) {
-                Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction SilentlyContinue
-            }
-            if ($null -ne $psAzureStackModuleCheck) {
-                Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue
-            }
-            if ($null -ne $psAzsModuleCheck) {
-                Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
-            }
+            Uninstall-Module -Name AzureRM.AzureStackAdmin -Force -ErrorAction SilentlyContinue
+            Uninstall-Module -Name AzureRM.AzureStackStorage -Force -ErrorAction SilentlyContinue
+            Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction SilentlyContinue
+            Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue
+            Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
             if ($null -ne $psRepository) {
                 Get-PSRepository -Name "PSGallery" | Unregister-PSRepository -ErrorAction SilentlyContinue
             }
             Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azure* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
             Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azs* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        else {
+            Write-CustomVerbose -Message "No existing PowerShell installation detected - proceeding without cleanup."
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
         Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -1048,8 +1057,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Output $progress | Out-Host
         if ($cleanupRequired -eq $true) {
-            Write-Host "A previous installation of PowerShell has been removed from this system. To continue
-            please close all PowerShell windows and sessions, then rerun the ConfigASDK script. This will reinstall PowerShell for you."
+            Write-CustomVerbose -Message "A previous installation of PowerShell has been removed from this system."
+            Write-CustomVerbose -Message "Once you have closed this PowerShell session, delete all the folders that start with 'Azure' from the $Env:ProgramFiles\WindowsPowerShell\Modules"
+            Write-CustomVerbose -Message "Once deleted, rerun the ConfigASDK script. This will reinstall PowerShell for you."
             BREAK
         }
     }
