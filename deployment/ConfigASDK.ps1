@@ -1674,9 +1674,6 @@ While ($jobsStillExecuting -eq $true) {
         }
     }
     $completedJobs = (Get-Job | Where-Object { $_.state -eq "Completed" })
-    if ($completedJobs.count -ge 0) {
-        $jobsStillExecuting = $true
-    }
     Write-Host "Current number of completed jobs: $($completedJobs.count)" -ForegroundColor Green
     Get-Job | Where-Object { $_.state -eq "Completed" } | Format-Table Name, State, @{L = 'StartTime'; E = {$_.PSBeginTime}}, @{L = 'EndTime'; E = {$_.PSEndTime}}
     foreach ($completeJob in $completedJobs) {
