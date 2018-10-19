@@ -133,6 +133,11 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
             }
 
+            ### Login to Azure Stack ###
+            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
             # Get Azure Stack location
             $azsLocation = (Get-AzsLocation).Name
             # Need to 100% confirm that the ServerCoreImage is ready
@@ -153,10 +158,6 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             }
             # Login to Azure Stack
             Write-Verbose -Message "Downloading and installing $dbrp Resource Provider"
-            ### Login to Azure Stack ###
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
             if (!$([System.IO.Directory]::Exists("$ASDKpath\databases"))) {
                 New-Item -Path "$ASDKpath\databases" -ItemType Directory -Force | Out-Null
