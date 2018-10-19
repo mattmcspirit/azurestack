@@ -132,6 +132,14 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
             }
+
+            # Get Azure Stack location
+            $azsLocation = (Get-AzsLocation).Name
+            # Need to 100% confirm that the ServerCoreImage is ready
+            While (!$(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+                Write-Verbose -Message "ServerCoreImage is not ready yet. Delaying by 20 seconds"
+                Start-Sleep -Seconds 20
+            }
             # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
             if ($dbrp -eq "SQLServer") {
                 if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
