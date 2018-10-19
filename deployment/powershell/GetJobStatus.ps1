@@ -21,7 +21,7 @@ While ($jobsStillExecuting -eq $true) {
         }
     }
     $completedJobs = (Get-Job | Where-Object { $_.state -eq "Completed" })
-    Write-Host "Current number of completed jobs: $($completedJobs.count)" -ForegroundColor Green
+    Write-Host "`r`nCurrent number of completed jobs: $($completedJobs.count)`r`n" -ForegroundColor Green
     foreach ($completeJob in $completedJobs) {
         $jobDuration = ($completeJob.PSEndTime) - ($completeJob.PSBeginTime)
         if ($jobDuration.Hours -gt 0) {
@@ -32,7 +32,7 @@ While ($jobsStillExecuting -eq $true) {
         }
     }
     $failedJobs = (Get-Job | Where-Object { $_.state -eq "Failed" })
-    Write-Host "Current number of failed jobs: $($failedJobs.count)" -ForegroundColor Red
+    Write-Host "`r`nCurrent number of failed jobs: $($failedJobs.count)`r`n" -ForegroundColor Red
     foreach ($failedJob in $failedJobs) {
         $jobDuration = ($failedJob.PSEndTime) - ($failedJob.PSBeginTime)
         if ($jobDuration.Hours -gt 0) {
