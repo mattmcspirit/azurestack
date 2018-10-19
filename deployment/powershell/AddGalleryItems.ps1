@@ -94,6 +94,13 @@ $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
 
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
+        if ($progress[$RowIndex].Status -eq "Failed") {
+            # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
+            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+            $progress[$RowIndex].Status = "Incomplete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        }
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop

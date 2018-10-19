@@ -78,6 +78,13 @@ elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Comp
     }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
+            if ($progress[$RowIndex].Status -eq "Failed") {
+                # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+                $progress[$RowIndex].Status = "Incomplete"
+                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            }
             if ($deploymentMode -eq "Online") {
                 if (!$([System.IO.Directory]::Exists("$ASDKpath\appservice"))) {
                     New-Item -Path "$ASDKpath\appservice" -ItemType Directory -Force | Out-Null

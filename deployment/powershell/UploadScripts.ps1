@@ -48,6 +48,13 @@ if ($progress[$RowIndex].Status -eq "Complete") {
 }
 elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) -and (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed"))) {
     try {
+        if ($progress[$RowIndex].Status -eq "Failed") {
+            # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
+            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+            $progress[$RowIndex].Status = "Incomplete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        }
         # Firstly create the appropriate RG, storage account and container
         # Scan the $asdkPath\scripts folder and retrieve both files, add to an array, then upload to the storage account
         # Save URI of the container to a variable to use later

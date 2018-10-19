@@ -106,6 +106,13 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
     }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
+            if ($progress[$RowIndex].Status -eq "Failed") {
+                # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+                $progress[$RowIndex].Status = "Incomplete"
+                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            }
             if ($vmType -ne "AppServiceFS") {
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $ubuntuImageJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")

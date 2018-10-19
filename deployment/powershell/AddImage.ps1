@@ -163,6 +163,13 @@ if (!$([System.IO.Directory]::Exists("$csvImagePath\Images\$image"))) {
 
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
+        if ($progress[$RowIndex].Status -eq "Failed") {
+            # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
+            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+            $progress[$RowIndex].Status = "Incomplete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        }
         # Need to confirm if Windows Update stage previously completed
         if ($image -ne "UbuntuServer") {
             $progress = Import-Csv -Path $ConfigASDKProgressLogPath

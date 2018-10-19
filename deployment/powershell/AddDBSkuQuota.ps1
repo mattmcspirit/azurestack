@@ -79,6 +79,13 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
     }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
+            if ($progress[$RowIndex].Status -eq "Failed") {
+                # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+                $progress[$RowIndex].Status = "Incomplete"
+                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            }
             # Logout to clean up
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force

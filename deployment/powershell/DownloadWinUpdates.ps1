@@ -69,6 +69,13 @@ $RowIndex = [array]::IndexOf($progress.Stage, "WindowsUpdates")
 
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
+        if ($progress[$RowIndex].Status -eq "Failed") {
+            # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
+            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+            $progress[$RowIndex].Status = "Incomplete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        }
         $ErrorActionPreference = "Stop";
         # Log into Azure Stack to check for existing images and push new ones if required ###
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"

@@ -43,6 +43,13 @@ $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
+            if ($progress[$RowIndex].Status -eq "Failed") {
+                # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+                $progress[$RowIndex].Status = "Incomplete"
+                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            }
             # Currently an infinite loop bug exists in Azs.AzureBridge.Admin 0.1.1 - this section fixes it by editing the Get-TaskResult.ps1 file
             # Also then launches the VM Extension important in a fresh PSSession as a precaution.
             if (!(Get-Module -Name Azs.AzureBridge.Admin)) {
