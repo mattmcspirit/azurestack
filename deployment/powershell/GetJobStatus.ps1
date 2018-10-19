@@ -32,9 +32,6 @@ While ($jobsStillExecuting -eq $true) {
         }
     }
     $failedJobs = (Get-Job | Where-Object { $_.state -eq "Failed" })
-    if ($failedJobs.count -gt 0) {
-        $jobsStillExecuting = $false
-    }
     Write-Host "Current number of failed jobs: $($failedJobs.count)" -ForegroundColor Red
     foreach ($failedJob in $failedJobs) {
         $jobDuration = ($failedJob.PSEndTime) - ($failedJob.PSBeginTime)
