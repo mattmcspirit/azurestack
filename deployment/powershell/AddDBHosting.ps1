@@ -83,17 +83,17 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress[$RowIndex].Status = "Incomplete"
                 $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
             }
-            # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
+            # Need to ensure this stage doesn't start before the database host has finished deployment
             $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $dbHostJobCheck = [array]::IndexOf($progress.Stage, "$($dbsku)DBVM")
+            $dbHostJobCheck = [array]::IndexOf($progress.Stage, "$($dbHost)DBVM")
             while (($progress[$dbHostJobCheck].Status -ne "Complete")) {
-                Write-Verbose -Message "The $($dbsku)DBVM stage of the process has not yet completed. Checking again in 10 seconds"
+                Write-Verbose -Message "The $($dbHost)DBVM stage of the process has not yet completed. Checking again in 10 seconds"
                 Start-Sleep -Seconds 10
                 if ($progress[$dbHostJobCheck].Status -eq "Failed") {
-                    throw "The $($dbsku)RP stage of the process has failed. This should fully complete before the $dbsku database host has been deployed. Check the $($dbsku)DBVM log, ensure that step is completed first, and rerun."
+                    throw "The $($dbHost)DBVM stage of the process has failed. This should fully complete before the $dbHost database host has been deployed. Check the $($dbHost)DBVM log, ensure that step is completed first, and rerun."
                 }
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $dbHostJobCheck = [array]::IndexOf($progress.Stage, "$($dbsku)DBVM")
+                $dbHostJobCheck = [array]::IndexOf($progress.Stage, "$($dbHost)DBVM")
             }
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
