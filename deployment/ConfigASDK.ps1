@@ -2195,7 +2195,7 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
         $completedPath = "$downloadPath\Completed\$runTime"
         New-Item -Path "$completedPath" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
         # Then move the files to this folder
-        Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$completedPath" -ErrorAction SilentlyContinue -Verbose
+        Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Copy-Item -Destination "$completedPath" -Force -ErrorAction SilentlyContinue -Verbose
     }
 
     Write-CustomVerbose -Message "Retaining App Service Certs for potential App Service updates in the future"
@@ -2203,7 +2203,7 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
         New-Item -Path "$completedPath\AppServiceCerts" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
     }
     while (Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose) {
-        Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose | Move-Item -Destination "$completedPath\AppServiceCerts" -ErrorAction SilentlyContinue -Verbose
+        Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose | Copy-Item -Destination "$completedPath\AppServiceCerts" -Force -ErrorAction SilentlyContinue -Verbose
     }
 
     Write-CustomVerbose -Message "Cleaning up ASDK Folder"
@@ -2253,6 +2253,11 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     try {Invoke-WebRequest "http://bit.ly/asdksuccessrun" -UseBasicParsing -DisableKeepAlive | Out-Null } catch {$_.Exception.Response.StatusCode.Value__}
+
+    # Final Cleanup
+    while (Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose) {
+        Get-ChildItem -Path $AppServicePath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Remove-Item -Force -Verbose -ErrorAction SilentlyContinue
+    }
 
     # Take a copy of the log file at this point
     Write-CustomVerbose -Message "Copying log file for future reference"
