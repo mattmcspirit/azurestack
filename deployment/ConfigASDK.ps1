@@ -2231,6 +2231,7 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
     Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+    $asdkImagesRGName = "azurestack-images"
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
 
     # Installing newest version of PowerShell - this section is only required while the ConfigASDK requires 1.4.0 / 2017-03-09-profile to install correctly
