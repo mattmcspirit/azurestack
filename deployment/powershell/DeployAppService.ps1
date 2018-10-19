@@ -109,6 +109,30 @@ elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Comp
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $appServicePreReqJobCheck = [array]::IndexOf($progress.Stage, "AddAppServicePreReqs")
             }
+            # Need to ensure this stage doesn't start before the App Service File Server has been deployed
+            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+            $appServiceFSJobCheck = [array]::IndexOf($progress.Stage, "AppServiceFileServer")
+            while (($progress[$appServiceFSJobCheck].Status -ne "Complete")) {
+                Write-Verbose -Message "The AppServiceFileServer stage of the process has not yet completed. Checking again in 10 seconds"
+                Start-Sleep -Seconds 10
+                if ($progress[$appServiceFSJobCheck].Status -eq "Failed") {
+                    throw "The AppServiceFileServer stage of the process has failed. This should fully complete before the App Service deployment can be started. Check the AppServiceFileServer log, ensure that step is completed first, and rerun."
+                }
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $appServiceFSJobCheck = [array]::IndexOf($progress.Stage, "AppServiceFileServer")
+            }
+            # Need to ensure this stage doesn't start before the App Service File Server has been deployed
+            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+            $appServiceSQLJobCheck = [array]::IndexOf($progress.Stage, "AppServiceSQLServer")
+            while (($progress[$appServiceSQLJobCheck].Status -ne "Complete")) {
+                Write-Verbose -Message "The AppServiceSQLServer stage of the process has not yet completed. Checking again in 10 seconds"
+                Start-Sleep -Seconds 10
+                if ($progress[$appServiceSQLJobCheck].Status -eq "Failed") {
+                    throw "The AppServiceSQLServer stage of the process has failed. This should fully complete before the App Service deployment can be started. Check the AppServiceSQLServer log, ensure that step is completed first, and rerun."
+                }
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $appServiceSQLJobCheck = [array]::IndexOf($progress.Stage, "AppServiceSQLServer")
+            }
 
             # Login to Azure Stack to grab FQDNs and also Identity App ID locally
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
