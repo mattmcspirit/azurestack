@@ -2256,7 +2256,7 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
 
     # Final Cleanup
     while (Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose) {
-        Get-ChildItem -Path $AppServicePath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Remove-Item -Force -Verbose -ErrorAction SilentlyContinue
+        Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Remove-Item -Force -Verbose -ErrorAction SilentlyContinue
     }
 
     # Take a copy of the log file at this point
