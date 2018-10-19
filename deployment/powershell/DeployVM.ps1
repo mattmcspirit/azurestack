@@ -226,7 +226,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 New-AzureRmResourceGroupDeployment -Name "DeployMySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                     -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
                     -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" `
-                    -vmSize Standard_A3 -mode Incremental -scriptBaseUrl $scriptBaseURI -Verbose -ErrorAction Stop
+                    -vmSize Standard_A2 -mode Incremental -scriptBaseUrl $scriptBaseURI -Verbose -ErrorAction Stop
             }
             elseif ($vmType -eq "SQLServer") {
                 if ($skipMySQL -eq $true) {
@@ -235,7 +235,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                     New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                         -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
                         -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" `
-                        -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+                        -vmSize Standard_A2 -mode Incremental -Verbose -ErrorAction Stop
                 }
                 else {
                     Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server 16.04 LTS for database hosting"
@@ -243,7 +243,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                     New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                         -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
                         -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" `
-                        -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+                        -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A2 -mode Incremental -Verbose -ErrorAction Stop
                 }
             }
             elseif ($vmType -eq "AppServiceFS") {
@@ -275,7 +275,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 }
                 New-AzureRmResourceGroupDeployment -Name "DeployAppServiceDB" -ResourceGroupName $rg -TemplateUri $mainTemplateURI -scriptBaseUrl $scriptBaseURI `
                     -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
-                    -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A3 -mode Incremental -Verbose -ErrorAction Stop
+                    -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A2 -mode Incremental -Verbose -ErrorAction Stop
             
                 # Get the FQDN of the VM
                 $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName $rg).DnsSettings.Fqdn
