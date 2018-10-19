@@ -493,7 +493,7 @@ catch {
 $scriptStep = "POWERSHELLSCRIPTS"
 try {
     Write-CustomVerbose -Message "Downloading PowerShell scripts used for deployment" -ErrorAction Stop
-    $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/powershell"
+    $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/powershell"
     $scriptArray = @()
     $scriptArray.Clear()
     $scriptArray = "AddAppServicePreReqs.ps1", "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", `
