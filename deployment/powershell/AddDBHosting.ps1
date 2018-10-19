@@ -76,6 +76,18 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
     }
     if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
         try {
+            # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
+            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+            $dbHostJobCheck = [array]::IndexOf($progress.Stage, "$($dbsku)DBVM")
+            while (($progress[$dbHostJobCheck].Status -ne "Complete")) {
+                Write-Verbose -Message "The $($dbsku)DBVM stage of the process has not yet completed. Checking again in 10 seconds"
+                Start-Sleep -Seconds 10
+                if ($progress[$dbHostJobCheck].Status -eq "Failed") {
+                    throw "The $($dbsku)RP stage of the process has failed. This should fully complete before the $dbsku database host has been deployed. Check the $($dbsku)DBVM log, ensure that step is completed first, and rerun."
+                }
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $dbHostJobCheck = [array]::IndexOf($progress.Stage, "$($dbsku)DBVM")
+            }
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
