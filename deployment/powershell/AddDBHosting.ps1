@@ -83,6 +83,18 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress[$RowIndex].Status = "Incomplete"
                 $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
             }
+            # Need to ensure this stage doesn't start before the database SKU has been added
+            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+            $dbSkuJobCheck = [array]::IndexOf($progress.Stage, "$($dbHost)SKUQuota")
+            while (($progress[$dbSkuJobCheck].Status -ne "Complete")) {
+                Write-Verbose -Message "The $($dbHost)SKUQuota stage of the process has not yet completed. Checking again in 10 seconds"
+                Start-Sleep -Seconds 10
+                if ($progress[$dbSkuJobCheck].Status -eq "Failed") {
+                    throw "The $($dbHost)SKUQuota stage of the process has failed. This should fully complete before the $dbHost database host has been deployed. Check the $($dbHost)SKUQuota log, ensure that step is completed first, and rerun."
+                }
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $dbSkuJobCheck = [array]::IndexOf($progress.Stage, "$($dbHost)DBVM")
+            }
             # Need to ensure this stage doesn't start before the database host has finished deployment
             $progress = Import-Csv -Path $ConfigASDKProgressLogPath
             $dbHostJobCheck = [array]::IndexOf($progress.Stage, "$($dbHost)DBVM")
