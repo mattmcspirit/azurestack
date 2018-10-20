@@ -93,7 +93,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                     throw "The $($dbHost)SKUQuota stage of the process has failed. This should fully complete before the $dbHost database host has been deployed. Check the $($dbHost)SKUQuota log, ensure that step is completed first, and rerun."
                 }
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $dbSkuJobCheck = [array]::IndexOf($progress.Stage, "$($dbHost)DBVM")
+                $dbSkuJobCheck = [array]::IndexOf($progress.Stage, "$($dbHost)SKUQuota")
             }
             # Need to ensure this stage doesn't start before the database host has finished deployment
             $progress = Import-Csv -Path $ConfigASDKProgressLogPath
