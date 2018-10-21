@@ -147,18 +147,40 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
 
             # Get Azure Stack location
             $azsLocation = (Get-AzsLocation).Name
-            # Need to 100% confirm that the ServerCoreImage is ready
+            # Need to 100% confirm that the ServerCoreImage is ready as it seems that starting the MySQL/SQL RP deployment immediately is causing an issue
+            Write-Verbose -Message "Need to confirm that the Windows Server 2016 Core image is available in the gallery and ready"
+            Write-Verbose -Message "Check #1 - Using Get-AzsPlatformImage to check for Windows Server 2016 Core image"
+            $azsPlatformImageExists = (Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'
+            $azureRmVmPlatformImageExists = (Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'
+            
+            if ($azsPlatformImageExists) {
+                Write-Verbose -Message "Get-AzsPlatformImage, successfully located an appropriate image with the following details:"
+                Write-Verbose -Message "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
+            }
             While (!$(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-                Write-Verbose -Message "ServerCoreImage is not ready yet. Delaying by 20 seconds"
+                Write-Verbose -Message "Using Get-AzsPlatformImage, ServerCoreImage is not ready yet. Delaying by 20 seconds"
                 Start-Sleep -Seconds 20
             }
+            if ($azureRmVmPlatformImageExists) {
+                Write-Verbose -Message "Using Get-AzureRmVMImage, successfully located an appropriate image with the following details:"
+                Write-Verbose -Message "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
+            }
+            While (!$(Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+                Write-Verbose -Message "Using Get-AzureRmVMImage to test, ServerCoreImage is not ready yet. Delaying by 20 seconds"
+                Start-Sleep -Seconds 20
+            }
+
+            # For an extra safety net, add an extra delay to ensure the image is fully ready in the PIR, otherwise it seems to cause a failure.
+            Write-Verbose -Message "Delaying for a further 4 minutes to account for random failure with MySQL/SQL RP to detect platform image immediately after upload"
+            Start-Sleep -Seconds 240
+
             # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
             if ($dbrp -eq "SQLServer") {
                 if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
                     $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                     $mySQLProgressCheck = [array]::IndexOf($progress.Stage, "MySQLRP")
                     if (($progress[$mySQLProgressCheck].Status -ne "Complete")) {
-                        Write-Verbose -Message "To avoid deployment conflicts, delaying the SQL Server RP deployment by 2 minutes"
+                        Write-Verbose -Message "To avoid deployment conflicts with the MySQL RP, delaying the SQL Server RP deployment by 2 minutes"
                         Start-Sleep -Seconds 120
                     }
                 }
