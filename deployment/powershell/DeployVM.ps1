@@ -41,7 +41,10 @@ param (
     [String] $skipMSSQL,
 
     [parameter(Mandatory = $false)]
-    [String] $skipAppService
+    [String] $skipAppService,
+
+    [Parameter(Mandatory = $true)]
+    [String] $branch
 )
 
 $Global:VerbosePreference = "Continue"
@@ -206,11 +209,11 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
             if ($deploymentMode -eq "Online") {
                 if ($vmType -eq "AppServiceFS") {
-                    $mainTemplateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json"
+                    $mainTemplateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/azuredeploy.json"
                 }
                 else {
                     $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.$azpkg*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
-                    $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
+                    $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/"
                 }
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {

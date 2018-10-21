@@ -23,7 +23,10 @@ param (
     [pscredential] $asdkCreds,
     
     [parameter(Mandatory = $true)]
-    [String] $ScriptLocation
+    [String] $ScriptLocation,
+
+    [Parameter(Mandatory = $true)]
+    [String] $branch
 )
 
 $Global:VerbosePreference = "Continue"
@@ -145,10 +148,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             if ($deploymentMode -eq "Online") {
                 Write-Verbose -Message "Uploading $azpkgPackageName"
                 if ($azpkg -eq "MySQL") {
-                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
+                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
                 }
                 elseif ($azpkg -eq "SQLServer") {
-                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
+                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
                 }  
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account

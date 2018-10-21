@@ -45,7 +45,10 @@ param (
 
     [parameter(Mandatory = $true)]
     [ValidateSet("serial", "partialParallel", "parallel")]
-    [String] $runMode
+    [String] $runMode,
+
+    [Parameter(Mandatory = $true)]
+    [String] $branch
 )
 
 $Global:VerbosePreference = "Continue"
@@ -452,7 +455,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                         # Split for Windows Server Images
                         if ($deploymentMode -eq "Online") {
                             # Download Convert-WindowsImage.ps1
-                            $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
+                            $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/Convert-WindowsImage.ps1"
                             $convertWindowsDownloadLocation = "$ASDKpath\images\$image\Convert-Windows$($image)Image.ps1"
                             $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\$image\Convert-Windows$($image)Image.ps1")
                             if ($convertWindowsImageExists -eq $false) {
@@ -596,10 +599,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
             elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
                 if ($image -eq "UbuntuServer") {
-                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
+                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
                 }
                 else {
-                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/$package.azpkg"
+                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/$package.azpkg"
                 }
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account

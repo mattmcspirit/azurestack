@@ -161,7 +161,11 @@ param (
 
     # Offline installation package path for all key components
     [parameter(Mandatory = $false)]
-    [string]$configAsdkOfflineZipPath
+    [string]$configAsdkOfflineZipPath,
+
+    # This is used mainly for testing, when you want to run against a specific GitHub branch. Master should be used for all non-testing scenarios.
+    [Parameter(Mandatory = $false)]
+    [String] $branch
 )
 
 $Global:VerbosePreference = "Continue"
@@ -418,6 +422,27 @@ catch {
     Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
     Set-Location $ScriptLocation
     return
+}
+
+# Validate Github branch exists - usually reserved for testing purposes
+if ($deploymentMode -eq "Online") {
+    try {
+        if ($null -eq $branch) {
+            $branch = "master"
+        }
+        $urlToTest = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/README.md"
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $statusCode = Invoke-WebRequest "$urlToTest" -UseBasicParsing -ErrorAction SilentlyContinue | ForEach-Object {$_.StatusCode} -ErrorAction SilentlyContinue
+        if ($statusCode -eq 200) {
+            Write-Host "Accessing $urlToTest - Status Code is 200 - URL is valid" -ForegroundColor Green
+        }
+    }
+    catch {
+        $statusCode = [int]$_.Exception.Response.StatusCode
+        Write-Host "Accessing $urlToTest - Status Code is $statusCode - URL is invalid" -ForegroundColor Red
+        Write-Host "If you're not sure, don't specify a branch, and 'master' will be used. Error details: `r`n" -ForegroundColor Red
+        throw "Invalid Github branch specified. You tried to access $urlToTest, which doesn't exist. Status Code: $statusCode - exiting process"
+    }
 }
 
 ### Validate Download Path ###
@@ -950,7 +975,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         if ($deploymentMode -eq "Online") {
             # If this is an online deployment, pull down the PowerShell scripts from GitHub
             foreach ($script in $scriptArray) {
-                $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/powershell"
+                $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/powershell"
                 $scriptDownloadPath = "$scriptPath\$script"
                 DownloadWithRetry -downloadURI "$scriptBaseURI/$script" -downloadLocation $scriptDownloadPath -retries 10
             }
@@ -1478,11 +1503,11 @@ elseif ($freeCSVSpace -ge 115) {
 $jobName = "AddUbuntuImage"
 $AddUbuntuImage = {
     Start-Job -Name AddUbuntuImage -ArgumentList $ConfigASDKProgressLogPath, $ISOpath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
-        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation -ScriptBlock {
+        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "UbuntuServer" -runMode $Using:runMode
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "UbuntuServer" -branch $Using:branch -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddUbuntuImage -Verbose
@@ -1499,11 +1524,11 @@ JobLauncher -jobName $jobName -jobToExecute $DownloadWindowsUpdates -Verbose
 $jobName = "AddServerCoreImage"
 $AddServerCoreImage = {
     Start-Job -Name AddServerCoreImage -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
-        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath -ScriptBlock {
+        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "ServerCore" -runMode $Using:runMode
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "ServerCore" -branch $Using:branch -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddServerCoreImage -Verbose
@@ -1511,11 +1536,11 @@ JobLauncher -jobName $jobName -jobToExecute $AddServerCoreImage -Verbose
 $jobName = "AddServerFullImage"
 $AddServerFullImage = {
     Start-Job -Name AddServerFullImage -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
-        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath -ScriptBlock {
+        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "ServerFull" -runMode $Using:runMode
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "ServerFull" -branch $Using:branch -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddServerFullImage -Verbose
@@ -1527,18 +1552,18 @@ JobLauncher -jobName $jobName -jobToExecute $AddServerFullImage -Verbose
 
 $jobName = "AddMySQLAzpkg"
 $AddMySQLAzpkg = {
-    Start-Job -Name AddMySQLAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
+    Start-Job -Name AddMySQLAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
-            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "MySQL"
+            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch -azpkg "MySQL"
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddMySQLAzpkg -Verbose
 
 $jobName = "AddSQLServerAzpkg"
 $AddSQLServerAzpkg = {
-    Start-Job -Name AddSQLServerAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
+    Start-Job -Name AddSQLServerAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
-            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "SQLServer"
+            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch -azpkg "SQLServer"
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddSQLServerAzpkg -Verbose
@@ -1623,11 +1648,11 @@ JobLauncher -jobName $jobName -jobToExecute $UploadScripts -Verbose
 $jobName = "DeployMySQLHost"
 $DeployMySQLHost = {
     Start-Job -Name DeployMySQLHost -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "MySQL" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService -branch $Using:branch
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DeployMySQLHost -Verbose
@@ -1635,11 +1660,11 @@ JobLauncher -jobName $jobName -jobToExecute $DeployMySQLHost -Verbose
 $jobName = "DeploySQLServerHost"
 $DeploySQLServerHost = {
     Start-Job -Name DeploySQLServerHost -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "SQLServer" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService -branch $Using:branch
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DeploySQLServerHost -Verbose
@@ -1650,11 +1675,11 @@ JobLauncher -jobName $jobName -jobToExecute $DeploySQLServerHost -Verbose
 $jobName = "AddMySQLHosting"
 $AddMySQLHosting = {
     Start-Job -Name AddMySQLHosting -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
-        $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -deploymentMode $Using:deploymentMode -dbHost "MySQL" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -branch $Using:branch
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddMySQLHosting -Verbose
@@ -1662,11 +1687,11 @@ JobLauncher -jobName $jobName -jobToExecute $AddMySQLHosting -Verbose
 $jobName = "AddSQLHosting"
 $AddSQLHosting = {
     Start-Job -Name AddSQLHosting -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
-        $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -deploymentMode $Using:deploymentMode -dbHost "SQLServer" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -branch $Using:branch
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddSQLHosting -Verbose
@@ -1677,11 +1702,11 @@ JobLauncher -jobName $jobName -jobToExecute $AddSQLHosting -Verbose
 $jobName = "DeployAppServiceFS"
 $DeployAppServiceFS = {
     Start-Job -Name DeployAppServiceFS -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "AppServiceFS" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService -branch $Using:branch
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DeployAppServiceFS -Verbose
@@ -1689,11 +1714,11 @@ JobLauncher -jobName $jobName -jobToExecute $DeployAppServiceFS -Verbose
 $jobName = "DeployAppServiceDB"
 $DeployAppServiceDB = {
     Start-Job -Name DeployAppServiceDB -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "AppServiceDB" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService -branch $Using:branch
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DeployAppServiceDB -Verbose
@@ -1722,11 +1747,11 @@ JobLauncher -jobName $jobName -jobToExecute $AddAppServicePreReqs -Verbose
 $jobName = "DeployAppService"
 $DeployAppService = {
     Start-Job -Name DeployAppService -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $authenticationType, `
-        $azureDirectoryTenantName, $tenantID, $VMpwd, $asdkCreds, $ScriptLocation, $skipAppService -ScriptBlock {
+        $azureDirectoryTenantName, $tenantID, $VMpwd, $asdkCreds, $ScriptLocation, $skipAppService, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployAppService.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -authenticationType $Using:authenticationType `
             -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -VMpwd $Using:VMpwd `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService -branch $Using:branch
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DeployAppService -Verbose
@@ -2018,7 +2043,7 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
                     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User") 
                     # Set up the VM alias Endpoint for Azure CLI & Python
                     if ($deploymentMode -eq "Online") {
-                        $vmAliasEndpoint = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/Aliases/aliases.json"
+                        $vmAliasEndpoint = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/packages/Aliases/aliases.json"
                     }
                     elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                         $item = Get-ChildItem -Path "$ASDKpath\images" -Recurse -Include ("aliases.json") -ErrorAction Stop

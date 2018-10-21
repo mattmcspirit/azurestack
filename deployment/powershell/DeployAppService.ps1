@@ -32,7 +32,10 @@ param (
     [String] $ScriptLocation,
 
     [parameter(Mandatory = $false)]
-    [String] $skipAppService
+    [String] $skipAppService,
+
+    [Parameter(Mandatory = $true)]
+    [String] $branch
 )
 
 $Global:VerbosePreference = "Continue"
@@ -190,7 +193,7 @@ elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Comp
 
             # Pull the pre-deployment JSON file from online, or the local zip file.
             if ($deploymentMode -eq "Online") {
-                $appServiceJsonURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json"
+                $appServiceJsonURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"
                 $appServiceJsonDownloadLocation = "$AppServicePath\AppServicePreDeploymentSettings.json"
                 DownloadWithRetry -downloadURI "$appServiceJsonURI" -downloadLocation "$appServiceJsonDownloadLocation" -retries 10
             }

@@ -29,7 +29,10 @@ param (
     [String] $skipMySQL,
 
     [parameter(Mandatory = $false)]
-    [String] $skipMSSQL
+    [String] $skipMSSQL,
+
+    [Parameter(Mandatory = $true)]
+    [String] $branch
 )
 
 $Global:VerbosePreference = "Continue"
@@ -138,7 +141,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             # Add host server to MySQL RP
             Write-Verbose -Message "Attaching $dbHost hosting server to $dbHost resource provider"
             if ($deploymentMode -eq "Online") {
-                $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/$hostingPath/azuredeploy.json"
+                $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/$hostingPath/azuredeploy.json"
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$hostingTemplate" | ForEach-Object { $_.FullName }
