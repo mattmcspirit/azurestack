@@ -212,48 +212,44 @@ function Write-CustomVerbose {
     end {}
 }
 
-### OFFLINE AZPKG FUNCTION ##################################################################################################################################
+### JOB LAUNCHER FUNCTION ###################################################################################################################################
 #############################################################################################################################################################
 
-function Add-OfflineAZPKG {
+function JobLauncher {
     [cmdletbinding()]
     param
     (
         [parameter(Mandatory = $true)]
-        [string]$azpkgPackageName
+        [string] $jobName,
+
+        [parameter(Mandatory = $true)]
+        [System.Object] $jobToExecute
     )
     begin {}
     process {
-        #### Need to upload to blob storage first from extracted ZIP ####
-        $azpkgFullPath = $null
-        $azpkgFileName = $null
-        $azpkgFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.FullName }
-        $azpkgFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.Name }
-                                
-        # Check there's not a gallery item already uploaded to storage
-        if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
-            Write-CustomVerbose -Message "You already have an upload of $azpkgFileName within your Storage Account. No need to re-upload."
-            Write-CustomVerbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
-        }
-        else {
-            $uploadAzpkgAttempt = 1
-            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
-                try {
-                    # Log back into Azure Stack to ensure login hasn't timed out
-                    Write-CustomVerbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $asdkImagesContainerName -Blob "$azpkgFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
+        try {
+            if ($null -ne (Get-Job -Name $jobName -ErrorAction SilentlyContinue)) {
+                if (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Running" } ) {
+                    Write-CustomVerbose -Message "$jobName is already running, no need to run this job"
                 }
-                catch {
-                    Write-CustomVerbose -Message "Upload failed."
-                    Write-CustomVerbose -Message "$_.Exception.Message"
-                    $uploadAzpkgAttempt++
+                elseif (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Completed" } ) {
+                    Write-CustomVerbose -Message "$jobName already completed, no need to run this job"
+                }
+                elseif (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Failed" } ) {
+                    Write-CustomVerbose -Message "$jobName previously failed - cleaning up and rerunning"
+                    Get-Job -Name $jobName -ErrorAction SilentlyContinue | Remove-Job
+                    & $jobToExecute;
                 }
             }
+            else {
+                Write-CustomVerbose -Message "$jobName not found, and hasn't previously completed or failed - Starting $jobName job"
+                & $jobToExecute;
+            }
         }
-        $azpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $azpkgFileName
-        Write-CustomVerbose -Message "Uploading $azpkgFileName from $azpkgURI"
-        return [string]$azpkgURI
+        catch {
+            $exception = $_.Exception
+            throw $exception
+        }
     }
     end {}
 }
@@ -1479,7 +1475,8 @@ elseif ($freeCSVSpace -ge 115) {
 }
 
 # Define the image jobs
-$UbuntuJob = {
+$jobName = "AddUbuntuImage"
+$AddUbuntuImage = {
     Start-Job -Name AddUbuntuImage -ArgumentList $ConfigASDKProgressLogPath, $ISOpath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
         $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1488,15 +1485,19 @@ $UbuntuJob = {
             -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "UbuntuServer" -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddUbuntuImage -Verbose
 
-$WindowsUpdateJob = {
+$jobName = "DownloadWindowsUpdates"
+$DownloadWindowsUpdates = {
     Start-Job -Name DownloadWindowsUpdates -ArgumentList $ConfigASDKProgressLogPath, $ISOpath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DownloadWinUpdates.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ISOpath $Using:ISOpath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $DownloadWindowsUpdates -Verbose
 
-$ServerCoreJob = {
+$jobName = "AddServerCoreImage"
+$AddServerCoreImage = {
     Start-Job -Name AddServerCoreImage -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
         $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1505,8 +1506,10 @@ $ServerCoreJob = {
             -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "ServerCore" -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddServerCoreImage -Verbose
 
-$ServerFullJob = {
+$jobName = "AddServerFullImage"
+$AddServerFullImage = {
     Start-Job -Name AddServerFullImage -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
         $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1515,39 +1518,48 @@ $ServerFullJob = {
             -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "ServerFull" -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddServerFullImage -Verbose
 
 ### ADD DB GALLERY ITEMS - JOB SETUP #########################################################################################################################
 ##############################################################################################################################################################
 
-# Define the image jobs
-$AddMySQLAzpkgJob = {
+# Define the DB Gallery Item jobs
+
+$jobName = "AddMySQLAzpkg"
+$AddMySQLAzpkg = {
     Start-Job -Name AddMySQLAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
             -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "MySQL"
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddMySQLAzpkg -Verbose
 
-$AddMSSQLAzpkgJob = {
+$jobName = "AddSQLServerAzpkg"
+$AddSQLServerAzpkg = {
     Start-Job -Name AddSQLServerAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
             -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azpkg "SQLServer"
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddSQLServerAzpkg -Verbose
 
 ### ADD VM EXTENSIONS - JOB SETUP ############################################################################################################################
 ##############################################################################################################################################################
 
-$AddVMExtensionsJob = {
+$jobName = "AddVMExtensions"
+$AddVMExtensions = {
     Start-Job -Name AddVMExtensions -ArgumentList $ConfigASDKProgressLogPath, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $registerASDK -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddVMExtensions.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -deploymentMode $Using:deploymentMode `
             -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -registerASDK $Using:registerASDK
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddVMExtensions -Verbose
 
 ### ADD DB RPS - JOB SETUP ###################################################################################################################################
 ##############################################################################################################################################################
 
-$AddMySQLRPJob = {
+$jobName = "AddMySQLRP"
+$AddMySQLRP = {
     Start-Job -Name AddMySQLRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $secureVMpwd, $deploymentMode, `
         $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1556,8 +1568,10 @@ $AddMySQLRPJob = {
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddMySQLRP -Verbose
 
-$AddMSSQLRPJob = {
+$jobName = "AddSQLServerRP"
+$AddSQLServerRP = {
     Start-Job -Name AddSQLServerRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $secureVMpwd, $deploymentMode, `
         $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1566,40 +1580,48 @@ $AddMSSQLRPJob = {
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddSQLServerRP -Verbose
 
 ### ADD DB SKUs - JOB SETUP ##################################################################################################################################
 ##############################################################################################################################################################
 
-$AddMySQLSkuJob = {
+$jobName = "AddMySQLSku"
+$AddMySQLSku = {
     Start-Job -Name AddMySQLSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddDBSkuQuota.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
             -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation -dbsku "MySQL" `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddMySQLSku -Verbose
 
-$AddMSSQLSkuJob = {
+$jobName = "AddSQLServerSku"
+$AddSQLServerSku = {
     Start-Job -Name AddSQLServerSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddDBSkuQuota.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
             -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation -dbsku "SQLServer" `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddSQLServerSku -Verbose
 
 ### UPLOAD SCRIPTS - JOB SETUP ###############################################################################################################################
 ##############################################################################################################################################################
 
-$UploadScriptsJob = {
+$jobName = "UploadScripts"
+$UploadScripts = {
     Start-Job -Name UploadScripts -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $tenantID, $asdkCreds, $deploymentMode, $azsLocation, $ScriptLocation -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\UploadScripts.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -deploymentMode $Using:deploymentMode -azsLocation $Using:azsLocation -ScriptLocation $Using:ScriptLocation
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $UploadScripts -Verbose
 
 ### DEPLOY DB VMs - JOB SETUP ################################################################################################################################
 ##############################################################################################################################################################
 
-$DeployMySQLHostJob = {
+$jobName = "DeployMySQLHost"
+$DeployMySQLHost = {
     Start-Job -Name DeployMySQLHost -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
         $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1608,8 +1630,10 @@ $DeployMySQLHostJob = {
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $DeployMySQLHost -Verbose
 
-$DeploySQLServerHostJob = {
+$jobName = "DeploySQLServerHost"
+$DeploySQLServerHost = {
     Start-Job -Name DeploySQLServerHost -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
         $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1618,11 +1642,13 @@ $DeploySQLServerHostJob = {
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $DeploySQLServerHost -Verbose
 
 ### ADD HOSTING SERVERS - JOB SETUP ##########################################################################################################################
 ##############################################################################################################################################################
 
-$AddMySQLHostingJob = {
+$jobName = "AddMySQLHosting"
+$AddMySQLHosting = {
     Start-Job -Name AddMySQLHosting -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
         $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1631,8 +1657,10 @@ $AddMySQLHostingJob = {
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddMySQLHosting -Verbose
 
-$AddSQLHostingJob = {
+$jobName = "AddSQLHosting"
+$AddSQLHosting = {
     Start-Job -Name AddSQLHosting -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
         $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1641,11 +1669,13 @@ $AddSQLHostingJob = {
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddSQLHosting -Verbose
 
 ### APP SERVICE - JOB SETUP ##################################################################################################################################
 ##############################################################################################################################################################
 
-$DeployAppServiceFSJob = {
+$jobName = "DeployAppServiceFS"
+$DeployAppServiceFS = {
     Start-Job -Name DeployAppServiceFS -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
         $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1654,8 +1684,10 @@ $DeployAppServiceFSJob = {
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $DeployAppServiceFS -Verbose
 
-$DeployAppServiceDBJob = {
+$jobName = "DeployAppServiceDB"
+$DeployAppServiceDB = {
     Start-Job -Name DeployAppServiceDB -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
         $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1664,15 +1696,19 @@ $DeployAppServiceDBJob = {
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $DeployAppServiceDB -Verbose
 
-$DownloadAppServiceJob = {
+$jobName = "DownloadAppService"
+$DownloadAppService = {
     Start-Job -Name DownloadAppService -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $ScriptLocation, $skipAppService -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DownloadAppService.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -deploymentMode $Using:deploymentMode -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $DownloadAppService -Verbose
 
-$AddAppServicePreReqsJob = {
+$jobName = "AddAppServicePreReqs"
+$AddAppServicePreReqs = {
     Start-Job -Name AddAppServicePreReqs -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $authenticationType, `
         $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $asdkCreds, $cloudAdminCreds, $ScriptLocation, $skipAppService -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddAppServicePreReqs.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1681,8 +1717,10 @@ $AddAppServicePreReqsJob = {
             -asdkCreds $Using:asdkCreds -cloudAdminCreds $Using:cloudAdminCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $AddAppServicePreReqs -Verbose
 
-$DeployAppServiceJob = {
+$jobName = "DeployAppService"
+$DeployAppService = {
     Start-Job -Name DeployAppService -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $authenticationType, `
         $azureDirectoryTenantName, $tenantID, $VMpwd, $asdkCreds, $ScriptLocation, $skipAppService -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployAppService.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
@@ -1691,32 +1729,10 @@ $DeployAppServiceJob = {
             -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService
     } -Verbose -ErrorAction Stop
 }
+JobLauncher -jobName $jobName -jobToExecute $DeployAppService -Verbose
 
 ### JOB LAUNCHER & TRACKER ###################################################################################################################################
 ##############################################################################################################################################################
-
-# Clean previous jobs
-Get-Job | Remove-Job
-
-Set-Location $ScriptLocation
-
-# Launch Image Jobs
-& $UbuntuJob; & $WindowsUpdateJob; & $ServerCoreJob; & $ServerFullJob;
-
-# Launch Packages & Extension Jobs
-& $AddMySQLAzpkgJob; & $AddMSSQLAzpkgJob; & $AddVMExtensionsJob;
-
-# Launch DB RP Jobs
-& $AddMySQLRPJob; & $AddMSSQLRPJob; & $AddMySQLSkuJob; & $AddMSSQLSkuJob;
-
-# Launch offline scripts job
-& $UploadScriptsJob;
-
-# Launch DB Hosting Jobs
-& $DeployMySQLHostJob; & $DeploySQLServerHostJob; & $AddMySQLHostingJob; & $AddSQLHostingJob;
-
-# Launch App Service Jobs
-& $DeployAppServiceFSJob; & $DeployAppServiceDBJob; & $DownloadAppServiceJob; & $AddAppServicePreReqsJob; & $DeployAppServiceJob;
 
 # Get all the running jobs
 Set-Location $ScriptLocation
