@@ -970,7 +970,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $scriptArray = @()
         $scriptArray.Clear()
         $scriptArray = "AddAppServicePreReqs.ps1", "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", `
-            "DeployAppService.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadAppService.ps1", "DownloadWinUpdates.ps1", "GetJobStatus.ps1", "UploadScripts.ps1"
+            "DeployAppService.ps1", "DeployDBRPTest.ps1", "DeployVM.ps1", "DownloadAppService.ps1", "DownloadWinUpdates.ps1", "GetJobStatus.ps1", "UploadScripts.ps1"
 
         if ($deploymentMode -eq "Online") {
             # If this is an online deployment, pull down the PowerShell scripts from GitHub
@@ -1590,7 +1590,7 @@ $jobName = "AddMySQLRP"
 $AddMySQLRP = {
     Start-Job -Name AddMySQLRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $secureVMpwd, $deploymentMode, `
         $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+        Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRPTest.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
             -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd
@@ -1602,7 +1602,7 @@ $jobName = "AddSQLServerRP"
 $AddSQLServerRP = {
     Start-Job -Name AddSQLServerRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $secureVMpwd, $deploymentMode, `
         $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+        Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRPTest.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
             -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd
