@@ -1443,7 +1443,7 @@ $azsLocation = (Get-AzsLocation).Name
 # This section now includes 4 key steps - Ubuntu Image, Windows Updates, Server Core Image and Server Full Image
 # They will execute serially or in parallel, depending on host capacity
 
-$scriptStep = "VMIMAGES"
+$scriptStep = "LAUNCHJOBS"
 # Get current free space on the drive used to hold the Azure Stack images
 Write-CustomVerbose -Message "Calculating free disk space on Cluster Shared Volume, to plan image upload concurrency"
 Start-Sleep 5
