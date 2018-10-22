@@ -2288,7 +2288,6 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
         Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
         Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
         Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
-        Set-AzureRmDefaultProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction SilentlyContinue
     }
     
     # Increment run counter to track successful run
