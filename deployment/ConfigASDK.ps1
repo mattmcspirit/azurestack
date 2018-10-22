@@ -1123,6 +1123,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
             Get-PSRepository -Name "PSGallery"
             Install-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
+            Import-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
+            Install-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop
             Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop
             Install-Module -Name AzureStack -RequiredVersion 1.4.0 -Force -ErrorAction Stop
         }
@@ -1408,7 +1410,6 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             # Import the registration module that was downloaded with the GitHub tools
             Import-Module $modulePath\Registration\RegisterWithAzure.psm1 -Force -Verbose
             #Register Azure Stack
-            $AzureContext = Get-AzureRmContext
             $asdkHostName = ($env:computername).ToLower()
             Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "asdkreg-$asdkHostName-$runTime" -BillingModel Development -ErrorAction Stop
             # Update the ConfigASDKProgressLog.csv file with successful completion
