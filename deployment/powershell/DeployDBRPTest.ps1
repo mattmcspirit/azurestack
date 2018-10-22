@@ -149,31 +149,33 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             
             # PowerShell 1.4.0 & AzureRM 2017-03-09-profile installation for current SQL RP
             if ($deploymentMode -eq "Online") {
-                try {
-                    $psRmProfle = Get-AzureRmProfile -ErrorAction Ignore | Where-Object {($_.ProfileName -eq "2017-03-09-profile")}
-                }
-                catch [System.Management.Automation.CommandNotFoundException] {
-                    $error.Clear()
-                }
-                if ($null -ne $psRmProfle) {
+                if (!$(Get-Module -Name AzureRM -ListAvailable | Where-Object {$_.Version -eq "1.2.11"})) {
                     # Install the old Azure Stack PS module and AzureRMProfile for database RP compatibility
-                    Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop -Verbose
+                    Import-Module -Name PowerShellGet -ErrorAction Stop
+                    Import-Module -Name PackageManagement -ErrorAction Stop
+                    Install-Module -Name AzureRM -RequiredVersion 1.2.11 -ErrorAction Stop -Verbose
+                    Import-Module -Name AzureRM -RequiredVersion 1.2.11 -ErrorAction Stop -Verbose
                 }
                 if (!$(Get-Module -Name AzureStack -ListAvailable | Where-Object {$_.Version -eq "1.4.0"})) {
                     # Install the old Azure Stack PS module and AzureRMProfile for database RP compatibility
+                    Import-Module -Name PowerShellGet -ErrorAction Stop
+                    Import-Module -Name PackageManagement -ErrorAction Stop
                     Install-Module -Name AzureStack -RequiredVersion 1.4.0 -ErrorAction Stop -Verbose
+                    Import-Module -Name AzureStack -RequiredVersion 1.4.0 -ErrorAction Stop -Verbose
                 }
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
+                Import-Module -Name PowerShellGet -ErrorAction Stop
+                Import-Module -Name PackageManagement -ErrorAction Stop
                 $SourceLocation = "$downloadPath\ASDK\PowerShell\1.4.0"
                 $RepoName = "MyNuGetSource"
                 Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
                 Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
                 Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
-                Set-AzureRmDefaultProfile -Profile '2017-03-09-profile' -Force -Verbose -ErrorAction SilentlyContinue
+                Import-Module -Name AzureRM -RequiredVersion 1.2.11 -ErrorAction Stop -Verbose
+                Install-Module -Name AzureStack -RequiredVersion 1.4.0 -ErrorAction Stop -Verbose
             }
-            Set-AzureRmDefaultProfile -Profile '2017-03-09-profile' -Force -Verbose -ErrorAction Stop
 
             ###################################################################################################################
             ###################################################################################################################
@@ -223,7 +225,12 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 Remove-Item "$asdkPath\databases\$dbrp" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 Remove-Item "$ASDKpath\databases\$($dbrp).zip" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 # Download and Expand the RP files
-                $rpURI = "https://aka.ms/azurestack$($rp)rp"
+                if ($dbrp -eq "MySQL") {
+                    $rpURI = "https://aka.ms/azurestack$($rp)rp1804"
+                }
+                else {
+                    $rpURI = "https://aka.ms/azurestacksqlrp1804"
+                }
                 $rpDownloadLocation = "$ASDKpath\databases\$($dbrp).zip"
                 DownloadWithRetry -downloadURI "$rpURI" -downloadLocation "$rpDownloadLocation" -retries 10
             }
@@ -235,6 +242,20 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             Set-Location "$ASDKpath\databases"
             Expand-Archive "$ASDKpath\databases\$($dbrp).zip" -DestinationPath .\$dbrp -Force -ErrorAction Stop
             Set-Location "$ASDKpath\databases\$($dbrp)"
+
+            # Replace MySQL/SQL RP Common File
+            if ($deploymentMode -eq "Online") {
+                # Grab from my GitHub and overwrite existing file
+                $commonPathUri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/powershell/Common.psm1"
+                DownloadWithRetry -downloadURI -downloadLocation "$asdkPath\databases\$dbrp\Prerequisites\Common\Common.psm1" -retries 10
+            }
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+                # Grab from offline ZIP path
+                $commonPathUri = Get-ChildItem -Path "$ASDKpath\databases\Common.psm1" -ErrorAction Stop | ForEach-Object { $_.FullName }
+                $commonTargetPath = "$asdkPath\databases\$dbrp\Prerequisites\Common\"
+                Copy-Item $commonPathUri -Destination $commonTargetPath -Force -Verbose
+            }
+
             if ($dbrp -eq "MySQL") {
                 if ($deploymentMode -eq "Online") {
                     .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
