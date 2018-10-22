@@ -1588,10 +1588,10 @@ JobLauncher -jobName $jobName -jobToExecute $AddVMExtensions -Verbose
 
 $jobName = "AddMySQLRP"
 $AddMySQLRP = {
-    Start-Job -Name AddMySQLRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $secureVMpwd, $deploymentMode, `
+    Start-Job -Name AddMySQLRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $secureVMpwd, $deploymentMode, `
         $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRPTest.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
+            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
             -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd
     } -Verbose -ErrorAction Stop
@@ -1600,10 +1600,10 @@ JobLauncher -jobName $jobName -jobToExecute $AddMySQLRP -Verbose
 
 $jobName = "AddSQLServerRP"
 $AddSQLServerRP = {
-    Start-Job -Name AddSQLServerRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $secureVMpwd, $deploymentMode, `
+    Start-Job -Name AddSQLServerRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $secureVMpwd, $deploymentMode, `
         $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRPTest.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
+            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
             -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
             -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd
     } -Verbose -ErrorAction Stop
