@@ -7,6 +7,9 @@ param (
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
+    [String] $downloadPath,
+
+    [Parameter(Mandatory = $true)]
     [String] $deploymentMode,
 
     [Parameter(Mandatory = $true)]
@@ -73,23 +76,13 @@ $progressName = $logFolder
 if ($dbrp -eq "MySQL") {
     $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
     $rp = "mysql"
-    if ($skipMySQL -eq $true) {
-        $skipRP = $true
-    }
-    else {
-        $skipRP = $false
-    }
 }
 elseif ($dbrp -eq "SQLServer") {
     $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
     $rp = "sql"
-    if ($skipMSSQL -eq $true) {
-        $skipRP = $true
-    }
-    else {
-        $skipRP = $false
-    }
 }
+if (($skipMySQL -eq $true) -or ($skipMSSQL -eq $true)) { $skipRP = $true }
+else { $skipRP = $false }
 
 ### SET LOG LOCATION ###
 $logDate = Get-Date -Format FileDate
@@ -127,11 +120,6 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress[$RowIndex].Status = "Incomplete"
                 $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
             }
-            # Install the old Azure Stack PS module and AzureRMProfile for database RP compatibility
-            Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop -Verbose
-            Install-Module -Name AzureStack -RequiredVersion 1.4.0 -ErrorAction Stop -Verbose
-            Set-AzureRmDefaultProfile -Profile '2017-03-09-profile' -Force -Verbose -ErrorAction SilentlyContinue
-
             # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
             $progress = Import-Csv -Path $ConfigASDKProgressLogPath
             $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
@@ -144,6 +132,51 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
             }
+            # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
+            if ($dbrp -eq "SQLServer") {
+                if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
+                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                    $mySQLProgressCheck = [array]::IndexOf($progress.Stage, "MySQLRP")
+                    if (($progress[$mySQLProgressCheck].Status -ne "Complete")) {
+                        Write-Verbose -Message "To avoid deployment conflicts with the MySQL RP, delaying the SQL Server RP deployment by 2 minutes"
+                        Start-Sleep -Seconds 120
+                    }
+                }
+            }
+
+            ###################################################################################################################
+            ###################################################################################################################
+            
+            # PowerShell 1.4.0 & AzureRM 2017-03-09-profile installation for current SQL RP
+            if ($deploymentMode -eq "Online") {
+                try {
+                    $psRmProfle = Get-AzureRmProfile -ErrorAction Ignore | Where-Object {($_.ProfileName -eq "2017-03-09-profile")}
+                }
+                catch [System.Management.Automation.CommandNotFoundException] {
+                    $error.Clear()
+                }
+                if ($null -ne $psRmProfle) {
+                    # Install the old Azure Stack PS module and AzureRMProfile for database RP compatibility
+                    Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop -Verbose
+                }
+                if (!$(Get-Module -Name AzureStack -ListAvailable | Where-Object {$_.Version -eq "1.4.0"})) {
+                    # Install the old Azure Stack PS module and AzureRMProfile for database RP compatibility
+                    Install-Module -Name AzureStack -RequiredVersion 1.4.0 -ErrorAction Stop -Verbose
+                }
+            }
+            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+                # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
+                $SourceLocation = "$downloadPath\ASDK\PowerShell\1.4.0"
+                $RepoName = "MyNuGetSource"
+                Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+                Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
+                Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
+                Set-AzureRmDefaultProfile -Profile '2017-03-09-profile' -Force -Verbose -ErrorAction SilentlyContinue
+            }
+            Set-AzureRmDefaultProfile -Profile '2017-03-09-profile' -Force -Verbose -ErrorAction Stop
+
+            ###################################################################################################################
+            ###################################################################################################################
 
             ### Login to Azure Stack ###
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
@@ -179,17 +212,6 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             Write-Verbose -Message "Delaying for a further 4 minutes to account for random failure with MySQL/SQL RP to detect platform image immediately after upload"
             Start-Sleep -Seconds 240
 
-            # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
-            if ($dbrp -eq "SQLServer") {
-                if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $mySQLProgressCheck = [array]::IndexOf($progress.Stage, "MySQLRP")
-                    if (($progress[$mySQLProgressCheck].Status -ne "Complete")) {
-                        Write-Verbose -Message "To avoid deployment conflicts with the MySQL RP, delaying the SQL Server RP deployment by 2 minutes"
-                        Start-Sleep -Seconds 120
-                    }
-                }
-            }
             # Login to Azure Stack
             Write-Verbose -Message "Downloading and installing $dbrp Resource Provider"
 
