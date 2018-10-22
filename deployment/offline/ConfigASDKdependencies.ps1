@@ -192,6 +192,16 @@ $logTime = $(Get-Date).ToString("MMdd-HHmmss")
 $logStart = Start-Transcript -Path "$downloadPath\ConfigASDKDependencyLog$logTime.txt" -Append
 Write-CustomVerbose -Message $logStart
 
+### Configure PowerShell ###############################################################################################################################
+########################################################################################################################################################
+
+Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
+Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
+Register-PsRepository -Default
+Get-PSRepository -Name "PSGallery"
+Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
+Get-PSRepository -Name "PSGallery"
+
 ### Create Folder Structure ############################################################################################################################
 ########################################################################################################################################################
 
