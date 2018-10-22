@@ -1134,7 +1134,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
             Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
             Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
-            Set-AzureRmDefaultProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction SilentlyContinue
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
         Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
@@ -1154,7 +1153,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
-    Set-AzureRmDefaultProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction SilentlyContinue
+    if ($deploymentMode -eq "Online") {
+        Set-AzureRmDefaultProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction SilentlyContinue
+    }
 }
 
 ### TEST ALL LOGINS #########################################################################################################################################
@@ -2291,10 +2292,8 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
         Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
         Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
         Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
-        Set-AzureRmDefaultProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction SilentlyContinue
     } #>
-    # Testing setting the default profile just in case setting it to the older profile for the DB RP installation overwrites the main default profile.
-    Set-AzureRmDefaultProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction SilentlyContinue
+
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     try {Invoke-WebRequest "http://bit.ly/asdksuccessrun" -UseBasicParsing -DisableKeepAlive | Out-Null } catch {$_.Exception.Response.StatusCode.Value__}
