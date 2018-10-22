@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1808.1
+Azure Stack Development Kit Configurator 1808.2
 ==============
 
 Version Compatibility
@@ -7,7 +7,9 @@ The current version of the ConfigASDK.ps1 script has been **tested with the foll
 * ASDK build **1.1808.0.97 (1808)**
 * Azure Stack PowerShell Module **1.4.0**
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1808, with Azure Stack PowerShell 1.4.0. Incompatibility with PowerShell 1.5.0 and the new AzureRMProfile 2018-03-01-hybrid, with the MySQL/SQL RP installation prevents the script from working fully. A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1808, with Azure Stack PowerShell 1.4.0. Incompatibility with PowerShell 1.5.0 and the new AzureRMProfile 2018-03-01-hybrid, with the MySQL/SQL RP installation prevents the script from working fully. When the new MySQL/SQL RPs are released, an updated version of the ConfigASDK will be released that will use the newer PowerShell modules for installation.
+
+A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
@@ -50,6 +52,10 @@ This includes:
 * Supports usage in offline/disconnected environments
 
 Additionally, if you encounter an issue, try re-running the script with the same command you used to run it previously. The script is written in such a way that it shouldn't try to rerun previously completed steps.
+
+New in 1808.2
+-----------
+The 1808.2 version of the ConfigASDK brings significant under-the-hood improvements to make the running of the ConfigASDK script *much* faster.
 
 Important Considerations
 ------------
@@ -163,7 +169,7 @@ In addition, you can choose to skip a particular resource provider deployment, s
 
 Post-Script Actions
 -------------------
-This script can take over 6 hours to finish, depending on your hardware and download speeds.
+This script can take many hours to finish, depending on your hardware and download speeds. There are no specific post-script actions to perform after the script has finished.
 
 ### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
