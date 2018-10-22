@@ -38,7 +38,10 @@ param (
     [String] $skipMySQL,
 
     [parameter(Mandatory = $false)]
-    [String] $skipMSSQL
+    [String] $skipMSSQL,
+
+    [parameter(Mandatory = $true)]
+    [String] $branch
 )
 
 $Global:VerbosePreference = "Continue"
@@ -147,34 +150,71 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             ###################################################################################################################
             ###################################################################################################################
             
-            # PowerShell 1.4.0 & AzureRM 2017-03-09-profile installation for current SQL RP
+            # PowerShell 1.4.0 & AzureRM 2017-03-09-profile installation for current SQL RP - just for this session
             if ($deploymentMode -eq "Online") {
                 if (!$(Get-Module -Name AzureRM -ListAvailable | Where-Object {$_.Version -eq "1.2.11"})) {
                     # Install the old Azure Stack PS module and AzureRMProfile for database RP compatibility
                     Import-Module -Name PowerShellGet -ErrorAction Stop
                     Import-Module -Name PackageManagement -ErrorAction Stop
+                    Remove-Module -Name AzureRM -Force -ErrorAction SilentlyContinue
+                    Remove-Module -Name AzureRM.Compute -Force -ErrorAction SilentlyContinue
+                    Remove-Module -Name AzureRM.Dns -Force -ErrorAction SilentlyContinue
+                    Remove-Module -Name AzureRM.KeyVault -Force -ErrorAction SilentlyContinue
+                    Remove-Module -Name AzureRM.Network -Force -ErrorAction SilentlyContinue
+                    Remove-Module -Name AzureRM.Profile -Force -ErrorAction SilentlyContinue
+                    Remove-Module -Name AzureRM.Resources -Force -ErrorAction SilentlyContinue
+                    Remove-Module -Name AzureRM.Storage -Force -ErrorAction SilentlyContinue
+                    Remove-Module -Name AzureRM.Tags -Force -ErrorAction SilentlyContinue
+                    Remove-Module -Name AzureRM.UsageAggregates -Force -ErrorAction SilentlyContinue
                     Install-Module -Name AzureRM -RequiredVersion 1.2.11 -ErrorAction Stop -Verbose
                     Import-Module -Name AzureRM -RequiredVersion 1.2.11 -ErrorAction Stop -Verbose
+                    Import-Module -Name AzureRM.Compute -RequiredVersion 1.2.3.4 -ErrorAction Stop -Verbose
+                    Import-Module -Name AzureRM.Dns -RequiredVersion 3.4.1  -ErrorAction Stop -Verbose
+                    Import-Module -Name AzureRM.Network -RequiredVersion 1.0.5.4  -ErrorAction Stop -Verbose
+                    Import-Module -Name AzureRM.Profile -RequiredVersion 3.4.1 -ErrorAction Stop -Verbose
+                    Import-Module -Name AzureRM.Resources -RequiredVersion 4.4.1 -ErrorAction Stop -Verbose
+                    Import-Module -Name AzureRM.Storage -RequiredVersion 1.0.5.4 -ErrorAction Stop -Verbose
+                    Import-Module -Name AzureRM.Tags -RequiredVersion 3.4.1 -ErrorAction Stop -Verbose
+                    Import-Module -Name AzureRM.UsageAggregates -RequiredVersion 3.4.1 -ErrorAction Stop -Verbose
                 }
                 if (!$(Get-Module -Name AzureStack -ListAvailable | Where-Object {$_.Version -eq "1.4.0"})) {
                     # Install the old Azure Stack PS module and AzureRMProfile for database RP compatibility
-                    Import-Module -Name PowerShellGet -ErrorAction Stop
-                    Import-Module -Name PackageManagement -ErrorAction Stop
+                    Import-Module -Name PowerShellGet -ErrorAction Stop -Verbose
+                    Import-Module -Name PackageManagement -ErrorAction Stop -Verbose
+                    Import-Module -Name AzureRM.Bootstrapper -ErrorAction Stop -Verbose
                     Install-Module -Name AzureStack -RequiredVersion 1.4.0 -ErrorAction Stop -Verbose
                     Import-Module -Name AzureStack -RequiredVersion 1.4.0 -ErrorAction Stop -Verbose
                 }
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
-                Import-Module -Name PowerShellGet -ErrorAction Stop
-                Import-Module -Name PackageManagement -ErrorAction Stop
+                Import-Module -Name PowerShellGet -ErrorAction Stop -Verbose
+                Import-Module -Name PackageManagement -ErrorAction Stop -Verbose
                 $SourceLocation = "$downloadPath\ASDK\PowerShell\1.4.0"
-                $RepoName = "MyNuGetSource"
+                $RepoName = "AzureStackOfflineRepo1.4.0"
                 Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+                Remove-Module -Name AzureRM -Force -ErrorAction SilentlyContinue
+                Remove-Module -Name AzureRM.Compute -Force -ErrorAction SilentlyContinue
+                Remove-Module -Name AzureRM.Dns -Force -ErrorAction SilentlyContinue
+                Remove-Module -Name AzureRM.KeyVault -Force -ErrorAction SilentlyContinue
+                Remove-Module -Name AzureRM.Network -Force -ErrorAction SilentlyContinue
+                Remove-Module -Name AzureRM.Profile -Force -ErrorAction SilentlyContinue
+                Remove-Module -Name AzureRM.Resources -Force -ErrorAction SilentlyContinue
+                Remove-Module -Name AzureRM.Storage -Force -ErrorAction SilentlyContinue
+                Remove-Module -Name AzureRM.Tags -Force -ErrorAction SilentlyContinue
+                Remove-Module -Name AzureRM.UsageAggregates -Force -ErrorAction SilentlyContinue
                 Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
-                Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
                 Import-Module -Name AzureRM -RequiredVersion 1.2.11 -ErrorAction Stop -Verbose
-                Install-Module -Name AzureStack -RequiredVersion 1.4.0 -ErrorAction Stop -Verbose
+                Import-Module -Name AzureRM.Compute -RequiredVersion 1.2.3.4 -ErrorAction Stop -Verbose
+                Import-Module -Name AzureRM.Dns -RequiredVersion 3.4.1  -ErrorAction Stop -Verbose
+                Import-Module -Name AzureRM.Network -RequiredVersion 1.0.5.4  -ErrorAction Stop -Verbose
+                Import-Module -Name AzureRM.Profile -RequiredVersion 3.4.1 -ErrorAction Stop -Verbose
+                Import-Module -Name AzureRM.Resources -RequiredVersion 4.4.1 -ErrorAction Stop -Verbose
+                Import-Module -Name AzureRM.Storage -RequiredVersion 1.0.5.4 -ErrorAction Stop -Verbose
+                Import-Module -Name AzureRM.Tags -RequiredVersion 3.4.1 -ErrorAction Stop -Verbose
+                Import-Module -Name AzureRM.UsageAggregates -RequiredVersion 3.4.1 -ErrorAction Stop -Verbose
+                Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
+                Import-Module -Name AzureStack -RequiredVersion 1.4.0 -ErrorAction Stop -Verbose
             }
 
             ###################################################################################################################
@@ -270,9 +310,6 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             elseif ($dbrp -eq "SQLServer") {
                 .\DeploySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd
             }
-
-            # Testing setting the default profile just in case setting it to the older profile for the DB RP installation overwrites the main default profile.
-            Set-AzureRmDefaultProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction SilentlyContinue
 
             # Update the ConfigASDKProgressLog.csv file with successful completion
             Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"

@@ -1129,8 +1129,8 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         }
         elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
-            $SourceLocation = "$downloadPath\ASDK\PowerShell\1.4.0"
-            $RepoName = "MyNuGetSource"
+            $SourceLocation = "$downloadPath\ASDK\PowerShell\1.5.0"
+            $RepoName = "AzureStackOfflineRepo1.5.0"
             Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
             Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
             Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
@@ -1584,17 +1584,17 @@ $AddVMExtensions = {
 }
 JobLauncher -jobName $jobName -jobToExecute $AddVMExtensions -Verbose
 
-### ADD DB RPS - JOB SETUP ###################################################################################################################################
+<### ADD DB RPS - JOB SETUP ###################################################################################################################################
 ##############################################################################################################################################################
 
 $jobName = "AddMySQLRP"
 $AddMySQLRP = {
     Start-Job -Name AddMySQLRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $secureVMpwd, $deploymentMode, `
-        $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
+        $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds, $branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRPTest.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
             -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -branch $Using:branch
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddMySQLRP -Verbose
@@ -1602,11 +1602,11 @@ JobLauncher -jobName $jobName -jobToExecute $AddMySQLRP -Verbose
 $jobName = "AddSQLServerRP"
 $AddSQLServerRP = {
     Start-Job -Name AddSQLServerRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $secureVMpwd, $deploymentMode, `
-        $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
+        $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds, branch -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRPTest.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
             -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -branch $Using:branch
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddSQLServerRP -Verbose
@@ -1761,11 +1761,13 @@ $DeployAppService = {
 JobLauncher -jobName $jobName -jobToExecute $DeployAppService -Verbose
 
 ### JOB LAUNCHER & TRACKER ###################################################################################################################################
-##############################################################################################################################################################
+##############################################################################################################################################################>
 
 # Get all the running jobs
 Set-Location $ScriptLocation
 .\Scripts\GetJobStatus.ps1
+
+BREAK
 
 #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
 ##############################################################################################################################################################
