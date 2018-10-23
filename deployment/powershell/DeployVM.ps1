@@ -122,11 +122,11 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 while (($progress[$ubuntuImageJobCheck].Status -ne "Complete")) {
                     Write-Verbose -Message "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
+                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                    $ubuntuImageJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
                     if ($progress[$ubuntuImageJobCheck].Status -eq "Failed") {
                         throw "The UbuntuServerImage stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                     }
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $ubuntuImageJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
                 }
             }
             elseif ($vmType -eq "AppServiceFS") {
@@ -135,11 +135,11 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 while (($progress[$serverFullJobCheck].Status -ne "Complete")) {
                     Write-Verbose -Message "The ServerFullImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
+                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                    $serverFullJobCheck = [array]::IndexOf($progress.Stage, "ServerFullImage")
                     if ($progress[$serverFullJobCheck].Status -eq "Failed") {
                         throw "The ServerFullImage stage of the process has failed. This should fully complete before the File Server can be deployed. Check the ServerFullImage log, ensure that step is completed first, and rerun."
                     }
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $serverFullJobCheck = [array]::IndexOf($progress.Stage, "ServerFullImage")
                 }
             }
             # Need to ensure this stage doesn't start before the Ubuntu Server images have been put into the PIR
@@ -150,11 +150,11 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 while (($progress[$MySQLGalleryItemJobCheck].Status -ne "Complete")) {
                     Write-Verbose -Message "The MySQLGalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
+                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                    $MySQLGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
                     if ($progress[$MySQLGalleryItemJobCheck].Status -eq "Failed") {
                         throw "The MySQLGalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the MySQLGalleryItem log, ensure that step is completed first, and rerun."
                     }
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $MySQLGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
                 }
             }
             elseif (($vmType -eq "SQLServer") -or ($vmType -eq "AppServiceDB")) {
@@ -164,11 +164,11 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 while (($progress[$SQLServerGalleryItemJobCheck].Status -ne "Complete")) {
                     Write-Verbose -Message "The SQLServerGalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
+                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                    $SQLServerGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
                     if ($progress[$SQLServerGalleryItemJobCheck].Status -eq "Failed") {
                         throw "The SQLServerGalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the SQLServerGalleryItem log, ensure that step is completed first, and rerun."
                     }
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $SQLServerGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
                 }
             }
             # Need to check if the UploadScripts stage has finished (for an partial/offline deployment)
@@ -178,14 +178,14 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 while ($progress[$uploadScriptsJobCheck].Status -ne "Complete") {
                     Write-Verbose -Message "The UploadScripts stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
+                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                    $uploadScriptsJobCheck = [array]::IndexOf($progress.Stage, "UploadScripts")
                     if ($progress[$uploadScriptsJobCheck].Status -eq "Skipped") {
                         return "The UploadScripts stage of the process has been skipped."
                     }
                     if ($progress[$uploadScriptsJobCheck].Status -eq "Failed") {
                         throw "The UploadScripts stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the UploadScripts log, ensure that step is completed first, and rerun."
                     }
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $uploadScriptsJobCheck = [array]::IndexOf($progress.Stage, "UploadScripts")
                 }
             }
             # Need to confirm that both DB Hosting VM deployments don't operate at exactly the same time, or there may be a conflict with creating the resource groups and other resources at the start of the deployment
@@ -263,12 +263,12 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 Write-Verbose -Message "Creating a dedicated File Server on Windows Server 2016 for the App Service"
                 if ($deploymentMode -eq "Online") {
                     New-AzureRmResourceGroupDeployment -Name "DeployAppServiceFileServer" -ResourceGroupName $rg -vmName "fileserver" -TemplateUri $mainTemplateURI `
-                    -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
+                        -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
                 }
                 elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                New-AzureRmResourceGroupDeployment -Name "DeployAppServiceFileServer" -ResourceGroupName $rg -vmName "fileserver" -TemplateUri $mainTemplateURI `
-                    -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd `
-                    -vmExtensionScriptLocation $scriptBaseURI -Mode Incremental -Verbose -ErrorAction Stop
+                    New-AzureRmResourceGroupDeployment -Name "DeployAppServiceFileServer" -ResourceGroupName $rg -vmName "fileserver" -TemplateUri $mainTemplateURI `
+                        -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd `
+                        -vmExtensionScriptLocation $scriptBaseURI -Mode Incremental -Verbose -ErrorAction Stop
                 }
             }
             elseif ($vmType -eq "AppServiceDB") {

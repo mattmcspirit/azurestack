@@ -181,11 +181,11 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             while (($progress[$windowsUpdateCheck].Status -ne "Complete")) {
                 Write-Verbose -Message "The WindowsUpdates stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $windowsUpdateCheck = [array]::IndexOf($progress.Stage, "WindowsUpdates")        
                 if ($progress[$windowsUpdateCheck].Status -eq "Failed") {
                     throw "The WindowsUpdates stage of the process has failed. This is required before the Windows Server images can be created. Check the WindowsUpdates log, ensure that step is completed first, and rerun."
-                }
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $windowsUpdateCheck = [array]::IndexOf($progress.Stage, "WindowsUpdates")                
+                }        
             }
         }
         # Need to confirm if the Ubuntu Server Image stage has completed (for partialParallel and serial deployments)
@@ -196,11 +196,11 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 while (($progress[$ubuntuJobCheck].Status -ne "Complete")) {
                     Write-Verbose -Message "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
+                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                    $ubuntuJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
                     if ($progress[$ubuntuJobCheck].Status -eq "Failed") {
                         throw "The UbuntuServerImage stage of the process has failed. This should fully complete before the Windows Server images are to be created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                     }
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $ubuntuJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
                 }
             }
         }
@@ -213,11 +213,11 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 while (($progress[$ubuntuJobCheck].Status -ne "Complete")) {
                     Write-Verbose -Message "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
+                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                    $ubuntuJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
                     if ($progress[$ubuntuJobCheck].Status -eq "Failed") {
                         throw "The UbuntuServerImage stage of the process has failed. This should fully complete before the Windows Server images are to be created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                     }
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $ubuntuJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
                 }
             }
             elseif ($runMode -eq "serial") {
@@ -226,11 +226,11 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 while (($progress[$serverCoreJobCheck].Status -ne "Complete")) {
                     Write-Verbose -Message "The ServerCoreImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
+                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                    $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
                     if ($progress[$serverCoreJobCheck].Status -eq "Failed") {
                         throw "The ServerCoreImage stage of the process has failed. This should fully complete before the Windows Server full image is created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                     }
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
                 }
             }
         }
@@ -630,13 +630,13 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 return
             }
         }
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+        # Update the ConfigASDKProgressLog.csv file with successful completion
+        Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+        $progress[$RowIndex].Status = "Complete"
+        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        Write-Output $progress | Out-Host
     }
     catch {
         $progress = Import-Csv -Path $ConfigASDKProgressLogPath

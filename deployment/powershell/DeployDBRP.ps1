@@ -123,11 +123,11 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             while (($progress[$serverCoreJobCheck].Status -ne "Complete")) {
                 Write-Verbose -Message "The ServerCoreImage stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
                 if ($progress[$serverCoreJobCheck].Status -eq "Failed") {
                     throw "The ServerCoreImage stage of the process has failed. This should fully complete before the Windows Server full image is created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                 }
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
             }
 
             ### Login to Azure Stack ###

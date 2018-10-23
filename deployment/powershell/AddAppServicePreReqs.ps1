@@ -92,11 +92,11 @@ elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Comp
             while (($progress[$appServiceDownloadJobCheck].Status -ne "Complete")) {
                 Write-Verbose -Message "The DownloadAppService stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $appServiceDownloadJobCheck = [array]::IndexOf($progress.Stage, "DownloadAppService")
                 if ($progress[$appServiceDownloadJobCheck].Status -eq "Failed") {
                     throw "The DownloadAppService stage of the process has failed. This should fully complete before the App Service PreReqs can be started. Check the DownloadAppService log, ensure that step is completed first, and rerun."
                 }
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $appServiceDownloadJobCheck = [array]::IndexOf($progress.Stage, "DownloadAppService")
             }
 
             #### Certificates ####

@@ -92,11 +92,11 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             while (($progress[$dbSkuJobCheck].Status -ne "Complete")) {
                 Write-Verbose -Message "The $($dbHost)SKUQuota stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $dbSkuJobCheck = [array]::IndexOf($progress.Stage, "$($dbHost)SKUQuota")
                 if ($progress[$dbSkuJobCheck].Status -eq "Failed") {
                     throw "The $($dbHost)SKUQuota stage of the process has failed. This should fully complete before the $dbHost database host has been deployed. Check the $($dbHost)SKUQuota log, ensure that step is completed first, and rerun."
                 }
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $dbSkuJobCheck = [array]::IndexOf($progress.Stage, "$($dbHost)SKUQuota")
             }
             # Need to ensure this stage doesn't start before the database host has finished deployment
             $progress = Import-Csv -Path $ConfigASDKProgressLogPath
@@ -104,11 +104,11 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             while (($progress[$dbHostJobCheck].Status -ne "Complete")) {
                 Write-Verbose -Message "The $($dbHost)DBVM stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $dbHostJobCheck = [array]::IndexOf($progress.Stage, "$($dbHost)DBVM")
                 if ($progress[$dbHostJobCheck].Status -eq "Failed") {
                     throw "The $($dbHost)DBVM stage of the process has failed. This should fully complete before the $dbHost database host has been deployed. Check the $($dbHost)DBVM log, ensure that step is completed first, and rerun."
                 }
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $dbHostJobCheck = [array]::IndexOf($progress.Stage, "$($dbHost)DBVM")
             }
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
@@ -132,11 +132,11 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             while (($progress[$addHostingJobCheck].Status -ne "Complete")) {
                 Write-Verbose -Message "The $hostingJobCheck stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
+                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+                $addHostingJobCheck = [array]::IndexOf($progress.Stage, "$hostingJobCheck")
                 if ($progress[$addHostingJobCheck].Status -eq "Failed") {
                     throw "The $hostingJobCheck stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the $hostingJobCheck log, ensure that step is completed first, and rerun."
                 }
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $addHostingJobCheck = [array]::IndexOf($progress.Stage, "$hostingJobCheck")
             }
             # Add host server to MySQL RP
             Write-Verbose -Message "Attaching $dbHost hosting server to $dbHost resource provider"
