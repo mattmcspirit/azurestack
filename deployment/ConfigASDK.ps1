@@ -369,6 +369,7 @@ try {
     elseif (($authenticationType.ToString() -like "ADFS") -and !$validOnlineInstall -and $configAsdkOfflineZipPath) {
         $deploymentMode = "Offline"
         $skipCustomizeHost = $true
+        throw "Due to issues with PowerShell, offline mode is not currently supported in this release."
     }
     elseif (($authenticationType.ToString() -like "ADFS") -and !$validOnlineInstall -and !$configAsdkOfflineZipPath) {
         $exception = "ADFS is your selected authentication model, but you failed internet connectivity tests and didn't provide an offline zip path."
@@ -1123,8 +1124,6 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
             Get-PSRepository -Name "PSGallery"
             Install-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
-            Import-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
-            Install-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop
             Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop
             Install-Module -Name AzureStack -RequiredVersion 1.4.0 -Force -ErrorAction Stop
         }
