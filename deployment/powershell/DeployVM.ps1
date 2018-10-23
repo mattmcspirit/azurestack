@@ -280,7 +280,7 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                     # Need to grab module from the ConfigASDKfiles.zip
                     $SourceLocation = "$downloadPath\ASDK\PowerShell"
-                    $RepoName = "MyNuGetSource"
+                    $RepoName = "SQLServerRepo"
                     if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
                         Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
                     }                
