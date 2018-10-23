@@ -394,7 +394,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Write-Verbose "VHD path = $imageURI"
             }
             else {
-                "There is no suitable $blobName image within your Storage Account. We'll need to upload a new one."
+                Write-Verbose "There is no suitable $blobName image within your Storage Account. We'll need to upload a new one."
                 $validDownloadPathVHD = [System.IO.File]::Exists("$csvImagePath\Images\$image\$blobName")
                 Write-Verbose "Checking for a local copy first..."
                 # If there's no local VHD, create one.
