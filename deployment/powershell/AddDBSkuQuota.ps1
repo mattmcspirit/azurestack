@@ -81,8 +81,8 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             $progress = Import-Csv -Path $ConfigASDKProgressLogPath
             $dbJobCheck = [array]::IndexOf($progress.Stage, "$($dbsku)RP")
             while (($progress[$dbJobCheck].Status -ne "Complete")) {
-                Write-Verbose -Message "The $($dbsku)RP stage of the process has not yet completed. Checking again in 10 seconds"
-                Start-Sleep -Seconds 10
+                Write-Verbose -Message "The $($dbsku)RP stage of the process has not yet completed. Checking again in 20 seconds"
+                Start-Sleep -Seconds 20
                 if ($progress[$dbJobCheck].Status -eq "Failed") {
                     throw "The $($dbsku)RP stage of the process has failed. This should fully complete before the SKU and Quota are created. Check the $($dbsku)RP log, ensure that step is completed first, and rerun."
                 }

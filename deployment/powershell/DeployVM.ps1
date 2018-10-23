@@ -120,8 +120,8 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $ubuntuImageJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
                 while (($progress[$ubuntuImageJobCheck].Status -ne "Complete")) {
-                    Write-Verbose -Message "The UbuntuServerImage stage of the process has not yet completed. Checking again in 10 seconds"
-                    Start-Sleep -Seconds 10
+                    Write-Verbose -Message "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
+                    Start-Sleep -Seconds 20
                     if ($progress[$ubuntuImageJobCheck].Status -eq "Failed") {
                         throw "The UbuntuServerImage stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                     }
@@ -133,8 +133,8 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $serverFullJobCheck = [array]::IndexOf($progress.Stage, "ServerFullImage")
                 while (($progress[$serverFullJobCheck].Status -ne "Complete")) {
-                    Write-Verbose -Message "The ServerFullImage stage of the process has not yet completed. Checking again in 10 seconds"
-                    Start-Sleep -Seconds 10
+                    Write-Verbose -Message "The ServerFullImage stage of the process has not yet completed. Checking again in 20 seconds"
+                    Start-Sleep -Seconds 20
                     if ($progress[$serverFullJobCheck].Status -eq "Failed") {
                         throw "The ServerFullImage stage of the process has failed. This should fully complete before the File Server can be deployed. Check the ServerFullImage log, ensure that step is completed first, and rerun."
                     }
@@ -148,8 +148,8 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $MySQLGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
                 while (($progress[$MySQLGalleryItemJobCheck].Status -ne "Complete")) {
-                    Write-Verbose -Message "The MySQLGalleryItem stage of the process has not yet completed. Checking again in 10 seconds"
-                    Start-Sleep -Seconds 10
+                    Write-Verbose -Message "The MySQLGalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
+                    Start-Sleep -Seconds 20
                     if ($progress[$MySQLGalleryItemJobCheck].Status -eq "Failed") {
                         throw "The MySQLGalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the MySQLGalleryItem log, ensure that step is completed first, and rerun."
                     }
@@ -162,8 +162,8 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $SQLServerGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
                 while (($progress[$SQLServerGalleryItemJobCheck].Status -ne "Complete")) {
-                    Write-Verbose -Message "The SQLServerGalleryItem stage of the process has not yet completed. Checking again in 10 seconds"
-                    Start-Sleep -Seconds 10
+                    Write-Verbose -Message "The SQLServerGalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
+                    Start-Sleep -Seconds 20
                     if ($progress[$SQLServerGalleryItemJobCheck].Status -eq "Failed") {
                         throw "The SQLServerGalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the SQLServerGalleryItem log, ensure that step is completed first, and rerun."
                     }
@@ -176,8 +176,8 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $uploadScriptsJobCheck = [array]::IndexOf($progress.Stage, "UploadScripts")
                 while ($progress[$uploadScriptsJobCheck].Status -ne "Complete") {
-                    Write-Verbose -Message "The UploadScripts stage of the process has not yet completed. Checking again in 10 seconds"
-                    Start-Sleep -Seconds 10
+                    Write-Verbose -Message "The UploadScripts stage of the process has not yet completed. Checking again in 20 seconds"
+                    Start-Sleep -Seconds 20
                     if ($progress[$uploadScriptsJobCheck].Status -eq "Skipped") {
                         return "The UploadScripts stage of the process has been skipped."
                     }
