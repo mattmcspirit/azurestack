@@ -118,13 +118,13 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             }
         }
         catch {
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress = Import-Csv -Path $ConfigASDKProgressLogPath
             $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
             Write-Output $progress | Out-Host
             Set-Location $ScriptLocation
+            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             throw $_.Exception.Message
             return
         }

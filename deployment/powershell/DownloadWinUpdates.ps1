@@ -65,7 +65,8 @@ $fullLogPath = "$logPath\WindowsUpdates$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 
 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "WindowsUpdates")
+$progressName = "WindowsUpdates"
+$RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
 
 if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
     try {
@@ -227,13 +228,14 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress | Out-Host
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Output $progress | Out-Host
-        throw "$_.Exception.Message"
         Set-Location $ScriptLocation
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+        throw $_.Exception.Message
         return
     }
 }

@@ -143,7 +143,8 @@ $fullLogPath = "$logPath\$($image)$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 
 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "$($image)Image")
+$progressName = "$($image)Image"
+$RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
 
 # Set Storage Variables
 $asdkImagesRGName = "azurestack-images"
@@ -629,20 +630,22 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 return
             }
         }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+            # Update the ConfigASDKProgressLog.csv file with successful completion
+            Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
+            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+            $progress[$RowIndex].Status = "Complete"
+            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            Write-Output $progress | Out-Host
     }
     catch {
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress = Import-Csv -Path $ConfigASDKProgressLogPath
+        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Output $progress | Out-Host
         Set-Location $ScriptLocation
+        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         throw $_.Exception.Message
         return
     }
