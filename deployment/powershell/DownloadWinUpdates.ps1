@@ -91,7 +91,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $platformImageCore = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverCoreVMImageAlreadyAvailable = $false
 
-        if ($null -ne $platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
+        if ($platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
             Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverCoreVMImageAlreadyAvailable = $true
         }
@@ -102,7 +102,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $platformImageFull = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
         $serverFullVMImageAlreadyAvailable = $false
 
-        if ($null -ne $platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
+        if ($platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
             Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverFullVMImageAlreadyAvailable = $true
         }
@@ -151,7 +151,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                     $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
 
                     # If innerHTML is empty or does not exist, use outerHTML instead
-                    if ($null -eq $servicingKbIDs) {
+                    if (!$servicingKbIDs) {
                         $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
                     }
                 }
@@ -168,7 +168,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
 
                 # If innerHTML is empty or does not exist, use outerHTML instead
-                if ($null -eq $kbIDs) {
+                if (!$kbIDs) {
                     $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
                 }
             

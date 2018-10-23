@@ -153,34 +153,34 @@ elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Comp
 
             Write-Verbose -Message "Checking variables are present before creating JSON"
             # Check Variables #
-            if (($authenticationType.ToString() -like "AzureAd") -and ($null -ne $azureDirectoryTenantName)) {
+            if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName)) {
                 Write-Verbose -Message "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
             }
             elseif ($authenticationType.ToString() -like "ADFS") {
                 Write-Verbose -Message "ADFS deployment, no need for Azure Directory Tenant Name"
             }
-            elseif (($authenticationType.ToString() -like "AzureAd") -and ($null -eq $azureDirectoryTenantName)) {
+            elseif (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName)) {
                 throw "Missing Azure Directory Tenant Name - Exiting process"
             }
-            if ($null -ne $fileServerFqdn) { 
+            if ($fileServerFqdn) { 
                 Write-Verbose -Message "File Server FQDN is present: $fileServerFqdn"
             }
             else {
                 throw "Missing File Server FQDN - Exiting process"
             }
-            if ($null -ne $VMpwd) {
+            if ($VMpwd) {
                 Write-Verbose -Message "Virtual Machine password is present: $VMpwd"
             }
             else {
                 throw "Missing Virtual Machine password - Exiting process"
             }
-            if ($null -ne $sqlAppServerFqdn) {
+            if ($sqlAppServerFqdn) {
                 Write-Verbose -Message "SQL Server FQDN is present: $sqlAppServerFqdn"
             }
             else {
                 throw "Missing SQL Server FQDN - Exiting process"
             }
-            if ($null -ne $identityApplicationID) {
+            if ($identityApplicationID) {
                 Write-Verbose -Message "Identity Application ID present: $identityApplicationID"
             }
             else {
