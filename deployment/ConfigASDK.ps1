@@ -1114,7 +1114,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Uninstall-Module AzureRM.AzureStackStorage -Force -ErrorAction SilentlyContinue
         Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue
         Get-Module Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
-        if ($deploymentMode -eq "Online") {
+        if (($deploymentMode -eq "Online") -or ($deploymentMode -eq "PartialOnline")) {
             # If this is an online deployment, pull down the PowerShell modules from the Internet
             Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
             Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
@@ -1128,7 +1128,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Use-AzureRmProfile -Profile 2017-03-09-profile -Force -ErrorAction Stop
             Install-Module -Name AzureStack -RequiredVersion 1.4.0 -Force -ErrorAction Stop
         }
-        elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+        elseif ($deploymentMode -eq "Offline") {
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
             $SourceLocation = "$downloadPath\ASDK\PowerShell\1.4.0"
             $RepoName = "MyNuGetSource"
@@ -2269,20 +2269,20 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     $asdkImagesRGName = "azurestack-images"
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
 
-    # Installing newest version of PowerShell - this section is only required while the ConfigASDK requires 1.4.0 / 2017-03-09-profile to install correctly
-    if ($deploymentMode -eq "Online") {
+    <# Installing newest version of PowerShell - this section is only required while the ConfigASDK requires 1.4.0 / 2017-03-09-profile to install correctly
+    if (($deploymentMode -eq "Online") -or ($deploymentMode -eq "PartialOnline")) {
         Install-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction Stop
         Install-Module AzureStack -RequiredVersion 1.5.0 -Force -Verbose -ErrorAction Stop
         Set-AzureRmDefaultProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction Stop
     }
-    elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+    elseif (($deploymentMode -eq "Offline") {
         # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
         $SourceLocation = "$downloadPath\ASDK\PowerShell\1.5.0"
         $RepoName = "MyNuGetSource"
         Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
         Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
         Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
-    }
+    }#>
     
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
