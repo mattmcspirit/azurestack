@@ -56,6 +56,8 @@ dpkg -i mssql-gdb.deb
 sleep 3
 dpkg -i mssql-libcurl3.deb
 sleep 3
+dpkg -i mssql-libsasl2.deb
+sleep 3
 dpkg -i mssql-server.deb
 
 echo Running mssql-conf setup...
