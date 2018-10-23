@@ -1172,7 +1172,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
         ### TEST AZURE LOGIN - Login to Azure Cloud
         Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r`n"
         $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-        Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
         $testAzureSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Subscription is:`r`n`r`n"
         Write-Output $testAzureSub
@@ -1220,7 +1220,7 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
     try {
         ### OPTIONAL - TEST AZURE REGISTRATION CREDS
         Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory`r`n"
-        Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+        Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
         $testAzureRegSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:`r`n`r`n"
         Write-Output $testAzureRegSub
