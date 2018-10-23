@@ -175,9 +175,12 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             if (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $progress = Import-Csv -Path $ConfigASDKProgressLogPath
                 $uploadScriptsJobCheck = [array]::IndexOf($progress.Stage, "UploadScripts")
-                while (($progress[$uploadScriptsJobCheck].Status -ne "Complete") -or ($progress[$uploadScriptsJobCheck].Status -ne "Skipped")) {
+                while ($progress[$uploadScriptsJobCheck].Status -ne "Complete") {
                     Write-Verbose -Message "The UploadScripts stage of the process has not yet completed. Checking again in 10 seconds"
                     Start-Sleep -Seconds 10
+                    if ($progress[$uploadScriptsJobCheck].Status -eq "Skipped") {
+                        return "The UploadScripts stage of the process has been skipped."
+                    }
                     if ($progress[$uploadScriptsJobCheck].Status -eq "Failed") {
                         throw "The UploadScripts stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the UploadScripts log, ensure that step is completed first, and rerun."
                     }
