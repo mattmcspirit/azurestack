@@ -427,7 +427,7 @@ catch {
 # Validate Github branch exists - usually reserved for testing purposes
 if ($deploymentMode -eq "Online") {
     try {
-        if ($null -eq $branch) {
+        if (!$branch) {
             $branch = "master"
         }
         $urlToTest = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/README.md"
@@ -1021,7 +1021,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         $psRepositoryInstallPolicy = "Trusted"
         $psRepositorySourceLocation = "https://www.powershellgallery.com/api/v2"
         $psRepository = Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}
-        if ($null -ne $psRepository) {
+        if ($psRepository) {
             $cleanupRequired = $true
         }
         try {
@@ -1030,14 +1030,14 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         catch [System.Management.Automation.CommandNotFoundException] {
             $error.Clear()
         }
-        if ($null -ne $psRmProfle) {
+        if ($psRmProfle) {
             $cleanupRequired = $true
         }
         $psAzureStackAdminModuleCheck = Get-Module -Name AzureRM.AzureStackAdmin -ListAvailable
         $psAzureStackStorageModuleCheck = Get-Module -Name AzureRM.AzureStackStorage -ListAvailable
         $psAzureStackModuleCheck = Get-Module -Name AzureStack -ListAvailable
         $psAzsModuleCheck = Get-Module -Name Azs.* -ListAvailable
-        if (($null -ne $psAzureStackAdminModuleCheck) -or ($null -ne $psAzureStackStorageModuleCheck) -or ($null -ne $psAzureStackModuleCheck) -or ($null -ne $psAzsModuleCheck) ) {
+        if (($psAzureStackAdminModuleCheck) -or ($psAzureStackStorageModuleCheck) -or ($psAzureStackModuleCheck) -or ($psAzsModuleCheck) ) {
             $cleanupRequired = $true
         }
 
@@ -1063,7 +1063,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction SilentlyContinue
             Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue
             Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
-            if ($null -ne $psRepository) {
+            if ($psRepository) {
                 Get-PSRepository -Name "PSGallery" | Unregister-PSRepository -ErrorAction SilentlyContinue
             }
             Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azure* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -1999,7 +1999,7 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
             Write-CustomVerbose -Message "Retrieving Azure Stack Root Authority certificate..." -Verbose
             $label = "AzureStackSelfSignedRootCert"
             $cert = Get-ChildItem Cert:\CurrentUser\Root | Where-Object Subject -eq "CN=$label" -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($cert -ne $null) {
+            if ($cert) {
                 try {
                     New-Item -Path "$env:userprofile\desktop\Certs" -ItemType Directory -Force | Out-Null
                     $certFileName = "$env:computername" + "-CA.cer"
