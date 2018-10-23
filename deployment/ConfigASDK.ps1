@@ -1132,10 +1132,10 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
             $SourceLocation = "$downloadPath\ASDK\PowerShell\1.4.0"
             $RepoName = "MyNuGetSource"
+            Unregister-PSRepository -Name $RepoName -ErrorAction SilentlyContinue
             Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
-            Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
+            #Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
             Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
-            Get-Module -Name Azure* -ListAvailable | Import-Module -Force -Verbose -ErrorAction Stop
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
         Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
