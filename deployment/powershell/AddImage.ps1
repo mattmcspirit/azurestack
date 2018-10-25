@@ -1,9 +1,6 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ConfigASDKProgressLogPath,
-
-    [Parameter(Mandatory = $true)]
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
@@ -48,14 +45,23 @@ param (
     [String] $runMode,
 
     [Parameter(Mandatory = $true)]
-    [String] $branch
+    [String] $branch,
+
+    [Parameter(Mandatory = $true)]
+    [String] $sqlServerInstance,
+
+    [Parameter(Mandatory = $true)]
+    [String] $databaseName,
+
+    [Parameter(Mandatory = $true)]
+    [String] $tableName
 )
 
 $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
-### DOWNLOADER FUNCTION #####################################################################################################################################
+<### DOWNLOADER FUNCTION #####################################################################################################################################
 #############################################################################################################################################################
 function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
     while ($true) {
@@ -118,12 +124,13 @@ function Add-OfflineAZPKG {
                 }
             }
         }
-        $azpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $azpkgFileName
+        $azpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkImagesContainerName, $azpkgFileName
         Write-Verbose "Uploading $azpkgFileName from $azpkgURI"
         return [string]$azpkgURI
     }
     end {}
 }
+#>
 
 if ($image -eq "UbuntuServer") {
     $logFolder = "UbuntuServer"
@@ -142,9 +149,8 @@ $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($image)$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$progressName = "$($image)Image"
-$RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+$progressStage = "$($image)Image"
+CheckProgress -progressStage $progressStage
 
 # Set Storage Variables
 $asdkImagesRGName = "azurestack-images"
@@ -165,25 +171,19 @@ if (!$([System.IO.Directory]::Exists("$csvImagePath\Images\$image"))) {
     New-Item -Path "$csvImagePath\Images\$image" -ItemType Directory -Force | Out-Null
 }
 
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
-        if ($progress[$RowIndex].Status -eq "Failed") {
-            # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Incomplete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        if ($progressCheck -eq "Failed") {
+            StageReset -progressStage $progressStage
         }
         # Need to confirm if Windows Update stage previously completed
         if ($image -ne "UbuntuServer") {
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $windowsUpdateCheck = [array]::IndexOf($progress.Stage, "WindowsUpdates")
-            while (($progress[$windowsUpdateCheck].Status -ne "Complete")) {
+            $windowsUpdateCheck = CheckProgress -progressStage "WindowsUpdates"
+            while ($windowsUpdateCheck -ne "Complete") {
                 Write-Verbose -Message "The WindowsUpdates stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $windowsUpdateCheck = [array]::IndexOf($progress.Stage, "WindowsUpdates")        
-                if ($progress[$windowsUpdateCheck].Status -eq "Failed") {
+                $windowsUpdateCheck = CheckProgress -progressStage "WindowsUpdates"     
+                if ($windowsUpdateCheck -eq "Failed") {
                     throw "The WindowsUpdates stage of the process has failed. This is required before the Windows Server images can be created. Check the WindowsUpdates log, ensure that step is completed first, and rerun."
                 }        
             }
@@ -191,14 +191,12 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # Need to confirm if the Ubuntu Server Image stage has completed (for partialParallel and serial deployments)
         if ($image -eq "ServerCore") {
             if (($runMode -eq "partialParallel") -or ($runMode -eq "serial")) {
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $ubuntuJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
-                while (($progress[$ubuntuJobCheck].Status -ne "Complete")) {
+                $ubuntuJobCheck = CheckProgress -progressStage "UbuntuServerImage"
+                while ($ubuntuJobCheck -ne "Complete") {
                     Write-Verbose -Message "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $ubuntuJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
-                    if ($progress[$ubuntuJobCheck].Status -eq "Failed") {
+                    $ubuntuJobCheck = CheckProgress -progressStage "UbuntuServerImage"
+                    if ($ubuntuJobCheck -eq "Failed") {
                         throw "The UbuntuServerImage stage of the process has failed. This should fully complete before the Windows Server images are to be created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                     }
                 }
@@ -208,27 +206,23 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         # and that the Server Core image stage has completed for serial deployments.
         if ($image -eq "ServerFull") {
             if ($runMode -eq "partialParallel") {
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $ubuntuJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
-                while (($progress[$ubuntuJobCheck].Status -ne "Complete")) {
+                $ubuntuJobCheck = CheckProgress -progressStage "UbuntuServerImage"
+                while ($ubuntuJobCheck -ne "Complete") {
                     Write-Verbose -Message "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $ubuntuJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
-                    if ($progress[$ubuntuJobCheck].Status -eq "Failed") {
+                    $ubuntuJobCheck = CheckProgress -progressStage "UbuntuServerImage"
+                    if ($ubuntuJobCheck -eq "Failed") {
                         throw "The UbuntuServerImage stage of the process has failed. This should fully complete before the Windows Server images are to be created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                     }
                 }
             }
             elseif ($runMode -eq "serial") {
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
-                while (($progress[$serverCoreJobCheck].Status -ne "Complete")) {
+                $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
+                while ($serverCoreJobCheck -ne "Complete") {
                     Write-Verbose -Message "The ServerCoreImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
-                    if ($progress[$serverCoreJobCheck].Status -eq "Failed") {
+                    $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
+                    if ($serverCoreJobCheck -eq "Failed") {
                         throw "The ServerCoreImage stage of the process has failed. This should fully complete before the Windows Server full image is created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                     }
                 }
@@ -284,8 +278,9 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Login-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
             Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
+            $asdkHostName = ($env:computername).ToLower()
             $Registration = ((Get-AzureRmResource | Where-Object { $_.ResourceType -eq "Microsoft.AzureStack/registrations"} | `
-                        Where-Object { ($_.ResourceName -like "asdkreg*") -or ($_.ResourceName -like "AzureStack*")}) | Select-Object -First 1 -ErrorAction SilentlyContinue -Verbose).ResourceName
+                        Where-Object { ($_.ResourceName -like "asdkreg-$asdkHostName*") -or ($_.ResourceName -like "AzureStack*")}) | Select-Object -First 1 -ErrorAction SilentlyContinue -Verbose).Name
             if (!$Registration) {
                 throw "No registration records found in your chosen Azure subscription. Please validate the success of your ASDK registration and ensure records have been created successfully."
                 Set-Location $ScriptLocation
@@ -492,7 +487,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 }
                 # At this point, there is a local image (either existing or new, that needs uploading, first to a Storage Account
                 Write-Verbose "Beginning upload of VHD to Azure Stack Storage Account"
-                $imageURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $serverVHD.Name
+                $imageURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkImagesContainerName, $serverVHD.Name
                 # Upload VHD to Storage Account
                 # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
                 # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
@@ -630,28 +625,18 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 return
             }
         }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        $progressStage = "$($image)Image"
+        StageComplete -progressStage $progressStage
     }
     catch {
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        StageFailed -progressStage $progressStage
         Set-Location $ScriptLocation
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         throw $_.Exception.Message
         return
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($progressCheck -eq "Complete") {
+    Write-Verbose "ASDK Configuration Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue
