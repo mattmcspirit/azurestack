@@ -841,7 +841,7 @@ if ($registerASDK) {
 ### CREATE ASDK FOLDER ######################################################################################################################################
 #############################################################################################################################################################
 
-$ConfigAsdkRunPath = "$downloadPath\ConfigASDKRun.txt"
+$ConfigAsdkRunFlag = "$ScriptLocation\ConfigASDKRunFlag.txt"
 $isRerun = [System.IO.File]::Exists($ConfigAsdkRunPath)
 ### CREATE ASDK FOLDER ###
 $ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
@@ -869,7 +869,7 @@ elseif ($ASDKpath -eq $false) {
     $ASDKpath = "$downloadPath\ASDK"
     Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
     # Create txt file to act as flag that this is a rerun in future
-    New-Item $ConfigAsdkRunPath -ItemType file -Force
+    New-Item $ConfigAsdkRunFlag -ItemType file -Force
 }
 
 ### DOWNLOAD SQLLOCALDB #####################################################################################################################################
