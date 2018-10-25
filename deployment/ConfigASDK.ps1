@@ -288,7 +288,7 @@ function StageComplete {
 function StageSkipped {
     begin {}
     process {
-        # Update the ConfigASDK Progress database with successful completion  then display updated table
+        # Update the ConfigASDK Progress database with skipped status then display updated table
         Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage skipped. Updating ConfigASDK Progress database"
         Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Skipped';" -Verbose -ErrorAction Stop
         Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
@@ -298,11 +298,21 @@ function StageSkipped {
 function StageFailed {
     begin {}
     process {
-        # Update the ConfigASDK Progress database with successful completion then display updated table, with failure message
+        # Update the ConfigASDK Progress database with failed completion then display updated table, with failure message
         Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage failed. Updating ConfigASDK Progress database"
         Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Failed';" -Verbose -ErrorAction Stop
         Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
         Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    }
+    end {}
+}
+function StageReset {
+    begin {}
+    process {
+        # Reset the ConfigASDK Progress database from previously being skipped, to incomplete
+        Write-CustomVerbose -Message "Operator previously skipped the $progressStage stage, but now wants to perform it. Updating ConfigASDK Progress database to Incomplete."
+        Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Incomplete';" -Verbose -ErrorAction Stop
+        Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
     }
     end {}
 }
@@ -1150,7 +1160,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         return        
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
+elseif ($progressCheck -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 
@@ -1859,10 +1869,10 @@ Set-Location $ScriptLocation
 #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
 ##############################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "RegisterNewRPs")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+$progressStage = "RegisterNewRPs"
+CheckProgress
+$scriptStep = $progressStage.ToUpper()
+    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
         # Register resource providers
         foreach ($s in (Get-AzureRmSubscription)) {
@@ -1870,33 +1880,25 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
             Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
         }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        StageComplete
     }
     catch {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        StageFailed
         Set-Location $ScriptLocation
         return
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($progressCheck -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 
 #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
 ##############################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "CreatePlansOffers")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+$progressStage = "CreatePlansOffers"
+CheckProgress
+$scriptStep = $progressStage.ToUpper()
+    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
         # Configure a simple base plan and offer for IaaS
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
@@ -2017,46 +2019,34 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
             Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
         }
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        StageComplete
     }
     catch {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        StageFailed
         Set-Location $ScriptLocation
         return
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($progressCheck -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 
 #### CUSTOMIZE ASDK HOST #####################################################################################################################################
 ##############################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "InstallHostApps")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+$progressStage = "InstallHostApps"
+CheckProgress
+$scriptStep = $progressStage.ToUpper()
+
+if ($progressCheck -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
-elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
+elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-CustomVerbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "InstallHostApps")
+    if ($progressCheck -eq "Skipped") {
+        StageReset
     }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             # Install useful ASDK Host Apps via Chocolatey
             Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
@@ -2183,37 +2173,25 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
             else {
                 Write-CustomVerbose -Message "Certificate has not been retrieved - Azure CLI and Python configuration cannot continue and will be skipped."
             }
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+            StageComplete
         }
         catch {
-            Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+            StageFailed
             Set-Location $ScriptLocation
             return
         }
     }
 }
-elseif ($skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-CustomVerbose -Message "Operator chose to skip ASDK Host Customization`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
+elseif ($skipCustomizeHost -and ($progressCheck -ne "Complete")) {
+    StageSkipped
 }
 
 #### GENERATE OUTPUT #########################################################################################################################################
 ##############################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "CreateOutput")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+$progressStage = "CreateOutput"
+CheckProgress
+$scriptStep = $progressStage.ToUpper()
 try {
     ### Create Output Document ###
     $txtPath = "$downloadPath\ConfigASDKOutput.txt"
@@ -2298,18 +2276,10 @@ try {
         Write-Output "Other Roles Virtual Machine(s) Password: $VMpwd" >> $txtPath
         Write-Output "Confirm Password: $VMpwd" >> $txtPath
     }
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-    $progress[$RowIndex].Status = "Complete"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
+    StageComplete
 }
 catch {
-    Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-    $progress[$RowIndex].Status = "Failed"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    StageFailed
     Set-Location $ScriptLocation
     return
 }
@@ -2319,12 +2289,21 @@ catch {
 
 ### Clean Up ASDK Folder ###
 $scriptStep = "CLEANUP"
-$scriptSuccess = $progress | Where-Object {($_.Status -eq "Incomplete") -or ($_.Status -eq "Failed")}
-if ([string]::IsNullOrEmpty($scriptSuccess)) {
-    Write-CustomVerbose -Message "Congratulations - all steps completed successfully:`r`n"
-    Write-Output $progress | Out-Host
 
-    if ([bool](Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose)) {
+# Need to check whole Progress database table for Incomplete or Failed status.
+$finalStatusCheck = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop | Out-String
+if (($finalStatusCheck -contains "Incomplete") -or ($finalStatusCheck -contains "Failed")) {
+    $scriptSuccess = $false
+}
+else {
+    $scriptSuccess = $true
+}
+
+if ($scriptSuccess) {
+    Write-CustomVerbose -Message "Congratulations - all steps completed successfully:`r`n"
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+
+    if ([bool](Get-ChildItem -Path $downloadPath\* -Include "*.txt" -ErrorAction SilentlyContinue -Verbose)) {
         # Move log files to Completed folder - first check for 'Completed' folder, and create if not existing
         if (!$([System.IO.Directory]::Exists("$downloadPath\Completed"))) {
             New-Item -Path "$downloadPath\Completed" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
@@ -2333,20 +2312,19 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
         $completedPath = "$downloadPath\Completed\$runTime"
         New-Item -Path "$completedPath" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
         # Then move the files to this folder
-        Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ -Destination "$completedPath" -Force -ErrorAction SilentlyContinue -Verbose }
+        Get-ChildItem -Path "$downloadPath\*" -Include "*.txt" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ -Destination "$completedPath" -Force -ErrorAction SilentlyContinue -Verbose }
     }
 
     Write-CustomVerbose -Message "Retaining App Service Certs for potential App Service updates in the future"
     if (!$([System.IO.Directory]::Exists("$completedPath\AppServiceCerts"))) {
         New-Item -Path "$completedPath\AppServiceCerts" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
     }
-    if ([bool](Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose)) {
-        Get-ChildItem -Path $AppServicePath\* -Include *.cer, *.pfx -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ "$completedPath\AppServiceCerts" -Force -ErrorAction SilentlyContinue -Verbose }
+    if ([bool](Get-ChildItem -Path "$AppServicePath\*" -Include "*.cer, *.pfx" -ErrorAction SilentlyContinue -Verbose)) {
+        Get-ChildItem -Path "$AppServicePath\*" -Include "*.cer, *.pfx" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ "$completedPath\AppServiceCerts" -Force -ErrorAction SilentlyContinue -Verbose }
     }
 
     Write-CustomVerbose -Message "Cleaning up ASDK Folder"
     # Will attempt multiple times as sometimes it fails
-    $ASDKpath = "$downloadPath\ASDK"
     $i = 1
     While ($i -le 5) {
         Write-CustomVerbose -Message "Cleanup Attempt: $i"
@@ -2371,29 +2349,14 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
     Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     $asdkImagesRGName = "azurestack-images"
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
-
-    <# Installing newest version of PowerShell - this section is only required while the ConfigASDK requires 1.4.0 / 2017-03-09-profile to install correctly
-    if (($deploymentMode -eq "Online") -or ($deploymentMode -eq "PartialOnline")) {
-        Install-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction Stop
-        Install-Module AzureStack -RequiredVersion 1.5.0 -Force -Verbose -ErrorAction Stop
-        Set-AzureRmDefaultProfile -Profile '2018-03-01-hybrid' -Force -Verbose -ErrorAction Stop
-    }
-    elseif (($deploymentMode -eq "Offline") {
-        # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
-        $SourceLocation = "$downloadPath\ASDK\PowerShell\1.5.0"
-        $RepoName = "MyNuGetSource"
-        Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
-        Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
-        Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
-    }#>
     
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     try {Invoke-WebRequest "http://bit.ly/asdksuccessrun" -UseBasicParsing -DisableKeepAlive | Out-Null } catch {$_.Exception.Response.StatusCode.Value__}
 
     # Final Cleanup
-    while (Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose) {
-        Get-ChildItem -Path $downloadPath\* -Include *.txt, *.csv -ErrorAction SilentlyContinue -Verbose | Remove-Item -Force -Verbose -ErrorAction SilentlyContinue
+    while (Get-ChildItem -Path "$downloadPath\*" -Include "*.txt" -ErrorAction SilentlyContinue -Verbose) {
+        Get-ChildItem -Path "$downloadPath\*" -Include "*.txt" -ErrorAction SilentlyContinue -Verbose | Remove-Item -Force -Verbose -ErrorAction SilentlyContinue
     }
 
     # Take a copy of the log file at this point
@@ -2402,8 +2365,8 @@ if ([string]::IsNullOrEmpty($scriptSuccess)) {
 }
 else {
     Write-CustomVerbose -Message "Script hasn't completed successfully"
-    Write-CustomVerbose -Message "Please rerun the script to complete the process`r`n"
-    Write-Output $progress | Out-Host
+    Write-CustomVerbose -Message "Please rerun the script to complete the process"
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
 }
 
 Write-CustomVerbose -Message "Setting Execution Policy back to RemoteSigned"
