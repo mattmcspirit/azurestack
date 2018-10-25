@@ -266,6 +266,12 @@ function JobLauncher {
 ### PROGRESS FUNCTIONS ######################################################################################################################################
 #############################################################################################################################################################
 function CheckProgress {
+    [cmdletbinding()]
+    param
+    (
+        [parameter(Mandatory = $true)]
+        [string] $progressStage
+    )
     begin {}
     process {
         # Grab the latest data from the database, store it as $progressCheck, and display it
@@ -276,6 +282,12 @@ function CheckProgress {
     end {}
 }
 function StageComplete {
+    [cmdletbinding()]
+    param
+    (
+        [parameter(Mandatory = $true)]
+        [string] $progressStage
+    )
     begin {}
     process {
         # Update the ConfigASDK Progress database with successful completion then display updated table
@@ -286,6 +298,12 @@ function StageComplete {
     end {}
 }
 function StageSkipped {
+    [cmdletbinding()]
+    param
+    (
+        [parameter(Mandatory = $true)]
+        [string] $progressStage
+    )
     begin {}
     process {
         # Update the ConfigASDK Progress database with skipped status then display updated table
@@ -296,6 +314,12 @@ function StageSkipped {
     end {}
 }
 function StageFailed {
+    [cmdletbinding()]
+    param
+    (
+        [parameter(Mandatory = $true)]
+        [string] $progressStage
+    )
     begin {}
     process {
         # Update the ConfigASDK Progress database with failed completion then display updated table, with failure message
@@ -307,6 +331,12 @@ function StageFailed {
     end {}
 }
 function StageReset {
+    [cmdletbinding()]
+    param
+    (
+        [parameter(Mandatory = $true)]
+        [string] $progressStage
+    )
     begin {}
     process {
         # Reset the ConfigASDK Progress database from previously being skipped, to incomplete
@@ -316,6 +346,16 @@ function StageReset {
     }
     end {}
 }
+
+$export_functions = [scriptblock]::Create(@"
+  Function DownloadWithRetry { $function:DownloadWithRetry }
+  Function JobLauncher { $function:JobLauncher }
+  Function CheckProgress { $function:CheckProgress }
+  Function StageComplete { $function:StageComplete }
+  Function StageSkipped { $function:StageSkipped }
+  Function StageFailed { $function:StageFailed }
+  Function StageReset { $function:StageReset }
+"@)
 
 ### VALIDATION ##############################################################################################################################################
 #############################################################################################################################################################
@@ -1045,7 +1085,7 @@ else {
 #############################################################################################################################################################
 
 $progressStage = "ExtractZip"
-CheckProgress
+CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
@@ -1055,10 +1095,10 @@ if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
             Write-CustomVerbose -Message "Starting extraction to $downloadPath"
             ### Extract the Zip file, move contents to appropriate place
             Expand-Archive -Path $configAsdkOfflineZipPath -DestinationPath $downloadPath -Force -Verbose -ErrorAction Stop
-            StageComplete
+            StageComplete -progressStage $progressStage
         }
         catch {
-            StageFailed
+            StageFailed -progressStage $progressStage
             Set-Location $ScriptLocation
             return
         }
@@ -1069,7 +1109,7 @@ if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
 }
 elseif (!$configAsdkOfflineZipPath) {
     Write-CustomVerbose -Message "Skipping zip extraction - this is a 100% online deployment`r`n"
-    StageSkipped
+    StageSkipped -progressStage $progressStage
 }
 
 ### VALIDATE ISO ############################################################################################################################################
@@ -1115,7 +1155,7 @@ catch {
 #############################################################################################################################################################
 
 $progressStage = "GetScripts"
-CheckProgress
+CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1152,10 +1192,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Copy-Item -Path "$SourceLocation\*" -Destination "$scriptPath" -Include "*.ps1" -Verbose -ErrorAction Stop
         }
         # Update the ConfigASDK Progress database with successful completion
-        StageComplete
+        StageComplete -progressStage $progressStage
     }
     catch {
-        StageFailed
+        StageFailed -progressStage $progressStage
         Set-Location $ScriptLocation
         return        
     }
@@ -1168,7 +1208,7 @@ elseif ($progressCheck -eq "Complete") {
 ##############################################################################################################################################################
 
 $progressStage = "CheckPowerShell"
-CheckProgress
+CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1231,7 +1271,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         else {
             Write-CustomVerbose -Message "No existing PowerShell installation detected - proceeding without cleanup."
         }
-        StageComplete
+        StageComplete -progressStage $progressStage
         if ($cleanupRequired -eq $true) {
             Write-CustomVerbose -Message "A previous installation of PowerShell has been removed from this system."
             Write-CustomVerbose -Message "Once you have closed this PowerShell session, delete all the folders that start with 'Azure' from the $Env:ProgramFiles\WindowsPowerShell\Modules"
@@ -1240,7 +1280,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         }
     }
     catch {
-        StageFailed
+        StageFailed -progressStage $progressStage
         Set-Location $ScriptLocation
         return  
     }
@@ -1253,7 +1293,7 @@ elseif ($progressCheck -eq "Complete") {
 #############################################################################################################################################################
 
 $progressStage = "InstallPowerShell"
-CheckProgress
+CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1286,10 +1326,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             #Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
             Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
         }
-        StageComplete
+        StageComplete -progressStage $progressStage
     }
     catch {
-        StageFailed
+        StageFailed -progressStage $progressStage
         Set-Location $ScriptLocation
         return        
     }
@@ -1393,7 +1433,7 @@ try {Invoke-WebRequest "http://bit.ly/asdkcounter" -UseBasicParsing -DisableKeep
 ########################################################################################################################################################
 
 $progressStage = "DownloadTools"
-CheckProgress
+CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1419,10 +1459,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Write-CustomVerbose -Message "Archive expanded. Cleaning up."
             Remove-Item "$toolsDownloadLocation" -Force -ErrorAction Stop
         }
-        StageComplete
+        StageComplete -progressStage $progressStage
     }
     catch {
-        StageFailed
+        StageFailed -progressStage $progressStage
         Set-Location $ScriptLocation
         return        
     }
@@ -1441,7 +1481,7 @@ Disable-AzureRmDataCollection -WarningAction SilentlyContinue
 ########################################################################################################################################################
 
 $progressStage = "HostConfiguration"
-CheckProgress
+CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1480,10 +1520,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 Write-CustomVerbose -Message "Service: $service not found, continuing process..."
             }
         }
-        StageComplete
+        StageComplete -progressStage $progressStage
     }
     Catch {
-        StageFailed
+        StageFailed -progressStage $progressStage
         Set-Location $ScriptLocation
         return
     }
@@ -1496,7 +1536,7 @@ elseif ($progressCheck -eq "Complete") {
 ##############################################################################################################################################################
 
 $progressStage = "Registration"
-CheckProgress
+CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1516,10 +1556,10 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             #Register Azure Stack
             $asdkHostName = ($env:computername).ToLower()
             Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "asdkreg-$asdkHostName-$runTime" -BillingModel Development -ErrorAction Stop
-            StageComplete
+            StageComplete -progressStage $progressStage
         }
         catch {
-            StageFailed
+            StageFailed -progressStage $progressStage
             Set-Location $ScriptLocation
             return
         }
@@ -1530,7 +1570,7 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
 }
 elseif (!$registerASDK) {
     Write-CustomVerbose -Message "Skipping Azure Stack registration to Azure"
-    StageSkipped
+    StageSkipped -progressStage $progressStage
 }
 
 ### CONNECT TO AZURE STACK #############################################################################################################################
@@ -1605,12 +1645,13 @@ elseif ($freeCSVSpace -ge 115) {
 # Define the image jobs
 $jobName = "AddUbuntuImage"
 $AddUbuntuImage = {
-    Start-Job -Name AddUbuntuImage -ArgumentList $ConfigASDKProgressLogPath, $ISOpath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
-        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $branch -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+    Start-Job -Name AddUbuntuImage -InitializationScript $export_functions -ArgumentList $ISOpath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
+        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "UbuntuServer" -branch $Using:branch -runMode $Using:runMode
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "UbuntuServer" -branch $Using:branch -runMode $Using:runMode `
+            -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddUbuntuImage -Verbose
@@ -1870,7 +1911,7 @@ Set-Location $ScriptLocation
 ##############################################################################################################################################################
 
 $progressStage = "RegisterNewRPs"
-CheckProgress
+CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
@@ -1880,10 +1921,10 @@ $scriptStep = $progressStage.ToUpper()
             Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
             Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
         }
-        StageComplete
+        StageComplete -progressStage $progressStage
     }
     catch {
-        StageFailed
+        StageFailed -progressStage $progressStage
         Set-Location $ScriptLocation
         return
     }
@@ -1896,7 +1937,7 @@ elseif ($progressCheck -eq "Complete") {
 ##############################################################################################################################################################
 
 $progressStage = "CreatePlansOffers"
-CheckProgress
+CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
@@ -2019,10 +2060,10 @@ $scriptStep = $progressStage.ToUpper()
             Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
             Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
         }
-        StageComplete
+        StageComplete -progressStage $progressStage
     }
     catch {
-        StageFailed
+        StageFailed -progressStage $progressStage
         Set-Location $ScriptLocation
         return
     }
@@ -2035,7 +2076,7 @@ elseif ($progressCheck -eq "Complete") {
 ##############################################################################################################################################################
 
 $progressStage = "InstallHostApps"
-CheckProgress
+CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if ($progressCheck -eq "Complete") {
@@ -2150,7 +2191,7 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
                                 $uploadItemAttempt++
                             }
                         }
-                        $vmAliasEndpoint = ('{0}{1}/{2}' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName, $itemName) -replace "https", "http"
+                        $vmAliasEndpoint = ('{0}{1}/{2}' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob, $asdkOfflineContainerName, $itemName) -replace "https", "http"
                     }
                     Write-CustomVerbose -Message "Virtual Machine Alias Endpoint for your ASDK = $vmAliasEndpoint"
                     Write-CustomVerbose -Message "Configuring your Azure CLI environment on the ASDK host, for Admin and User"
@@ -2173,24 +2214,24 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
             else {
                 Write-CustomVerbose -Message "Certificate has not been retrieved - Azure CLI and Python configuration cannot continue and will be skipped."
             }
-            StageComplete
+            StageComplete -progressStage $progressStage
         }
         catch {
-            StageFailed
+            StageFailed -progressStage $progressStage
             Set-Location $ScriptLocation
             return
         }
     }
 }
 elseif ($skipCustomizeHost -and ($progressCheck -ne "Complete")) {
-    StageSkipped
+    StageSkipped -progressStage $progressStage
 }
 
 #### GENERATE OUTPUT #########################################################################################################################################
 ##############################################################################################################################################################
 
 $progressStage = "CreateOutput"
-CheckProgress
+CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 try {
     ### Create Output Document ###
@@ -2276,10 +2317,10 @@ try {
         Write-Output "Other Roles Virtual Machine(s) Password: $VMpwd" >> $txtPath
         Write-Output "Confirm Password: $VMpwd" >> $txtPath
     }
-    StageComplete
+    StageComplete -progressStage $progressStage
 }
 catch {
-    StageFailed
+    StageFailed -progressStage $progressStage
     Set-Location $ScriptLocation
     return
 }
