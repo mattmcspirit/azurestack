@@ -951,11 +951,12 @@ Invoke-Sqlcmd -Server $sqlServerInstance -Query "sp_configure 'user instance tim
 ### CREATE DB ###############################################################################################################################################
 #############################################################################################################################################################
 
-# Need to check if ConfigASDK Database exists and if not, create it
+# Need to check if ConfigASDK Database exists and if not, create it, storing the files in the default location for other base DBs (master etc)
 $databaseName = "ConfigASDK"
+$instancePath = "$env:LOCALAPPDATA\Microsoft\Microsoft SQL Server Local DB\Instances\MSSQLLocalDB"
 $configAsdkDatabaseExists = Invoke-Sqlcmd -Server $sqlServerInstance -Query "SELECT NAME FROM sys.databases WHERE name IN ('ConfigASDK')" | Out-String
 if (!$configAsdkDatabaseExists) {
-    $createQuery = "CREATE DATABASE $databaseName ON PRIMARY (NAME=[ConfigASDK_data], FILENAME = '$sqlLocalDBpath\ConfigASDK_data.mdf') LOG ON (NAME=[ConfigASDK_log], FILENAME = '$sqlLocalDBpath\MATT1_log.ldf');"
+    $createQuery = "CREATE DATABASE $databaseName ON PRIMARY (NAME=[ConfigASDKdata], FILENAME = '$instancePath\ConfigASDKdata.mdf') LOG ON (NAME=[ConfigASDKlog], FILENAME = '$instancePath\ConfigASDKlog.ldf');"
     Invoke-Sqlcmd -Server $sqlServerInstance -Query $createQuery -Verbose -ErrorAction Stop
 }
 else {
