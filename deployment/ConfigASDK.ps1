@@ -263,6 +263,50 @@ function JobLauncher {
     end {}
 }
 
+### PROGRESS FUNCTIONS ######################################################################################################################################
+#############################################################################################################################################################
+function CheckProgress {
+    begin {}
+    process {
+        # Grab the latest data from the database, store it as $progressCheck, and display it
+        $progressCheck = (Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" `
+                -TableName "$tableName" -ColumnName $progressStage -ErrorAction SilentlyContinue).Item(0)
+        $progressCheck
+    }
+    end {}
+}
+function StageComplete {
+    begin {}
+    process {
+        # Update the ConfigASDK Progress database with successful completion then display updated table
+        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage successfully completed. Updating ConfigASDK Progress database"
+        Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Complete';" -Verbose -ErrorAction Stop
+        Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+    }
+    end {}
+}
+function StageSkipped {
+    begin {}
+    process {
+        # Update the ConfigASDK Progress database with successful completion  then display updated table
+        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage skipped. Updating ConfigASDK Progress database"
+        Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Skipped';" -Verbose -ErrorAction Stop
+        Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+    }
+    end {}
+}
+function StageFailed {
+    begin {}
+    process {
+        # Update the ConfigASDK Progress database with successful completion then display updated table, with failure message
+        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage failed. Updating ConfigASDK Progress database"
+        Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Failed';" -Verbose -ErrorAction Stop
+        Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    }
+    end {}
+}
+
 ### VALIDATION ##############################################################################################################################################
 #############################################################################################################################################################
 
@@ -990,10 +1034,8 @@ else {
 #############################################################################################################################################################
 
 $progressStage = "ExtractZip"
-$progressCheck = (Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" `
--TableName "$tableName" -ColumnName $progressStage -ErrorAction SilentlyContinue).Item(0)
-$progressCheck
-$scriptStep = $progressStage
+CheckProgress
+$scriptStep = $progressStage.ToUpper()
 
 if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1002,17 +1044,10 @@ if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
             Write-CustomVerbose -Message "Starting extraction to $downloadPath"
             ### Extract the Zip file, move contents to appropriate place
             Expand-Archive -Path $configAsdkOfflineZipPath -DestinationPath $downloadPath -Force -Verbose -ErrorAction Stop
-            # Update the ConfigASDK Progress database with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDK Progress database with successful completion`r`n"
-            Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Complete';" -Verbose -ErrorAction Stop
-            # Display updated progress
-            Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+            StageComplete
         }
         catch {
-            Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage Failed`r`n"
-            Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Failed';" -Verbose -ErrorAction Stop
-            Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+            StageFailed
             Set-Location $ScriptLocation
             return
         }
@@ -1023,9 +1058,7 @@ if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
 }
 elseif (!$configAsdkOfflineZipPath) {
     Write-CustomVerbose -Message "Skipping zip extraction - this is a 100% online deployment`r`n"
-    # Update the ConfigASDK Progress database with skipped completion
-    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Skipped';" -Verbose -ErrorAction Stop
-    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+    StageSkipped
 }
 
 ### VALIDATE ISO ############################################################################################################################################
@@ -1070,11 +1103,11 @@ catch {
 ### VALIDATE PS SCRIPTS LOCATION ############################################################################################################################
 #############################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "GetScripts")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+$progressStage = "GetScripts"
+CheckProgress
+$scriptStep = $progressStage.ToUpper()
 
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
         $scriptPath = [System.IO.Directory]::Exists("$ScriptLocation\Scripts")
         if ($scriptPath -eq $true) {
@@ -1107,34 +1140,27 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             $SourceLocation = "$downloadPath\ASDK\PowerShell\Scripts"
             Copy-Item -Path "$SourceLocation\*" -Destination "$scriptPath" -Include "*.ps1" -Verbose -ErrorAction Stop
         }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        # Update the ConfigASDK Progress database with successful completion
+        StageComplete
     }
     catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        StageFailed
         Set-Location $ScriptLocation
         return        
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 
 ### POWERSHELL CHECK #########################################################################################################################################
 ##############################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "CheckPowerShell")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+$progressStage = "CheckPowerShell"
+CheckProgress
+$scriptStep = $progressStage.ToUpper()
 
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
         Clear-Host
         Write-CustomVerbose -Message "Checking for a previous installation of PowerShell. If found, to ensure full compatibility with the ConfigASDK, this will be cleaned up...please wait..."
@@ -1194,11 +1220,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         else {
             Write-CustomVerbose -Message "No existing PowerShell installation detected - proceeding without cleanup."
         }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        StageComplete
         if ($cleanupRequired -eq $true) {
             Write-CustomVerbose -Message "A previous installation of PowerShell has been removed from this system."
             Write-CustomVerbose -Message "Once you have closed this PowerShell session, delete all the folders that start with 'Azure' from the $Env:ProgramFiles\WindowsPowerShell\Modules"
@@ -1207,27 +1229,23 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         }
     }
     catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        StageFailed
         Set-Location $ScriptLocation
         return  
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($progressCheck -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 
 ### INSTALL POWERSHELL ######################################################################################################################################
 #############################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "InstallPowerShell")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+$progressStage = "InstallPowerShell"
+CheckProgress
+$scriptStep = $progressStage.ToUpper()
 
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
         Import-Module -Name PowerShellGet -ErrorAction Stop
         Import-Module -Name PackageManagement -ErrorAction Stop
@@ -1257,24 +1275,16 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             #Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
             Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
         }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        StageComplete
     }
     catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        StageFailed
         Set-Location $ScriptLocation
         return        
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($progressCheck -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 
 ### TEST ALL LOGINS #########################################################################################################################################
@@ -1371,11 +1381,11 @@ try {Invoke-WebRequest "http://bit.ly/asdkcounter" -UseBasicParsing -DisableKeep
 ### DOWNLOAD TOOLS #####################################################################################################################################
 ########################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "DownloadTools")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+$progressStage = "DownloadTools"
+CheckProgress
+$scriptStep = $progressStage.ToUpper()
 
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
     try {
         ### DOWNLOAD & EXTRACT TOOLS ###
@@ -1398,24 +1408,16 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             Write-CustomVerbose -Message "Archive expanded. Cleaning up."
             Remove-Item "$toolsDownloadLocation" -Force -ErrorAction Stop
         }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        StageComplete
     }
     catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        StageFailed
         Set-Location $ScriptLocation
         return        
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($progressCheck -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 
 # Change to the tools directory
@@ -1427,10 +1429,11 @@ Disable-AzureRmDataCollection -WarningAction SilentlyContinue
 ### CONFIGURE THE AZURE STACK HOST & INFRA VIRTUAL MACHINES ############################################################################################
 ########################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "HostConfiguration")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+$progressStage = "HostConfiguration"
+CheckProgress
+$scriptStep = $progressStage.ToUpper()
+
+if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
         # Set password expiration to 180 days
         Write-CustomVerbose -Message "Configuring password expiration policy"
@@ -1466,36 +1469,26 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 Write-CustomVerbose -Message "Service: $service not found, continuing process..."
             }
         }
-
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "Host configuration is now complete."
+        StageComplete
     }
     Catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        StageFailed
         Set-Location $ScriptLocation
         return
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($progressCheck -eq "Complete") {
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 
 ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
 ##############################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "Registration")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+$progressStage = "Registration"
+CheckProgress
+$scriptStep = $progressStage.ToUpper()
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             Write-CustomVerbose -Message "Starting Azure Stack registration to Azure"
             # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
@@ -1512,32 +1505,21 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             #Register Azure Stack
             $asdkHostName = ($env:computername).ToLower()
             Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "asdkreg-$asdkHostName-$runTime" -BillingModel Development -ErrorAction Stop
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+            StageComplete
         }
         catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+            StageFailed
             Set-Location $ScriptLocation
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    elseif ($progressCheck -eq "Complete") {
+        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
     }
 }
 elseif (!$registerASDK) {
-    Write-CustomVerbose -Message "Skipping Azure Stack registration to Azure`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
+    Write-CustomVerbose -Message "Skipping Azure Stack registration to Azure"
+    StageSkipped
 }
 
 ### CONNECT TO AZURE STACK #############################################################################################################################
@@ -1894,7 +1876,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress | Out-Host
     }
     catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+        Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Output $progress | Out-Host
@@ -1904,7 +1886,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
@@ -2042,7 +2024,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
         Write-Output $progress | Out-Host
     }
     catch {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+        Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         $progress[$RowIndex].Status = "Failed"
         $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
         Write-Output $progress | Out-Host
@@ -2052,7 +2034,7 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
     }
 }
 elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 
 #### CUSTOMIZE ASDK HOST #####################################################################################################################################
@@ -2062,7 +2044,7 @@ $progress = Import-Csv -Path $ConfigASDKProgressLogPath
 $RowIndex = [array]::IndexOf($progress.Stage, "InstallHostApps")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) previously completed successfully"
 }
 elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
@@ -2207,7 +2189,7 @@ elseif (!$skipCustomizeHost -and ($progress[$RowIndex].Status -ne "Complete")) {
             Write-Output $progress | Out-Host
         }
         catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+            Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             $progress[$RowIndex].Status = "Failed"
             $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
             Write-Output $progress | Out-Host
@@ -2322,7 +2304,7 @@ try {
     Write-Output $progress | Out-Host
 }
 catch {
-    Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $($progress[$RowIndex].Stage) Failed`r`n"
     $progress[$RowIndex].Status = "Failed"
     $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
     Write-Output $progress | Out-Host
