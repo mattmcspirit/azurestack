@@ -40,6 +40,11 @@
 
 .VERSION
 
+    1809    Updated to support ASDK 1.1809.0.90
+            Support for PS 1.5.0, and new AzureRM Profile 2018-03-01-hybrid
+            Use of SqlLocalDB instead of CSV file to track progress
+            Parallel job processing through PowerShell background jobs
+            Support for host customization step in offline mode
     1808.1  Added fix for BITS issues with MySQL/SQL RP installations
     1808    No longer adds VMSS gallery item as this is built in.
             Updated to support ASDK build 1.1808.0.97
@@ -779,65 +784,11 @@ if ($registerASDK) {
     }
 }
 
-### CREATE CSV ##############################################################################################################################################
-#############################################################################################################################################################
-
-### Check if ConfigASDKProgressLog.csv exists ###
-$ConfigASDKProgressLogPath = "$downloadPath\ConfigASDKProgressLog.csv"
-$validConfigASDKProgressLogPath = [System.IO.File]::Exists($ConfigASDKProgressLogPath)
-If ($validConfigASDKProgressLogPath -eq $true) {
-    Write-CustomVerbose -Message "ConfigASDkProgressLog.csv exists - this must be a rerun"
-    Write-CustomVerbose -Message "Starting from previous failed step`r`n"
-    $isRerun = $true
-    $progress = Import-Csv $ConfigASDKProgressLogPath
-    Write-Output $progress | Out-Host
-}
-elseif ($validConfigASDKProgressLogPath -eq $false) {
-    Write-CustomVerbose -Message "No ConfigASDkProgressLog.csv exists - this must be a fresh deployment"
-    Write-CustomVerbose -Message "Creating ConfigASDKProgressLog.csv`r`n"
-    Add-Content -Path $ConfigASDKProgressLogPath -Value '"Stage","Status"' -Force -Confirm:$false
-    $ConfigASDKprogress = @(
-        '"ExtractZip","Incomplete"'
-        '"GetScripts","Incomplete"'
-        '"CheckPowerShell","Incomplete"'
-        '"InstallPowerShell","Incomplete"'
-        '"DownloadTools","Incomplete"'
-        '"HostConfiguration","Incomplete"'
-        '"Registration","Incomplete"'
-        '"UbuntuServerImage","Incomplete"'
-        '"WindowsUpdates","Incomplete"'
-        '"ServerCoreImage","Incomplete"'
-        '"ServerFullImage","Incomplete"'
-        '"MySQLGalleryItem","Incomplete"'
-        '"SQLServerGalleryItem","Incomplete"'
-        '"AddVMExtensions","Incomplete"'
-        '"MySQLRP","Incomplete"'
-        '"SQLServerRP","Incomplete"'
-        '"MySQLSKUQuota","Incomplete"'
-        '"SQLServerSKUQuota","Incomplete"'
-        '"UploadScripts","Incomplete"'
-        '"MySQLDBVM","Incomplete"'
-        '"SQLServerDBVM","Incomplete"'
-        '"MySQLAddHosting","Incomplete"'
-        '"SQLServerAddHosting","Incomplete"'
-        '"AppServiceFileServer","Incomplete"'
-        '"AppServiceSQLServer","Incomplete"'
-        '"DownloadAppService","Incomplete"'
-        '"AddAppServicePreReqs","Incomplete"'
-        '"DeployAppService","Incomplete"'
-        '"RegisterNewRPs","Incomplete"'
-        '"CreatePlansOffers","Incomplete"'
-        '"InstallHostApps","Incomplete"'
-        '"CreateOutput","Incomplete"'
-    )
-    $ConfigASDKprogress | ForEach-Object { Add-Content -Path $ConfigASDKProgressLogPath -Value $_ }
-    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-    Write-Output $progress | Out-Host
-}
-
 ### CREATE ASDK FOLDER ######################################################################################################################################
 #############################################################################################################################################################
 
+$ConfigAsdkRunPath = "$downloadPath\ConfigASDKRun.txt"
+$isRerun = [System.IO.File]::Exists($ConfigAsdkRunPath)
 ### CREATE ASDK FOLDER ###
 $ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
 if ($ASDKpath -eq $true) {
@@ -863,48 +814,218 @@ elseif ($ASDKpath -eq $false) {
     mkdir "$downloadPath\ASDK" -Force | Out-Null
     $ASDKpath = "$downloadPath\ASDK"
     Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
+    # Create txt file to act as flag that this is a rerun in future
+    New-Item $ConfigAsdkRunPath -ItemType file -Force
+}
+
+### DOWNLOAD SQLLOCALDB #####################################################################################################################################
+#############################################################################################################################################################
+
+# Check for existence of directory for SqlLocalDB and creating if it doesn't exist
+if (![System.IO.Directory]::Exists("$asdkPath\SqlLocalDB")) {
+    mkdir "$asdkPath\SqlLocalDB" -Force | Out-Null
+    $sqlLocalDBpath = "$asdkPath\SqlLocalDB"
+}
+
+# If there isn't already a copy of the MSI locally, pull it down
+$sqlLocalDBUri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
+$sqlLocalDBMSIPath = "$sqlLocalDBpath\SqlLocalDB.msi"
+if (![System.IO.File]::Exists($sqlLocalDBMSIPath)) {
+    DownloadWithRetry -downloadURI $sqlLocalDBUri -downloadLocation $sqlLocalDBMSIPath -retries 10
+}
+
+### INSTALL SQLLOCALDB ######################################################################################################################################
+#############################################################################################################################################################
+
+# Install SqlLocalDB from MSI
+$sqlLocalInstallPath = "C:\Program Files\Microsoft SQL Server\140\Tools\Binn\"
+if ([System.IO.File]::Exists("$sqlLocalInstallPath\SqlLocalDB.exe")) {
+    Write-Verbose "SqlLocalDB already appears to be available here: $sqlLocalInstallPath. No need to reinstall"
+}
+else {
+    $msi = "SqlLocalDB.msi"
+    $list = 
+    @(
+        "/i `"$msi`"", # Install this MSI
+        "/qn", # Quietly, without a UI
+        "IACCEPTSQLLOCALDBLICENSETERMS=YES",
+        "/L*V `"$sqlLocalDBpath\SqlLocalDB.log`""     # Verbose output to this log
+    )
+    Set-Location $sqlLocalDBpath
+    $installSqlLocalDB = Start-Process -FilePath "msiexec" -ArgumentList $list -Wait -PassThru -Verbose
+    if ($installSqlLocalDB.ExitCode -ne 0) {
+        throw "Installation process returned error code: $($installSqlLocalDB.ExitCode)"
+    }
+    if ($installSqlLocalDB.ExitCode -eq 0) {
+        Write-Verbose "Installation process completed successfully"
+    }
+}
+
+# Add SqlLocalDB to $env:Path
+$testEnvPath = $Env:path
+if (!($testEnvPath -contains "C:\Program Files\Microsoft SQL Server\140\Tools\Binn\")) {
+    $Env:path = $env:path + ";C:\Program Files\Microsoft SQL Server\140\Tools\Binn\"
+}
+
+### INSTALL SQL SERVER POWERSHELL ###########################################################################################################################
+#############################################################################################################################################################
+
+if ($deploymentMode -eq "Online") {
+    # Install SQL Server Module from Online PSrepository
+    if (!(Get-InstalledModule -Name SqlServer -ErrorAction SilentlyContinue -Verbose)) {
+        Install-Module SqlServer -Force -Confirm:$false -AllowClobber -Verbose -ErrorAction Stop
+    }
+}
+elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+    if (!(Get-InstalledModule -Name SqlServer -ErrorAction SilentlyContinue -Verbose)) {
+        # Need to grab module from the ConfigASDKfiles.zip
+        $SourceLocation = "$downloadPath\ASDK\PowerShell"
+        $RepoName = "SQLServerRepo"
+        if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
+            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+        }                
+        Install-Module SqlServer -Repository $RepoName -Force -Confirm:$false -Verbose -ErrorAction Stop
+    }
+}
+
+### CUSTOMIZE SQLLOCALDB ####################################################################################################################################
+#############################################################################################################################################################
+
+# Check if the instance is running and start it, if it isn't.
+$testDBStatus = SqlLocalDB.exe info "MSSQLLocalDB" | Out-String
+while ($testDBStatus -notlike "*Running*") {
+    SqlLocalDB.exe start "MSSQLLocalDB"
+    $testDBStatus = SqlLocalDB.exe info "MSSQLLocalDB" | Out-String
+    $testDBStatus
+}
+
+# Set the advanced properties for the MSSqlLocalDB instance
+$sqlServerInstance = '(localdb)\MSSQLLocalDB'
+Invoke-Sqlcmd -Server $sqlServerInstance -Query "sp_configure 'show advanced options', 1; RECONFIGURE;" -Verbose -ErrorAction Stop
+Invoke-Sqlcmd -Server $sqlServerInstance -Query "sp_configure 'user instance timeout', 600; RECONFIGURE;" -Verbose -ErrorAction Stop
+
+### CREATE DB ###############################################################################################################################################
+#############################################################################################################################################################
+
+# Need to check if ConfigASDK Database exists and if not, create it
+$databaseName = "ConfigASDK"
+$configAsdkDatabaseExists = Invoke-Sqlcmd -Server $sqlServerInstance -Query "SELECT NAME FROM sys.databases WHERE name IN ('ConfigASDK')" | Out-String
+if (!$configAsdkDatabaseExists) {
+    $createQuery = "CREATE DATABASE $databaseName ON PRIMARY (NAME=[ConfigASDK_data], FILENAME = '$sqlLocalDBpath\ConfigASDK_data.mdf') LOG ON (NAME=[ConfigASDK_log], FILENAME = '$sqlLocalDBpath\MATT1_log.ldf');"
+    Invoke-Sqlcmd -Server $sqlServerInstance -Query $createQuery -Verbose -ErrorAction Stop
+}
+else {
+    Write-Verbose "The ConfigASDK Database already exists. No need to recreate."
+}
+
+# Need to check if the logins are present
+$configAsdkSqlLoginExists = Get-SqlLogin -ServerInstance $sqlServerInstance -LoginName "asdkadmin" -ErrorAction SilentlyContinue | Out-String
+if (!$configAsdkSqlLoginExists) {
+    $sqlLocalDbAdmin = "asdkadmin"
+    $sqlLocalDbCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $sqlLocalDbAdmin, $secureVMpwd -ErrorAction Stop
+    Add-SqlLogin -ServerInstance $sqlServerInstance -LoginName "asdkadmin" -LoginPSCredential $sqlLocalDbCreds -LoginType SqlLogin -DefaultDatabase "ConfigASDK" -Enable -GrantConnectSql -ErrorAction SilentlyContinue
+}
+else {
+    Write-Verbose "The ConfigASDK Admin Login already exists. No need to recreate."
+}
+
+# Need to check if a table is present
+$tableName = "Progress"
+$configAsdkSqlTableExists = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction SilentlyContinue | Out-String
+if (!$configAsdkSqlTableExists) {
+    # Need to populate a PowerShell Hash Table that contains all of the stages of the ConfigASDK Script
+    $progressHashTable = [ordered]@{
+        ExtractZip           = "Incomplete";
+        GetScripts           = "Incomplete";
+        CheckPowerShell      = "Incomplete";
+        InstallPowerShell    = "Incomplete";
+        DownloadTools        = "Incomplete";
+        HostConfiguration    = "Incomplete";
+        Registration         = "Incomplete";
+        UbuntuServerImage    = "Incomplete";
+        WindowsUpdates       = "Incomplete";
+        ServerCoreImage      = "Incomplete";
+        ServerFullImage      = "Incomplete";
+        MySQLGalleryItem     = "Incomplete";
+        SQLServerGalleryItem = "Incomplete";
+        AddVMExtensions      = "Incomplete";
+        MySQLRP              = "Incomplete";
+        SQLServerRP          = "Incomplete";
+        MySQLSKUQuota        = "Incomplete";
+        SQLServerSKUQuota    = "Incomplete";
+        UploadScripts        = "Incomplete";
+        MySQLDBVM            = "Incomplete";
+        SQLServerDBVM        = "Incomplete";
+        MySQLAddHosting      = "Incomplete";
+        SQLServerAddHosting  = "Incomplete";
+        AppServiceFileServer = "Incomplete";
+        AppServiceSQLServer  = "Incomplete";
+        DownloadAppService   = "Incomplete";
+        AddAppServicePreReqs = "Incomplete";
+        DeployAppService     = "Incomplete";
+        RegisterNewRPs       = "Incomplete";
+        CreatePlansOffers    = "Incomplete";
+        InstallHostApps      = "Incomplete";
+        CreateOutput         = "Incomplete";
+    }
+
+    # Convert the hash tables to PSCustomObjects before storing the information in the database
+    # Data seems more natural in the database and the results of a simple database query are cleaner
+    $progressHashTable.ForEach( {$_.ForEach( {[PSCustomObject]$_})}) | Format-Table
+    $progressHashTable.ForEach( {$_.ForEach( {[PSCustomObject]$_})}) | Get-Member
+
+    # The SQL Server database already exists, but not the table. The Force parameter creates the table automatically:
+    $progressHashTable.ForEach( {$_.ForEach( {[PSCustomObject]$_}) | Write-SqlTableData -ServerInstance $sqlServerInstance `
+                -DatabaseName $databaseName -SchemaName dbo -TableName $tableName -Force -ErrorAction Stop -Verbose})
+
+    $configAsdkSqlTable = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction SilentlyContinue | Out-String
+    $configAsdkSqlTable
+}
+else {
+    Write-Verbose "The ConfigASDK Progress Table already exists. No need to recreate."
+    $configAsdkSqlTableExists
 }
 
 ### EXTRACT ZIP (OPTIONAL) ##################################################################################################################################
 #############################################################################################################################################################
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "ExtractZip")
-$scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
+$progressStage = "ExtractZip"
+$progressCheck = (Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" `
+-TableName "$tableName" -ColumnName $progressStage -ErrorAction SilentlyContinue).Item(0)
+$progressCheck
+$scriptStep = $progressStage
 
 if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             Write-CustomVerbose -Message "ASDK Configurator dependency files located at: $validZipPath"
             Write-CustomVerbose -Message "Starting extraction to $downloadPath"
             ### Extract the Zip file, move contents to appropriate place
             Expand-Archive -Path $configAsdkOfflineZipPath -DestinationPath $downloadPath -Force -Verbose -ErrorAction Stop
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-CustomVerbose -Message "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+            # Update the ConfigASDK Progress database with successful completion
+            Write-CustomVerbose -Message "Updating ConfigASDK Progress database with successful completion`r`n"
+            Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Complete';" -Verbose -ErrorAction Stop
+            # Display updated progress
+            Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
         }
         catch {
-            Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+            Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage Failed`r`n"
+            Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Failed';" -Verbose -ErrorAction Stop
+            Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
             Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    elseif ($progressCheck -eq "Complete") {
+        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
     }
 }
 elseif (!$configAsdkOfflineZipPath) {
     Write-CustomVerbose -Message "Skipping zip extraction - this is a 100% online deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
+    # Update the ConfigASDK Progress database with skipped completion
+    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Skipped';" -Verbose -ErrorAction Stop
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
 }
 
 ### VALIDATE ISO ############################################################################################################################################
