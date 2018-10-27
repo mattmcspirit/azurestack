@@ -40,20 +40,18 @@ $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+$progressStage = $progressName
+$progressCheck = CheckProgress -progressStage $progressStage
 
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+if ($progressCheck -eq "Complete") {
+    Write-Verbose -Message "ASDK Configuration Stage: $progressStage previously completed successfully"
 }
-elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) -and (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed"))) {
+elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) -and (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed"))) {
     try {
-        if ($progress[$RowIndex].Status -eq "Failed") {
+        if ($progressCheck -eq "Failed") {
             # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Incomplete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            StageReset -progressStage $progressStage
+            $progressCheck = CheckProgress -progressStage $progressStage
         }
         # Firstly create the appropriate RG, storage account and container
         # Scan the $asdkPath\scripts folder and retrieve both files, add to an array, then upload to the storage account
@@ -100,33 +98,21 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                 }
             }
         }
-        Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        $progressStage = $progressName
+        StageComplete -progressStage $progressStage
     }
     catch {
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        StageFailed -progressStage $progressStage
         Set-Location $ScriptLocation
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         throw $_.Exception.Message
         return
     }
 }
 elseif ($deploymentMode -eq "Online") {
     Write-Verbose -Message "This is not an offline deployent, skipping step`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-    $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
+    # Update the ConfigASDKProgressLog.csv file with skip status
+    $progressStage = $progressName
+    StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue
