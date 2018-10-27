@@ -26,6 +26,7 @@ $Global:ProgressPreference = 'SilentlyContinue'
 $logFolder = "AddVMExtensions"
 $logName = $logFolder
 $progressName = $logFolder
+$progressStage = $progressName
 
 ### SET LOG LOCATION ###
 $logDate = Get-Date -Format FileDate
@@ -37,18 +38,13 @@ $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+$progressCheck = CheckProgress -progressStage $progressStage
 
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
-            if ($progress[$RowIndex].Status -eq "Failed") {
-                # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-                $progress[$RowIndex].Status = "Incomplete"
-                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            if ($progressCheck -eq "Failed") {
+                StageReset -progressStage $progressStage
             }
             # Currently an infinite loop bug exists in Azs.AzureBridge.Admin 0.1.1 - this section fixes it by editing the Get-TaskResult.ps1 file
             # Also then launches the VM Extension important in a fresh PSSession as a precaution.
@@ -98,56 +94,34 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                     "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"
                 }
                 # Update the ConfigASDKProgressLog.csv file with successful completion
-                Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-                $progress[$RowIndex].Status = "Complete"
-                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-                Write-Output $progress | Out-Host
+                StageComplete -progressStage $progressStage
             }
             else {
                 # No Azure Bridge Activation Record found - Skip rather than fail
                 Write-Verbose -Message "Skipping Microsoft VM Extension download, no Azure Bridge Activation Object called $activationName could be found within the resource group $activationRG on your Azure Stack"
                 Write-Verbose -Message "Assuming registration of this ASDK was successful, you should be able to manually download the VM extensions from Marketplace Management in the admin portal`r`n"
-                # Update the ConfigASDKProgressLog.csv file with successful completion
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-                $progress[$RowIndex].Status = "Skipped"
-                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-                Write-Output $progress | Out-Host
+                # Update the ConfigASDKProgressLog.csv file with skip status
+                StageSkipped -progressStage $progressStage
             }
         }
         catch {
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+            StageFailed -progressStage $progressStage
             Set-Location $ScriptLocation
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             throw $_.Exception.Message
             return
         }
     }
-    elseif ($progress[$RowIndex].Status -eq "Skipped") {
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        Write-Verbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously skipped"
+    elseif ($progressCheck -eq "Skipped") {
+        Write-Verbose -Message "ASDK Configuration Stage: $progressStage previously skipped"
     }
-    elseif ($progress[$RowIndex].Status -eq "Complete") {
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        Write-Verbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    elseif ($progressCheck -eq "Complete") {
+        Write-Verbose -Message "ASDK Configuration Stage: $progressStage previously completed successfully"
     }
 }
 elseif (!$registerASDK) {
     Write-Verbose -Message "Skipping VM Extension download, as Azure Stack has not been registered`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-    $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
+    # Update the ConfigASDKProgressLog.csv file with skip status
+    StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue
