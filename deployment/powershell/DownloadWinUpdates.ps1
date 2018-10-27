@@ -29,31 +29,6 @@ $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
-### DOWNLOADER FUNCTION #####################################################################################################################################
-#############################################################################################################################################################
-function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
-    while ($true) {
-        try {
-            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
-            break
-        }
-        catch {
-            $exceptionMessage = $_.Exception.Message
-            Write-Verbose "Failed to download '$downloadURI': $exceptionMessage"
-            if ($retries -gt 0) {
-                $retries--
-                Write-Verbose "Waiting 10 seconds before retrying. Retries left: $retries"
-                Start-Sleep -Seconds 10
-            }
-            else {
-                $exception = $_.Exception
-                throw $exception
-            }
-        }
-    }
-}
-
 ### SET LOG LOCATION ###
 $logDate = Get-Date -Format FileDate
 New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\WindowsUpdates" -Force | Out-Null
@@ -64,28 +39,21 @@ $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\WindowsUpdates$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$progressName = "WindowsUpdates"
-$RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+$progressStage = "WindowsUpdates"
+$progressCheck = CheckProgress -progressStage $progressStage
 
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
-        if ($progress[$RowIndex].Status -eq "Failed") {
-            # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Incomplete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        if ($progressCheck -eq "Failed") {
+            StageReset -progressStage $progressStage
         }
         $ErrorActionPreference = "Stop";
         # Log into Azure Stack to check for existing images and push new ones if required ###
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-
         Write-Verbose "Checking to see if a Windows Server 2016 image is present in your Azure Stack Platform Image Repository"
         # Pre-validate that the Windows Server 2016 Server Core VM Image is not already available
-
         Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
         $sku = "2016-Datacenter-Server-Core"
         $platformImageCore = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
@@ -221,26 +189,18 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
             }
         }
         # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        $progressStage = "WindowsUpdates"
+        StageComplete -progressStage $progressStage
     }
     catch {
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        StageFailed -progressStage $progressStage
         Set-Location $ScriptLocation
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         throw $_.Exception.Message
         return
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($progressCheck -eq "Complete") {
+    Write-Verbose "ASDK Configuration Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue
