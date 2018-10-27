@@ -26,7 +26,6 @@ $Global:ProgressPreference = 'SilentlyContinue'
 $logFolder = "AddVMExtensions"
 $logName = $logFolder
 $progressName = $logFolder
-$progressStage = $progressName
 
 ### SET LOG LOCATION ###
 $logDate = Get-Date -Format FileDate
@@ -38,6 +37,7 @@ $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 
+$progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
