@@ -59,42 +59,34 @@ $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+$progressStage = $progressName
+$progressCheck = CheckProgress -progressStage $progressStage
 
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+if ($progressCheck -eq "Complete") {
+    Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
-elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) {
+elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    
-    if ($progress[$RowIndex].Status -eq "Skipped") {
+    if ($progressCheck -eq "Skipped") {
         Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+        # Update the ConfigASDKProgressLog.csv file back to incomplete
+        StageReset -progressStage $progressStage
+        $progressCheck = CheckProgress -progressStage $progressStage
     }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
-            if ($progress[$RowIndex].Status -eq "Failed") {
+            if ($progressCheck -eq "Failed") {
                 # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-                $progress[$RowIndex].Status = "Incomplete"
-                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+                StageReset -progressStage $progressStage
+                $progressCheck = CheckProgress -progressStage $progressStage
             }
             # Need to ensure this stage doesn't start before the App Service components have been downloaded
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $appServiceDownloadJobCheck = [array]::IndexOf($progress.Stage, "DownloadAppService")
-            while (($progress[$appServiceDownloadJobCheck].Status -ne "Complete")) {
+            $appServiceDownloadJobCheck = CheckProgress -progressStage "DownloadAppService"
+            while ($appServiceDownloadJobCheck -ne "Complete") {
                 Write-Verbose -Message "The DownloadAppService stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $appServiceDownloadJobCheck = [array]::IndexOf($progress.Stage, "DownloadAppService")
-                if ($progress[$appServiceDownloadJobCheck].Status -eq "Failed") {
+                $appServiceDownloadJobCheck = CheckProgress -progressStage "DownloadAppService"
+                if ($appServiceDownloadJobCheck -eq "Failed") {
                     throw "The DownloadAppService stage of the process has failed. This should fully complete before the App Service PreReqs can be started. Check the DownloadAppService log, ensure that step is completed first, and rerun."
                 }
             }
@@ -180,34 +172,21 @@ elseif (($skipAppService -eq $false) -and ($progress[$RowIndex].Status -ne "Comp
                 }
             }
             # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+            $progressStage = $progressName
+            StageComplete -progressStage $progressStage
         }
         catch {
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+            StageFailed -progressStage $progressStage
             Set-Location $ScriptLocation
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             throw $_.Exception.Message
             return
         }
     }
 }
-elseif ($skipAppService -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-Verbose -Message "Operator chose to skip App Service Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-    $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
+elseif ($skipAppService -and ($progressCheck -ne "Complete")) {
+    # Update the ConfigASDKProgressLog.csv file with skip status
+    $progressStage = $progressName
+    StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue
