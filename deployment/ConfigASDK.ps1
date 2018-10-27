@@ -184,6 +184,7 @@ $scriptStep = ""
 function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
     while ($true) {
         try {
+            Write-CustomVerbose -Message "Downloading: $downloadURI"
             (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
             break
         }
@@ -272,14 +273,10 @@ function CheckProgress {
         [parameter(Mandatory = $true)]
         [string] $progressStage
     )
-    begin {}
-    process {
         # Grab the latest data from the database, store it as $progressCheck, and display it
         $progressCheck = (Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" `
                 -TableName "$tableName" -ColumnName $progressStage -ErrorAction SilentlyContinue).Item(0)
-        $progressCheck
-    }
-    end {}
+        return $progressCheck
 }
 function StageComplete {
     [cmdletbinding()]
@@ -288,14 +285,10 @@ function StageComplete {
         [parameter(Mandatory = $true)]
         [string] $progressStage
     )
-    begin {}
-    process {
         # Update the ConfigASDK Progress database with successful completion then display updated table
         Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage successfully completed. Updating ConfigASDK Progress database"
         Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Complete';" -Verbose -ErrorAction Stop
         Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
-    }
-    end {}
 }
 function StageSkipped {
     [cmdletbinding()]
@@ -304,14 +297,10 @@ function StageSkipped {
         [parameter(Mandatory = $true)]
         [string] $progressStage
     )
-    begin {}
-    process {
         # Update the ConfigASDK Progress database with skipped status then display updated table
         Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage skipped. Updating ConfigASDK Progress database"
         Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Skipped';" -Verbose -ErrorAction Stop
         Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
-    }
-    end {}
 }
 function StageFailed {
     [cmdletbinding()]
@@ -320,15 +309,11 @@ function StageFailed {
         [parameter(Mandatory = $true)]
         [string] $progressStage
     )
-    begin {}
-    process {
         # Update the ConfigASDK Progress database with failed completion then display updated table, with failure message
         Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage failed. Updating ConfigASDK Progress database"
         Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Failed';" -Verbose -ErrorAction Stop
         Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
         Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    }
-    end {}
 }
 function StageReset {
     [cmdletbinding()]
@@ -337,14 +322,10 @@ function StageReset {
         [parameter(Mandatory = $true)]
         [string] $progressStage
     )
-    begin {}
-    process {
         # Reset the ConfigASDK Progress database from previously being skipped, to incomplete
         Write-CustomVerbose -Message "Operator previously skipped the $progressStage stage, but now wants to perform it. Updating ConfigASDK Progress database to Incomplete."
         Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Incomplete';" -Verbose -ErrorAction Stop
         Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
-    }
-    end {}
 }
 
 $export_functions = [scriptblock]::Create(@"
@@ -1085,7 +1066,7 @@ else {
 #############################################################################################################################################################
 
 $progressStage = "ExtractZip"
-CheckProgress -progressStage $progressStage
+$progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
@@ -1155,7 +1136,7 @@ catch {
 #############################################################################################################################################################
 
 $progressStage = "GetScripts"
-CheckProgress -progressStage $progressStage
+$progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1208,7 +1189,7 @@ elseif ($progressCheck -eq "Complete") {
 ##############################################################################################################################################################
 
 $progressStage = "CheckPowerShell"
-CheckProgress -progressStage $progressStage
+$progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1293,7 +1274,7 @@ elseif ($progressCheck -eq "Complete") {
 #############################################################################################################################################################
 
 $progressStage = "InstallPowerShell"
-CheckProgress -progressStage $progressStage
+$progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1433,7 +1414,7 @@ try {Invoke-WebRequest "http://bit.ly/asdkcounter" -UseBasicParsing -DisableKeep
 ########################################################################################################################################################
 
 $progressStage = "DownloadTools"
-CheckProgress -progressStage $progressStage
+$progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1481,7 +1462,7 @@ Disable-AzureRmDataCollection -WarningAction SilentlyContinue
 ########################################################################################################################################################
 
 $progressStage = "HostConfiguration"
-CheckProgress -progressStage $progressStage
+$progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1536,7 +1517,7 @@ elseif ($progressCheck -eq "Complete") {
 ##############################################################################################################################################################
 
 $progressStage = "Registration"
-CheckProgress -progressStage $progressStage
+$progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -1911,7 +1892,7 @@ Set-Location $ScriptLocation
 ##############################################################################################################################################################
 
 $progressStage = "RegisterNewRPs"
-CheckProgress -progressStage $progressStage
+$progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
@@ -1937,7 +1918,7 @@ elseif ($progressCheck -eq "Complete") {
 ##############################################################################################################################################################
 
 $progressStage = "CreatePlansOffers"
-CheckProgress -progressStage $progressStage
+$progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
@@ -2076,7 +2057,7 @@ elseif ($progressCheck -eq "Complete") {
 ##############################################################################################################################################################
 
 $progressStage = "InstallHostApps"
-CheckProgress -progressStage $progressStage
+$progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 
 if ($progressCheck -eq "Complete") {
@@ -2231,7 +2212,7 @@ elseif ($skipCustomizeHost -and ($progressCheck -ne "Complete")) {
 ##############################################################################################################################################################
 
 $progressStage = "CreateOutput"
-CheckProgress -progressStage $progressStage
+$progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
 try {
     ### Create Output Document ###
