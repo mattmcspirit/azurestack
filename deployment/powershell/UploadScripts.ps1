@@ -1,8 +1,5 @@
 ﻿[CmdletBinding()]
 param (
-    [Parameter(Mandatory = $true)]
-    [String] $ConfigASDKProgressLogPath,
-
     [parameter(Mandatory = $true)]
     [String] $tenantID,
 
@@ -19,7 +16,16 @@ param (
     [String] $azsLocation,
     
     [parameter(Mandatory = $true)]
-    [String] $ScriptLocation
+    [String] $ScriptLocation,
+
+    [Parameter(Mandatory = $true)]
+    [String] $sqlServerInstance,
+
+    [Parameter(Mandatory = $true)]
+    [String] $databaseName,
+
+    [Parameter(Mandatory = $true)]
+    [String] $tableName
 )
 
 $Global:VerbosePreference = "Continue"
@@ -44,12 +50,12 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Verbose -Message "ASDK Configuration Stage: $progressStage previously completed successfully"
+    Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) -and (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed"))) {
     try {
         if ($progressCheck -eq "Failed") {
-            # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
+            # Update the ConfigASDK database back to incomplete status if previously failed
             StageReset -progressStage $progressStage
             $progressCheck = CheckProgress -progressStage $progressStage
         }
@@ -110,7 +116,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
 }
 elseif ($deploymentMode -eq "Online") {
     Write-Verbose -Message "This is not an offline deployent, skipping step`r`n"
-    # Update the ConfigASDKProgressLog.csv file with skip status
+    # Update the ConfigASDK database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage
 }

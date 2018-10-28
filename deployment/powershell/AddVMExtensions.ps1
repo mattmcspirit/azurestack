@@ -1,9 +1,6 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ConfigASDKProgressLogPath,
-
-    [Parameter(Mandatory = $true)]
     [String] $deploymentMode,
 
     [parameter(Mandatory = $true)]
@@ -16,7 +13,16 @@ param (
     [String] $registerASDK,
     
     [parameter(Mandatory = $true)]
-    [String] $ScriptLocation
+    [String] $ScriptLocation,
+
+    [Parameter(Mandatory = $true)]
+    [String] $sqlServerInstance,
+
+    [Parameter(Mandatory = $true)]
+    [String] $databaseName,
+
+    [Parameter(Mandatory = $true)]
+    [String] $tableName
 )
 
 $Global:VerbosePreference = "Continue"
@@ -93,14 +99,14 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                 foreach ($download in $getDownloads) {
                     "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"
                 }
-                # Update the ConfigASDKProgressLog.csv file with successful completion
+                # Update the ConfigASDK database with successful completion
                 StageComplete -progressStage $progressStage
             }
             else {
                 # No Azure Bridge Activation Record found - Skip rather than fail
                 Write-Verbose -Message "Skipping Microsoft VM Extension download, no Azure Bridge Activation Object called $activationName could be found within the resource group $activationRG on your Azure Stack"
                 Write-Verbose -Message "Assuming registration of this ASDK was successful, you should be able to manually download the VM extensions from Marketplace Management in the admin portal`r`n"
-                # Update the ConfigASDKProgressLog.csv file with skip status
+                # Update the ConfigASDK database with skip status
                 StageSkipped -progressStage $progressStage
             }
         }
@@ -112,15 +118,15 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
         }
     }
     elseif ($progressCheck -eq "Skipped") {
-        Write-Verbose -Message "ASDK Configuration Stage: $progressStage previously skipped"
+        Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously skipped"
     }
     elseif ($progressCheck -eq "Complete") {
-        Write-Verbose -Message "ASDK Configuration Stage: $progressStage previously completed successfully"
+        Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
     }
 }
 elseif (!$registerASDK) {
     Write-Verbose -Message "Skipping VM Extension download, as Azure Stack has not been registered`r`n"
-    # Update the ConfigASDKProgressLog.csv file with skip status
+    # Update the ConfigASDK database with skip status
     StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation

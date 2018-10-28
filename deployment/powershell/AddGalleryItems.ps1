@@ -1,9 +1,6 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ConfigASDKProgressLogPath,
-
-    [Parameter(Mandatory = $true)]
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
@@ -26,7 +23,16 @@ param (
     [String] $ScriptLocation,
 
     [Parameter(Mandatory = $true)]
-    [String] $branch
+    [String] $branch,
+
+    [Parameter(Mandatory = $true)]
+    [String] $sqlServerInstance,
+
+    [Parameter(Mandatory = $true)]
+    [String] $databaseName,
+
+    [Parameter(Mandatory = $true)]
+    [String] $tableName
 )
 
 $Global:VerbosePreference = "Continue"
@@ -35,48 +41,6 @@ $Global:ProgressPreference = 'SilentlyContinue'
 
 ### OFFLINE AZPKG FUNCTION ##################################################################################################################################
 #############################################################################################################################################################
-function Add-OfflineAZPKG {
-    [cmdletbinding()]
-    param
-    (
-        [parameter(Mandatory = $true)]
-        [string]$azpkgPackageName
-    )
-    begin {}
-    process {
-        #### Need to upload to blob storage first from extracted ZIP ####
-        $azpkgFullPath = $null
-        $azpkgFileName = $null
-        $azpkgFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.FullName }
-        $azpkgFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.Name }
-                                
-        # Check there's not a gallery item already uploaded to storage
-        if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
-            Write-Verbose "You already have an upload of $azpkgFileName within your Storage Account. No need to re-upload."
-            Write-Verbose "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
-        }
-        else {
-            $uploadAzpkgAttempt = 1
-            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
-                try {
-                    # Log back into Azure Stack to ensure login hasn't timed out
-                    Write-Verbose "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $asdkImagesContainerName -Blob "$azpkgFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
-                }
-                catch {
-                    Write-Verbose "Upload failed."
-                    Write-Verbose "$_.Exception.Message"
-                    $uploadAzpkgAttempt++
-                }
-            }
-        }
-        $azpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkImagesContainerName, $azpkgFileName
-        Write-Verbose "Uploading $azpkgFileName from $azpkgURI"
-        return [string]$azpkgURI
-    }
-    end {}
-}
 
 $logFolder = "$($azpkg)GalleryItem"
 $logName = $logFolder
@@ -92,17 +56,15 @@ $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+$progressStage = $progressName
+$progressCheck = CheckProgress -progressStage $progressStage
 
-if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
-        if ($progress[$RowIndex].Status -eq "Failed") {
-            # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Incomplete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+        if ($progressCheck -eq "Failed") {
+            # Update the ConfigASDK database back to incomplete status if previously failed
+            StageReset -progressStage $progressStage
+            $progressCheck = CheckProgress -progressStage $progressStage
         }
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
@@ -178,28 +140,19 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
                 return
             }
         }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        $progress[$RowIndex].Status = "Complete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        # Update the ConfigASDK database with successful completion
+        $progressStage = $progressName
+        StageComplete -progressStage $progressStage
     }
     catch {
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        $progress[$RowIndex].Status = "Failed"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        Write-Output $progress | Out-Host
+        StageFailed -progressStage $progressStage
         Set-Location $ScriptLocation
-        Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
         throw $_.Exception.Message
         return
     }
 }
-elseif ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+elseif ($progressCheck -eq "Complete") {
+    Write-Verbose "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue

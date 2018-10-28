@@ -1,9 +1,6 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ConfigASDKProgressLogPath,
-
-    [Parameter(Mandatory = $true)]
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
@@ -32,7 +29,16 @@ param (
     [String] $skipMSSQL,
 
     [Parameter(Mandatory = $true)]
-    [String] $branch
+    [String] $branch,
+
+    [Parameter(Mandatory = $true)]
+    [String] $sqlServerInstance,
+
+    [Parameter(Mandatory = $true)]
+    [String] $databaseName,
+
+    [Parameter(Mandatory = $true)]
+    [String] $tableName
 )
 
 $Global:VerbosePreference = "Continue"
@@ -64,20 +70,20 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Verbose -Message "ASDK Configuration Stage: $progressStage previously completed successfully"
+    Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progressCheck -eq "Skipped") {
-        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file back to incomplete
+        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
+        # Update the ConfigASDK database back to incomplete
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
     }
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             if ($progressCheck -eq "Failed") {
-                # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
+                # Update the ConfigASDK database back to incomplete status if previously failed
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
@@ -145,7 +151,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     -hostingServerName $dbFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 20480 `
                     -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
             }
-            # Update the ConfigASDKProgressLog.csv file with successful completion
+            # Update the ConfigASDK database with successful completion
             $progressStage = $progressName
             StageComplete -progressStage $progressStage
         }
@@ -158,7 +164,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     }
 }
 elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
-    # Update the ConfigASDKProgressLog.csv file with skip status
+    # Update the ConfigASDK database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage
 }

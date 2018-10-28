@@ -1,9 +1,6 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ConfigASDKProgressLogPath,
-
-    [Parameter(Mandatory = $true)]
     [String] $ASDKpath,
 
     [parameter(Mandatory = $true)]
@@ -38,7 +35,16 @@ param (
     [String] $ScriptLocation,
 
     [parameter(Mandatory = $false)]
-    [String] $skipAppService
+    [String] $skipAppService,
+
+    [Parameter(Mandatory = $true)]
+    [String] $sqlServerInstance,
+
+    [Parameter(Mandatory = $true)]
+    [String] $databaseName,
+
+    [Parameter(Mandatory = $true)]
+    [String] $tableName
 )
 
 $Global:VerbosePreference = "Continue"
@@ -68,15 +74,15 @@ if ($progressCheck -eq "Complete") {
 elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progressCheck -eq "Skipped") {
-        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file back to incomplete
+        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
+        # Update the ConfigASDK database back to incomplete
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
     }
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             if ($progressCheck -eq "Failed") {
-                # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
+                # Update the ConfigASDK database back to incomplete status if previously failed
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
@@ -171,7 +177,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Verbose -Message "Azure AD Permissions have been previously granted successfully"
                 }
             }
-            # Update the ConfigASDKProgressLog.csv file with successful completion
+            # Update the ConfigASDK database with successful completion
             $progressStage = $progressName
             StageComplete -progressStage $progressStage
         }
@@ -184,7 +190,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
     }
 }
 elseif ($skipAppService -and ($progressCheck -ne "Complete")) {
-    # Update the ConfigASDKProgressLog.csv file with skip status
+    # Update the ConfigASDK database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage
 }

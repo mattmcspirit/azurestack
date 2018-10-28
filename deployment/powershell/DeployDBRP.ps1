@@ -1,9 +1,6 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ConfigASDKProgressLogPath,
-
-    [Parameter(Mandatory = $true)]
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
@@ -35,37 +32,21 @@ param (
     [String] $skipMySQL,
 
     [parameter(Mandatory = $false)]
-    [String] $skipMSSQL
+    [String] $skipMSSQL,
+
+    [Parameter(Mandatory = $true)]
+    [String] $sqlServerInstance,
+
+    [Parameter(Mandatory = $true)]
+    [String] $databaseName,
+
+    [Parameter(Mandatory = $true)]
+    [String] $tableName
 )
 
 $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
-
-### DOWNLOADER FUNCTION #####################################################################################################################################
-#############################################################################################################################################################
-function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
-    while ($true) {
-        try {
-            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
-            break
-        }
-        catch {
-            $exceptionMessage = $_.Exception.Message
-            Write-Verbose "Failed to download '$downloadURI': $exceptionMessage"
-            if ($retries -gt 0) {
-                $retries--
-                Write-Verbose "Waiting 10 seconds before retrying. Retries left: $retries"
-                Start-Sleep -Seconds 10
-            }
-            else {
-                $exception = $_.Exception
-                throw $exception
-            }
-        }
-    }
-}
 
 $logFolder = "$($dbrp)RP"
 $logName = $logFolder
@@ -91,41 +72,34 @@ $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+$progressStage = $progressName
+$progressCheck = CheckProgress -progressStage $progressStage
 
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+if ($progressCheck -eq "Complete") {
+    Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
-elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) {
+elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+    if ($progressCheck -eq "Skipped") {
+        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
+        # Update the ConfigASDK database back to incomplete
+        StageReset -progressStage $progressStage
+        $progressCheck = CheckProgress -progressStage $progressStage
     }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
-            if ($progress[$RowIndex].Status -eq "Failed") {
-                # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-                $progress[$RowIndex].Status = "Incomplete"
-                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            if ($progressCheck -eq "Failed") {
+                # Update the ConfigASDK database back to incomplete status if previously failed
+                StageReset -progressStage $progressStage
+                $progressCheck = CheckProgress -progressStage $progressStage
             }
             # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
-            while (($progress[$serverCoreJobCheck].Status -ne "Complete")) {
+            $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
+            while ($serverCoreJobCheck -ne "Complete") {
                 Write-Verbose -Message "The ServerCoreImage stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $serverCoreJobCheck = [array]::IndexOf($progress.Stage, "ServerCoreImage")
-                if ($progress[$serverCoreJobCheck].Status -eq "Failed") {
+                $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
+                if ($serverCoreJobCheck -eq "Failed") {
                     throw "The ServerCoreImage stage of the process has failed. This should fully complete before the Windows Server full image is created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                 }
             }
@@ -167,9 +141,8 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
             if ($dbrp -eq "SQLServer") {
                 if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $mySQLProgressCheck = [array]::IndexOf($progress.Stage, "MySQLRP")
-                    if (($progress[$mySQLProgressCheck].Status -ne "Complete")) {
+                    $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
+                    if ($mySQLProgressCheck -ne "Complete") {
                         Write-Verbose -Message "To avoid deployment conflicts with the MySQL RP, delaying the SQL Server RP deployment by 2 minutes"
                         Start-Sleep -Seconds 120
                     }
@@ -177,7 +150,6 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             }
             # Login to Azure Stack
             Write-Verbose -Message "Downloading and installing $dbrp Resource Provider"
-
             if (!$([System.IO.Directory]::Exists("$ASDKpath\databases"))) {
                 New-Item -Path "$ASDKpath\databases" -ItemType Directory -Force | Out-Null
             }
@@ -212,35 +184,23 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             elseif ($dbrp -eq "SQLServer") {
                 .\DeploySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd
             }
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+            # Update the ConfigASDK database with successful completion
+            $progressStage = $progressName
+            StageComplete -progressStage $progressStage 
         }
         catch {
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+            StageFailed -progressStage $progressStage
             Set-Location $ScriptLocation
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             throw $_.Exception.Message
             return
         }
     }
 }
-elseif (($skipRP) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-Verbose -Message "Operator chose to skip Resource Provider Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-    $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
+elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
+    Write-Verbose -Message "Operator chose to skip Resource Provider Deployment"
+    # Update the ConfigASDK database with skip status
+    $progressStage = $progressName
+    StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue

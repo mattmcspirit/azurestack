@@ -1,9 +1,6 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ConfigASDKProgressLogPath,
-
-    [Parameter(Mandatory = $true)]
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
@@ -44,7 +41,16 @@ param (
     [String] $skipAppService,
 
     [Parameter(Mandatory = $true)]
-    [String] $branch
+    [String] $branch,
+
+    [Parameter(Mandatory = $true)]
+    [String] $sqlServerInstance,
+
+    [Parameter(Mandatory = $true)]
+    [String] $databaseName,
+
+    [Parameter(Mandatory = $true)]
+    [String] $tableName
 )
 
 $Global:VerbosePreference = "Continue"
@@ -90,54 +96,45 @@ $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 
-$progress = Import-Csv -Path $ConfigASDKProgressLogPath
-$RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+$progressStage = $progressName
+$progressCheck = CheckProgress -progressStage $progressStage
 
-if ($progress[$RowIndex].Status -eq "Complete") {
-    Write-Verbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+if ($progressCheck -eq "Complete") {
+    Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
-elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) {
+elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
-    if ($progress[$RowIndex].Status -eq "Skipped") {
-        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDKProgressLog.csv file to Incomplete."
-        # Update the ConfigASDKProgressLog.csv file with successful completion
-        $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-        $progress[$RowIndex].Status = "Incomplete"
-        $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-        $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
+    if ($progressCheck -eq "Skipped") {
+        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
+        # Update the ConfigASDK database back to incomplete
+        StageReset -progressStage $progressStage
+        $progressCheck = CheckProgress -progressStage $progressStage
     }
-    if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed")) {
+    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
-            if ($progress[$RowIndex].Status -eq "Failed") {
-                # Update the ConfigASDKProgressLog.csv file back to incomplete status if previously failed
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-                $progress[$RowIndex].Status = "Incomplete"
-                $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
+            if ($progressCheck -eq "Failed") {
+                # Update the ConfigASDK database back to incomplete status if previously failed
+                StageReset -progressStage $progressStage
+                $progressCheck = CheckProgress -progressStage $progressStage
             }
             if ($vmType -ne "AppServiceFS") {
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $ubuntuImageJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
-                while (($progress[$ubuntuImageJobCheck].Status -ne "Complete")) {
+                $ubuntuImageJobCheck = CheckProgress -progressStage "UbuntuServerImage"
+                while ($ubuntuImageJobCheck -ne "Complete") {
                     Write-Verbose -Message "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $ubuntuImageJobCheck = [array]::IndexOf($progress.Stage, "UbuntuServerImage")
-                    if ($progress[$ubuntuImageJobCheck].Status -eq "Failed") {
+                    $ubuntuImageJobCheck = CheckProgress -progressStage "UbuntuServerImage"
+                    if ($ubuntuImageJobCheck -eq "Failed") {
                         throw "The UbuntuServerImage stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                     }
                 }
             }
             elseif ($vmType -eq "AppServiceFS") {
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $serverFullJobCheck = [array]::IndexOf($progress.Stage, "ServerFullImage")
-                while (($progress[$serverFullJobCheck].Status -ne "Complete")) {
+                $serverFullJobCheck = CheckProgress -progressStage "ServerFullImage"
+                while ($serverFullJobCheck -ne "Complete") {
                     Write-Verbose -Message "The ServerFullImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $serverFullJobCheck = [array]::IndexOf($progress.Stage, "ServerFullImage")
-                    if ($progress[$serverFullJobCheck].Status -eq "Failed") {
+                    $serverFullJobCheck = CheckProgress -progressStage "ServerFullImage"
+                    if ($serverFullJobCheck -eq "Failed") {
                         throw "The ServerFullImage stage of the process has failed. This should fully complete before the File Server can be deployed. Check the ServerFullImage log, ensure that step is completed first, and rerun."
                     }
                 }
@@ -145,45 +142,39 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             # Need to ensure this stage doesn't start before the Ubuntu Server images have been put into the PIR
             if ($vmType -eq "MySQL") {
                 # Then need to confirm the gallery items are in place
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $MySQLGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
-                while (($progress[$MySQLGalleryItemJobCheck].Status -ne "Complete")) {
+                $MySQLGalleryItemJobCheck = CheckProgress -progressStage "MySQLGalleryItem"
+                while ($MySQLGalleryItemJobCheck -ne "Complete") {
                     Write-Verbose -Message "The MySQLGalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $MySQLGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "MySQLGalleryItem")
-                    if ($progress[$MySQLGalleryItemJobCheck].Status -eq "Failed") {
+                    $MySQLGalleryItemJobCheck = CheckProgress -progressStage "MySQLGalleryItem"
+                    if ($MySQLGalleryItemJobCheck -eq "Failed") {
                         throw "The MySQLGalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the MySQLGalleryItem log, ensure that step is completed first, and rerun."
                     }
                 }
             }
             elseif (($vmType -eq "SQLServer") -or ($vmType -eq "AppServiceDB")) {
                 # Then need to confirm the gallery items are in place
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $SQLServerGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
-                while (($progress[$SQLServerGalleryItemJobCheck].Status -ne "Complete")) {
+                $SQLServerGalleryItemJobCheck = CheckProgress -progressStage "SQLServerGalleryItem"
+                while ($SQLServerGalleryItemJobCheck -ne "Complete") {
                     Write-Verbose -Message "The SQLServerGalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $SQLServerGalleryItemJobCheck = [array]::IndexOf($progress.Stage, "SQLServerGalleryItem")
-                    if ($progress[$SQLServerGalleryItemJobCheck].Status -eq "Failed") {
+                    $SQLServerGalleryItemJobCheck = CheckProgress -progressStage "SQLServerGalleryItem"
+                    if ($SQLServerGalleryItemJobCheck -eq "Failed") {
                         throw "The SQLServerGalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the SQLServerGalleryItem log, ensure that step is completed first, and rerun."
                     }
                 }
             }
             # Need to check if the UploadScripts stage has finished (for an partial/offline deployment)
             if (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                $uploadScriptsJobCheck = [array]::IndexOf($progress.Stage, "UploadScripts")
-                while ($progress[$uploadScriptsJobCheck].Status -ne "Complete") {
+                $uploadScriptsJobCheck = CheckProgress -progressStage "UploadScripts"
+                while ($uploadScriptsJobCheck -ne "Complete") {
                     Write-Verbose -Message "The UploadScripts stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $uploadScriptsJobCheck = [array]::IndexOf($progress.Stage, "UploadScripts")
-                    if ($progress[$uploadScriptsJobCheck].Status -eq "Skipped") {
+                    $uploadScriptsJobCheck = CheckProgress -progressStage "UploadScripts"
+                    if ($uploadScriptsJobCheck -eq "Skipped") {
                         return "The UploadScripts stage of the process has been skipped."
                     }
-                    if ($progress[$uploadScriptsJobCheck].Status -eq "Failed") {
+                    if ($uploadScriptsJobCheck -eq "Failed") {
                         throw "The UploadScripts stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the UploadScripts log, ensure that step is completed first, and rerun."
                     }
                 }
@@ -191,9 +182,8 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
             # Need to confirm that both DB Hosting VM deployments don't operate at exactly the same time, or there may be a conflict with creating the resource groups and other resources at the start of the deployment
             if ($vmType -eq "SQLServer") {
                 if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
-                    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-                    $mySQLProgressCheck = [array]::IndexOf($progress.Stage, "MySQLDBVM")
-                    if (($progress[$mySQLProgressCheck].Status -ne "Complete")) {
+                    $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
+                    if ($mySQLProgressCheck -ne "Complete") {
                         Write-Verbose -Message "To avoid deployment conflicts, delaying the SQL Server VM deployment by 2 minutes to allow initial resources to be created"
                         Start-Sleep -Seconds 120
                     }
@@ -272,20 +262,6 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 }
             }
             elseif ($vmType -eq "AppServiceDB") {
-                # Install SQL Server PowerShell on Host in order to configure 'Contained Database Authentication'
-                if ($deploymentMode -eq "Online") {
-                    # Install SQL Server Module from Online PSrepository
-                    Install-Module SqlServer -Force -Confirm:$false -Verbose -ErrorAction Stop
-                }
-                elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                    # Need to grab module from the ConfigASDKfiles.zip
-                    $SourceLocation = "$downloadPath\ASDK\PowerShell"
-                    $RepoName = "SQLServerRepo"
-                    if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
-                        Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
-                    }                
-                    Install-Module SqlServer -Repository $RepoName -Force -Confirm:$false -Verbose -ErrorAction Stop
-                }
                 New-AzureRmResourceGroupDeployment -Name "DeployAppServiceDB" -ResourceGroupName $rg -TemplateUri $mainTemplateURI -scriptBaseUrl $scriptBaseURI `
                     -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
                     -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A2 -mode Incremental -Verbose -ErrorAction Stop
@@ -297,35 +273,22 @@ elseif (($skipRP -eq $false) -and ($progress[$RowIndex].Status -ne "Complete")) 
                 $sqlQuery = "sp_configure 'contained database authentication', 1;RECONFIGURE;"
                 Invoke-Sqlcmd -Query "$sqlQuery" -ServerInstance "$sqlAppServerFqdn" -Username sa -Password $VMpwd -Verbose -ErrorAction Stop
             }
-            # Update the ConfigASDKProgressLog.csv file with successful completion
-            Write-Verbose "Updating ConfigASDKProgressLog.csv file with successful completion`r`n"
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Complete"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+            # Update the ConfigASDK database with successful completion
+            $progressStage = $progressName
+            StageComplete -progressStage $progressStage
         }
         catch {
-            $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-            $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-            $progress[$RowIndex].Status = "Failed"
-            $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-            Write-Output $progress | Out-Host
+            StageFailed -progressStage $progressStage
             Set-Location $ScriptLocation
-            Write-Verbose "ASDK Configuration Stage: $($progress[$RowIndex].Stage) Failed`r`n"
             throw $_.Exception.Message
             return
         }
     }
 }
-elseif (($skipRP) -and ($progress[$RowIndex].Status -ne "Complete")) {
-    Write-Verbose -Message "Operator chose to skip Resource Provider Deployment`r`n"
-    # Update the ConfigASDKProgressLog.csv file with successful completion
-    $progress = Import-Csv -Path $ConfigASDKProgressLogPath
-    $RowIndex = [array]::IndexOf($progress.Stage, "$progressName")
-    $progress[$RowIndex].Status = "Skipped"
-    $progress | Export-Csv $ConfigASDKProgressLogPath -NoTypeInformation -Force
-    Write-Output $progress | Out-Host
+elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
+    # Update the ConfigASDK database with skip status
+    $progressStage = $progressName
+    StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue

@@ -1,9 +1,6 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ConfigASDKProgressLogPath,
-
-    [Parameter(Mandatory = $true)]
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
@@ -22,7 +19,16 @@ param (
     [pscredential] $asdkCreds,
     
     [parameter(Mandatory = $true)]
-    [String] $ScriptLocation
+    [String] $ScriptLocation,
+
+    [Parameter(Mandatory = $true)]
+    [String] $sqlServerInstance,
+
+    [Parameter(Mandatory = $true)]
+    [String] $databaseName,
+
+    [Parameter(Mandatory = $true)]
+    [String] $tableName
 )
 
 $Global:VerbosePreference = "Continue"
@@ -188,7 +194,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 $target = "$ASDKpath\images"
             }
         }
-        # Update the ConfigASDKProgressLog.csv file with successful completion
+        # Update the ConfigASDK database with successful completion
         $progressStage = "WindowsUpdates"
         StageComplete -progressStage $progressStage
     }
@@ -200,7 +206,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     }
 }
 elseif ($progressCheck -eq "Complete") {
-    Write-Verbose "ASDK Configuration Stage: $progressStage previously completed successfully"
+    Write-Verbose "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue
