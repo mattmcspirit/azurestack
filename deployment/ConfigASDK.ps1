@@ -184,16 +184,16 @@ $scriptStep = ""
 function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
     while ($true) {
         try {
-            Write-CustomVerbose -Message "Downloading: $downloadURI"
+            Write-Verbose -Message "Downloading: $downloadURI"
             (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
             break
         }
         catch {
             $exceptionMessage = $_.Exception.Message
-            Write-CustomVerbose -Message "Failed to download '$downloadURI': $exceptionMessage"
+            Write-Verbose -Message "Failed to download '$downloadURI': $exceptionMessage"
             if ($retries -gt 0) {
                 $retries--
-                Write-CustomVerbose -Message "Waiting 10 seconds before retrying. Retries left: $retries"
+                Write-Verbose -Message "Waiting 10 seconds before retrying. Retries left: $retries"
                 Start-Sleep -Seconds 10
             }
             else {
@@ -213,13 +213,9 @@ function Write-CustomVerbose {
         [parameter(Mandatory = $true)]
         [string] $Message
     )
-    begin {}
-    process {
         $verboseTime = (Get-Date).ToShortTimeString()
         # Function for displaying formatted log messages.  Also displays time in minutes since the script was started
         Write-Verbose -Message "[$verboseTime]::[$scriptStep]:: $Message"
-    }
-    end {}
 }
 
 ### JOB LAUNCHER FUNCTION ###################################################################################################################################
@@ -235,24 +231,22 @@ function JobLauncher {
         [parameter(Mandatory = $true)]
         [System.Object] $jobToExecute
     )
-    begin {}
-    process {
         try {
             if ($null -ne (Get-Job -Name $jobName -ErrorAction SilentlyContinue)) {
                 if (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Running" } ) {
-                    Write-CustomVerbose -Message "$jobName is already running, no need to run this job"
+                    Write-Verbose -Message "$jobName is already running, no need to run this job"
                 }
                 elseif (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Completed" } ) {
-                    Write-CustomVerbose -Message "$jobName already completed, no need to run this job"
+                    Write-Verbose -Message "$jobName already completed, no need to run this job"
                 }
                 elseif (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Failed" } ) {
-                    Write-CustomVerbose -Message "$jobName previously failed - cleaning up and rerunning"
+                    Write-Verbose -Message "$jobName previously failed - cleaning up and rerunning"
                     Get-Job -Name $jobName -ErrorAction SilentlyContinue | Remove-Job
                     & $jobToExecute;
                 }
             }
             else {
-                Write-CustomVerbose -Message "$jobName not found, and hasn't previously completed or failed - Starting $jobName job"
+                Write-Verbose -Message "$jobName not found, and hasn't previously completed or failed - Starting $jobName job"
                 & $jobToExecute;
             }
         }
@@ -260,8 +254,6 @@ function JobLauncher {
             $exception = $_.Exception
             throw $exception
         }
-    }
-    end {}
 }
 
 ### PROGRESS FUNCTIONS ######################################################################################################################################
@@ -286,7 +278,7 @@ function StageComplete {
         [string] $progressStage
     )
     # Update the ConfigASDK Progress database with successful completion then display updated table
-    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage successfully completed. Updating ConfigASDK Progress database"
+    Write-Verbose -Message "ASDK Configurator Stage: $progressStage successfully completed. Updating ConfigASDK Progress database"
     Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Complete';" -Verbose -ErrorAction Stop
     Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
 }
@@ -298,7 +290,7 @@ function StageSkipped {
         [string] $progressStage
     )
     # Update the ConfigASDK Progress database with skipped status then display updated table
-    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage skipped. Updating ConfigASDK Progress database"
+    Write-Verbose -Message "ASDK Configurator Stage: $progressStage skipped. Updating ConfigASDK Progress database"
     Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Skipped';" -Verbose -ErrorAction Stop
     Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
 }
@@ -310,10 +302,10 @@ function StageFailed {
         [string] $progressStage
     )
     # Update the ConfigASDK Progress database with failed completion then display updated table, with failure message
-    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage failed. Updating ConfigASDK Progress database"
+    Write-Verbose -Message "ASDK Configurator Stage: $progressStage failed. Updating ConfigASDK Progress database"
     Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Failed';" -Verbose -ErrorAction Stop
     Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    Write-Verbose -Message "$_.Exception.Message" -ErrorAction Stop
 }
 function StageReset {
     [cmdletbinding()]
@@ -323,7 +315,7 @@ function StageReset {
         [string] $progressStage
     )
     # Reset the ConfigASDK Progress database from previously being skipped, to incomplete
-    Write-CustomVerbose -Message "Operator previously skipped the $progressStage stage, but now wants to perform it. Updating ConfigASDK Progress database to Incomplete."
+    Write-Verbose -Message "Operator previously skipped the $progressStage stage, but now wants to perform it. Updating ConfigASDK Progress database to Incomplete."
     Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Incomplete';" -Verbose -ErrorAction Stop
     Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
 }
@@ -863,7 +855,7 @@ if ($registerASDK) {
 #############################################################################################################################################################
 
 $ConfigAsdkRunFlag = "$ScriptLocation\ConfigASDKRunFlag.txt"
-$isRerun = [System.IO.File]::Exists($ConfigAsdkRunPath)
+$isRerun = [System.IO.File]::Exists($ConfigAsdkRunFlag)
 ### CREATE ASDK FOLDER ###
 $ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
 if ($ASDKpath -eq $true) {
