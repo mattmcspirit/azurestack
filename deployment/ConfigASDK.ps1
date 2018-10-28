@@ -2128,8 +2128,22 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
                 refreshenv
             }
             elseif ($deploymentMode -ne "Online") {
+                $chocoSourcePath = "$ASDKpath\chocolatey"
+                Expand-Archive -Path "$chocoSourcePath\chocolatey.zip" -DestinationPath "$chocoSourcePath" -Force -Verbose -ErrorAction Stop
+                $chocoPs1InstallPath = "$chocoSourcePath\"
                 # Install apps using MSI/EXE etc
                 # VScode, Putty, WinSCP, Chrome, WinDirStat, Python
+                # Choco nupkg Should be renamed to .zip upon download for ease of extraction
+                # https://chocolatey.org/api/v2/package/chocolatey
+                # https://chocolatey.org/api/v2/package/vscode
+                # https://chocolatey.org/api/v2/package/putty.install
+                # https://chocolatey.org/api/v2/package/winscp.install
+                # https://chocolatey.org/api/v2/package/googlechrome
+                # https://chocolatey.org/api/v2/package/windirstat
+                # https://chocolatey.org/api/v2/package/python3
+
+
+
             }
             # Configure Python & Azure CLI Certs
             Write-CustomVerbose -Message "Retrieving Azure Stack Root Authority certificate..." -Verbose
