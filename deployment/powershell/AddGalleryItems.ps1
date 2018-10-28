@@ -39,9 +39,6 @@ $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
-### OFFLINE AZPKG FUNCTION ##################################################################################################################################
-#############################################################################################################################################################
-
 $logFolder = "$($azpkg)GalleryItem"
 $logName = $logFolder
 $progressName = $logFolder
