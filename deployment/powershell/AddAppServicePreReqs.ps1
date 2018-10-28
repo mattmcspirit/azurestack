@@ -161,7 +161,8 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
                     Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
                     $context = Get-AzureRmContext
-                    $refreshToken = $context.TokenCache.ReadItems().RefreshToken
+                    $refreshToken = @($context.TokenCache.ReadItems() | Where-Object {$_.tenantId -eq $tenantId -and $_.ExpiresOn -gt (Get-Date)})[0].RefreshToken
+                    $refreshtoken = $refreshtoken.Split("`n")[0]
                     $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
                     $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
                     $header = @{
@@ -171,7 +172,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         'x-ms-correlation-id'    = [guid]::NewGuid()
                     }
                     $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
-                    Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction SilentlyContinue
+                    Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction Stop
                     New-Item -Path "$AppServicePath\AzureAdPermissions.txt" -ItemType file -Force
                 }
                 else {
