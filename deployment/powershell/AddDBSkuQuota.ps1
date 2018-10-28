@@ -39,9 +39,18 @@ $Global:ProgressPreference = 'SilentlyContinue'
 $logFolder = "$($dbsku)SKUQuota"
 $logName = $logFolder
 $progressName = $logFolder
+$skipRP = $false
 
-if (($skipMySQL -eq $true) -or ($skipMSSQL -eq $true)) { $skipRP = $true }
-else { $skipRP = $false }
+if ($dbsku -eq "MySQL") {
+    if ($skipMySQL -eq $true) {
+        $skipRP = $true
+    }
+}
+elseif ($dbsku -eq "SQLServer") {
+    if ($skipMSSQL -eq $true) {
+        $skipRP = $true
+    }
+}
 
 ### SET LOG LOCATION ###
 $logDate = Get-Date -Format FileDate

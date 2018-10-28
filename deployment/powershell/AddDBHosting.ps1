@@ -48,12 +48,17 @@ $Global:ProgressPreference = 'SilentlyContinue'
 $logFolder = "$($dbHost)AddHosting"
 $logName = $logFolder
 $progressName = $logFolder
+$skipRP = $false
 
-if (($skipMySQL -eq $true) -or ($skipMSSQL -eq $true) -or ($skipAppService -eq $true)) {
-    $skipRP = $true
+if ($dbHost -eq "MySQL") {
+    if ($skipMySQL -eq $true) {
+        $skipRP = $true
+    }
 }
-else {
-    $skipRP = $false
+elseif ($dbHost -eq "SQLServer") {
+    if ($skipMSSQL -eq $true) {
+        $skipRP = $true
+    }
 }
 
 ### SET LOG LOCATION ###

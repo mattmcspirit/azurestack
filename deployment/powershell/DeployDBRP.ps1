@@ -51,16 +51,22 @@ $Global:ProgressPreference = 'SilentlyContinue'
 $logFolder = "$($dbrp)RP"
 $logName = $logFolder
 $progressName = $logFolder
+$skipRP = $false
+
 if ($dbrp -eq "MySQL") {
     $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
     $rp = "mysql"
+    if ($skipMySQL -eq $true) {
+        $skipRP = $true
+    }
 }
 elseif ($dbrp -eq "SQLServer") {
     $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
     $rp = "sql"
+    if ($skipMSSQL -eq $true) {
+        $skipRP = $true
+    }
 }
-if (($skipMySQL -eq $true) -or ($skipMSSQL -eq $true)) { $skipRP = $true }
-else { $skipRP = $false }
 
 ### SET LOG LOCATION ###
 $logDate = Get-Date -Format FileDate

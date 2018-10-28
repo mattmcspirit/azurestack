@@ -57,39 +57,37 @@ $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
+$skipRP = $false
 if ($vmType -eq "MySQL") {
     $logFolder = "$($vmType)DBVM"
     $azpkg = "MySQL"
     $rg = "azurestack-dbhosting"
-    $skipMSSQL = $null
-    $skipAppService = $null
+    if ($skipMySQL -eq $true) {
+        $skipRP = $true
+    }
 }
 elseif ($vmType -eq "SQLServer") {
     $logFolder = "$($vmType)DBVM"
     $azpkg = "MSSQL"
     $rg = "azurestack-dbhosting"
-    $skipMySQL = $null
-    $skipAppService = $null
+    if ($skipMSSQL -eq $true) {
+        $skipRP = $true
+    }
 }
 elseif ($vmType -eq "AppServiceFS") {
     $logFolder = "AppServiceFileServer"
     $rg = "appservice-fileshare"
-    $skipMySQL = $null
-    $skipMSSQL = $null
+    if ($skipAppService -eq $true) {
+        $skipRP = $true
+    }
 }
 elseif ($vmType -eq "AppServiceDB") {
     $logFolder = "AppServiceSQLServer"
     $azpkg = "MSSQL"
     $rg = "appservice-sql"
-    $skipMySQL = $null
-    $skipMSSQL = $null
-}
-
-if (($skipMySQL -eq $true) -or ($skipMSSQL -eq $true) -or ($skipAppService -eq $true)) {
-    $skipRP = $true
-}
-else {
-    $skipRP = $false
+    if ($skipAppService -eq $true) {
+        $skipRP = $true
+    }
 }
 
 ### SET LOG LOCATION ###
