@@ -107,7 +107,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             ### Login to Azure Stack ###
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
             # Get Azure Stack location
             $azsLocation = (Get-AzsLocation).Name

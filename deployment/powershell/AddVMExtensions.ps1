@@ -79,8 +79,8 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $activationName = "default"
             $activationRG = "azurestack-activation"
             if ($(Get-AzsAzureBridgeActivation -Name $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
@@ -95,7 +95,7 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                 $getDownloads = (Get-AzsAzureBridgeDownloadedProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")})
                 Write-Verbose -Message "Your Azure Stack gallery now has the following Microsoft VM Extensions for enhancing your deployments:`r`n"
                 foreach ($download in $getDownloads) {
-                    "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"
+                    Write-Host "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"
                 }
                 # Update the ConfigASDK database with successful completion
                 StageComplete -progressStage $progressStage

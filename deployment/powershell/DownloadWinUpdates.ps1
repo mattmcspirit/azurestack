@@ -57,7 +57,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         # Log into Azure Stack to check for existing images and push new ones if required ###
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         Write-Verbose "Checking to see if a Windows Server 2016 image is present in your Azure Stack Platform Image Repository"
         # Pre-validate that the Windows Server 2016 Server Core VM Image is not already available
         Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue

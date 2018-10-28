@@ -200,7 +200,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             ### Login to Azure Stack ###
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
             Write-Verbose -Message "Creating a dedicated Resource Group for all database hosting assets"
             if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {

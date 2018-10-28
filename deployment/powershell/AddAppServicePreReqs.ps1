@@ -117,7 +117,8 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     # Logout to clean up
                     Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                     Clear-AzureRmContext -Scope CurrentUser -Force
-                    Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId "$azureDirectoryTenantName" -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+                    Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
                     Set-Location "$AppServicePath"
                     $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
                         -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
@@ -131,7 +132,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 elseif ($authenticationType.ToString() -like "ADFS") {
                     $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
                     Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Set-Location "$AppServicePath"
                     $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.local.azurestack.external" -PrivilegedEndpoint $ERCSip `
                         -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds
@@ -151,15 +152,15 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             #### Grant Azure AD App Permissions ####
-            if (($authenticationType.ToString() -like "AzureAd") -and (($deploymentMode -eq "Online") -or ($deploymentMode -eq "PartialOnline"))) {
+            if (($authenticationType.ToString() -like "AzureAd") -and ($deploymentMode -ne "Offline")) {
                 if (!$([System.IO.File]::Exists("$AppServicePath\AzureAdPermissions.txt"))) {
                     # Logout to clean up
                     Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                     Clear-AzureRmContext -Scope CurrentUser -Force
                     # Grant permissions to Azure AD Service Principal
-                    Login-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $azureDirectoryTenantName -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+                    Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
                     $context = Get-AzureRmContext
-                    $tenantId = $context.Tenant.Id
                     $refreshToken = $context.TokenCache.ReadItems().RefreshToken
                     $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
                     $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'

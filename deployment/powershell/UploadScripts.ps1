@@ -67,7 +67,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         $asdkOfflineContainerName = "offlinecontainer"
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         if (-not (Get-AzureRmResourceGroup -Name $asdkOfflineRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
             New-AzureRmResourceGroup -Name $asdkOfflineRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
         }
@@ -94,7 +94,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                 try {
                     # Log back into Azure Stack to ensure login hasn't timed out
                     Write-Verbose -Message "$itemName not found. Upload Attempt: $uploadItemAttempt"
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkOfflineContainerName -Blob "$itemName" -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
                 }
                 catch {

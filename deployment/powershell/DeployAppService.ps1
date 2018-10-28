@@ -116,7 +116,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             # Login to Azure Stack to grab FQDNs and also Identity App ID locally
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
             $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
@@ -232,7 +232,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Clear-AzureRmContext -Scope CurrentUser -Force
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
             if ($appServiceRgCheck.ProvisioningState -ne 'Succeeded') {
                 Write-Verbose -Message "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
