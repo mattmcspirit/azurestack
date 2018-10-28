@@ -53,7 +53,6 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                 StageReset -progressStage $progressStage
             }
             # Currently an infinite loop bug exists in Azs.AzureBridge.Admin 0.1.1 - this section fixes it by editing the Get-TaskResult.ps1 file
-            # Also then launches the VM Extension important in a fresh PSSession as a precaution.
             if (!(Get-Module -Name Azs.AzureBridge.Admin)) {
                 Import-Module Azs.AzureBridge.Admin -Force
             }
@@ -79,7 +78,6 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             }
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
-            ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
