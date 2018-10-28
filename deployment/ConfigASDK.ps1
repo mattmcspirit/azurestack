@@ -440,8 +440,6 @@ try {
     }
     elseif (($authenticationType.ToString() -like "ADFS") -and !$validOnlineInstall -and $configAsdkOfflineZipPath) {
         $deploymentMode = "Offline"
-        $skipCustomizeHost = $true
-        throw "Due to issues with PowerShell, offline mode is not currently supported in this release."
     }
     elseif (($authenticationType.ToString() -like "ADFS") -and !$validOnlineInstall -and !$configAsdkOfflineZipPath) {
         $exception = "ADFS is your selected authentication model, but you failed internet connectivity tests and didn't provide an offline zip path."
@@ -1984,25 +1982,25 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
         $quotaIDs = $null
         $quotaIDs = @()
-        while (!$(Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation)) {
+        while (!$(Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
             New-AzsNetworkQuota @netParams
         }
-        if ($(Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation)) {
+        if ($(Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
             $quotaIDs += (Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation).ID
         }
-        while (!$(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation)) {
-            New-AzsComputeQuota @computeParams
+        while (!$(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
+            New-AzsComputeQuota @computeParams -ErrorAction Stop -Verbose
         }
-        if ($(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation)) {
+        if ($(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
             $quotaIDs += (Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation).ID
         }
-        while (!$(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation)) {
-            New-AzsStorageQuota @storageParams
+        while (!$(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
+            New-AzsStorageQuota @storageParams -ErrorAction Stop -Verbose
         }
-        if ($(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation)) {
+        if ($(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
             $quotaIDs += (Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation).ID
         }
-        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams).ID
+        $quotaIDs += (Get-AzsKeyVaultQuota @kvParams -ErrorAction Stop -Verbose).ID
 
         # If MySQL, MSSQL and App Service haven't been skipped, add them to the Base Plan too
         if (!$skipMySQL) {
@@ -2079,46 +2077,60 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
     }
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
-            # Install useful ASDK Host Apps via Chocolatey
-            Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-            # Enable Choco Global Confirmation
-            Write-CustomVerbose -Message "Enabling global confirmation to streamline installs"
-            choco feature enable -n allowGlobalConfirmation
-            # Visual Studio Code
-            Write-CustomVerbose -Message "Installing VS Code with Chocolatey"
-            choco install vscode
-            # Putty
-            Write-CustomVerbose -Message "Installing Putty with Chocolatey"
-            choco install putty.install
-            # WinSCP
-            Write-CustomVerbose -Message "Installing WinSCP with Chocolatey"
-            choco install winscp.install
-            # Chrome
-            Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
-            choco install googlechrome
-            # WinDirStat
-            Write-CustomVerbose -Message "Installing WinDirStat with Chocolatey"
-            choco install windirstat
-            # Python
-            Write-CustomVerbose -Message "Installing latest version of Python for Windows"
-            choco install python3 --params "/InstallDir:C:\Python"
-            refreshenv
-            # Set Environment Variables
-            [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "Machine")
-            [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "User")
-            # Set Current Session Variable
-            $env:path = "$env:Path;C:\Python;C:\Python\Scripts"
-            Write-CustomVerbose -Message "Upgrading pip"
-            python -m ensurepip --default-pip
-            python -m pip install -U pip
-            refreshenv
-            Write-CustomVerbose -Message "Installing certifi"
-            pip install certifi
-            refreshenv
-            # Azure CLI
-            Write-CustomVerbose -Message "Installing latest version of Azure CLI with Chocolatey"
-            choco install azure-cli
-            refreshenv
+            if (-deploymentMode -eq "Online") {
+                # Install useful ASDK Host Apps via Chocolatey
+                Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+                # Enable Choco Global Confirmation
+                Write-CustomVerbose -Message "Enabling global confirmation to streamline installs"
+                choco feature enable -n allowGlobalConfirmation
+                # Add Choco to default path
+                $testEnvPath = $Env:path
+                if (!($testEnvPath -contains "$env:ProgramData\chocolatey\bin")) {
+                    $Env:path = $env:path + ";$env:ProgramData\chocolatey\bin"
+                }
+                # Visual Studio Code
+                Write-CustomVerbose -Message "Installing VS Code with Chocolatey"
+                choco install vscode
+                # Putty
+                Write-CustomVerbose -Message "Installing Putty with Chocolatey"
+                choco install putty.install
+                # WinSCP
+                Write-CustomVerbose -Message "Installing WinSCP with Chocolatey"
+                choco install winscp.install
+                # Chrome
+                Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
+                choco install googlechrome
+                # WinDirStat
+                Write-CustomVerbose -Message "Installing WinDirStat with Chocolatey"
+                choco install windirstat
+                # Python
+                Write-CustomVerbose -Message "Installing latest version of Python for Windows"
+                choco install python3 --params "/InstallDir:C:\Python"
+                refreshenv
+                # Set Environment Variables
+                [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "Machine")
+                [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "User")
+                # Set Current Session Variable
+                $testEnvPath = $Env:path
+                if (!($testEnvPath -contains "C:\Python;C:\Python\Scripts")) {
+                    $Env:path = $env:path + ";C:\Python;C:\Python\Scripts"
+                }
+                Write-CustomVerbose -Message "Upgrading pip"
+                python -m ensurepip --default-pip
+                python -m pip install -U pip
+                refreshenv
+                Write-CustomVerbose -Message "Installing certifi"
+                pip install certifi
+                refreshenv
+                # Azure CLI
+                Write-CustomVerbose -Message "Installing latest version of Azure CLI with Chocolatey"
+                choco install azure-cli
+                refreshenv
+            }
+            elseif ($deploymentMode -ne "Online") {
+                # Install apps using MSI/EXE etc
+                # VScode, Putty, WinSCP, Chrome, WinDirStat, Python
+            }
             # Configure Python & Azure CLI Certs
             Write-CustomVerbose -Message "Retrieving Azure Stack Root Authority certificate..." -Verbose
             $label = "AzureStackSelfSignedRootCert"
@@ -2195,7 +2207,7 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
                     az cloud set -n AzureStackAdmin
                     Write-CustomVerbose -Message "Updating profile for Azure CLI"
                     # Update the profile
-                    az cloud update --profile 2017-03-09-profile
+                    az cloud update --profile 2018-03-01-hybrid
                 }
                 catch {
                     Write-CustomVerbose -Message "Something went wrong configuring Azure CLI and Python. Please follow the Azure Stack docs to configure for your ASDK"
@@ -2350,8 +2362,8 @@ if ($scriptSuccess) {
     if (!$([System.IO.Directory]::Exists("$completedPath\AppServiceCerts"))) {
         New-Item -Path "$completedPath\AppServiceCerts" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
     }
-    if ([bool](Get-ChildItem -Path "$AppServicePath\*" -Include "*.cer, *.pfx" -ErrorAction SilentlyContinue -Verbose)) {
-        Get-ChildItem -Path "$AppServicePath\*" -Include "*.cer, *.pfx" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ "$completedPath\AppServiceCerts" -Force -ErrorAction SilentlyContinue -Verbose }
+    if ([bool](Get-ChildItem -Path "$AppServicePath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose)) {
+        Get-ChildItem -Path "$AppServicePath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ "$completedPath\AppServiceCerts" -Force -ErrorAction SilentlyContinue -Verbose }
     }
 
     Write-CustomVerbose -Message "Cleaning up ASDK Folder"
