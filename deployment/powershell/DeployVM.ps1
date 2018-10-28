@@ -61,20 +61,28 @@ if ($vmType -eq "MySQL") {
     $logFolder = "$($vmType)DBVM"
     $azpkg = "MySQL"
     $rg = "azurestack-dbhosting"
+    $skipMSSQL = $null
+    $skipAppService = $null
 }
 elseif ($vmType -eq "SQLServer") {
     $logFolder = "$($vmType)DBVM"
     $azpkg = "MSSQL"
     $rg = "azurestack-dbhosting"
+    $skipMySQL = $null
+    $skipAppService = $null
 }
 elseif ($vmType -eq "AppServiceFS") {
     $logFolder = "AppServiceFileServer"
     $rg = "appservice-fileshare"
+    $skipMySQL = $null
+    $skipMSSQL = $null
 }
 elseif ($vmType -eq "AppServiceDB") {
     $logFolder = "AppServiceSQLServer"
     $azpkg = "MSSQL"
     $rg = "appservice-sql"
+    $skipMySQL = $null
+    $skipMSSQL = $null
 }
 
 if (($skipMySQL -eq $true) -or ($skipMSSQL -eq $true) -or ($skipAppService -eq $true)) {
