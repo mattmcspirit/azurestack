@@ -226,12 +226,12 @@ elseif ($configASDKFilePathExists -eq $false) {
 
 $ASDKpath = mkdir "$configASDKFilePath\ASDK" -Force
 $packagePath = mkdir "$ASDKpath\packages" -Force
+$sqlLocalDBpath = mkdir "$ASDKpath\SqlLocalDB" -Force
+$chocoSourcePath = mkdir "$ASDKpath\chocolatey" -Force
 $templatePath = mkdir "$ASDKpath\templates" -Force
 $scriptPath = mkdir "$ASDKpath\scripts" -Force
 $binaryPath = mkdir "$ASDKpath\binaries" -Force
 $psPath = mkdir "$ASDKpath\powershell" -Force
-$psPath140 = mkdir "$ASDKpath\powershell\1.4.0" -Force
-$psPath150 = mkdir "$ASDKpath\powershell\1.5.0" -Force
 $psScriptPath = mkdir "$ASDKpath\powershell\Scripts" -Force
 $dbPath = mkdir "$ASDKpath\databases" -Force
 $imagesPath = mkdir "$ASDKpath\images" -Force
@@ -255,6 +255,9 @@ try {
     # ConfigASDK.ps1 Script
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/ConfigASDK.ps1"
     $row.filename = "ConfigASDK.ps1"; $row.path = "$downloadPath"; $row.productName = "ASDK Configurator Script"; $Table.Rows.Add($row)
+    # SqlLocalDB MSI
+    $row = $table.NewRow(); $row.Uri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
+    $row.filename = "SqlLocalDB.msi"; $row.path = "$sqlLocalDBPath"; $row.productName = "SqlLocalDB"; $Table.Rows.Add($row)
     # Azure Stack Tools
     $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
     $row.filename = "Master.zip"; $row.path = "$ASDKpath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
@@ -444,6 +447,45 @@ try {
     # App Service PreDeployment JSON
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"
     $row.filename = "AppServicePreDeploymentSettings.json"; $row.path = "$appServicePath"; $row.productName = "App Service Pre-Deployment JSON Configuration"; $Table.Rows.Add($row)
+    
+    # Grab the Chocolatey binaries and nupkgs for key apps to be installed
+    # Chocolatey installer
+    $row = $table.NewRow(); $row.Uri = "https://chocolatey.org/api/v2/package/chocolatey"
+    $row.filename = "chocolatey.zip"; $row.path = "$chocoSourcePath"; $row.productName = "Chocolatey installer"; $Table.Rows.Add($row)
+    # VScode Package
+    $row = $table.NewRow(); $row.Uri = "https://chocolatey.org/api/v2/package/vscode"
+    $row.filename = "vscode.nupkg"; $row.path = "$chocoSourcePath"; $row.productName = "VScode Package"; $Table.Rows.Add($row)
+    # Putty Package
+    $row = $table.NewRow(); $row.Uri = "https://chocolatey.org/api/v2/package/putty.install"
+    $row.filename = "putty.nupkg"; $row.path = "$chocoSourcePath"; $row.productName = "Putty Package"; $Table.Rows.Add($row)
+    # WinSCP Package
+    $row = $table.NewRow(); $row.Uri = "https://chocolatey.org/api/v2/package/winscp.install"
+    $row.filename = "WinSCP.nupkg"; $row.path = "$chocoSourcePath"; $row.productName = "WinSCP Package"; $Table.Rows.Add($row)
+    # Chrome Package
+    $row = $table.NewRow(); $row.Uri = "https://chocolatey.org/api/v2/package/googlechrome"
+    $row.filename = "googlechrome.nupkg"; $row.path = "$chocoSourcePath"; $row.productName = "Chrome Package"; $Table.Rows.Add($row)
+    # WinDirStat Package
+    $row = $table.NewRow(); $row.Uri = "https://chocolatey.org/api/v2/package/windirstat"
+    $row.filename = "windirstat.nupkg"; $row.path = "$chocoSourcePath"; $row.productName = "WinDirStat Package"; $Table.Rows.Add($row)
+    # Azure CLI Package
+    $row = $table.NewRow(); $row.Uri = "https://chocolatey.org/api/v2/package/azure-cli"
+    $row.filename = "azurecli.nupkg"; $row.path = "$chocoSourcePath"; $row.productName = "Azure CLI Package"; $Table.Rows.Add($row)
+    # Python Exe Installer
+    $WebResponse = Invoke-WebRequest "https://www.python.org/downloads/windows/" -UseBasicParsing
+    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "https://www.python.org/ftp/python/*amd64.exe")} | Sort-Object | Select-Object -First 1).href.ToString()
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "python3.exe"; $row.path = "$chocoSourcePath"; $row.productName = "Python 3 Exe Installer"; $Table.Rows.Add($row)
+    # PIP package
+    $WebResponse = Invoke-WebRequest "https://pypi.org/project/pip/#files" -UseBasicParsing
+    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*pip-*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "pip.whl"; $row.path = "$chocoSourcePath"; $row.productName = "PIP Wheel"; $Table.Rows.Add($row)
+    # Certifi package
+    $WebResponse = Invoke-WebRequest "https://pypi.org/project/certifi/#files" -UseBasicParsing
+    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*certifi*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "certifi.whl"; $row.path = "$chocoSourcePath"; $row.productName = "Certifi Wheel"; $Table.Rows.Add($row)
+    
     Write-CustomVerbose -Message "The following files will be downloaded:"
     $table | Format-Table -AutoSize
 }
@@ -508,10 +550,8 @@ else {
 $scriptStep = "POWERSHELL"
 try {
     Write-CustomVerbose -Message "Downloading PowerShell Modules for AzureRM, Azure Stack and SQL Server" -ErrorAction Stop
-    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath140 -Force -RequiredVersion 1.2.11 | Out-Null
-    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath140 -Force -RequiredVersion 1.4.0 | Out-Null
-    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath150 -Force -RequiredVersion 2.3.0 | Out-Null
-    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath150 -Force -RequiredVersion 1.5.0 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath -Force -RequiredVersion 2.3.0 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath -Force -RequiredVersion 1.5.0 | Out-Null
     Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name SQLServer -Path $psPath -Force | Out-Null
 }
 catch {
