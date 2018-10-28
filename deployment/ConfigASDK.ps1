@@ -2130,20 +2130,58 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
             elseif ($deploymentMode -ne "Online") {
                 $chocoSourcePath = "$ASDKpath\chocolatey"
                 Expand-Archive -Path "$chocoSourcePath\chocolatey.zip" -DestinationPath "$chocoSourcePath" -Force -Verbose -ErrorAction Stop
-                $chocoPs1InstallPath = "$chocoSourcePath\"
-                # Install apps using MSI/EXE etc
-                # VScode, Putty, WinSCP, Chrome, WinDirStat, Python
-                # Choco nupkg Should be renamed to .zip upon download for ease of extraction
-                # https://chocolatey.org/api/v2/package/chocolatey
-                # https://chocolatey.org/api/v2/package/vscode
-                # https://chocolatey.org/api/v2/package/putty.install
-                # https://chocolatey.org/api/v2/package/winscp.install
-                # https://chocolatey.org/api/v2/package/googlechrome
-                # https://chocolatey.org/api/v2/package/windirstat
-                # https://chocolatey.org/api/v2/package/python3
-
-
-
+                $chocoPs1InstallPath = "$chocoSourcePath\tools\chocolateyInstall.ps1"
+                Write-CustomVerbose -Message "Installing Chocolatey from $chocoSourcePath"
+                & $chocoPs1InstallPath
+                # Enable Choco Global Confirmation
+                Write-CustomVerbose -Message "Enabling global confirmation to streamline installs"
+                choco feature enable -n allowGlobalConfirmation
+                # Add Choco to default path
+                $testEnvPath = $Env:path
+                if (!($testEnvPath -contains "$env:ProgramData\chocolatey\bin")) {
+                    $Env:path = $env:path + ";$env:ProgramData\chocolatey\bin"
+                }
+                # Visual Studio Code
+                Write-CustomVerbose -Message "Installing VS Code with Chocolatey"
+                choco install vscode -y -s "$chocoSourcePath\vscode.nupkg"
+                # Putty
+                Write-CustomVerbose -Message "Installing Putty with Chocolatey"
+                choco install putty.install -y -s "$chocoSourcePath\putty.nupkg"
+                # WinSCP
+                Write-CustomVerbose -Message "Installing WinSCP with Chocolatey"
+                choco install winscp.install -y -s "$chocoSourcePath\WinSCP.nupkg"
+                # Chrome
+                Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
+                choco install googlechrome -y -s "$chocoSourcePath\googlechrome.nupkg"
+                # WinDirStat
+                Write-CustomVerbose -Message "Installing WinDirStat with Chocolatey"
+                choco install windirstat -y -s "$chocoSourcePath\windirstat.nupkg"
+                # Python
+                Write-CustomVerbose -Message "Installing latest version of Python for Windows"
+                choco install python3 --params "/InstallDir:C:\Python" -y -s "$chocoSourcePath\python3.nupkg"
+                refreshenv
+                # Set Environment Variables
+                [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "Machine")
+                [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "User")
+                # Set Current Session Variable
+                $testEnvPath = $Env:path
+                if (!($testEnvPath -contains "C:\Python;C:\Python\Scripts")) {
+                    $Env:path = $env:path + ";C:\Python;C:\Python\Scripts"
+                }
+                Set-Location $chocoSourcePath
+                Write-CustomVerbose -Message "Upgrading pip"
+                python -m ensurepip --default-pip
+                # python -m pip install -U pip
+                pip install --use-wheel --no-index pip.whl
+                refreshenv
+                Write-CustomVerbose -Message "Installing certifi"
+                # pip install certifi
+                pip install --use-wheel --no-index certifi.whl
+                refreshenv
+                # Azure CLI
+                Write-CustomVerbose -Message "Installing latest version of Azure CLI with Chocolatey"
+                choco install azure-cli -y -s "$chocoSourcePath\azurecli.nupkg"
+                refreshenv
             }
             # Configure Python & Azure CLI Certs
             Write-CustomVerbose -Message "Retrieving Azure Stack Root Authority certificate..." -Verbose
