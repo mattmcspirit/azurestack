@@ -34,7 +34,7 @@
     * MySQL, SQL, App Service and Host Customization can be optionally skipped
     * Cleans up download folder to ensure clean future runs
     * Transcript Log for errors and troubleshooting
-    * Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
+    * Progress Tracking and rerun reliability with ConfigASDK database hosted on SqlLocalDB (2017)
     * Stores script output in a ConfigASDKOutput.txt, for future reference
     * Supports usage in offline/disconnected environments
 
@@ -42,7 +42,7 @@
 
     1809    Updated to support ASDK 1.1809.0.90
             Support for PS 1.5.0, and new AzureRM Profile 2018-03-01-hybrid
-            Use of SqlLocalDB instead of CSV file to track progress
+            Use of SqlLocalDB 2017 instead of CSV file to track progress
             Parallel job processing through PowerShell background jobs
             Support for host customization step in offline mode
     1808.1  Added fix for BITS issues with MySQL/SQL RP installations
@@ -273,10 +273,10 @@ function CheckProgress {
         [parameter(Mandatory = $true)]
         [string] $progressStage
     )
-        # Grab the latest data from the database, store it as $progressCheck, and display it
-        $progressCheck = (Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" `
-                -TableName "$tableName" -ColumnName $progressStage -ErrorAction SilentlyContinue).Item(0)
-        return $progressCheck
+    # Grab the latest data from the database, store it as $progressCheck, and display it
+    $progressCheck = (Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" `
+            -TableName "$tableName" -ColumnName $progressStage -ErrorAction SilentlyContinue).Item(0)
+    return $progressCheck
 }
 function StageComplete {
     [cmdletbinding()]
@@ -285,10 +285,10 @@ function StageComplete {
         [parameter(Mandatory = $true)]
         [string] $progressStage
     )
-        # Update the ConfigASDK Progress database with successful completion then display updated table
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage successfully completed. Updating ConfigASDK Progress database"
-        Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Complete';" -Verbose -ErrorAction Stop
-        Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+    # Update the ConfigASDK Progress database with successful completion then display updated table
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage successfully completed. Updating ConfigASDK Progress database"
+    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Complete';" -Verbose -ErrorAction Stop
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
 }
 function StageSkipped {
     [cmdletbinding()]
@@ -297,10 +297,10 @@ function StageSkipped {
         [parameter(Mandatory = $true)]
         [string] $progressStage
     )
-        # Update the ConfigASDK Progress database with skipped status then display updated table
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage skipped. Updating ConfigASDK Progress database"
-        Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Skipped';" -Verbose -ErrorAction Stop
-        Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+    # Update the ConfigASDK Progress database with skipped status then display updated table
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage skipped. Updating ConfigASDK Progress database"
+    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Skipped';" -Verbose -ErrorAction Stop
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
 }
 function StageFailed {
     [cmdletbinding()]
@@ -309,11 +309,11 @@ function StageFailed {
         [parameter(Mandatory = $true)]
         [string] $progressStage
     )
-        # Update the ConfigASDK Progress database with failed completion then display updated table, with failure message
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage failed. Updating ConfigASDK Progress database"
-        Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Failed';" -Verbose -ErrorAction Stop
-        Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    # Update the ConfigASDK Progress database with failed completion then display updated table, with failure message
+    Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage failed. Updating ConfigASDK Progress database"
+    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Failed';" -Verbose -ErrorAction Stop
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
 }
 function StageReset {
     [cmdletbinding()]
@@ -322,10 +322,10 @@ function StageReset {
         [parameter(Mandatory = $true)]
         [string] $progressStage
     )
-        # Reset the ConfigASDK Progress database from previously being skipped, to incomplete
-        Write-CustomVerbose -Message "Operator previously skipped the $progressStage stage, but now wants to perform it. Updating ConfigASDK Progress database to Incomplete."
-        Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Incomplete';" -Verbose -ErrorAction Stop
-        Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+    # Reset the ConfigASDK Progress database from previously being skipped, to incomplete
+    Write-CustomVerbose -Message "Operator previously skipped the $progressStage stage, but now wants to perform it. Updating ConfigASDK Progress database to Incomplete."
+    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Incomplete';" -Verbose -ErrorAction Stop
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
 }
 
 $export_functions = [scriptblock]::Create(@"
@@ -1626,8 +1626,8 @@ elseif ($freeCSVSpace -ge 115) {
 # Define the image jobs
 $jobName = "AddUbuntuImage"
 $AddUbuntuImage = {
-    Start-Job -Name AddUbuntuImage -InitializationScript $export_functions -ArgumentList $ISOpath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, `
-        $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+    Start-Job -Name AddUbuntuImage -InitializationScript $export_functions -ArgumentList $ISOpath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, `
+        $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
@@ -1639,9 +1639,9 @@ JobLauncher -jobName $jobName -jobToExecute $AddUbuntuImage -Verbose
 
 $jobName = "DownloadWindowsUpdates"
 $DownloadWindowsUpdates = {
-    Start-Job -Name DownloadWindowsUpdates -InitializationScript $export_functions -ArgumentList $ConfigASDKProgressLogPath, $ISOpath, $ASDKpath, $azsLocation, `
-    $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DownloadWinUpdates.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ISOpath $Using:ISOpath -ASDKpath $Using:ASDKpath `
+    Start-Job -Name DownloadWindowsUpdates -InitializationScript $export_functions -ArgumentList $ISOpath, $ASDKpath, $azsLocation, `
+        $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\DownloadWinUpdates.ps1 -ISOpath $Using:ISOpath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds `
             -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -ScriptLocation $Using:ScriptLocation
     } -Verbose -ErrorAction Stop
@@ -1650,24 +1650,23 @@ JobLauncher -jobName $jobName -jobToExecute $DownloadWindowsUpdates -Verbose
 
 $jobName = "AddServerCoreImage"
 $AddServerCoreImage = {
-    Start-Job -Name AddServerCoreImage -InitializationScript $export_functions -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, `
-    $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, `
-    $runMode, $ISOpath, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
-            -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "ServerCore" -branch $Using:branch `
-            -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
+    Start-Job -Name AddServerCoreImage -InitializationScript $export_functions -ArgumentList $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, `
+        $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath, $branch, `
+        $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK `
+            -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID `
+            -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath `
+            -image "ServerCore" -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddServerCoreImage -Verbose
 
 $jobName = "AddServerFullImage"
 $AddServerFullImage = {
-    Start-Job -Name AddServerFullImage -InitializationScript $export_functions -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, `
-    $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, `
-    $runMode, $ISOpath, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+    Start-Job -Name AddServerFullImage -InitializationScript $export_functions -ArgumentList $ASDKpath, $azsLocation, `
+        $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, `
+        $runMode, $ISOpath, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
             -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "ServerFull" -branch $Using:branch `
@@ -1683,18 +1682,22 @@ JobLauncher -jobName $jobName -jobToExecute $AddServerFullImage -Verbose
 
 $jobName = "AddMySQLAzpkg"
 $AddMySQLAzpkg = {
-    Start-Job -Name AddMySQLAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $branch -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
-            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch -azpkg "MySQL"
+    Start-Job -Name AddMySQLAzpkg -InitializationScript $export_functions -ArgumentList $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, `
+        $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
+            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch `
+            -azpkg "MySQL" -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddMySQLAzpkg -Verbose
 
 $jobName = "AddSQLServerAzpkg"
 $AddSQLServerAzpkg = {
-    Start-Job -Name AddSQLServerAzpkg -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $branch -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
-            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch -azpkg "SQLServer"
+    Start-Job -Name AddSQLServerAzpkg -InitializationScript $export_functions -ArgumentList $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, `
+        $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation `
+            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch `
+            -azpkg "SQLServer" -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddSQLServerAzpkg -Verbose
@@ -1704,9 +1707,11 @@ JobLauncher -jobName $jobName -jobToExecute $AddSQLServerAzpkg -Verbose
 
 $jobName = "AddVMExtensions"
 $AddVMExtensions = {
-    Start-Job -Name AddVMExtensions -ArgumentList $ConfigASDKProgressLogPath, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $registerASDK -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\AddVMExtensions.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -deploymentMode $Using:deploymentMode `
-            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -registerASDK $Using:registerASDK
+    Start-Job -Name AddVMExtensions -InitializationScript $export_functions -ArgumentList $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $registerASDK, `
+        $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddVMExtensions.ps1 -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds `
+            -ScriptLocation $Using:ScriptLocation -registerASDK $Using:registerASDK -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName `
+            -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddVMExtensions -Verbose
@@ -1716,24 +1721,24 @@ JobLauncher -jobName $jobName -jobToExecute $AddVMExtensions -Verbose
 
 $jobName = "AddMySQLRP"
 $AddMySQLRP = {
-    Start-Job -Name AddMySQLRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $secureVMpwd, $deploymentMode, `
-        $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
-            -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd
+    Start-Job -Name AddMySQLRP -InitializationScript $export_functions -ArgumentList $ASDKpath, $secureVMpwd, $deploymentMode, `
+        $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -ASDKpath $Using:ASDKpath -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
+            -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddMySQLRP -Verbose
 
 $jobName = "AddSQLServerRP"
 $AddSQLServerRP = {
-    Start-Job -Name AddSQLServerRP -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $secureVMpwd, $deploymentMode, `
-        $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds  `
-            -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd
+    Start-Job -Name AddSQLServerRP -InitializationScript $export_functions -ArgumentList $ASDKpath, $secureVMpwd, $deploymentMode, `
+        $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -ASDKpath $Using:ASDKpath -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
+            -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddSQLServerRP -Verbose
@@ -1743,20 +1748,22 @@ JobLauncher -jobName $jobName -jobToExecute $AddSQLServerRP -Verbose
 
 $jobName = "AddMySQLSku"
 $AddMySQLSku = {
-    Start-Job -Name AddMySQLSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\AddDBSkuQuota.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
-            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation -dbsku "MySQL" `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+    Start-Job -Name AddMySQLSku -InitializationScript $export_functions -ArgumentList $tenantID, $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, `
+        $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddDBSkuQuota.ps1 -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
+            -azsLocation $Using:azsLocation -dbsku "MySQL" -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -sqlServerInstance $Using:sqlServerInstance `
+            -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddMySQLSku -Verbose
 
 $jobName = "AddSQLServerSku"
 $AddSQLServerSku = {
-    Start-Job -Name AddSQLServerSku -ArgumentList $ConfigASDKProgressLogPath, $tenantID, $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\AddDBSkuQuota.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath `
-            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation -dbsku "SQLServer" `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+    Start-Job -Name AddSQLServerSku -InitializationScript $export_functions -ArgumentList $tenantID, $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, `
+        $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddDBSkuQuota.ps1 -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
+            -azsLocation $Using:azsLocation -dbsku "SQLServer" -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -sqlServerInstance $Using:sqlServerInstance `
+            -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddSQLServerSku -Verbose
@@ -1766,9 +1773,11 @@ JobLauncher -jobName $jobName -jobToExecute $AddSQLServerSku -Verbose
 
 $jobName = "UploadScripts"
 $UploadScripts = {
-    Start-Job -Name UploadScripts -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $tenantID, $asdkCreds, $deploymentMode, $azsLocation, $ScriptLocation -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\UploadScripts.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -deploymentMode $Using:deploymentMode -azsLocation $Using:azsLocation -ScriptLocation $Using:ScriptLocation
+    Start-Job -Name UploadScripts -InitializationScript $export_functions -ArgumentList $ASDKpath, $tenantID, $asdkCreds, $deploymentMode, $azsLocation, $ScriptLocation, `
+        $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\UploadScripts.ps1 -ASDKpath $Using:ASDKpath -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds `
+            -deploymentMode $Using:deploymentMode -azsLocation $Using:azsLocation -ScriptLocation $Using:ScriptLocation -sqlServerInstance $Using:sqlServerInstance `
+            -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $UploadScripts -Verbose
@@ -1778,24 +1787,25 @@ JobLauncher -jobName $jobName -jobToExecute $UploadScripts -Verbose
 
 $jobName = "DeployMySQLHost"
 $DeployMySQLHost = {
-    Start-Job -Name DeployMySQLHost -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+    Start-Job -Name DeployMySQLHost -InitializationScript $export_functions -ArgumentList $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "MySQL" -tenantID $Using:TenantID `
             -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService -branch $Using:branch
+            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance `
+            -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DeployMySQLHost -Verbose
 
 $jobName = "DeploySQLServerHost"
 $DeploySQLServerHost = {
-    Start-Job -Name DeploySQLServerHost -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "SQLServer" -tenantID $Using:TenantID `
-            -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService -branch $Using:branch
+    Start-Job -Name DeploySQLServerHost -InitializationScript $export_functions -ArgumentList $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ASDKpath $Using:ASDKpath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
+            -vmType "SQLServer" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds `
+            -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL `
+            -skipAppService $Using:skipAppService -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DeploySQLServerHost -Verbose
@@ -1805,24 +1815,22 @@ JobLauncher -jobName $jobName -jobToExecute $DeploySQLServerHost -Verbose
 
 $jobName = "AddMySQLHosting"
 $AddMySQLHosting = {
-    Start-Job -Name AddMySQLHosting -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
-        $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $branch -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -deploymentMode $Using:deploymentMode -dbHost "MySQL" -tenantID $Using:TenantID `
-            -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -branch $Using:branch
+    Start-Job -Name AddMySQLHosting -InitializationScript $export_functions -ArgumentList $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
+        $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ASDKpath $Using:ASDKpath -deploymentMode $Using:deploymentMode -dbHost "MySQL" `
+            -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -skipMySQL $Using:skipMySQL `
+            -skipMSSQL $Using:skipMSSQL -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddMySQLHosting -Verbose
 
 $jobName = "AddSQLHosting"
 $AddSQLHosting = {
-    Start-Job -Name AddSQLHosting -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
-        $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $branch -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -deploymentMode $Using:deploymentMode -dbHost "SQLServer" -tenantID $Using:TenantID `
-            -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -branch $Using:branch
+    Start-Job -Name AddSQLHosting -InitializationScript $export_functions -ArgumentList $ASDKpath, $deploymentMode, $tenantID, $secureVMpwd, `
+        $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ASDKpath $Using:ASDKpath -deploymentMode $Using:deploymentMode -dbHost "SQLServer" `
+            -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -skipMySQL $Using:skipMySQL `
+            -skipMSSQL $Using:skipMSSQL -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddSQLHosting -Verbose
@@ -1832,57 +1840,60 @@ JobLauncher -jobName $jobName -jobToExecute $AddSQLHosting -Verbose
 
 $jobName = "DeployAppServiceFS"
 $DeployAppServiceFS = {
-    Start-Job -Name DeployAppServiceFS -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "AppServiceFS" -tenantID $Using:TenantID `
-            -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService -branch $Using:branch
+    Start-Job -Name DeployAppServiceFS -InitializationScript $export_functions -ArgumentList $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ASDKpath $Using:ASDKpath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
+            -vmType "AppServiceFS" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds `
+            -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService `
+            -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DeployAppServiceFS -Verbose
 
 $jobName = "DeployAppServiceDB"
 $DeployAppServiceDB = {
-    Start-Job -Name DeployAppServiceDB -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "AppServiceDB" -tenantID $Using:TenantID `
-            -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation `
-            -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService -branch $Using:branch
+    Start-Job -Name DeployAppServiceDB -InitializationScript $export_functions -ArgumentList $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
+        $asdkCreds, $ScriptLocation, $azsLocation, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ASDKpath $Using:ASDKpath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
+            -vmType "AppServiceDB" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds `
+            -ScriptLocation $Using:ScriptLocation -azsLocation $Using:azsLocation -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService `
+            -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DeployAppServiceDB -Verbose
 
 $jobName = "DownloadAppService"
 $DownloadAppService = {
-    Start-Job -Name DownloadAppService -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $deploymentMode, $ScriptLocation, $skipAppService -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DownloadAppService.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -deploymentMode $Using:deploymentMode -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService
+    Start-Job -Name DownloadAppService -InitializationScript $export_functions -ArgumentList $ASDKpath, $deploymentMode, $ScriptLocation, $skipAppService, `
+        $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\DownloadAppService.ps1 -ASDKpath $Using:ASDKpath -deploymentMode $Using:deploymentMode -ScriptLocation $Using:ScriptLocation `
+            -skipAppService $Using:skipAppService -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DownloadAppService -Verbose
 
 $jobName = "AddAppServicePreReqs"
 $AddAppServicePreReqs = {
-    Start-Job -Name AddAppServicePreReqs -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $authenticationType, `
-        $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $asdkCreds, $cloudAdminCreds, $ScriptLocation, $skipAppService -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\AddAppServicePreReqs.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
+    Start-Job -Name AddAppServicePreReqs -InitializationScript $export_functions -ArgumentList $ASDKpath, $downloadPath, $deploymentMode, $authenticationType, `
+        $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $asdkCreds, $cloudAdminCreds, $ScriptLocation, $skipAppService, `
+        $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddAppServicePreReqs.ps1 -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -authenticationType $Using:authenticationType `
             -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -secureVMpwd $Using:secureVMpwd -ERCSip $Using:ERCSip `
-            -asdkCreds $Using:asdkCreds -cloudAdminCreds $Using:cloudAdminCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService
+            -asdkCreds $Using:asdkCreds -cloudAdminCreds $Using:cloudAdminCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService `
+            -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddAppServicePreReqs -Verbose
 
 $jobName = "DeployAppService"
 $DeployAppService = {
-    Start-Job -Name DeployAppService -ArgumentList $ConfigASDKProgressLogPath, $ASDKpath, $downloadPath, $deploymentMode, $authenticationType, `
-        $azureDirectoryTenantName, $tenantID, $VMpwd, $asdkCreds, $ScriptLocation, $skipAppService, $branch -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DeployAppService.ps1 -ConfigASDKProgressLogPath $Using:ConfigASDKProgressLogPath -ASDKpath $Using:ASDKpath `
-            -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -authenticationType $Using:authenticationType `
-            -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -VMpwd $Using:VMpwd `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService -branch $Using:branch
+    Start-Job -Name DeployAppService -InitializationScript $export_functions -ArgumentList $ASDKpath, $downloadPath, $deploymentMode, $authenticationType, `
+        $azureDirectoryTenantName, $tenantID, $VMpwd, $asdkCreds, $ScriptLocation, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\DeployAppService.ps1 -ASDKpath $Using:ASDKpath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
+            -authenticationType $Using:authenticationType -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -VMpwd $Using:VMpwd `
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService -branch $Using:branch `
+            -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DeployAppService -Verbose
@@ -1900,7 +1911,7 @@ Set-Location $ScriptLocation
 $progressStage = "RegisterNewRPs"
 $progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
-    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
+if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
         # Register resource providers
         foreach ($s in (Get-AzureRmSubscription)) {
@@ -1926,7 +1937,7 @@ elseif ($progressCheck -eq "Complete") {
 $progressStage = "CreatePlansOffers"
 $progressCheck = CheckProgress -progressStage $progressStage
 $scriptStep = $progressStage.ToUpper()
-    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
+if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
         # Configure a simple base plan and offer for IaaS
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
