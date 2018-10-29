@@ -475,13 +475,15 @@ try {
     # PIP package
     $WebResponse = Invoke-WebRequest "https://pypi.org/project/pip/#files" -UseBasicParsing
     $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*pip-*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
+    $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "pip.whl"; $row.path = "$hostAppsPath"; $row.productName = "PIP Wheel"; $Table.Rows.Add($row)
+    $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "PIP Wheel"; $Table.Rows.Add($row)
     # Certifi package
     $WebResponse = Invoke-WebRequest "https://pypi.org/project/certifi/#files" -UseBasicParsing
     $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*certifi*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
+    $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "certifi.whl"; $row.path = "$hostAppsPath"; $row.productName = "Certifi Wheel"; $Table.Rows.Add($row)
+    $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "Certifi Wheel"; $Table.Rows.Add($row)
     
     Write-CustomVerbose -Message "The following files will be downloaded:"
     $table | Format-Table -AutoSize
