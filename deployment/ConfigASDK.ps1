@@ -320,6 +320,10 @@ function StageReset {
     Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
 }
 
+### CUSTOM VERBOSE FUNCTION #################################################################################################################################
+#############################################################################################################################################################
+
+
 $export_functions = [scriptblock]::Create(@"
   Function DownloadWithRetry { $function:DownloadWithRetry }
   Function JobLauncher { $function:JobLauncher }
@@ -2128,22 +2132,40 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
                 refreshenv
             }
             elseif ($deploymentMode -ne "Online") {
-                $chocoSourcePath = "$ASDKpath\chocolatey"
-                Expand-Archive -Path "$chocoSourcePath\chocolatey.zip" -DestinationPath "$chocoSourcePath" -Force -Verbose -ErrorAction Stop
-                $chocoPs1InstallPath = "$chocoSourcePath\tools\chocolateyInstall.ps1"
-                Write-CustomVerbose -Message "Installing Chocolatey from $chocoSourcePath"
-                & $chocoPs1InstallPath
-                # Enable Choco Global Confirmation
-                Write-CustomVerbose -Message "Enabling global confirmation to streamline installs"
-                choco feature enable -n allowGlobalConfirmation
-                # Add Choco to default path
-                $testEnvPath = $Env:path
-                if (!($testEnvPath -contains "$env:ProgramData\chocolatey\bin")) {
-                    $Env:path = $env:path + ";$env:ProgramData\chocolatey\bin"
+                $hostAppsPath = "$ASDKpath\hostapps"
+                Set-Location $hostAppsPath
+
+                function HostAppInstaller {
+                    [cmdletbinding()]
+                    param
+                    (
+                        [parameter(Mandatory = $true)]
+                        [string] $localInstallPath,
+
+                        [parameter(Mandatory = $true)]
+                        [string] $arguments,
+
+                        [parameter(Mandatory = $true)]
+                        [string] $appName
+                    )
+                    if ([System.IO.File]::Exists("$localInstallPath")) {
+                        Write-Verbose "$appName already appears to be available here: $LocalInstallPath. No need to reinstall"
+                    }
+                    else {
+                        $installHostApp = Start-Process -FilePath "msiexec" -ArgumentList $arguments -Wait -PassThru -Verbose
+                        if ($installHostApp.ExitCode -ne 0) {
+                            throw "Installation of $appName returned error code: $($installHostApp.ExitCode)"
+                        }
+                        if ($installHostApp.ExitCode -eq 0) {
+                            Write-Verbose "Installation of $appName completed successfully"
+                        }
+                    }
                 }
+
                 # Visual Studio Code
-                Write-CustomVerbose -Message "Installing VS Code with Chocolatey"
-                choco install vscode -y -s "$chocoSourcePath\vscode.nupkg"
+                Write-CustomVerbose -Message "Installing VScode"
+                
+
                 # Putty
                 Write-CustomVerbose -Message "Installing Putty with Chocolatey"
                 choco install putty.install -y -s "$chocoSourcePath\putty.nupkg"
