@@ -5,8 +5,10 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
-### What's new in version 1808.2?
+### What's new in version 1809?
 * Major restructure using PowerShell jobs to enable concurrency of tasks
+* Use of SqlLocalDB to track script progress
+* Added support for host customization in offline scenarios
 * Removal of PSSession usage
 * Bug fixes
 
