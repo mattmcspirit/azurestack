@@ -231,7 +231,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             if ($vmType -eq "MySQL") {
-                Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server 16.04 LTS for database hosting"
+                Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
                 New-AzureRmResourceGroupDeployment -Name "DeployMySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                     -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
                     -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" `
@@ -239,7 +239,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             elseif ($vmType -eq "SQLServer") {
                 if ($skipMySQL -eq $true) {
-                    Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server 16.04 LTS for database hosting"
+                    Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
                     #if MySQL RP was skipped, DB hosting resources should be created here
                     New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                         -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
@@ -247,7 +247,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         -vmSize Standard_A2 -mode Incremental -Verbose -ErrorAction Stop
                 }
                 else {
-                    Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server 16.04 LTS for database hosting"
+                    Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
                     # Assume MySQL RP was deployed, and DB Hosting RG and networks were previously created
                     New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                         -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
