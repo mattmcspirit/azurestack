@@ -320,9 +320,53 @@ function StageReset {
     Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
 }
 
-### CUSTOM VERBOSE FUNCTION #################################################################################################################################
+### HOST APP INSTALLER FUNCTION #############################################################################################################################
 #############################################################################################################################################################
+function HostAppInstaller {
+    [cmdletbinding()]
+    param
+    (
+        [parameter(Mandatory = $true)]
+        [string] $localInstallPath,
 
+        [parameter(Mandatory = $true)]
+        [string] $arguments,
+
+        [parameter(Mandatory = $true)]
+        [string] $appName,
+
+        [parameter(Mandatory = $true)]
+        [string] $fileName,
+
+        [parameter(Mandatory = $true)]
+        [ValidateSet("MSI", "EXE")]
+        [string] $appType
+    )
+    if ($fileName -eq "azurecli.msi") {
+        if ([System.IO.Directory]::Exists("$localInstallPath")) {
+            Write-Verbose "$appName already appears to be available here: $LocalInstallPath. No need to reinstall"
+            $appExists = $true
+        }
+    }
+    else {
+        if ([System.IO.File]::Exists("$localInstallPath")) {
+            Write-Verbose "$appName already appears to be available here: $LocalInstallPath. No need to reinstall"
+            $appExists = $true
+        }
+    }
+    if (!$appExists) {
+        if ($appType -eq "MSI") { $filePath = "msiexec" }
+        elseif ($appType -eq "EXE") { $filePath = "$fileName" }
+        Write-Verbose -Message "Installing $appName"
+        $installHostApp = Start-Process -FilePath "$filePath" -ArgumentList $arguments -Wait -PassThru -Verbose
+        if ($installHostApp.ExitCode -ne 0) {
+            throw "Installation of $appName returned error code: $($installHostApp.ExitCode)"
+        }
+        if ($installHostApp.ExitCode -eq 0) {
+            Write-Verbose "Installation of $appName completed successfully"
+        }
+    }
+}
 
 $export_functions = [scriptblock]::Create(@"
   Function DownloadWithRetry { $function:DownloadWithRetry }
@@ -908,27 +952,9 @@ if (![System.IO.File]::Exists($sqlLocalDBMSIPath)) {
 
 # Install SqlLocalDB from MSI
 $sqlLocalInstallPath = "C:\Program Files\Microsoft SQL Server\140\Tools\Binn\"
-if ([System.IO.File]::Exists("$sqlLocalInstallPath\SqlLocalDB.exe")) {
-    Write-Verbose "SqlLocalDB already appears to be available here: $sqlLocalInstallPath. No need to reinstall"
-}
-else {
-    $msi = "SqlLocalDB.msi"
-    $list = 
-    @(
-        "/i `"$msi`"", # Install this MSI
-        "/qn", # Quietly, without a UI
-        "IACCEPTSQLLOCALDBLICENSETERMS=YES",
-        "/L*V `"$sqlLocalDBpath\SqlLocalDB.log`""     # Verbose output to this log
-    )
-    Set-Location $sqlLocalDBpath
-    $installSqlLocalDB = Start-Process -FilePath "msiexec" -ArgumentList $list -Wait -PassThru -Verbose
-    if ($installSqlLocalDB.ExitCode -ne 0) {
-        throw "Installation process returned error code: $($installSqlLocalDB.ExitCode)"
-    }
-    if ($installSqlLocalDB.ExitCode -eq 0) {
-        Write-Verbose "Installation process completed successfully"
-    }
-}
+HostAppInstaller -localInstallPath "$sqlLocalInstallPath\SqlLocalDB.exe" -appName SqlLocalDB `
+-arguments "/i `"$sqlLocalDBpath\SqlLocalDB.msi`" /qn IACCEPTSQLLOCALDBLICENSETERMS=YES /l*v `"$sqlLocalDBpath\SqlLocalDB.log`"" `
+-fileName "SqlLocalDB.msi" -appType "MSI"
 
 # Add SqlLocalDB to $env:Path
 $testEnvPath = $Env:path
@@ -2134,54 +2160,26 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
             elseif ($deploymentMode -ne "Online") {
                 $hostAppsPath = "$ASDKpath\hostapps"
                 Set-Location $hostAppsPath
-
-                function HostAppInstaller {
-                    [cmdletbinding()]
-                    param
-                    (
-                        [parameter(Mandatory = $true)]
-                        [string] $localInstallPath,
-
-                        [parameter(Mandatory = $true)]
-                        [string] $arguments,
-
-                        [parameter(Mandatory = $true)]
-                        [string] $appName
-                    )
-                    if ([System.IO.File]::Exists("$localInstallPath")) {
-                        Write-Verbose "$appName already appears to be available here: $LocalInstallPath. No need to reinstall"
-                    }
-                    else {
-                        $installHostApp = Start-Process -FilePath "msiexec" -ArgumentList $arguments -Wait -PassThru -Verbose
-                        if ($installHostApp.ExitCode -ne 0) {
-                            throw "Installation of $appName returned error code: $($installHostApp.ExitCode)"
-                        }
-                        if ($installHostApp.ExitCode -eq 0) {
-                            Write-Verbose "Installation of $appName completed successfully"
-                        }
-                    }
-                }
-
                 # Visual Studio Code
-                Write-CustomVerbose -Message "Installing VScode"
-                
-
+                HostAppInstaller -localInstallPath "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" -appName VSCode `
+                -arguments '/SP /VERYSILENT /SUPPRESSMSGBOXES /LOG="vscode.log" /NOCANCEL /NORESTART /MERGETASKS=!runcode,addtopath,associatewithfiles,addcontextmenufolders,addcontextmenufiles,quicklaunchicon,desktopicon' `
+                -fileName "vscode.exe" -appType "EXE"
                 # Putty
-                Write-CustomVerbose -Message "Installing Putty with Chocolatey"
-                choco install putty.install -y -s "$chocoSourcePath\putty.nupkg"
+                HostAppInstaller -localInstallPath "$env:ProgramFiles\PuTTY\putty.exe" -appName Putty `
+                -arguments '/i putty.msi /qn /l*v "putty.log" ADDLOCAL=FilesFeature,DesktopFeature,PathFeature,PPKFeature' -fileName "putty.msi" -appType "MSI"
                 # WinSCP
-                Write-CustomVerbose -Message "Installing WinSCP with Chocolatey"
-                choco install winscp.install -y -s "$chocoSourcePath\WinSCP.nupkg"
+                HostAppInstaller -localInstallPath "$env:ProgramFiles\WinSCP\WinSCP.exe" -appName WinSCP `
+                -arguments '/SP /VERYSILENT /SUPPRESSMSGBOXES /LOG="WinSCP.log" /NOCANCEL /NORESTART' -fileName "WinSCP.exe" -appType "EXE"
                 # Chrome
-                Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
-                choco install googlechrome -y -s "$chocoSourcePath\googlechrome.nupkg"
+                HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe" -appName "Google Chrome" `
+                -arguments '/i googlechrome.msi /qn /l*v "googlechrome.log"' -fileName "googlechrome.msi" -appType "MSI"
                 # WinDirStat
-                Write-CustomVerbose -Message "Installing WinDirStat with Chocolatey"
-                choco install windirstat -y -s "$chocoSourcePath\windirstat.nupkg"
+                HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\WinDirStat\WinDirStat.exe" -appName WinDirStat `
+                -arguments '/S /VERYSILENT /SUPPRESSMSGBOXES /LOG="WinDirStat.log" /NOCANCEL /NORESTART' `
+                -fileName "windirstat.exe" -appType "EXE"
                 # Python
-                Write-CustomVerbose -Message "Installing latest version of Python for Windows"
-                choco install python3 --params "/InstallDir:C:\Python" -y -s "$chocoSourcePath\python3.nupkg"
-                refreshenv
+                HostAppInstaller -localInstallPath "C:\Python\Python.exe" -appName Python `
+                -arguments '/quiet InstallAllUsers=1 PrependPath=1 TargetDir=c:\Python' -fileName "python3.exe" -appType "EXE"
                 # Set Environment Variables
                 [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "Machine")
                 [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "User")
@@ -2190,20 +2188,17 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
                 if (!($testEnvPath -contains "C:\Python;C:\Python\Scripts")) {
                     $Env:path = $env:path + ";C:\Python;C:\Python\Scripts"
                 }
-                Set-Location $chocoSourcePath
                 Write-CustomVerbose -Message "Upgrading pip"
+                $pipWhl = (Get-ChildItem -Path .\* -Include "pip*.whl" -Force -Verbose -ErrorAction Stop).Name
+                python -m pip install --no-index $pipWhl
                 python -m ensurepip --default-pip
-                # python -m pip install -U pip
-                pip install --use-wheel --no-index pip.whl
-                refreshenv
                 Write-CustomVerbose -Message "Installing certifi"
                 # pip install certifi
-                pip install --use-wheel --no-index certifi.whl
-                refreshenv
+                $certifiWhl = (Get-ChildItem -Path .\* -Include "certifi*.whl" -Force -Verbose -ErrorAction Stop).Name
+                pip install --no-index $certifiWhl
                 # Azure CLI
-                Write-CustomVerbose -Message "Installing latest version of Azure CLI with Chocolatey"
-                choco install azure-cli -y -s "$chocoSourcePath\azurecli.nupkg"
-                refreshenv
+                HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\Microsoft SDKs\Azure\CLI2\wbin" -appName "Azure CLI" `
+                -arguments '/i azurecli.msi /qn /norestart /l*v "azurecli.log"' -fileName "azurecli.msi" -appType "MSI"
             }
             # Configure Python & Azure CLI Certs
             Write-CustomVerbose -Message "Retrieving Azure Stack Root Authority certificate..." -Verbose
