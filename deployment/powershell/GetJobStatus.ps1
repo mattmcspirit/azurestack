@@ -51,7 +51,8 @@ While ($jobsStillExecuting -eq $true) {
     $databaseName = $databaseName = "ConfigASDK"
     $tableName = "Progress"
     Write-Host "`r`nCurrent Progress:`r`n"
-    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop | Out-String
+    $tableData = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop | Out-String
+    Write-Output "$tableData"
     Start-Sleep -Seconds 10
 }
 if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
