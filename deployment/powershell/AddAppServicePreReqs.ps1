@@ -96,6 +96,9 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     throw "The DownloadAppService stage of the process has failed. This should fully complete before the App Service PreReqs can be started. Check the DownloadAppService log, ensure that step is completed first, and rerun."
                 }
             }
+            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
 
             #### Certificates ####
             Write-Verbose -Message "Generating Certificates for App Service"
