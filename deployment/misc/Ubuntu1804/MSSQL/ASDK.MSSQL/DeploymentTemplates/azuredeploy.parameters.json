@@ -1,0 +1,69 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName": {
+      "value": "mysqlvm"
+    },
+    "vmSize": {
+      "value": "Standard_D3_v2"
+    },
+    "adminUsername": {
+      "value": "mysqladmin"
+    },
+    "adminPassword": {
+      "value": ""
+    },
+    "mySQLPassword": {
+      "value": ""
+    },
+    "sshPublicKey": {
+      "value": ""
+    },
+    "authenticationType": {
+      "value": "password"
+    },
+    "virtualNetworkName": {
+      "value": "mysql_vnet"
+    },
+    "virtualNetworkAddressPrefix": {
+      "value": "10.0.0.0/16"
+    },
+    "virtualNetworkNewOrExisting": {
+      "value": "new"
+    },
+    "virtualNetworkSubnetName": {
+      "value": "mysql_subnet"
+    },
+    "virtualNetworkSubnetAddressPrefix": {
+      "value": "10.0.0.0/24"
+    },
+    "publicIPAddressName": {
+      "value": "mysql_ip"
+    },
+    "publicIPAddressDomainNameLabel": {
+      "value": "mysql"
+    },
+    "publicIPAddressNewOrExisting": {
+      "value": "new"
+    },
+    "storageAccountName": {
+      "value": "mysqlstor"
+    },
+    "storageAccountType": {
+      "value": "Standard_LRS"
+    },
+    "storageAccountNewOrExisting": {
+      "value": "new"
+    },
+    "resourceGroupName": {
+      "value": ""
+    },
+    "templateBaseUrl": {
+      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/"
+    },
+    "scriptBaseUrl": {
+      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
+    }
+  }
+}
