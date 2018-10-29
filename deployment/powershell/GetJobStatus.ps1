@@ -45,7 +45,13 @@ While ($jobsStillExecuting -eq $true) {
     Write-Host "`r`n****** CURRENT JOB STATUS - This screen will refresh every 30 seconds ******"
     Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******"
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******"
-    Start-Sleep 30
+    Start-Sleep -Seconds 25
+    $sqlServerInstance = '(localdb)\MSSQLLocalDB'
+    $databaseName = $databaseName = "ConfigASDK"
+    $tableName = "Progress"
+    Write-Host "`r`nCurrent Progress:`r`n"
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop | Out-String
+    Start-Sleep -Seconds 5
 }
 if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
     Write-Verbose "At least one of the jobs failed."
