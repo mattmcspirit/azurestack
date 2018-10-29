@@ -46,6 +46,7 @@ While ($jobsStillExecuting -eq $true) {
     Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******"
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******"
     Start-Sleep -Seconds 25
+    Clear-Host
     $sqlServerInstance = '(localdb)\MSSQLLocalDB'
     $databaseName = $databaseName = "ConfigASDK"
     $tableName = "Progress"
