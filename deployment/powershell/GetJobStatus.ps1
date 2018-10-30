@@ -50,8 +50,13 @@ While ($jobsStillExecuting -eq $true) {
     $sqlServerInstance = '(localdb)\MSSQLLocalDB'
     $databaseName = $databaseName = "ConfigASDK"
     $tableName = "Progress"
+    Write-Host "`r`n****** CURRENT JOB STATUS - This screen will refresh every 30 seconds ******"
+    Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******"
+    Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******"
     Write-Host "`r`nCurrent Progress:`r`n"
     $tableData = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop | Out-String
+    Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******"
+    Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******"
     Write-Output "$tableData"
     Start-Sleep -Seconds 10
 }
