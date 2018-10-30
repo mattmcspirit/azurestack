@@ -237,19 +237,19 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
 
             if ($vmType -eq "MySQL") {
                 Write-Host "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
-                if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost" | Where-Object {$_.ProvisioningState -eq "Succeeded"}) {
+                if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Succeeded"}) {
                     Write-Host "$vmType database VM has already been deployed - Deployment completed successfully"
                 }
-                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost" | Where-Object {$_.ProvisioningState -eq "Running"}) {
+                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Running"}) {
                     Write-Host "$vmType database VM is currently being deployed"
-                    While (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost" | Where-Object {$_.ProvisioningState -eq "Running"}) {
+                    While (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Running"}) {
                         Write-Host "Checking $vmType database VM deployment in 20 seconds"
                         Start-Sleep -Seconds 20
                     }
                 }
-                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost" | Where-Object {$_.ProvisioningState -eq "Failed"}) {
+                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Failed"}) {
                     Write-Host "Resource group currently in a failed state - cleaning up"
-                    Get-AzureRmResource -ResourceGroupName "azurestack-dbhosting" | Where-Object {$_.Name -like "mysql*"} | Remove-AzureRmResource -Force -Verbose
+                    Get-AzureRmResource -ResourceGroupName "azurestack-dbhosting" | Where-Object {$_.Name -like "mysql*"} -ErrorAction SilentlyContinue | Remove-AzureRmResource -Force -Verbose
                     Remove-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost"
                     Start-Sleep -Seconds 30
                     Write-Host "Starting deployment again..."
@@ -258,8 +258,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" `
                         -vmSize Standard_A2 -mode Incremental -scriptBaseUrl $scriptBaseURI -Verbose -ErrorAction Stop
                 }
-                elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost")) {
-                    Write-Host "No previous deployment found - starting deployment of File Server"
+                elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost" -ErrorAction SilentlyContinue)) {
+                    Write-Host "No previous deployment found - starting deployment of $vmType database host"
                     New-AzureRmResourceGroupDeployment -Name "DeployMySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                         -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
                         -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" `
@@ -268,19 +268,19 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             elseif ($vmType -eq "SQLServer") {
                 Write-Host "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
-                if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost" | Where-Object {$_.ProvisioningState -eq "Succeeded"}) {
+                if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Succeeded"}) {
                     Write-Host "$vmType database VM has already been deployed - Deployment completed successfully"
                 }
-                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost" | Where-Object {$_.ProvisioningState -eq "Running"}) {
+                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Running"}) {
                     Write-Host "$vmType database VM is currently being deployed"
-                    While (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost" | Where-Object {$_.ProvisioningState -eq "Running"}) {
+                    While (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Running"}) {
                         Write-Host "Checking $vmType database VM deployment in 20 seconds"
                         Start-Sleep -Seconds 20
                     }
                 }
-                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost" | Where-Object {$_.ProvisioningState -eq "Failed"}) {
+                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Failed"}) {
                     Write-Host "Resource group currently in a failed state - cleaning up"
-                    Get-AzureRmResource -ResourceGroupName "azurestack-dbhosting" | Where-Object {$_.Name -like "sql*"} | Remove-AzureRmResource -Force -Verbose
+                    Get-AzureRmResource -ResourceGroupName "azurestack-dbhosting" | Where-Object {$_.Name -like "sql*"} -ErrorAction SilentlyContinue | Remove-AzureRmResource -Force -Verbose
                     Remove-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost"
                     Start-Sleep -Seconds 30
                     Write-Host "Starting deployment again..."
@@ -299,8 +299,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A2 -mode Incremental -Verbose -ErrorAction Stop
                     }
                 }
-                elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost")) {
-                    Write-Host "No previous deployment found - starting deployment of File Server"
+                elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost" -ErrorAction SilentlyContinue)) {
+                    Write-Host "No previous deployment found - starting deployment of $vmType database host"
                     if ($skipMySQL -eq $true) {
                         #if MySQL RP was skipped, DB hosting resources should be created here
                         New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
@@ -319,17 +319,17 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             elseif ($vmType -eq "AppServiceFS") {
                 Write-Host "Creating a dedicated File Server on Windows Server 2016 for the App Service"
-                if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer" | Where-Object {$_.ProvisioningState -eq "Succeeded"}) {
+                if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Succeeded"}) {
                     Write-Host "File Server has already been deployed - Deployment completed successfully"
                 }
-                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer" | Where-Object {$_.ProvisioningState -eq "Running"}) {
+                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Running"}) {
                     Write-Host "File Server is currently being deployed"
-                    While (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer" | Where-Object {$_.ProvisioningState -eq "Running"}) {
+                    While (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Running"}) {
                         Write-Host "Checking File Server deployment in 20 seconds"
                         Start-Sleep -Seconds 20
                     }
                 }
-                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer" | Where-Object {$_.ProvisioningState -eq "Failed"}) {
+                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Failed"}) {
                     Write-Host "Resource group currently in a failed state - cleaning up"
                     Remove-AzureRmResourceGroup -Name $rg -Force
                     Start-Sleep -Seconds 30
@@ -344,7 +344,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             -vmExtensionScriptLocation $scriptBaseURI -Mode Incremental -Verbose -ErrorAction Stop
                     }
                 }
-                elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer")) {
+                elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer" -ErrorAction SilentlyContinue)) {
                     Write-Host "No previous deployment found - starting deployment of File Server"
                     if ($deploymentMode -eq "Online") {
                         New-AzureRmResourceGroupDeployment -Name "DeployAppServiceFileServer" -ResourceGroupName $rg -vmName "fileserver" -TemplateUri $mainTemplateURI `
@@ -359,17 +359,17 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             elseif ($vmType -eq "AppServiceDB") {
                 Write-Host "Creating a dedicated database host for the App Service"
-                if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" | Where-Object {$_.ProvisioningState -eq "Succeeded"}) {
+                if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Succeeded"}) {
                     Write-Host "App Service database host has already been deployed - Deployment completed successfully"
                 }
-                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" | Where-Object {$_.ProvisioningState -eq "Running"}) {
+                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Running"}) {
                     Write-Host "App Service database host is currently being deployed"
-                    While (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" | Where-Object {$_.ProvisioningState -eq "Running"}) {
+                    While (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Running"}) {
                         Write-Host "Checking App Service database host deployment in 20 seconds"
                         Start-Sleep -Seconds 20
                     }
                 }
-                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" | Where-Object {$_.ProvisioningState -eq "Failed"}) {
+                elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Failed"}) {
                     Write-Host "Resource group currently in a failed state - cleaning up"
                     Remove-AzureRmResourceGroup -Name $rg -Force
                     Start-Sleep -Seconds 30
@@ -378,7 +378,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
                         -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A2 -mode Incremental -Verbose -ErrorAction Stop
                 }
-                elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB")) {
+                elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" -ErrorAction SilentlyContinue)) {
                     Write-Host "No previous deployment found - starting deployment of File Server"
                     New-AzureRmResourceGroupDeployment -Name "DeployAppServiceDB" -ResourceGroupName $rg -TemplateUri $mainTemplateURI -scriptBaseUrl $scriptBaseURI `
                         -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
