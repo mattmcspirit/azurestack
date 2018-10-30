@@ -14,14 +14,14 @@ While ($jobsStillExecuting -eq $true) {
     Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******`r"
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******`r`n"
     Write-Host "Current number of running jobs: $($runningJobs.count). Some jobs may take a while - Please be patient!" -ForegroundColor Yellow
-    Get-Job | Where-Object { $_.state -eq "running" } | Format-Table Name, State, @{L = 'StartTime'; E = {$_.PSBeginTime}}, @{L = 'EndTime'; E = {$_.PSEndTime}}
+    #Get-Job | Where-Object { $_.state -eq "running" } | Format-Table Name, State, @{L = 'StartTime'; E = {$_.PSBeginTime}}, @{L = 'EndTime'; E = {$_.PSEndTime}}
     foreach ($runningJob in $runningJobs) {
         $jobDuration = (Get-Date) - ($runningJob.PSBeginTime)
         if ($jobDuration.Hours -gt 0) {
-            Write-Host "$($runningJob.Name) has been running for $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Yellow
+            Write-Host "$($runningJob.Name)   |   Started at: $($runningJob.PSBeginTime)   |   Running for: $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
         else {
-            Write-Host "$($runningJob.Name) has been running for $($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Yellow
+            Write-Host "$($runningJob.Name)   |   Started at: $($runningJob.PSBeginTime)   |   Running for: $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
     }
     $completedJobs = (Get-Job | Where-Object { $_.state -eq "Completed" })
@@ -29,10 +29,10 @@ While ($jobsStillExecuting -eq $true) {
     foreach ($completeJob in $completedJobs) {
         $jobDuration = ($completeJob.PSEndTime) - ($completeJob.PSBeginTime)
         if ($jobDuration.Hours -gt 0) {
-            Write-Host "$($completeJob.Name) finished in $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"-ForegroundColor Green
+            Write-Host "$($completeJob.Name)   |   Started at: $($completeJob.PSBeginTime)   |   Finished at: $($completeJob.PSEndTime)  |  Taking: $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Green
         }
         else {
-            Write-Host "$($completeJob.Name) finished in $($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Green
+            Write-Host "$($completeJob.Name)   |   Started at: $($completeJob.PSBeginTime)   |   Finished at: $($completeJob.PSEndTime)  |  Taking: $($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Green
         }
     }
     $failedJobs = (Get-Job | Where-Object { $_.state -eq "Failed" })
@@ -40,10 +40,10 @@ While ($jobsStillExecuting -eq $true) {
     foreach ($failedJob in $failedJobs) {
         $jobDuration = ($failedJob.PSEndTime) - ($failedJob.PSBeginTime)
         if ($jobDuration.Hours -gt 0) {
-            Write-Host "$($failedJob.Name) failed after $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Red
+            Write-Host "$($failedJob.Name)   |   Started at: $($failedJob.PSBeginTime)   |   Failed after: $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Red
         }
         else {
-            Write-Host "$($failedJob.Name) failed after $($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Red
+            Write-Host "$($failedJob.Name)   |   Started at: $($failedJob.PSBeginTime)   |   Failed after: $($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Red
         }
     }
     Write-Host "`r`n****** CURRENT JOB STATUS - This screen will refresh every 30 seconds ******"
