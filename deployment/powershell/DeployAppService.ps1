@@ -66,12 +66,12 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progressCheck -eq "Skipped") {
-        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
+        Write-Output "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
         # Update the ConfigASDK database back to incomplete
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
@@ -86,7 +86,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             # Need to ensure this stage doesn't start before the App Service components have been downloaded
             $appServicePreReqJobCheck = CheckProgress -progressStage "AddAppServicePreReqs"
             while ($appServicePreReqJobCheck -ne "Complete") {
-                Write-Verbose -Message "The AddAppServicePreReqs stage of the process has not yet completed. Checking again in 20 seconds"
+                Write-Output "The AddAppServicePreReqs stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
                 $appServicePreReqJobCheck = CheckProgress -progressStage "AddAppServicePreReqs"
                 if ($appServicePreReqJobCheck -eq "Failed") {
@@ -96,7 +96,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             # Need to ensure this stage doesn't start before the App Service File Server has been deployed
             $appServiceFSJobCheck = CheckProgress -progressStage "AppServiceFileServer"
             while ($appServiceFSJobCheck -ne "Complete") {
-                Write-Verbose -Message "The AppServiceFileServer stage of the process has not yet completed. Checking again in 20 seconds"
+                Write-Output "The AppServiceFileServer stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
                 $appServiceFSJobCheck = CheckProgress -progressStage "AppServiceFileServer"
                 if ($appServiceFSJobCheck -eq "Failed") {
@@ -106,7 +106,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             # Need to ensure this stage doesn't start before the App Service SQL Server has been deployed
             $appServiceSQLJobCheck = CheckProgress -progressStage "AppServiceSQLServer"
             while ($appServiceSQLJobCheck -ne "Complete") {
-                Write-Verbose -Message "The AppServiceSQLServer stage of the process has not yet completed. Checking again in 20 seconds"
+                Write-Output "The AppServiceSQLServer stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
                 $appServiceSQLJobCheck = CheckProgress -progressStage "AppServiceSQLServer"
                 if ($appServiceSQLJobCheck -eq "Failed") {
@@ -121,37 +121,37 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
             $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
 
-            Write-Verbose -Message "Checking variables are present before creating JSON"
+            Write-Output "Checking variables are present before creating JSON"
             # Check Variables #
             if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName)) {
-                Write-Verbose -Message "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
+                Write-Output "Azure Directory Tenant Name is present: $azureDirectoryTenantName"
             }
             elseif ($authenticationType.ToString() -like "ADFS") {
-                Write-Verbose -Message "ADFS deployment, no need for Azure Directory Tenant Name"
+                Write-Output "ADFS deployment, no need for Azure Directory Tenant Name"
             }
             elseif (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName)) {
                 throw "Missing Azure Directory Tenant Name - Exiting process"
             }
             if ($fileServerFqdn) { 
-                Write-Verbose -Message "File Server FQDN is present: $fileServerFqdn"
+                Write-Output "File Server FQDN is present: $fileServerFqdn"
             }
             else {
                 throw "Missing File Server FQDN - Exiting process"
             }
             if ($VMpwd) {
-                Write-Verbose -Message "Virtual Machine password is present: $VMpwd"
+                Write-Output "Virtual Machine password is present: $VMpwd"
             }
             else {
                 throw "Missing Virtual Machine password - Exiting process"
             }
             if ($sqlAppServerFqdn) {
-                Write-Verbose -Message "SQL Server FQDN is present: $sqlAppServerFqdn"
+                Write-Output "SQL Server FQDN is present: $sqlAppServerFqdn"
             }
             else {
                 throw "Missing SQL Server FQDN - Exiting process"
             }
             if ($identityApplicationID) {
-                Write-Verbose -Message "Identity Application ID present: $identityApplicationID"
+                Write-Output "Identity Application ID present: $identityApplicationID"
             }
             else {
                 throw "Missing Identity Application ID - Exiting process"
@@ -168,7 +168,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 if ([System.IO.File]::Exists("$ASDKpath\appservice\AppServicePreDeploymentSettings.json")) {
-                    Write-Verbose -Message "Located AppServicePreDeploymentSettings.json file"
+                    Write-Output "Located AppServicePreDeploymentSettings.json file"
                 }
                 if (-not [System.IO.File]::Exists("$ASDKpath\appservice\AppServicePreDeploymentSettings.json")) {
                     throw "Missing AppServicePreDeploymentSettings.json file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\ - Exiting process"
@@ -199,7 +199,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
             $appServiceLogPath = "$AppServicePath\AppServiceLog$appServiceLogTime.txt"
             Set-Location "$AppServicePath"
-            Write-Verbose -Message "Starting deployment of the App Service"
+            Write-Output "Starting deployment of the App Service"
 
             if ($deploymentMode -eq "Online") {
                 Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
@@ -209,24 +209,24 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-                Write-Verbose -Message "App Service is deploying. Checking in 20 seconds"
+                Write-Output "App Service is deploying. Checking in 20 seconds"
                 Start-Sleep -Seconds 20
             }
             if (!(Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
-                Write-Verbose -Message "App Service deployment has finished executing."
+                Write-Output "App Service deployment has finished executing."
             }
 
             $appServiceErrorCode = "Exit code: 0xffffffff"
-            Write-Verbose -Message "Checking App Service log file for issues"
+            Write-Output "Checking App Service log file for issues"
             if ($(Select-String -Path $appServiceLogPath -Pattern "$appServiceErrorCode" -SimpleMatch -Quiet) -eq "True") {
-                Write-Verbose -Message "App Service install failed with $appServiceErrorCode"
-                Write-Verbose -Message "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
+                Write-Output "App Service install failed with $appServiceErrorCode"
+                Write-Output "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
                 throw "App Service install failed with $appServiceErrorCode. Please check the App Service logs at $appServiceLogPath"
             }
             else {
-                Write-Verbose -Message "App Service log file indicates successful deployment"
+                Write-Output "App Service log file indicates successful deployment"
             }
-            Write-Verbose -Message "Checking App Service resource group for successful deployment"
+            Write-Output "Checking App Service resource group for successful deployment"
             # Ensure logged into Azure Stack
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
@@ -235,11 +235,11 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
             if ($appServiceRgCheck.ProvisioningState -ne 'Succeeded') {
-                Write-Verbose -Message "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
+                Write-Output "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
                 throw "$($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState). Please check the App Service logs at $appServiceLogPath"
             }
             else {
-                Write-Verbose -Message "App Service deployment with name: $($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState)"
+                Write-Output "App Service deployment with name: $($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState)"
             }
 
             # Update the ConfigASDK database with successful completion
@@ -255,7 +255,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
     }
 }
 elseif ($skipAppService -and ($progressCheck -ne "Complete")) {
-    Write-Verbose -Message "Operator chose to skip App Service Deployment`r`n"
+    Write-Output "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDK database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage

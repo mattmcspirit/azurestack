@@ -1,3 +1,7 @@
+$Global:VerbosePreference = "Continue"
+$Global:ErrorActionPreference = 'Stop'
+$Global:ProgressPreference = 'SilentlyContinue'
+
 # Get all the running jobs
 $jobsStillExecuting = $true
 While ($jobsStillExecuting -eq $true) {
@@ -61,10 +65,10 @@ While ($jobsStillExecuting -eq $true) {
     Start-Sleep -Seconds 10
 }
 if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
-    Write-Verbose "At least one of the jobs failed."
+    Write-Output "At least one of the jobs failed."
     $failedJobs = (Get-Job | Where-Object { $_.state -eq "Failed" })
     foreach ($fail in $failedJobs) {
-        Write-Verbose "FAILED JOB: Job Name: $($fail.Name) | Error Message: $($fail.ChildJobs.JobStateInfo.Reason.Message)"
+        Write-Output "FAILED JOB: Job Name: $($fail.Name) | Error Message: $($fail.ChildJobs.JobStateInfo.Reason.Message)"
     }
     throw "Please review the logs for further troubleshooting"
 }

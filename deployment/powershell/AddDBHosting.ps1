@@ -75,12 +75,12 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progressCheck -eq "Skipped") {
-        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
+        Write-Output "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
         # Update the ConfigASDK database back to incomplete
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
@@ -95,7 +95,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             # Need to ensure this stage doesn't start before the database SKU has been added
             $dbSkuJobCheck = $progressCheck = CheckProgress -progressStage "$($dbHost)SKUQuota"
             while ($dbSkuJobCheck -ne "Complete") {
-                Write-Verbose -Message "The $($dbHost)SKUQuota stage of the process has not yet completed. Checking again in 20 seconds"
+                Write-Output "The $($dbHost)SKUQuota stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
                 $dbSkuJobCheck = $progressCheck = CheckProgress -progressStage "$($dbHost)SKUQuota"
                 if ($dbSkuJobCheck -eq "Failed") {
@@ -105,7 +105,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             # Need to ensure this stage doesn't start before the database host has finished deployment
             $dbHostJobCheck = CheckProgress -progressStage "$($dbHost)DBVM"
             while ($dbHostJobCheck -ne "Complete") {
-                Write-Verbose -Message "The $($dbHost)DBVM stage of the process has not yet completed. Checking again in 20 seconds"
+                Write-Output "The $($dbHost)DBVM stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
                 $dbHostJobCheck = CheckProgress -progressStage "$($dbHost)DBVM"
                 if ($dbHostJobCheck -eq "Failed") {
@@ -131,7 +131,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             # Need to ensure this stage doesn't start before the Ubuntu Server images have been put into the PIR
             $addHostingJobCheck = CheckProgress -progressStage "$hostingJobCheck"
             while ($addHostingJobCheck -ne "Complete") {
-                Write-Verbose -Message "The $hostingJobCheck stage of the process has not yet completed. Checking again in 20 seconds"
+                Write-Output "The $hostingJobCheck stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
                 $addHostingJobCheck = CheckProgress -progressStage "$hostingJobCheck"
                 if ($addHostingJobCheck -eq "Failed") {
@@ -139,7 +139,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             # Add host server to MySQL RP
-            Write-Verbose -Message "Attaching $dbHost hosting server to $dbHost resource provider"
+            Write-Output "Attaching $dbHost hosting server to $dbHost resource provider"
             if ($deploymentMode -eq "Online") {
                 $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/$hostingPath/azuredeploy.json"
             }

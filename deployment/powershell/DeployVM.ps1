@@ -106,12 +106,12 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progressCheck -eq "Skipped") {
-        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
+        Write-Output "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
         # Update the ConfigASDK database back to incomplete
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
@@ -126,7 +126,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             if ($vmType -ne "AppServiceFS") {
                 $ubuntuImageJobCheck = CheckProgress -progressStage "UbuntuServerImage"
                 while ($ubuntuImageJobCheck -ne "Complete") {
-                    Write-Verbose -Message "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
+                    Write-Output "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
                     $ubuntuImageJobCheck = CheckProgress -progressStage "UbuntuServerImage"
                     if ($ubuntuImageJobCheck -eq "Failed") {
@@ -137,7 +137,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             elseif ($vmType -eq "AppServiceFS") {
                 $serverFullJobCheck = CheckProgress -progressStage "ServerFullImage"
                 while ($serverFullJobCheck -ne "Complete") {
-                    Write-Verbose -Message "The ServerFullImage stage of the process has not yet completed. Checking again in 20 seconds"
+                    Write-Output "The ServerFullImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
                     $serverFullJobCheck = CheckProgress -progressStage "ServerFullImage"
                     if ($serverFullJobCheck -eq "Failed") {
@@ -150,7 +150,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 # Then need to confirm the gallery items are in place
                 $MySQLGalleryItemJobCheck = CheckProgress -progressStage "MySQLGalleryItem"
                 while ($MySQLGalleryItemJobCheck -ne "Complete") {
-                    Write-Verbose -Message "The MySQLGalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
+                    Write-Output "The MySQLGalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
                     $MySQLGalleryItemJobCheck = CheckProgress -progressStage "MySQLGalleryItem"
                     if ($MySQLGalleryItemJobCheck -eq "Failed") {
@@ -162,7 +162,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 # Then need to confirm the gallery items are in place
                 $SQLServerGalleryItemJobCheck = CheckProgress -progressStage "SQLServerGalleryItem"
                 while ($SQLServerGalleryItemJobCheck -ne "Complete") {
-                    Write-Verbose -Message "The SQLServerGalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
+                    Write-Output "The SQLServerGalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
                     $SQLServerGalleryItemJobCheck = CheckProgress -progressStage "SQLServerGalleryItem"
                     if ($SQLServerGalleryItemJobCheck -eq "Failed") {
@@ -174,7 +174,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             if (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 $uploadScriptsJobCheck = CheckProgress -progressStage "UploadScripts"
                 while ($uploadScriptsJobCheck -ne "Complete") {
-                    Write-Verbose -Message "The UploadScripts stage of the process has not yet completed. Checking again in 20 seconds"
+                    Write-Output "The UploadScripts stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
                     $uploadScriptsJobCheck = CheckProgress -progressStage "UploadScripts"
                     if ($uploadScriptsJobCheck -eq "Skipped") {
@@ -190,7 +190,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
                     $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
                     if ($mySQLProgressCheck -ne "Complete") {
-                        Write-Verbose -Message "To avoid deployment conflicts, delaying the SQL Server VM deployment by 2 minutes to allow initial resources to be created"
+                        Write-Output "To avoid deployment conflicts, delaying the SQL Server VM deployment by 2 minutes to allow initial resources to be created"
                         Start-Sleep -Seconds 120
                     }
                 }
@@ -200,7 +200,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
-            Write-Verbose -Message "Creating a dedicated Resource Group for all database hosting assets"
+            Write-Output "Creating a dedicated Resource Group for all database hosting assets"
             if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
                 New-AzureRmResourceGroup -Name $rg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
             }
@@ -231,7 +231,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             if ($vmType -eq "MySQL") {
-                Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
+                Write-Output "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
                 New-AzureRmResourceGroupDeployment -Name "DeployMySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                     -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
                     -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" `
@@ -239,7 +239,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             elseif ($vmType -eq "SQLServer") {
                 if ($skipMySQL -eq $true) {
-                    Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
+                    Write-Output "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
                     #if MySQL RP was skipped, DB hosting resources should be created here
                     New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                         -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
@@ -247,7 +247,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         -vmSize Standard_A2 -mode Incremental -Verbose -ErrorAction Stop
                 }
                 else {
-                    Write-Verbose -Message "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
+                    Write-Output "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
                     # Assume MySQL RP was deployed, and DB Hosting RG and networks were previously created
                     New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                         -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
@@ -256,7 +256,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             elseif ($vmType -eq "AppServiceFS") {
-                Write-Verbose -Message "Creating a dedicated File Server on Windows Server 2016 for the App Service"
+                Write-Output "Creating a dedicated File Server on Windows Server 2016 for the App Service"
                 if ($deploymentMode -eq "Online") {
                     New-AzureRmResourceGroupDeployment -Name "DeployAppServiceFileServer" -ResourceGroupName $rg -vmName "fileserver" -TemplateUri $mainTemplateURI `
                         -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop

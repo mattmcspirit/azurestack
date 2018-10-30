@@ -58,7 +58,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        Write-Verbose "Checking to see if a Windows Server 2016 image is present in your Azure Stack Platform Image Repository"
+        Write-Output "Checking to see if a Windows Server 2016 image is present in your Azure Stack Platform Image Repository"
         # Pre-validate that the Windows Server 2016 Server Core VM Image is not already available
         Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
         $sku = "2016-Datacenter-Server-Core"
@@ -66,7 +66,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $serverCoreVMImageAlreadyAvailable = $false
 
         if ($platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
-            Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
+            Write-Output "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverCoreVMImageAlreadyAvailable = $true
         }
 
@@ -77,23 +77,23 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $serverFullVMImageAlreadyAvailable = $false
 
         if ($platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
-            Write-Verbose "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
+            Write-Output "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
             $serverFullVMImageAlreadyAvailable = $true
         }
 
         if ($serverCoreVMImageAlreadyAvailable -eq $false) {
             $downloadCURequired = $true
-            Write-Verbose "You're missing the Windows Server 2016 Datacenter Server Core image in your Platform Image Repository."
+            Write-Output "You're missing the Windows Server 2016 Datacenter Server Core image in your Platform Image Repository."
         }
 
         if ($serverFullVMImageAlreadyAvailable -eq $false) {
             $downloadCURequired = $true
-            Write-Verbose "You're missing the Windows Server 2016 Datacenter Full image in your Platform Image Repository."
+            Write-Output "You're missing the Windows Server 2016 Datacenter Full image in your Platform Image Repository."
         }
 
         if (($serverCoreVMImageAlreadyAvailable -eq $true) -and ($serverFullVMImageAlreadyAvailable -eq $true)) {
             $downloadCURequired = $false
-            Write-Verbose "Windows Server 2016 Datacenter Full and Core Images already exist in your Platform Image Repository"
+            Write-Output "Windows Server 2016 Datacenter Full and Core Images already exist in your Platform Image Repository"
         }
 
         ### Download the latest Cumulative Update for Windows Server 2016 - Existing Azure Stack Tools module doesn't work ###
@@ -109,7 +109,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
                 Dismount-DiskImage -ImagePath $ISOPath
 
-                Write-Verbose "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
+                Write-Output "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
                 # Define parameters
                 $StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
                 $SearchString = 'Cumulative.*Server.*x64'
@@ -118,10 +118,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 if ($buildVersion -eq "14393") {
                     $servicingStackKB = "4132216"
                     $ServicingSearchString = 'Windows Server 2016'
-                    Write-Verbose "Build is $buildVersion - Need to download: KB$($servicingStackKB) to update Servicing Stack before adding future Cumulative Updates"
+                    Write-Output "Build is $buildVersion - Need to download: KB$($servicingStackKB) to update Servicing Stack before adding future Cumulative Updates"
                     $servicingKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$servicingStackKB" -UseBasicParsing
                     $servicingAvailable_kbIDs = $servicingKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-                    $servicingAvailable_kbIDs | Out-String | Write-Verbose
+                    $servicingAvailable_kbIDs | Out-String | Write-Output
                     $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
 
                     # If innerHTML is empty or does not exist, use outerHTML instead
@@ -131,14 +131,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 }
 
                 # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
-                Write-Verbose "Downloading $StartKB to retrieve the list of updates."
+                Write-Output "Downloading $StartKB to retrieve the list of updates."
                 $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
 
                 # Get Download Link for the corresponding Cumulative Update
-                Write-Verbose "Found ID: KB$($kbID.articleID)"
+                Write-Output "Found ID: KB$($kbID.articleID)"
                 $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($kbID.articleID)" -UseBasicParsing
                 $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-                $Available_kbIDs | Out-String | Write-Verbose
+                $Available_kbIDs | Out-String | Write-Output
                 $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
 
                 # If innerHTML is empty or does not exist, use outerHTML instead
@@ -155,7 +155,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 $Urls = @()
 
                 foreach ( $kbID in $kbDownloads ) {
-                    Write-Verbose "KB ID: $kbID"
+                    Write-Output "KB ID: $kbID"
                     $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
                     $PostBody = @{ updateIDs = "[$Post]" } 
                     $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
@@ -165,8 +165,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 foreach ( $Url in $Urls ) {
                     $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
                     $target = "$((Get-Item $ASDKpath).FullName)\images\$filename"
-                    Write-Verbose "Update will be stored at $target"
-                    Write-Verbose "These can be larger than 1GB, so may take a few minutes."
+                    Write-Output "Update will be stored at $target"
+                    Write-Output "These can be larger than 1GB, so may take a few minutes."
                     if (!(Test-Path -Path $target)) {
                         if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393UpdateServicingStack.msu")) {
                             Remove-Item -Path "$((Get-Item $ASDKpath).FullName)\images\14393UpdateServicingStack.msu" -Force -Verbose -ErrorAction Stop
@@ -174,17 +174,17 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
                     }
                     else {
-                        Write-Verbose "File exists: $target. Skipping download."
+                        Write-Output "File exists: $target. Skipping download."
                     }
                 }
 
                 # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied first when patching the WIM file.
                 if ($buildVersion -eq "14393") {
                     if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393UpdateServicingStack.msu")) {
-                        Write-Verbose "The 14393 Servicing Stack Update already exists within the target folder"
+                        Write-Output "The 14393 Servicing Stack Update already exists within the target folder"
                     }
                     else {
-                        Write-Verbose "Renaming the Servicing Stack Update to ensure it is applied first"
+                        Write-Output "Renaming the Servicing Stack Update to ensure it is applied first"
                         Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -ErrorAction Stop -Verbose
                     }
                     $target = "$ASDKpath\images"
@@ -206,7 +206,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     }
 }
 elseif ($progressCheck -eq "Complete") {
-    Write-Verbose "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue

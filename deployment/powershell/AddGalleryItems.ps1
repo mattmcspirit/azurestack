@@ -96,16 +96,16 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop
         }
         
-        Write-Verbose -Message "Checking for the $azpkg gallery item"
+        Write-Output "Checking for the $azpkg gallery item"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
-            Write-Verbose -Message "Found a suitable $azpkg Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
+            Write-Output "Found a suitable $azpkg Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
         }
         else {
-            Write-Verbose -Message "Didn't find this package: $azpkgPackageName"
-            Write-Verbose -Message "Will need to side load it in to the gallery"
+            Write-Output "Didn't find this package: $azpkgPackageName"
+            Write-Output "Will need to side load it in to the gallery"
 
             if ($deploymentMode -eq "Online") {
-                Write-Verbose -Message "Uploading $azpkgPackageName"
+                Write-Output "Uploading $azpkgPackageName"
                 if ($azpkg -eq "MySQL") {
                     $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
                 }
@@ -121,13 +121,13 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
                 try {
-                    Write-Verbose -Message "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
-                    Write-Verbose -Message "Uploading $azpkgPackageName from $azpkgPackageURL"
+                    Write-Output "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
+                    Write-Output "Uploading $azpkgPackageName from $azpkgPackageURL"
                     Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
                 }
                 catch {
-                    Write-Verbose -Message "Upload wasn't successful. Waiting 5 seconds before retrying."
-                    Write-Verbose -Message "$_.Exception.Message"
+                    Write-Output "Upload wasn't successful. Waiting 5 seconds before retrying."
+                    Write-Output "$_.Exception.Message"
                     Start-Sleep -Seconds 5
                 }
             }

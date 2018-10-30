@@ -44,12 +44,12 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progressCheck -eq "Skipped") {
-        Write-Verbose -Message "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
+        Write-Output "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
         # Update the ConfigASDK database back to incomplete
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
@@ -66,7 +66,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     New-Item -Path "$ASDKpath\appservice" -ItemType Directory -Force | Out-Null
                 }
                 # Install App Service To be added
-                Write-Verbose -Message "Downloading App Service Installer"
+                Write-Output "Downloading App Service Installer"
                 Set-Location "$ASDKpath\appservice"
                 # Clean up old App Service Path if it exists
                 Remove-Item "$asdkPath\appservice\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue

@@ -109,7 +109,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         if ($image -ne "UbuntuServer") {
             $windowsUpdateCheck = CheckProgress -progressStage "WindowsUpdates"
             while ($windowsUpdateCheck -ne "Complete") {
-                Write-Verbose -Message "The WindowsUpdates stage of the process has not yet completed. Checking again in 20 seconds"
+                Write-Output "The WindowsUpdates stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
                 $windowsUpdateCheck = CheckProgress -progressStage "WindowsUpdates"     
                 if ($windowsUpdateCheck -eq "Failed") {
@@ -122,7 +122,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             if (($runMode -eq "partialParallel") -or ($runMode -eq "serial")) {
                 $ubuntuJobCheck = CheckProgress -progressStage "UbuntuServerImage"
                 while ($ubuntuJobCheck -ne "Complete") {
-                    Write-Verbose -Message "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
+                    Write-Output "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
                     $ubuntuJobCheck = CheckProgress -progressStage "UbuntuServerImage"
                     if ($ubuntuJobCheck -eq "Failed") {
@@ -137,7 +137,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             if ($runMode -eq "partialParallel") {
                 $ubuntuJobCheck = CheckProgress -progressStage "UbuntuServerImage"
                 while ($ubuntuJobCheck -ne "Complete") {
-                    Write-Verbose -Message "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
+                    Write-Output "The UbuntuServerImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
                     $ubuntuJobCheck = CheckProgress -progressStage "UbuntuServerImage"
                     if ($ubuntuJobCheck -eq "Failed") {
@@ -148,7 +148,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             elseif ($runMode -eq "serial") {
                 $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
                 while ($serverCoreJobCheck -ne "Complete") {
-                    Write-Verbose -Message "The ServerCoreImage stage of the process has not yet completed. Checking again in 20 seconds"
+                    Write-Output "The ServerCoreImage stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
                     $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
                     if ($serverCoreJobCheck -eq "Failed") {
@@ -285,20 +285,20 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
         ### Log back into Azure Stack to check for existing images and push new ones if required ###
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        Write-Verbose "Checking to see if the image is present in your Azure Stack Platform Image Repository"
+        Write-Output "Checking to see if the image is present in your Azure Stack Platform Image Repository"
         if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-            Write-Verbose "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
-            Write-Verbose ('VM Image with publisher " {0}", offer " {1}", sku " {2}", version " {3}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
+            Write-Output "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
+            Write-Output ('VM Image with publisher " {0}", offer " {1}", sku " {2}", version " {3}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
         }
         else {
-            Write-Verbose "No existing suitable $($azpkg.sku) VM image exists." 
-            Write-Verbose "The image in the Azure Stack Platform Image Repository must have the following properties:"
-            Write-Verbose "Publisher Name = $($azpkg.publisher)"
-            Write-Verbose "Offer = $($azpkg.offer)"
-            Write-Verbose "SKU = $($azpkg.sku)"
-            Write-Verbose "Version = $($azpkg.vhdVersion)"
-            Write-Verbose "Unfortunately, no image was found with these properties."
-            Write-Verbose "Checking to see if the VHD already exists in an Azure Stack Storage Account"
+            Write-Output "No existing suitable $($azpkg.sku) VM image exists." 
+            Write-Output "The image in the Azure Stack Platform Image Repository must have the following properties:"
+            Write-Output "Publisher Name = $($azpkg.publisher)"
+            Write-Output "Offer = $($azpkg.offer)"
+            Write-Output "SKU = $($azpkg.sku)"
+            Write-Output "Version = $($azpkg.vhdVersion)"
+            Write-Output "Unfortunately, no image was found with these properties."
+            Write-Output "Checking to see if the VHD already exists in an Azure Stack Storage Account"
 
             # Test/Create RG
             if (-not (Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) { New-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop }
@@ -314,29 +314,29 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             else { $blobName = "$($image).vhd" }
 
             if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$blobName" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
-                Write-Verbose "You already have an upload of $blobName within your Storage Account. No need to re-upload."
+                Write-Output "You already have an upload of $blobName within your Storage Account. No need to re-upload."
                 $imageURI = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$blobName" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)
-                Write-Verbose "VHD path = $imageURI"
+                Write-Output "VHD path = $imageURI"
             }
             else {
-                Write-Verbose "There is no suitable $blobName image within your Storage Account. We'll need to upload a new one."
+                Write-Output "There is no suitable $blobName image within your Storage Account. We'll need to upload a new one."
                 $validDownloadPathVHD = [System.IO.File]::Exists("$csvImagePath\Images\$image\$blobName")
-                Write-Verbose "Checking for a local copy first..."
+                Write-Output "Checking for a local copy first..."
                 # If there's no local VHD, create one.
                 if ($validDownloadPathVHD -eq $true) {
-                    Write-Verbose "Located suitable VHD in this folder. No need to download again..."
+                    Write-Output "Located suitable VHD in this folder. No need to download again..."
                     $serverVHD = Get-ChildItem -Path "$csvImagePath\Images\$image\$blobName"
-                    Write-Verbose "VHD located at $serverVHD"
+                    Write-Output "VHD located at $serverVHD"
                 }
                 else {
                     if ($image -eq "UbuntuServer") {
                         # Split for Ubuntu Image
                         $validDownloadPathZIP = [System.IO.File]::Exists("$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip")
                         if ($validDownloadPathZIP -eq $true) {
-                            Write-Verbose "Cannot find a previously extracted Ubuntu Server VHD with name $blobName"
-                            Write-Verbose "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
+                            Write-Output "Cannot find a previously extracted Ubuntu Server VHD with name $blobName"
+                            Write-Output "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
                             $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
-                            Write-Verbose "Ubuntu Server ZIP located at $UbuntuServerZIP"
+                            Write-Output "Ubuntu Server ZIP located at $UbuntuServerZIP"
                             if (!([System.IO.File]::Exists("$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"))) {
                                 Copy-Item -Path "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Destination "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
                                 $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
@@ -350,8 +350,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         else {
                             # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
                             # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
-                            Write-Verbose "Cannot find a previously extracted Ubuntu Server download or ZIP file"
-                            Write-Verbose "Begin download of correct Ubuntu Server ZIP to $ASDKpath"
+                            Write-Output "Cannot find a previously extracted Ubuntu Server download or ZIP file"
+                            Write-Output "Begin download of correct Ubuntu Server ZIP to $ASDKpath"
 
                             if ($registerASDK -and ($deploymentMode -eq "Online")) {
                                 $ubuntuBuild = $azpkg.vhdVersion
@@ -384,8 +384,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                             $convertWindowsDownloadLocation = "$ASDKpath\images\$image\Convert-Windows$($image)Image.ps1"
                             $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\$image\Convert-Windows$($image)Image.ps1")
                             if ($convertWindowsImageExists -eq $false) {
-                                Write-Verbose "Downloading Convert-Windows$($image)Image.ps1 to create the VHD from the ISO"
-                                Write-Verbose "The download will be stored in $ASDKpath\images"
+                                Write-Output "Downloading Convert-Windows$($image)Image.ps1 to create the VHD from the ISO"
+                                Write-Output "The download will be stored in $ASDKpath\images"
                                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                                 DownloadWithRetry -downloadURI "$convertWindowsURI" -downloadLocation "$convertWindowsDownloadLocation" -retries 10
                             }
@@ -415,7 +415,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     }
                 }
                 # At this point, there is a local image (either existing or new, that needs uploading, first to a Storage Account
-                Write-Verbose "Beginning upload of VHD to Azure Stack Storage Account"
+                Write-Output "Beginning upload of VHD to Azure Stack Storage Account"
                 $imageURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkImagesContainerName, $serverVHD.Name
                 # Upload VHD to Storage Account
                 # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
@@ -424,14 +424,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$uploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                     Try {
                         # Log back into Azure Stack to ensure login hasn't timed out
-                        Write-Verbose "Upload Attempt: $uploadVhdAttempt"
+                        Write-Output "Upload Attempt: $uploadVhdAttempt"
                         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                         Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                         $uploadSuccess = $true
                     }
                     catch {
-                        Write-Verbose "Upload failed."
-                        Write-Verbose "$_.Exception.Message"
+                        Write-Output "Upload failed."
+                        Write-Output "$_.Exception.Message"
                         $uploadVhdAttempt++
                         $uploadSuccess = $false
                     }
@@ -441,14 +441,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$uploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                     Try {
                         # Log back into Azure Stack to ensure login hasn't timed out
-                        Write-Verbose "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
+                        Write-Output "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
                         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                         Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                         $uploadSuccess = $true
                     }
                     catch {
-                        Write-Verbose "Upload failed."
-                        Write-Verbose "$_.Exception.Message"
+                        Write-Output "Upload failed."
+                        Write-Output "$_.Exception.Message"
                         $uploadVhdAttempt++
                         $uploadSuccess = $false
                     }
@@ -458,14 +458,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
                     Try {
                         # Log back into Azure Stack to ensure login hasn't timed out
-                        Write-Verbose "No existing image found. Upload Attempt: $uploadVhdAttempt"
+                        Write-Output "No existing image found. Upload Attempt: $uploadVhdAttempt"
                         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                         Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                         $uploadSuccess = $true
                     }
                     catch {
-                        Write-Verbose "Upload failed."
-                        Write-Verbose "$_.Exception.Message"
+                        Write-Output "Upload failed."
+                        Write-Output "$_.Exception.Message"
                         $uploadVhdAttempt++
                         $uploadSuccess = $false
                     }
@@ -481,19 +481,19 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             # Add the Platform Image
             Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$imageURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
             if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-                Write-Verbose ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
+                Write-Output ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                 if ($image -eq "UbuntuServer") {
-                    Write-Verbose "Cleaning up local hard drive space - deleting VHD file and ZIP from Cluster Shared Volume"
+                    Write-Output "Cleaning up local hard drive space - deleting VHD file and ZIP from Cluster Shared Volume"
                     Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).vhd" | Remove-Item -Force
                     Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).ZIP" | Remove-Item -Force
                     Get-ChildItem -Path "$csvImagePath\Images\$image\*" -Include "*.msu" | Remove-Item -Force
-                    Write-Verbose "Cleaning up VHD from storage account"
+                    Write-Output "Cleaning up VHD from storage account"
                     Remove-AzureStorageBlob -Blob $serverVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                 }
                 else {
-                    Write-Verbose "Cleaning up local hard drive space - deleting VHD file"
+                    Write-Output "Cleaning up local hard drive space - deleting VHD file"
                     Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($image).vhd" | Remove-Item -Force
-                    Write-Verbose "Cleaning up VHD from storage account"
+                    Write-Output "Cleaning up VHD from storage account"
                     Remove-AzureStorageBlob -Blob $serverVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                 }
             }
@@ -510,17 +510,17 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         ### it will add one from GitHub (assuming an online deployment choice) ###
 
         $azpkgPackageName = "$($azpkg.name)"
-        Write-Verbose "Checking for the following package: $azpkgPackageName"
+        Write-Output "Checking for the following package: $azpkgPackageName"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
-            Write-Verbose "Found the following existing package in your Gallery: $azpkgPackageName. No need to upload a new one"
+            Write-Output "Found the following existing package in your Gallery: $azpkgPackageName. No need to upload a new one"
         }
         else {
-            Write-Verbose "Didn't find this package: $azpkgPackageName"
-            Write-Verbose "Will need to side load it in to the gallery"
+            Write-Output "Didn't find this package: $azpkgPackageName"
+            Write-Output "Will need to side load it in to the gallery"
 
             if ($registerASDK -and ($deploymentMode -eq "Online")) {
                 $azpkgPackageURL = $($azpkg.azpkgPath)
-                Write-Verbose "Uploading $azpkgPackageName with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
+                Write-Output "Uploading $azpkgPackageName with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
             }
             elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
                 if ($image -eq "UbuntuServer") {
@@ -538,13 +538,13 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             # Sometimes the gallery item doesn't get added successfully, so perform checks and attempt multiple uploads if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
                 try {
-                    Write-Verbose "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
-                    Write-Verbose "Uploading $azpkgPackageName from $azpkgPackageURL"
+                    Write-Output "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
+                    Write-Output "Uploading $azpkgPackageName from $azpkgPackageURL"
                     Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
                 }
                 catch {
-                    Write-Verbose "Upload wasn't successful. Waiting 5 seconds before retrying."
-                    Write-Verbose "$_.Exception.Message"
+                    Write-Output "Upload wasn't successful. Waiting 5 seconds before retrying."
+                    Write-Output "$_.Exception.Message"
                     Start-Sleep -Seconds 5
                 }
             }
@@ -565,7 +565,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     }
 }
 elseif ($progressCheck -eq "Complete") {
-    Write-Verbose "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue

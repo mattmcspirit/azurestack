@@ -50,7 +50,7 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Verbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) -and (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed"))) {
     try {
@@ -93,13 +93,13 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
             while (!$(Get-AzureStorageBlob -Container $asdkOfflineContainerName -Blob $itemName -Context $asdkOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
                 try {
                     # Log back into Azure Stack to ensure login hasn't timed out
-                    Write-Verbose -Message "$itemName not found. Upload Attempt: $uploadItemAttempt"
+                    Write-Output "$itemName not found. Upload Attempt: $uploadItemAttempt"
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkOfflineContainerName -Blob "$itemName" -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
                 }
                 catch {
-                    Write-Verbose -Message "Upload failed."
-                    Write-Verbose -Message "$_.Exception.Message"
+                    Write-Output "Upload failed."
+                    Write-Output "$_.Exception.Message"
                     $uploadItemAttempt++
                 }
             }
@@ -115,7 +115,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
     }
 }
 elseif ($deploymentMode -eq "Online") {
-    Write-Verbose -Message "This is not an offline deployent, skipping step`r`n"
+    Write-Output "This is not an offline deployent, skipping step`r`n"
     # Update the ConfigASDK database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage
