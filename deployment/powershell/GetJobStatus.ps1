@@ -2,6 +2,8 @@ $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
+############## RUNNING JOBS #####################################
+
 # Get all the running jobs
 $jobsStillExecuting = $true
 While ($jobsStillExecuting -eq $true) {
@@ -10,42 +12,63 @@ While ($jobsStillExecuting -eq $true) {
     if ($runningJobs.count -eq 0) {
         $jobsStillExecuting = $false
     }
-    Write-Host "****** CURRENT JOB STATUS - This screen will refresh every 30 seconds ******`r"
+    Write-Host "`r`n****** CURRENT JOB STATUS - This screen will refresh every 30 seconds ******`r"
     Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******`r"
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******`r`n"
-    Write-Host "Current number of running jobs: $($runningJobs.count). Some jobs may take a while - Please be patient!`r`n"
-    #Get-Job | Where-Object { $_.state -eq "running" } | Format-Table Name, State, @{L = 'StartTime'; E = {$_.PSBeginTime}}, @{L = 'EndTime'; E = {$_.PSEndTime}}
+    Write-Host "Current number of running jobs: $($runningJobs.count). Some jobs may take a while - Please be patient!"
+    $jobRunningDisplay = $null
+    $jobRunningDisplay = @()
     foreach ($runningJob in $runningJobs) {
         $jobDuration = (Get-Date) - ($runningJob.PSBeginTime)
         if ($jobDuration.Hours -gt 0) {
-            Write-Host "$($runningJob.Name)   |   Started at: $($runningJob.PSBeginTime)   |   Running for: $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+            #Write-Host "$($runningJob.Name)   |   Started at: $($runningJob.PSBeginTime)   |   Running for: $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+            $jobRuntime = "$($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
         else {
-            Write-Host "$($runningJob.Name)   |   Started at: $($runningJob.PSBeginTime)   |   Running for: $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+            #Write-Host "$($runningJob.Name)   |   Started at: $($runningJob.PSBeginTime)   |   Running for: $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
+            $jobRuntime = "$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
+        $jobRunningDisplay += New-Object psobject -Property @{Name = $($runningJob.Name); StartTime = $($runningJob.PSBeginTime); Duration = $jobRuntime}
     }
+    $jobRunningDisplay | Sort-Object StartTime | Format-Table Name, StartTime, Duration
+
+    ############## COMPLETED JOBS #####################################
+
     $completedJobs = (Get-Job | Where-Object { $_.state -eq "Completed" })
-    Write-Host "`r`nCurrent number of completed jobs: $($completedJobs.count)`r`n" -ForegroundColor Green
+    Write-Host "Current number of completed jobs: $($completedJobs.count)" -ForegroundColor Green -NoNewline
+    $jobCompleteDisplay = $null
+    $jobCompleteDisplay = @()
     foreach ($completeJob in $completedJobs) {
         $jobDuration = ($completeJob.PSEndTime) - ($completeJob.PSBeginTime)
         if ($jobDuration.Hours -gt 0) {
-            Write-Host "$($completeJob.Name)   |   Started at: $($completeJob.PSBeginTime)   |   Finished at: $($completeJob.PSEndTime)  |  Taking: $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Green
+            $jobRuntime = "$($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
         else {
-            Write-Host "$($completeJob.Name)   |   Started at: $($completeJob.PSBeginTime)   |   Finished at: $($completeJob.PSEndTime)  |  Taking: $($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Green
+            $jobRuntime = "$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
+        $jobCompleteDisplay += New-Object psobject -Property @{Name = $($completeJob.Name); StartTime = $($completeJob.PSBeginTime); EndTime = $($completeJob.PSEndTime); Duration = $jobRuntime}
     }
+    $jobCompleteDisplayTable = $jobCompleteDisplay | Sort-Object StartTime | Format-Table Name, StartTime, EndTime, Duration | Out-String
+    Write-Host $jobCompleteDisplayTable -ForegroundColor Green -NoNewline
+
+    ############## FAILED JOBS #####################################
+    
     $failedJobs = (Get-Job | Where-Object { $_.state -eq "Failed" })
-    Write-Host "`r`nCurrent number of failed jobs: $($failedJobs.count)`r`n" -ForegroundColor Red
+    Write-Host "Current number of failed jobs: $($failedJobs.count)" -ForegroundColor Red -NoNewline
+    $jobFailedDisplay = $null
+    $jobFailedDisplay = @()
     foreach ($failedJob in $failedJobs) {
         $jobDuration = ($failedJob.PSEndTime) - ($failedJob.PSBeginTime)
         if ($jobDuration.Hours -gt 0) {
-            Write-Host "$($failedJob.Name)   |   Started at: $($failedJob.PSBeginTime)   |   Failed after: $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Red
+            $jobRuntime = "$($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
         else {
-            Write-Host "$($failedJob.Name)   |   Started at: $($failedJob.PSBeginTime)   |   Failed after: $($jobDuration.Minutes)m:$($jobDuration.Seconds)s" -ForegroundColor Red
+            $jobRuntime = "$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
+        $jobFailedDisplay += New-Object psobject -Property @{Name = $($failedJob.Name); StartTime = $($failedJob.PSBeginTime); EndTime = $($failedJob.PSEndTime); Duration = $jobRuntime}
     }
+    $jobFailedDisplayTable = $jobFailedDisplay | Sort-Object StartTime | Format-Table Name, StartTime, EndTime, Duration | Out-String
+    Write-Host $jobFailedDisplayTable -ForegroundColor Red -NoNewline
     Write-Host "`r`n****** CURRENT JOB STATUS - This screen will refresh every 30 seconds ******"
     Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******"
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******"
@@ -57,9 +80,9 @@ While ($jobsStillExecuting -eq $true) {
     Write-Host "`r`n****** CURRENT JOB STATUS - This screen will refresh every 30 seconds ******"
     Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******"
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******"
-    Write-Host "`r`nCurrent Progress:"
+    Write-Host "`r`nCurrent Progress:" -NoNewline
     $tableData = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop -Verbose:$false | Out-String
-    Write-Host "$tableData"
+    Write-Host "$tableData" -NoNewline
     Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******"
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******"
     Start-Sleep -Seconds 10
