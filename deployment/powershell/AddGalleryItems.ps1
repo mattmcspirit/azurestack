@@ -149,7 +149,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     }
 }
 elseif ($progressCheck -eq "Complete") {
-    Write-Verbose "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue
