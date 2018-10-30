@@ -13,7 +13,7 @@ While ($jobsStillExecuting -eq $true) {
         $jobsStillExecuting = $false
     }
     Write-Host "`r`n****** CURRENT JOB STATUS - This screen will refresh every 30 seconds ******`r"
-    Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******`r"
+    Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******`r" -ForegroundColor Red
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******`r`n"
     Write-Host "Current number of running jobs: $($runningJobs.count). Some jobs may take a while - Please be patient!"
     $jobRunningDisplay = $null
@@ -35,7 +35,7 @@ While ($jobsStillExecuting -eq $true) {
     ############## COMPLETED JOBS #####################################
 
     $completedJobs = (Get-Job | Where-Object { $_.state -eq "Completed" })
-    Write-Host "Current number of completed jobs: $($completedJobs.count)" -ForegroundColor Green -NoNewline
+    Write-Host "Current number of completed jobs: $($completedJobs.count)" -ForegroundColor Green
     $jobCompleteDisplay = $null
     $jobCompleteDisplay = @()
     foreach ($completeJob in $completedJobs) {
@@ -54,7 +54,7 @@ While ($jobsStillExecuting -eq $true) {
     ############## FAILED JOBS #####################################
     
     $failedJobs = (Get-Job | Where-Object { $_.state -eq "Failed" })
-    Write-Host "Current number of failed jobs: $($failedJobs.count)" -ForegroundColor Red -NoNewline
+    Write-Host "Current number of failed jobs: $($failedJobs.count)" -ForegroundColor Red
     $jobFailedDisplay = $null
     $jobFailedDisplay = @()
     foreach ($failedJob in $failedJobs) {
@@ -70,7 +70,7 @@ While ($jobsStillExecuting -eq $true) {
     $jobFailedDisplayTable = $jobFailedDisplay | Sort-Object StartTime | Format-Table Name, StartTime, EndTime, Duration | Out-String
     Write-Host $jobFailedDisplayTable -ForegroundColor Red -NoNewline
     Write-Host "`r`n****** CURRENT JOB STATUS - This screen will refresh every 30 seconds ******"
-    Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******"
+    Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******" -ForegroundColor Red
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******"
     Start-Sleep -Seconds 20
     Clear-Host
@@ -83,7 +83,7 @@ While ($jobsStillExecuting -eq $true) {
     Write-Host "`r`nCurrent Progress:" -NoNewline
     $tableData = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop -Verbose:$false | Out-String
     Write-Host "$tableData" -NoNewline
-    Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******"
+    Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******" -ForegroundColor Red
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******"
     Start-Sleep -Seconds 10
 }
