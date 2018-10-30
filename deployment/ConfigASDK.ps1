@@ -2107,7 +2107,7 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
     }
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
-            if (-deploymentMode -eq "Online") {
+            if ($deploymentMode -eq "Online") {
                 # Install useful ASDK Host Apps via Chocolatey
                 Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
                 # Enable Choco Global Confirmation
