@@ -192,6 +192,32 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Host "Editing completed."
                 }
             }
+            $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
+            $old = '$StorageObject = Find-AzureRmResource'
+            $new = '$StorageObject = Get-AzureRmResource'
+            $pattern1 = [RegEx]::Escape($old)
+            $pattern2 = [RegEx]::Escape($new)
+            if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
+                if ((Get-Content $getCommonModule) | Select-String $pattern1) {
+                    Write-Host "Known issue with AzureRMProfile 2018-03-01-hybrid and Database RP installation  - editing Common.psm1"
+                    Write-Host "Editing file"
+                    (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
+                    Write-Host "Editing completed."
+                }
+            }
+            $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
+            $old = '$resourceProviderResource =  Find-AzureRmResource -ResourceGroupNameContains'
+            $new = '$resourceProviderResource =  Get-AzureRmResource -ResourceGroupName'
+            $pattern1 = [RegEx]::Escape($old)
+            $pattern2 = [RegEx]::Escape($new)
+            if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
+                if ((Get-Content $getCommonModule) | Select-String $pattern1) {
+                    Write-Host "Known issue with AzureRMProfile 2018-03-01-hybrid and Database RP installation  - editing Common.psm1"
+                    Write-Host "Editing file"
+                    (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
+                    Write-Host "Editing completed."
+                }
+            }
             # End of Temporary Workaround
             ############################################################################################################################################################################
 
