@@ -122,7 +122,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
 
             #### AD Service Principal ####
             if (!$([System.IO.File]::Exists("$downloadPath\ApplicationIDBackup.txt"))) {
-                if (($authenticationType.ToString() -like "AzureAd") -and ($deploymentMode -eq "Online" -or "PartialOnline")) {
+                if (($authenticationType.ToString() -like "AzureAd") -and ($deploymentMode -ne "Offline")) {
                     # Logout to clean up
                     Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                     Clear-AzureRmContext -Scope CurrentUser -Force
