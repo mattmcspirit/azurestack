@@ -13,7 +13,7 @@ While ($jobsStillExecuting -eq $true) {
     Write-Host "****** CURRENT JOB STATUS - This screen will refresh every 30 seconds ******`r"
     Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******`r"
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******`r`n"
-    Write-Host "Current number of running jobs: $($runningJobs.count). Some jobs may take a while - Please be patient!" -ForegroundColor Yellow
+    Write-Host "Current number of running jobs: $($runningJobs.count). Some jobs may take a while - Please be patient!"
     #Get-Job | Where-Object { $_.state -eq "running" } | Format-Table Name, State, @{L = 'StartTime'; E = {$_.PSBeginTime}}, @{L = 'EndTime'; E = {$_.PSEndTime}}
     foreach ($runningJob in $runningJobs) {
         $jobDuration = (Get-Date) - ($runningJob.PSBeginTime)
