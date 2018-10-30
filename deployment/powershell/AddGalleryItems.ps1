@@ -96,16 +96,16 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop
         }
         
-        Write-Output "Checking for the $azpkg gallery item"
+        Write-Host "Checking for the $azpkg gallery item"
         if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
-            Write-Output "Found a suitable $azpkg Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
+            Write-Host "Found a suitable $azpkg Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
         }
         else {
-            Write-Output "Didn't find this package: $azpkgPackageName"
-            Write-Output "Will need to side load it in to the gallery"
+            Write-Host "Didn't find this package: $azpkgPackageName"
+            Write-Host "Will need to side load it in to the gallery"
 
             if ($deploymentMode -eq "Online") {
-                Write-Output "Uploading $azpkgPackageName"
+                Write-Host "Uploading $azpkgPackageName"
                 if ($azpkg -eq "MySQL") {
                     $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
                 }
@@ -121,13 +121,13 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
             while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
                 try {
-                    Write-Output "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
-                    Write-Output "Uploading $azpkgPackageName from $azpkgPackageURL"
+                    Write-Host "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
+                    Write-Host "Uploading $azpkgPackageName from $azpkgPackageURL"
                     Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
                 }
                 catch {
-                    Write-Output "Upload wasn't successful. Waiting 5 seconds before retrying."
-                    Write-Output "$_.Exception.Message"
+                    Write-Host "Upload wasn't successful. Waiting 5 seconds before retrying."
+                    Write-Host "$_.Exception.Message"
                     Start-Sleep -Seconds 5
                 }
             }
@@ -149,7 +149,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     }
 }
 elseif ($progressCheck -eq "Complete") {
-    Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
 Stop-Transcript -ErrorAction SilentlyContinue

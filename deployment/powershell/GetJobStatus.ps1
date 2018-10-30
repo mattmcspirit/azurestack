@@ -58,17 +58,17 @@ While ($jobsStillExecuting -eq $true) {
     Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******"
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******"
     Write-Host "`r`nCurrent Progress:`r`n"
-    $tableData = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop | Out-String
+    $tableData = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop -Verbose:$false | Out-String
+    Write-Host "$tableData"
     Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******"
     Write-Host "****** Please wait until all jobs have completed/failed before re-running the main script ******"
-    Write-Output "$tableData"
     Start-Sleep -Seconds 10
 }
 if ((Get-Job | Where-Object { $_.state -eq "Failed" })) {
-    Write-Output "At least one of the jobs failed."
+    Write-Host "At least one of the jobs failed."
     $failedJobs = (Get-Job | Where-Object { $_.state -eq "Failed" })
     foreach ($fail in $failedJobs) {
-        Write-Output "FAILED JOB: Job Name: $($fail.Name) | Error Message: $($fail.ChildJobs.JobStateInfo.Reason.Message)"
+        Write-Host "FAILED JOB: Job Name: $($fail.Name) | Error Message: $($fail.ChildJobs.JobStateInfo.Reason.Message)"
     }
     throw "Please review the logs for further troubleshooting"
 }

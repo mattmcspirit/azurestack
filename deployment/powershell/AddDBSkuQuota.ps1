@@ -66,12 +66,12 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progressCheck -eq "Skipped") {
-        Write-Output "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
+        Write-Host "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
         # Update the ConfigASDK database with skip status
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
@@ -90,7 +90,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             # Need to ensure this stage doesn't start before the DBRP stage has finished
             $dbJobCheck = CheckProgress -progressStage "$($dbsku)RP"
             while ($dbJobCheck -ne "Complete") {
-                Write-Output "The $($dbsku)RP stage of the process has not yet completed. Checking again in 20 seconds"
+                Write-Host "The $($dbsku)RP stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
                 $dbJobCheck = CheckProgress -progressStage "$($dbsku)RP"
                 if ($dbJobCheck -eq "Failed") {
@@ -193,7 +193,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $quotaRequestBodyJson = $quotaRequestBody | ConvertTo-Json
 
             # Create the SKU
-            Write-Output "Creating new $($dbsku) Resource Provider SKU with name: $($skuName), adapter namespace: $($databaseAdapterNamespace)" -Verbose
+            Write-Host "Creating new $($dbsku) Resource Provider SKU with name: $($skuName), adapter namespace: $($databaseAdapterNamespace)" -Verbose
             try {
                 # Make the REST call
                 $skuResponse = Invoke-WebRequest -Uri $skuUri -Method Put -Headers $dbHeaders -Body $skuRequestBodyJson -ContentType "application/json" -UseBasicParsing
@@ -204,7 +204,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Error -Message ("[New-AzureStackRmDatabaseAdapterSKU]::Failed to create $($dbsku) Resource Provider SKU with name {0}, failed with error: {1}" -f $skuName, $message) 
             }
             # Create the Quota
-            Write-Output "Creating new $($dbsku) Resource Provider Quota with name: $($quotaName), adapter namespace: $($databaseAdapterNamespace)" -Verbose
+            Write-Host "Creating new $($dbsku) Resource Provider Quota with name: $($quotaName), adapter namespace: $($databaseAdapterNamespace)" -Verbose
             try {
                 # Make the REST call
                 $quotaResponse = Invoke-WebRequest -Uri $quotaUri -Method Put -Headers $dbHeaders -Body $quotaRequestBodyJson -ContentType "application/json" -UseBasicParsing

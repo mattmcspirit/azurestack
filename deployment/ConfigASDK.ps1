@@ -184,16 +184,16 @@ $scriptStep = ""
 function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [int] $retries) {
     while ($true) {
         try {
-            Write-Output "Downloading: $downloadURI"
+            Write-Host "Downloading: $downloadURI"
             (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)
             break
         }
         catch {
             $exceptionMessage = $_.Exception.Message
-            Write-Output "Failed to download '$downloadURI': $exceptionMessage"
+            Write-Host "Failed to download '$downloadURI': $exceptionMessage"
             if ($retries -gt 0) {
                 $retries--
-                Write-Output "Waiting 10 seconds before retrying. Retries left: $retries"
+                Write-Host "Waiting 10 seconds before retrying. Retries left: $retries"
                 Start-Sleep -Seconds 10
             }
             else {
@@ -215,7 +215,7 @@ function Write-CustomVerbose {
     )
         $verboseTime = (Get-Date).ToShortTimeString()
         # Function for displaying formatted log messages.  Also displays time in minutes since the script was started
-        Write-Output "[$verboseTime]::[$scriptStep]:: $Message"
+        Write-Host "[$verboseTime]::[$scriptStep]:: $Message"
 }
 
 ### JOB LAUNCHER FUNCTION ###################################################################################################################################
@@ -234,19 +234,19 @@ function JobLauncher {
         try {
             if ($null -ne (Get-Job -Name $jobName -ErrorAction SilentlyContinue)) {
                 if (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Running" } ) {
-                    Write-Output "$jobName is already running, no need to run this job"
+                    Write-Host "$jobName is already running, no need to run this job"
                 }
                 elseif (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Completed" } ) {
-                    Write-Output "$jobName already completed, no need to run this job"
+                    Write-Host "$jobName already completed, no need to run this job"
                 }
                 elseif (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Failed" } ) {
-                    Write-Output "$jobName previously failed - cleaning up and rerunning"
+                    Write-Host "$jobName previously failed - cleaning up and rerunning"
                     Get-Job -Name $jobName -ErrorAction SilentlyContinue | Remove-Job
                     & $jobToExecute;
                 }
             }
             else {
-                Write-Output "$jobName not found, and hasn't previously completed or failed - Starting $jobName job"
+                Write-Host "$jobName not found, and hasn't previously completed or failed - Starting $jobName job"
                 & $jobToExecute;
             }
         }
@@ -267,7 +267,7 @@ function CheckProgress {
     )
     # Grab the latest data from the database, store it as $progressCheck, and display it
     $progressCheck = (Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" `
-            -TableName "$tableName" -ColumnName $progressStage -ErrorAction SilentlyContinue).Item(0)
+            -TableName "$tableName" -ColumnName $progressStage -ErrorAction SilentlyContinue -Verbose:$false).Item(0)
     return $progressCheck
 }
 function StageComplete {
@@ -278,9 +278,9 @@ function StageComplete {
         [string] $progressStage
     )
     # Update the ConfigASDK Progress database with successful completion then display updated table
-    Write-Output "ASDK Configurator Stage: $progressStage successfully completed. Updating ConfigASDK Progress database"
-    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Complete';" -Verbose -ErrorAction Stop
-    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+    Write-Host "ASDK Configurator Stage: $progressStage successfully completed. Updating ConfigASDK Progress database"
+    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Complete';" -Verbose:$false -ErrorAction Stop
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -Verbose:$false -ErrorAction Stop
 }
 function StageSkipped {
     [cmdletbinding()]
@@ -290,9 +290,9 @@ function StageSkipped {
         [string] $progressStage
     )
     # Update the ConfigASDK Progress database with skipped status then display updated table
-    Write-Output "ASDK Configurator Stage: $progressStage skipped. Updating ConfigASDK Progress database"
-    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Skipped';" -Verbose -ErrorAction Stop
-    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+    Write-Host "ASDK Configurator Stage: $progressStage skipped. Updating ConfigASDK Progress database"
+    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Skipped';" -Verbose:$false -ErrorAction Stop
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -Verbose:$false -ErrorAction Stop
 }
 function StageFailed {
     [cmdletbinding()]
@@ -302,10 +302,10 @@ function StageFailed {
         [string] $progressStage
     )
     # Update the ConfigASDK Progress database with failed completion then display updated table, with failure message
-    Write-Output "ASDK Configurator Stage: $progressStage failed. Updating ConfigASDK Progress database"
-    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Failed';" -Verbose -ErrorAction Stop
-    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
-    Write-Output "$_.Exception.Message" -ErrorAction Stop
+    Write-Host "ASDK Configurator Stage: $progressStage failed. Updating ConfigASDK Progress database"
+    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Failed';" -Verbose:$false -ErrorAction Stop
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -Verbose:$false -ErrorAction Stop
+    Write-Host "$_.Exception.Message" -ErrorAction Stop
 }
 function StageReset {
     [cmdletbinding()]
@@ -315,9 +315,9 @@ function StageReset {
         [string] $progressStage
     )
     # Reset the ConfigASDK Progress database from previously being skipped, to incomplete
-    Write-Output "Operator previously skipped the $progressStage stage, but now wants to perform it. Updating ConfigASDK Progress database to Incomplete."
-    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Incomplete';" -Verbose -ErrorAction Stop
-    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
+    Write-Host "Operator previously skipped the $progressStage stage, but now wants to perform it. Updating ConfigASDK Progress database to Incomplete."
+    Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Incomplete';" -Verbose:$false -ErrorAction Stop
+    Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -Verbose:$false -ErrorAction Stop
 }
 
 ### HOST APP INSTALLER FUNCTION #############################################################################################################################
@@ -344,26 +344,26 @@ function HostAppInstaller {
     )
     if ($fileName -eq "azurecli.msi") {
         if ([System.IO.Directory]::Exists("$localInstallPath")) {
-            Write-Output "$appName already appears to be available here: $LocalInstallPath. No need to reinstall"
+            Write-Host "$appName already appears to be available here: $LocalInstallPath. No need to reinstall"
             $appExists = $true
         }
     }
     else {
         if ([System.IO.File]::Exists("$localInstallPath")) {
-            Write-Output "$appName already appears to be available here: $LocalInstallPath. No need to reinstall"
+            Write-Host "$appName already appears to be available here: $LocalInstallPath. No need to reinstall"
             $appExists = $true
         }
     }
     if (!$appExists) {
         if ($appType -eq "MSI") { $filePath = "msiexec" }
         elseif ($appType -eq "EXE") { $filePath = "$fileName" }
-        Write-Output "Installing $appName"
+        Write-Host "Installing $appName"
         $installHostApp = Start-Process -FilePath "$filePath" -ArgumentList $arguments -Wait -PassThru -Verbose
         if ($installHostApp.ExitCode -ne 0) {
             throw "Installation of $appName returned error code: $($installHostApp.ExitCode)"
         }
         if ($installHostApp.ExitCode -eq 0) {
-            Write-Output "Installation of $appName completed successfully"
+            Write-Host "Installation of $appName completed successfully"
         }
     }
 }
@@ -1011,7 +1011,7 @@ if (!$configAsdkDatabaseExists) {
     Invoke-Sqlcmd -Server $sqlServerInstance -Query $createQuery -Verbose -ErrorAction Stop
 }
 else {
-    Write-Output "The ConfigASDK Database already exists. No need to recreate."
+    Write-Host "The ConfigASDK Database already exists. No need to recreate."
 }
 
 # Need to check if the logins are present
@@ -1022,7 +1022,7 @@ if (!$configAsdkSqlLoginExists) {
     Add-SqlLogin -ServerInstance $sqlServerInstance -LoginName "asdkadmin" -LoginPSCredential $sqlLocalDbCreds -LoginType SqlLogin -DefaultDatabase "ConfigASDK" -Enable -GrantConnectSql -ErrorAction SilentlyContinue
 }
 else {
-    Write-Output "The ConfigASDK Admin Login already exists. No need to recreate."
+    Write-Host "The ConfigASDK Admin Login already exists. No need to recreate."
 }
 
 # Need to check if a table is present
@@ -1078,7 +1078,7 @@ if (!$configAsdkSqlTableExists) {
     $configAsdkSqlTable
 }
 else {
-    Write-Output "The ConfigASDK Progress Table already exists. No need to recreate."
+    Write-Host "The ConfigASDK Progress Table already exists. No need to recreate."
     $configAsdkSqlTableExists
 }
 
@@ -1357,7 +1357,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
         Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
         $testAzureSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Subscription is:`r`n`r`n"
-        Write-Output $testAzureSub
+        Write-Host $testAzureSub
         Start-Sleep -Seconds 5
 
         ### TEST AZURE STACK LOGIN - Login to Azure Stack
@@ -1369,7 +1369,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
         $testAzureSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Stack Subscription is:`r`n`r`n"
-        Write-Output $testAzureSub
+        Write-Host $testAzureSub
         Start-Sleep -Seconds 5
     }
     catch {
@@ -1390,7 +1390,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
         $testAzureSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Stack Subscription is:`r`n`r`n"
-        Write-Output $testAzureSub
+        Write-Host $testAzureSub
     }
     catch {
         Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -1405,10 +1405,10 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
         Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
         $testAzureRegSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:`r`n`r`n"
-        Write-Output $testAzureRegSub
+        Write-Host $testAzureRegSub
         Write-CustomVerbose -Message "TenantID for this subscription is:`r`n"
         $azureRegTenantID = $testAzureRegSub.Tenant.Id
-        Write-Output $azureRegTenantID
+        Write-Host $azureRegTenantID
         Start-Sleep -Seconds 5
     }
     catch {
@@ -2493,7 +2493,7 @@ $Secs = $sw.Elapsed.Seconds
 $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
 
 Set-Location $ScriptLocation -ErrorAction SilentlyContinue
-Write-Output "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
-Write-Output "You started the ASDK Configurator deployment at $startTime." -ErrorAction SilentlyContinue
-Write-Output "ASDK Configurator deployment completed at $endTime." -ErrorAction SilentlyContinue
+Write-Host "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
+Write-Host "You started the ASDK Configurator deployment at $startTime." -ErrorAction SilentlyContinue
+Write-Host "ASDK Configurator deployment completed at $endTime." -ErrorAction SilentlyContinue
 Stop-Transcript -ErrorAction SilentlyContinue

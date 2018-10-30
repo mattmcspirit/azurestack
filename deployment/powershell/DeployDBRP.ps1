@@ -82,12 +82,12 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progressCheck -eq "Skipped") {
-        Write-Output "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
+        Write-Host "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
         # Update the ConfigASDK database back to incomplete
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
@@ -102,7 +102,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
             $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
             while ($serverCoreJobCheck -ne "Complete") {
-                Write-Output "The ServerCoreImage stage of the process has not yet completed. Checking again in 20 seconds"
+                Write-Host "The ServerCoreImage stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
                 $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
                 if ($serverCoreJobCheck -eq "Failed") {
@@ -118,30 +118,30 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             # Get Azure Stack location
             $azsLocation = (Get-AzsLocation).Name
             # Need to 100% confirm that the ServerCoreImage is ready as it seems that starting the MySQL/SQL RP deployment immediately is causing an issue
-            Write-Output "Need to confirm that the Windows Server 2016 Core image is available in the gallery and ready"
+            Write-Host "Need to confirm that the Windows Server 2016 Core image is available in the gallery and ready"
             $azsPlatformImageExists = (Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'
             $azureRmVmPlatformImageExists = (Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).StatusCode -eq 'OK'
-            Write-Output "Check #1 - Using Get-AzsPlatformImage to check for Windows Server 2016 Core image"
+            Write-Host "Check #1 - Using Get-AzsPlatformImage to check for Windows Server 2016 Core image"
             if ($azsPlatformImageExists) {
-                Write-Output "Get-AzsPlatformImage, successfully located an appropriate image with the following details:"
-                Write-Output "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
+                Write-Host "Get-AzsPlatformImage, successfully located an appropriate image with the following details:"
+                Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
             }
             While (!$(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-                Write-Output "Using Get-AzsPlatformImage, ServerCoreImage is not ready yet. Delaying by 20 seconds"
+                Write-Host "Using Get-AzsPlatformImage, ServerCoreImage is not ready yet. Delaying by 20 seconds"
                 Start-Sleep -Seconds 20
             }
-            Write-Output "Check #2 - Using Get-AzureRmVMImage to check for Windows Server 2016 Core image"
+            Write-Host "Check #2 - Using Get-AzureRmVMImage to check for Windows Server 2016 Core image"
             if ($azureRmVmPlatformImageExists) {
-                Write-Output "Using Get-AzureRmVMImage, successfully located an appropriate image with the following details:"
-                Write-Output "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
+                Write-Host "Using Get-AzureRmVMImage, successfully located an appropriate image with the following details:"
+                Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
             }
             While (!$(Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).StatusCode -eq 'OK') {
-                Write-Output "Using Get-AzureRmVMImage to test, ServerCoreImage is not ready yet. Delaying by 20 seconds"
+                Write-Host "Using Get-AzureRmVMImage to test, ServerCoreImage is not ready yet. Delaying by 20 seconds"
                 Start-Sleep -Seconds 20
             }
 
             # For an extra safety net, add an extra delay to ensure the image is fully ready in the PIR, otherwise it seems to cause a failure.
-            Write-Output "Delaying for a further 4 minutes to account for random failure with MySQL/SQL RP to detect platform image immediately after upload"
+            Write-Host "Delaying for a further 4 minutes to account for random failure with MySQL/SQL RP to detect platform image immediately after upload"
             Start-Sleep -Seconds 240
 
             # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
@@ -149,13 +149,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
                     $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
                     if ($mySQLProgressCheck -ne "Complete") {
-                        Write-Output "To avoid deployment conflicts with the MySQL RP, delaying the SQL Server RP deployment by 2 minutes"
+                        Write-Host "To avoid deployment conflicts with the MySQL RP, delaying the SQL Server RP deployment by 2 minutes"
                         Start-Sleep -Seconds 120
                     }
                 }
             }
             # Login to Azure Stack
-            Write-Output "Downloading and installing $dbrp Resource Provider"
+            Write-Host "Downloading and installing $dbrp Resource Provider"
             if (!$([System.IO.Directory]::Exists("$ASDKpath\databases"))) {
                 New-Item -Path "$ASDKpath\databases" -ItemType Directory -Force | Out-Null
             }
@@ -186,10 +186,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $pattern2 = [RegEx]::Escape($new)
             if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
                 if ((Get-Content $getCommonModule) | Select-String $pattern1) {
-                    Write-Output "Known issue with AzureRMProfile 2018-03-01-hybrid and Database RP installation  - editing Common.psm1"
-                    Write-Output "Editing file"
+                    Write-Host "Known issue with AzureRMProfile 2018-03-01-hybrid and Database RP installation  - editing Common.psm1"
+                    Write-Host "Editing file"
                     (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
-                    Write-Output "Editing completed."
+                    Write-Host "Editing completed."
                 }
             }
             # End of Temporary Workaround
@@ -222,7 +222,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     }
 }
 elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
-    Write-Output "Operator chose to skip Resource Provider Deployment"
+    Write-Host "Operator chose to skip Resource Provider Deployment"
     # Update the ConfigASDK database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage

@@ -65,12 +65,12 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                     $pattern2 = [RegEx]::Escape($new)
                     if (!((Get-Content $taskResult) | Select-String $pattern2)) {
                         if ((Get-Content $taskResult) | Select-String $pattern1) {
-                            Write-Output "Known issue with Azs.AzureBridge.Admin Module Version 0.1.1 - editing Get-TaskResult.ps1"
-                            Write-Output "Removing module before editing file"
+                            Write-Host "Known issue with Azs.AzureBridge.Admin Module Version 0.1.1 - editing Get-TaskResult.ps1"
+                            Write-Host "Removing module before editing file"
                             Remove-Module Azs.AzureBridge.Admin -Force -Confirm:$false -Verbose
-                            Write-Output "Editing file"
+                            Write-Host "Editing file"
                             (Get-Content $taskResult) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $taskResult -Verbose -ErrorAction Stop
-                            Write-Output "Editing completed. Reimporting module"
+                            Write-Host "Editing completed. Reimporting module"
                             Import-Module Azs.AzureBridge.Admin -Force
                         }
                     }
@@ -84,17 +84,17 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             $activationName = "default"
             $activationRG = "azurestack-activation"
             if ($(Get-AzsAzureBridgeActivation -Name $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
-                Write-Output "Adding Microsoft VM Extensions from the from the Azure Stack Marketplace"
+                Write-Host "Adding Microsoft VM Extensions from the from the Azure Stack Marketplace"
                 $getExtensions = ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")}).Name) -replace "default/", ""
                 foreach ($extension in $getExtensions) {
                     while (!$(Get-AzsAzureBridgeDownloadedProduct -Name $extension -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
-                        Write-Output "Didn't find $extension in your gallery. Downloading from the Azure Stack Marketplace"
+                        Write-Host "Didn't find $extension in your gallery. Downloading from the Azure Stack Marketplace"
                         Invoke-AzsAzureBridgeProductDownload -ActivationName $activationName -Name $extension -ResourceGroupName $activationRG -Force -Confirm:$false -Verbose
                         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     }
                 }
                 $getDownloads = (Get-AzsAzureBridgeDownloadedProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")})
-                Write-Output "Your Azure Stack gallery now has the following Microsoft VM Extensions for enhancing your deployments:`r`n"
+                Write-Host "Your Azure Stack gallery now has the following Microsoft VM Extensions for enhancing your deployments:`r`n"
                 foreach ($download in $getDownloads) {
                     Write-Host "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"
                 }
@@ -103,8 +103,8 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             }
             else {
                 # No Azure Bridge Activation Record found - Skip rather than fail
-                Write-Output "Skipping Microsoft VM Extension download, no Azure Bridge Activation Object called $activationName could be found within the resource group $activationRG on your Azure Stack"
-                Write-Output "Assuming registration of this ASDK was successful, you should be able to manually download the VM extensions from Marketplace Management in the admin portal`r`n"
+                Write-Host "Skipping Microsoft VM Extension download, no Azure Bridge Activation Object called $activationName could be found within the resource group $activationRG on your Azure Stack"
+                Write-Host "Assuming registration of this ASDK was successful, you should be able to manually download the VM extensions from Marketplace Management in the admin portal`r`n"
                 # Update the ConfigASDK database with skip status
                 StageSkipped -progressStage $progressStage
             }
@@ -117,14 +117,14 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
         }
     }
     elseif ($progressCheck -eq "Skipped") {
-        Write-Output "ASDK Configurator Stage: $progressStage previously skipped"
+        Write-Host "ASDK Configurator Stage: $progressStage previously skipped"
     }
     elseif ($progressCheck -eq "Complete") {
-        Write-Output "ASDK Configurator Stage: $progressStage previously completed successfully"
+        Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
     }
 }
 elseif (!$registerASDK) {
-    Write-Output "Skipping VM Extension download, as Azure Stack has not been registered`r`n"
+    Write-Host "Skipping VM Extension download, as Azure Stack has not been registered`r`n"
     # Update the ConfigASDK database with skip status
     StageSkipped -progressStage $progressStage
 }
