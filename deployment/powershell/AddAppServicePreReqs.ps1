@@ -13,7 +13,7 @@ param (
     [ValidateSet("AzureAd", "ADFS")]
     [String] $authenticationType,
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [String] $azureDirectoryTenantName,
 
     [parameter(Mandatory = $true)]
@@ -86,6 +86,12 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
+
+            # Cleanup PS Context
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Clear-AzureRmContext -Scope CurrentUser -Force
+            Disable-AzureRMContextAutosave -Scope CurrentUser
+
             # Need to ensure this stage doesn't start before the App Service components have been downloaded
             $appServiceDownloadJobCheck = CheckProgress -progressStage "DownloadAppService"
             while ($appServiceDownloadJobCheck -ne "Complete") {

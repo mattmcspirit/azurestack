@@ -59,6 +59,11 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
             StageReset -progressStage $progressStage
             $progressCheck = CheckProgress -progressStage $progressStage
         }
+
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+        Clear-AzureRmContext -Scope CurrentUser -Force
+        Disable-AzureRMContextAutosave -Scope CurrentUser
+
         # Firstly create the appropriate RG, storage account and container
         # Scan the $asdkPath\scripts folder and retrieve both files, add to an array, then upload to the storage account
         # Save URI of the container to a variable to use later

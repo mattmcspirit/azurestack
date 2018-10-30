@@ -63,6 +63,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             StageReset -progressStage $progressStage
             $progressCheck = CheckProgress -progressStage $progressStage
         }
+
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+        Clear-AzureRmContext -Scope CurrentUser -Force
+        Disable-AzureRMContextAutosave -Scope CurrentUser
+
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
@@ -79,6 +84,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $azpkgPackageName = "ASDK.MSSQL.1.0.0"
             Start-Sleep -Seconds 30
         }
+
+        # Delay to avoid conflict with Image creation.
+        Start-Sleep -Seconds 120
 
         # Test/Create RG
         if (-not (Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) { 

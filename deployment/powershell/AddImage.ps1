@@ -105,6 +105,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         if ($progressCheck -eq "Failed") {
             StageReset -progressStage $progressStage
         }
+
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+        Clear-AzureRmContext -Scope CurrentUser -Force
+        Disable-AzureRMContextAutosave -Scope CurrentUser
+
         # Need to confirm if Windows Update stage previously completed
         if ($image -ne "UbuntuServer") {
             $windowsUpdateCheck = CheckProgress -progressStage "WindowsUpdates"

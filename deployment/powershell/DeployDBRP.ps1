@@ -99,6 +99,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
+
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Clear-AzureRmContext -Scope CurrentUser -Force
+            Disable-AzureRMContextAutosave -Scope CurrentUser
+
             # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
             $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
             while ($serverCoreJobCheck -ne "Complete") {
@@ -109,7 +114,6 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     throw "The ServerCoreImage stage of the process has failed. This should fully complete before the Windows Server full image is created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                 }
             }
-
             ### Login to Azure Stack ###
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop

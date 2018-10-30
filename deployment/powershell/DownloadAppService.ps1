@@ -61,6 +61,11 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
+
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Clear-AzureRmContext -Scope CurrentUser -Force
+            Disable-AzureRMContextAutosave -Scope CurrentUser
+
             if ($deploymentMode -eq "Online") {
                 if (!$([System.IO.Directory]::Exists("$ASDKpath\appservice"))) {
                     New-Item -Path "$ASDKpath\appservice" -ItemType Directory -Force | Out-Null

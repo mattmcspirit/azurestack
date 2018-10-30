@@ -52,6 +52,11 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             if ($progressCheck -eq "Failed") {
                 StageReset -progressStage $progressStage
             }
+
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Clear-AzureRmContext -Scope CurrentUser -Force
+            Disable-AzureRMContextAutosave -Scope CurrentUser
+
             # Currently an infinite loop bug exists in Azs.AzureBridge.Admin 0.1.1 - this section fixes it by editing the Get-TaskResult.ps1 file
             if (!(Get-Module -Name Azs.AzureBridge.Admin)) {
                 Import-Module Azs.AzureBridge.Admin -Force
@@ -76,8 +81,6 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
                     }
                 }
             }
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRmEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null

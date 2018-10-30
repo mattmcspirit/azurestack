@@ -53,7 +53,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         if ($progressCheck -eq "Failed") {
             StageReset -progressStage $progressStage
         }
-        $ErrorActionPreference = "Stop";
+
+        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+        Clear-AzureRmContext -Scope CurrentUser -Force
+        Disable-AzureRMContextAutosave -Scope CurrentUser
+        
         # Log into Azure Stack to check for existing images and push new ones if required ###
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop

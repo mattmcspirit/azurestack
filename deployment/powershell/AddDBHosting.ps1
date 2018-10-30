@@ -92,6 +92,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
+
+            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Clear-AzureRmContext -Scope CurrentUser -Force
+            Disable-AzureRMContextAutosave -Scope CurrentUser
+
             # Need to ensure this stage doesn't start before the database SKU has been added
             $dbSkuJobCheck = $progressCheck = CheckProgress -progressStage "$($dbHost)SKUQuota"
             while ($dbSkuJobCheck -ne "Complete") {
