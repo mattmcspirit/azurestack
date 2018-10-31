@@ -1357,7 +1357,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
         Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
         $testAzureSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Subscription is:`r`n`r`n"
-        Write-Host $testAzureSub
+        $testAzureSub
         Start-Sleep -Seconds 5
 
         ### TEST AZURE STACK LOGIN - Login to Azure Stack
@@ -1369,7 +1369,7 @@ if ($authenticationType.ToString() -like "AzureAd") {
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
         $testAzureSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Stack Subscription is:`r`n`r`n"
-        Write-Host $testAzureSub
+        $testAzureSub
         Start-Sleep -Seconds 5
     }
     catch {
@@ -1390,7 +1390,7 @@ elseif ($authenticationType.ToString() -like "ADFS") {
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
         $testAzureSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Stack Subscription is:`r`n`r`n"
-        Write-Host $testAzureSub
+        $testAzureSub
     }
     catch {
         Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -1405,10 +1405,10 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
         Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
         $testAzureRegSub = Get-AzureRmContext
         Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:`r`n`r`n"
-        Write-Host $testAzureRegSub
+        $testAzureRegSub
         Write-CustomVerbose -Message "TenantID for this subscription is:`r`n"
         $azureRegTenantID = $testAzureRegSub.Tenant.Id
-        Write-Host $azureRegTenantID
+        $azureRegTenantID
         Start-Sleep -Seconds 5
     }
     catch {
@@ -1420,6 +1420,7 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
 elseif (!$registerASDK) {
     Write-CustomVerbose -Message "User has chosen to not register the ASDK with Azure"
     Write-CustomVerbose -Message "No need to test login for registration"
+    $azureRegTenantID = $null
 }
 
 ### CLEAN LOGINS #######################################################################################################################################
