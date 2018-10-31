@@ -1421,6 +1421,8 @@ elseif (!$registerASDK) {
     Write-CustomVerbose -Message "User has chosen to not register the ASDK with Azure"
     Write-CustomVerbose -Message "No need to test login for registration"
     $azureRegTenantID = $null
+    $azureRegSubId = $null
+    $azureRegCreds = $null
 }
 
 ### CLEAN LOGINS #######################################################################################################################################

@@ -190,7 +190,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $offlinePackage = "Canonical.UbuntuServer1604LTS-ARM.1.0.0"
             $publisher = "Canonical"
             $offer = "UbuntuServer"
-            if ((!$registerASDK) -or ($registerASDK -and ($deploymentMode -ne "Online"))) {
+            if (($registerASDK -eq $false) -or (($registerASDK -eq $true) -and ($deploymentMode -ne "Online"))) {
                 $vhdVersion = "1.0.0"
             }
             else {
@@ -203,7 +203,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        if ($registerASDK -and ($deploymentMode -eq "Online")) {
+
+        Write-Host "FLAG1"
+
+        if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
+            Write-Host "FLAG 2 - This should not be executing"
             # Logout to clean up
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
@@ -275,7 +279,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 $azpkg.vhdVersion = $downloadDetails.properties.version
             }
         }
-        elseif ((!$registerASDK) -or ($registerASDK -and ($deploymentMode -ne "Online"))) {
+        elseif (($registerASDK -eq $false) -or (($registerASDK -eq $true) -and ($deploymentMode -ne "Online"))) {
+            Write-Host "FLAG 3 - This should be executing"
             $package = "$offlinePackage"
             $azpkg = $null
             $azpkg = @{
@@ -290,6 +295,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
         ### Log back into Azure Stack to check for existing images and push new ones if required ###
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        Write-Host "FLAG 4 - This should be executing"
         Write-Host "Checking to see if the image is present in your Azure Stack Platform Image Repository"
         if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
             Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
@@ -358,14 +364,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                             Write-Host "Cannot find a previously extracted Ubuntu Server download or ZIP file"
                             Write-Host "Begin download of correct Ubuntu Server ZIP to $ASDKpath"
 
-                            if ($registerASDK -and ($deploymentMode -eq "Online")) {
+                            if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
                                 $ubuntuBuild = $azpkg.vhdVersion
                                 $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
                                 $ubuntuBuild = $ubuntuBuild.split('.')[2]
                                 $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
 
                             }
-                            elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
+                            elseif (($registerASDK -eq $false) -and ($deploymentMode -eq "Online")) {
                                 $ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
                             }
                             $ubuntuDownloadLocation = "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
@@ -523,11 +529,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Write-Host "Didn't find this package: $azpkgPackageName"
             Write-Host "Will need to side load it in to the gallery"
 
-            if ($registerASDK -and ($deploymentMode -eq "Online")) {
+            if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
                 $azpkgPackageURL = $($azpkg.azpkgPath)
                 Write-Host "Uploading $azpkgPackageName with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
             }
-            elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
+            elseif (($registerASDK -eq $false) -and ($deploymentMode -eq "Online")) {
                 if ($image -eq "UbuntuServer") {
                     $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
                 }
@@ -536,7 +542,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 }
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
-            elseif (($registerASDK -or !$registerASDK) -and (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline"))) {
+            elseif ((($registerASDK -eq $true) -or ($registerASDK -eq $false)) -and (($deploymentMode -ne "Online"))) {
                 $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
             $Retries = 0

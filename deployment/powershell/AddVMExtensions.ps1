@@ -46,7 +46,7 @@ Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
 $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
-if ($registerASDK -and ($deploymentMode -ne "Offline")) {
+if (($registerASDK -eq $true) -and ($deploymentMode -ne "Offline")) {
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             if ($progressCheck -eq "Failed") {
@@ -126,7 +126,7 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
         Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
     }
 }
-elseif (!$registerASDK) {
+elseif ($registerASDK -eq $false) {
     Write-Host "Skipping VM Extension download, as Azure Stack has not been registered`r`n"
     # Update the ConfigASDK database with skip status
     StageSkipped -progressStage $progressStage
