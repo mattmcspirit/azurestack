@@ -1933,6 +1933,7 @@ JobLauncher -jobName $jobName -jobToExecute $DeployAppService -Verbose
 
 # Get all the running jobs
 Set-Location $ScriptLocation
+Clear-Host
 .\Scripts\GetJobStatus.ps1
 
 #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
