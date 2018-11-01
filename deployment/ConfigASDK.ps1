@@ -948,7 +948,7 @@ $zipExtracted = [System.IO.File]::Exists($zipExtractedRunFlag)
 if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
     if (!$zipExtracted) {
         try {
-            Write-CustomVerbose -Message "ASDK Configurator dependency files located at: $validZipPath"
+            Write-CustomVerbose -Message "ASDK Configurator dependency files located at: $configAsdkOfflineZipPath"
             Write-CustomVerbose -Message "Starting extraction to $downloadPath"
             ### Extract the Zip file, move contents to appropriate place
             Expand-Archive -Path $configAsdkOfflineZipPath -DestinationPath $downloadPath -Force -Verbose -ErrorAction Stop
