@@ -6,7 +6,7 @@
 
 .VERSION
 
-    1808.2  Latest version, to align with current ASDK Configurator version.
+    1809  Latest version, to align with current ASDK Configurator version.
 
 .AUTHOR
 
@@ -456,8 +456,10 @@ try {
     $row = $table.NewRow(); $row.Uri = "https://the.earth.li/~sgtatham/putty/0.70/w64/putty-64bit-0.70-installer.msi"
     $row.filename = "putty.msi"; $row.path = "$hostAppsPath"; $row.productName = "Putty MSI"; $Table.Rows.Add($row)
     # WinSCP Package
-    $row = $table.NewRow(); $row.Uri = "https://winscp.net/download/WinSCP-5.13.4-Setup.exe"
-    $row.filename = "WinSCP.exe"; $row.path = "$hostAppsPath"; $row.productName = "WinSCP Exe"; $Table.Rows.Add($row)
+    $WebResponse = Invoke-WebRequest "https://chocolatey.org/packages/winscp.install" -UseBasicParsing
+    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*chocolatey.org/api/v2/package/winscp.install/*")} | Sort-Object | Select-Object -First 1).href.ToString()
+    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+    $row.filename = "WinSCP.zip"; $row.path = "$hostAppsPath"; $row.productName = "WinSCP Zip"; $Table.Rows.Add($row)
     # Chrome Package
     $row = $table.NewRow(); $row.Uri = "http://dl.google.com/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
     $row.filename = "googlechrome.msi"; $row.path = "$hostAppsPath"; $row.productName = "Chrome MSI"; $Table.Rows.Add($row)
@@ -503,6 +505,25 @@ try {
         Write-CustomVerbose -Message "Downloading the $($dependency.productName) from $($dependency.uri) and storing at $($dependency.path)\$($dependency.filename)."
         DownloadWithRetry -downloadURI "$($dependency.uri)" -downloadLocation "$($dependency.path)\$($dependency.filename)" -retries 10
     }
+}
+catch {
+    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    Set-Location $ScriptLocation
+    return
+}
+
+### EXTRACT WINSCP #################################################################################################################################
+########################################################################################################################################################
+
+$scriptStep = "WINSCP"
+try {
+    Set-Location $hostAppsPath
+    Expand-Archive -Path ".\WinSCP.zip" -DestinationPath ".\WinSCP" -Force -Verbose
+    Get-ChildItem -Path ".\WinSCP\*" -Recurse -Include *.exe -Force -Verbose | Rename-Item -NewName "WinSCP.exe" -Verbose -Force
+    Get-ChildItem -Path ".\WinSCP\*" -Recurse -Include *.exe -Force -Verbose | Move-Item -Destination "$hostAppsPath" -Verbose -Force
+    Remove-Item -Path "WinSCP.zip" -Verbose -Force
+    Remove-Item -Path ".\WinSCP\" -Recurse -Verbose -Force
+    Set-Location $ScriptLocation
 }
 catch {
     Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -700,7 +721,7 @@ catch {
 
 $scriptStep = "CREATE ZIP"
 try {
-    $session = New-PSSession -Name CreateZip
+    $session = New-PSSession -Name CreateZip -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
     Write-CustomVerbose -Message "Packaging files into a single ZIP file"
     Invoke-Command -Session $session -ArgumentList $downloadPath, $configASDKFilePath -ScriptBlock {
         $zipPath = "$Using:downloadPath\ConfigASDKfiles.zip"
