@@ -203,11 +203,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-
-        Write-Host "FLAG1"
-
         if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
-            Write-Host "FLAG 2 - This should not be executing"
             # Logout to clean up
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
@@ -280,7 +276,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             }
         }
         elseif (($registerASDK -eq $false) -or (($registerASDK -eq $true) -and ($deploymentMode -ne "Online"))) {
-            Write-Host "FLAG 3 - This should be executing"
             $package = "$offlinePackage"
             $azpkg = $null
             $azpkg = @{
@@ -295,7 +290,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
         ### Log back into Azure Stack to check for existing images and push new ones if required ###
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        Write-Host "FLAG 4 - This should be executing"
         Write-Host "Checking to see if the image is present in your Azure Stack Platform Image Repository"
         if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
             Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
@@ -543,6 +537,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
             elseif ((($registerASDK -eq $true) -or ($registerASDK -eq $false)) -and (($deploymentMode -ne "Online"))) {
+                $asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName -ErrorAction SilentlyContinue
+                Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName | Out-Null
+                $asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
                 $azpkgPackageURL = AddOfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
             $Retries = 0

@@ -232,7 +232,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 else {
                     $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.$azpkg*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
                 }
-                $scriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName) -replace "https", "http"
+                $scriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob, $asdkOfflineContainerName) -replace "https", "http"
             }
 
             if ($vmType -eq "MySQL") {
