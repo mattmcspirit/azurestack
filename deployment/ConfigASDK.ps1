@@ -204,6 +204,48 @@ function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [i
     }
 }
 
+### OFFLINE AZPKG FUNCTION ##################################################################################################################################
+#############################################################################################################################################################
+
+function AddOfflineAZPKG {
+    [cmdletbinding()]
+    param
+    (
+        [parameter(Mandatory = $true)]
+        [string]$azpkgPackageName
+    )
+    #### Need to upload to blob storage first from extracted ZIP ####
+    $azpkgFullPath = $null
+    $azpkgFileName = $null
+    $azpkgFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.FullName }
+    $azpkgFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.Name }
+                                
+    # Check there's not a gallery item already uploaded to storage
+    if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
+        Write-Verbose -Message "You already have an upload of $azpkgFileName within your Storage Account. No need to re-upload."
+        Write-Verbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+    }
+    else {
+        $uploadAzpkgAttempt = 1
+        while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
+            try {
+                # Log back into Azure Stack to ensure login hasn't timed out
+                Write-Verbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
+                Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $asdkImagesContainerName -Blob "$azpkgFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
+            }
+            catch {
+                Write-Verbose -Message "Upload failed."
+                Write-Verbose -Message "$_.Exception.Message"
+                $uploadAzpkgAttempt++
+            }
+        }
+    }
+    $azpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkImagesContainerName, $azpkgFileName
+    Write-Verbose -Message "Uploading $azpkgFileName from $azpkgURI"
+    return [string]$azpkgURI
+}
+
 ### CUSTOM VERBOSE FUNCTION #################################################################################################################################
 #############################################################################################################################################################
 function Write-CustomVerbose {
@@ -370,6 +412,7 @@ function HostAppInstaller {
 
 $export_functions = [scriptblock]::Create(@"
   Function DownloadWithRetry { $function:DownloadWithRetry }
+  Function AddOfflineAZPKG { $function:AddOfflineAZPKG }
   Function JobLauncher { $function:JobLauncher }
   Function CheckProgress { $function:CheckProgress }
   Function StageComplete { $function:StageComplete }
@@ -1187,7 +1230,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 DownloadWithRetry -downloadURI "$scriptBaseURI/$script" -downloadLocation $scriptDownloadPath -retries 10
             }
         }
-        elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+        elseif ($deploymentMode -ne "Online") {
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
             $SourceLocation = "$downloadPath\ASDK\PowerShell\Scripts"
             Copy-Item -Path "$SourceLocation\*" -Destination "$scriptPath" -Include "*.ps1" -Verbose -ErrorAction Stop

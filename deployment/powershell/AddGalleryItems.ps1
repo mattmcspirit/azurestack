@@ -123,7 +123,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $azpkgPackageURL = Add-OfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
+                $azpkgPackageURL = AddOfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
             }
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
