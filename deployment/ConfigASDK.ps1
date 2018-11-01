@@ -213,9 +213,9 @@ function Write-CustomVerbose {
         [parameter(Mandatory = $true)]
         [string] $Message
     )
-        $verboseTime = (Get-Date).ToShortTimeString()
-        # Function for displaying formatted log messages.  Also displays time in minutes since the script was started
-        Write-Host "[$verboseTime]::[$scriptStep]:: $Message"
+    $verboseTime = (Get-Date).ToShortTimeString()
+    # Function for displaying formatted log messages.  Also displays time in minutes since the script was started
+    Write-Host "[$verboseTime]::[$scriptStep]:: $Message"
 }
 
 ### JOB LAUNCHER FUNCTION ###################################################################################################################################
@@ -231,29 +231,29 @@ function JobLauncher {
         [parameter(Mandatory = $true)]
         [System.Object] $jobToExecute
     )
-        try {
-            if ($null -ne (Get-Job -Name $jobName -ErrorAction SilentlyContinue)) {
-                if (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Running" } ) {
-                    Write-Host "$jobName is already running, no need to run this job"
-                }
-                elseif (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Completed" } ) {
-                    Write-Host "$jobName already completed, no need to run this job"
-                }
-                elseif (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Failed" } ) {
-                    Write-Host "$jobName previously failed - cleaning up and rerunning"
-                    Get-Job -Name $jobName -ErrorAction SilentlyContinue | Remove-Job
-                    & $jobToExecute;
-                }
+    try {
+        if ($null -ne (Get-Job -Name $jobName -ErrorAction SilentlyContinue)) {
+            if (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Running" } ) {
+                Write-Host "$jobName is already running, no need to run this job"
             }
-            else {
-                Write-Host "$jobName not found, and hasn't previously completed or failed - Starting $jobName job"
+            elseif (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Completed" } ) {
+                Write-Host "$jobName already completed, no need to run this job"
+            }
+            elseif (Get-Job -Name $jobName -ErrorAction SilentlyContinue | Where-Object { $_.state -eq "Failed" } ) {
+                Write-Host "$jobName previously failed - cleaning up and rerunning"
+                Get-Job -Name $jobName -ErrorAction SilentlyContinue | Remove-Job
                 & $jobToExecute;
             }
         }
-        catch {
-            $exception = $_.Exception
-            throw $exception
+        else {
+            Write-Host "$jobName not found, and hasn't previously completed or failed - Starting $jobName job"
+            & $jobToExecute;
         }
+    }
+    catch {
+        $exception = $_.Exception
+        throw $exception
+    }
 }
 
 ### PROGRESS FUNCTIONS ######################################################################################################################################
@@ -897,6 +897,34 @@ if ($registerASDK) {
     }
 }
 
+### EXTRACT ZIP (OPTIONAL) ##################################################################################################################################
+#############################################################################################################################################################
+
+$zipExtractedRunFlag = "$ScriptLocation\ZipExtractedRunFlag.txt"
+$zipExtracted = [System.IO.File]::Exists($zipExtractedRunFlag)
+if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
+    if (!$zipExtracted) {
+        try {
+            Write-CustomVerbose -Message "ASDK Configurator dependency files located at: $validZipPath"
+            Write-CustomVerbose -Message "Starting extraction to $downloadPath"
+            ### Extract the Zip file, move contents to appropriate place
+            Expand-Archive -Path $configAsdkOfflineZipPath -DestinationPath $downloadPath -Force -Verbose -ErrorAction Stop
+            New-Item $zipExtractedRunFlag -ItemType file -Force
+        }
+        catch {
+            Set-Location $ScriptLocation
+            $exception = $_.Exception
+            throw $exception
+        }
+    }
+    elseif ($zipExtracted -eq $true) {
+        Write-CustomVerbose -Message "ConfigASDKfiles has been previously extracted successfully"
+    }
+}
+elseif (!$configAsdkOfflineZipPath) {
+    Write-CustomVerbose -Message "Skipping zip extraction - this is a 100% online deployment`r`n"
+}
+
 ### CREATE ASDK FOLDER ######################################################################################################################################
 #############################################################################################################################################################
 
@@ -909,7 +937,7 @@ if ($ASDKpath -eq $true) {
     Write-CustomVerbose -Message "ASDK folder exists at $downloadPath - no need to create it."
     Write-CustomVerbose -Message "Download files will be placed in $downloadPath\ASDK"
     Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
-    if (!$isRerun) {
+    if ((!$isRerun) -and ($deploymentMode -eq "Online")) {
         # If this is a fresh run, the $asdkPath should be empty to avoid any conflicts.
         # It may exist from a previous successful run
         Write-CustomVerbose -Message "Cleaning up an old ASDK Folder from a previous completed run"
@@ -920,6 +948,7 @@ if ($ASDKpath -eq $true) {
             $i++
         }
     }
+    New-Item $ConfigAsdkRunFlag -ItemType file -Force
 }
 elseif ($ASDKpath -eq $false) {
     # Create the ASDK folder.
@@ -939,6 +968,9 @@ if (![System.IO.Directory]::Exists("$asdkPath\SqlLocalDB")) {
     mkdir "$asdkPath\SqlLocalDB" -Force | Out-Null
     $sqlLocalDBpath = "$asdkPath\SqlLocalDB"
 }
+else {
+    $sqlLocalDBpath = "$asdkPath\SqlLocalDB"
+}
 
 # If there isn't already a copy of the MSI locally, pull it down
 $sqlLocalDBUri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
@@ -953,8 +985,8 @@ if (![System.IO.File]::Exists($sqlLocalDBMSIPath)) {
 # Install SqlLocalDB from MSI
 $sqlLocalInstallPath = "C:\Program Files\Microsoft SQL Server\140\Tools\Binn\"
 HostAppInstaller -localInstallPath "$sqlLocalInstallPath\SqlLocalDB.exe" -appName SqlLocalDB `
--arguments "/i `"$sqlLocalDBpath\SqlLocalDB.msi`" /qn IACCEPTSQLLOCALDBLICENSETERMS=YES /l*v `"$sqlLocalDBpath\SqlLocalDB.log`"" `
--fileName "SqlLocalDB.msi" -appType "MSI"
+    -arguments "/i `"$sqlLocalDBpath\SqlLocalDB.msi`" /qn IACCEPTSQLLOCALDBLICENSETERMS=YES /l*v `"$sqlLocalDBpath\SqlLocalDB.log`"" `
+    -fileName "SqlLocalDB.msi" -appType "MSI"
 
 # Add SqlLocalDB to $env:Path
 $testEnvPath = $Env:path
@@ -971,11 +1003,11 @@ if ($deploymentMode -eq "Online") {
         Install-Module SqlServer -Force -Confirm:$false -AllowClobber -Verbose -ErrorAction Stop
     }
 }
-elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+elseif (($deploymentMode -ne "Online")) {
+    $SourceLocation = "$downloadPath\ASDK\PowerShell"
+    $RepoName = "ConfigASDKRepo"
     if (!(Get-InstalledModule -Name SqlServer -ErrorAction SilentlyContinue -Verbose)) {
         # Need to grab module from the ConfigASDKfiles.zip
-        $SourceLocation = "$downloadPath\ASDK\PowerShell"
-        $RepoName = "SQLServerRepo"
         if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
             Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
         }                
@@ -1031,7 +1063,6 @@ $configAsdkSqlTableExists = Read-SqlTableData -ServerInstance $sqlServerInstance
 if (!$configAsdkSqlTableExists) {
     # Need to populate a PowerShell Hash Table that contains all of the stages of the ConfigASDK Script
     $progressHashTable = [ordered]@{
-        ExtractZip           = "Incomplete";
         GetScripts           = "Incomplete";
         CheckPowerShell      = "Incomplete";
         InstallPowerShell    = "Incomplete";
@@ -1080,37 +1111,6 @@ if (!$configAsdkSqlTableExists) {
 else {
     Write-Host "The ConfigASDK Progress Table already exists. No need to recreate."
     $configAsdkSqlTableExists
-}
-
-### EXTRACT ZIP (OPTIONAL) ##################################################################################################################################
-#############################################################################################################################################################
-
-$progressStage = "ExtractZip"
-$progressCheck = CheckProgress -progressStage $progressStage
-$scriptStep = $progressStage.ToUpper()
-
-if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
-    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
-        try {
-            Write-CustomVerbose -Message "ASDK Configurator dependency files located at: $validZipPath"
-            Write-CustomVerbose -Message "Starting extraction to $downloadPath"
-            ### Extract the Zip file, move contents to appropriate place
-            Expand-Archive -Path $configAsdkOfflineZipPath -DestinationPath $downloadPath -Force -Verbose -ErrorAction Stop
-            StageComplete -progressStage $progressStage
-        }
-        catch {
-            StageFailed -progressStage $progressStage
-            Set-Location $ScriptLocation
-            return
-        }
-    }
-    elseif ($progressCheck -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
-    }
-}
-elseif (!$configAsdkOfflineZipPath) {
-    Write-CustomVerbose -Message "Skipping zip extraction - this is a 100% online deployment`r`n"
-    StageSkipped -progressStage $progressStage
 }
 
 ### VALIDATE ISO ############################################################################################################################################
@@ -1306,7 +1306,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Uninstall-Module AzureRM.AzureStackStorage -Force -ErrorAction SilentlyContinue
         Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue
         Get-Module Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
-        if (($deploymentMode -eq "Online") -or ($deploymentMode -eq "PartialOnline")) {
+        if ($deploymentMode -eq "Online") {
             # If this is an online deployment, pull down the PowerShell modules from the Internet
             Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
             Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
@@ -1318,13 +1318,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Use-AzureRmProfile -Profile 2018-03-01-hybrid -Force -ErrorAction Stop
             Install-Module -Name AzureStack -RequiredVersion 1.5.0 -Force -ErrorAction Stop
         }
-        elseif ($deploymentMode -eq "Offline") {
+        elseif ($deploymentMode -ne "Online") {
+            $SourceLocation = "$downloadPath\ASDK\PowerShell"
+            $RepoName = "ConfigASDKRepo"
+            if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
+                Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+            }
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
-            $SourceLocation = "$downloadPath\ASDK\PowerShell\1.4.0"
-            $RepoName = "MyNuGetSource"
-            Unregister-PSRepository -Name $RepoName -ErrorAction SilentlyContinue
-            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
-            #Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
+            Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
             Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
         }
         StageComplete -progressStage $progressStage
@@ -2173,24 +2174,24 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
                 Set-Location $hostAppsPath
                 # Visual Studio Code
                 HostAppInstaller -localInstallPath "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" -appName VSCode `
-                -arguments '/SP /VERYSILENT /SUPPRESSMSGBOXES /LOG="vscode.log" /NOCANCEL /NORESTART /MERGETASKS=!runcode,addtopath,associatewithfiles,addcontextmenufolders,addcontextmenufiles,quicklaunchicon,desktopicon' `
-                -fileName "vscode.exe" -appType "EXE"
+                    -arguments '/SP /VERYSILENT /SUPPRESSMSGBOXES /LOG="vscode.log" /NOCANCEL /NORESTART /MERGETASKS=!runcode,addtopath,associatewithfiles,addcontextmenufolders,addcontextmenufiles,quicklaunchicon,desktopicon' `
+                    -fileName "vscode.exe" -appType "EXE"
                 # Putty
                 HostAppInstaller -localInstallPath "$env:ProgramFiles\PuTTY\putty.exe" -appName Putty `
-                -arguments '/i putty.msi /qn /l*v "putty.log" ADDLOCAL=FilesFeature,DesktopFeature,PathFeature,PPKFeature' -fileName "putty.msi" -appType "MSI"
+                    -arguments '/i putty.msi /qn /l*v "putty.log" ADDLOCAL=FilesFeature,DesktopFeature,PathFeature,PPKFeature' -fileName "putty.msi" -appType "MSI"
                 # WinSCP
                 HostAppInstaller -localInstallPath "$env:ProgramFiles\WinSCP\WinSCP.exe" -appName WinSCP `
-                -arguments '/SP /VERYSILENT /SUPPRESSMSGBOXES /LOG="WinSCP.log" /NOCANCEL /NORESTART' -fileName "WinSCP.exe" -appType "EXE"
+                    -arguments '/SP /VERYSILENT /SUPPRESSMSGBOXES /LOG="WinSCP.log" /NOCANCEL /NORESTART' -fileName "WinSCP.exe" -appType "EXE"
                 # Chrome
                 HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe" -appName "Google Chrome" `
-                -arguments '/i googlechrome.msi /qn /l*v "googlechrome.log"' -fileName "googlechrome.msi" -appType "MSI"
+                    -arguments '/i googlechrome.msi /qn /l*v "googlechrome.log"' -fileName "googlechrome.msi" -appType "MSI"
                 # WinDirStat
                 HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\WinDirStat\WinDirStat.exe" -appName WinDirStat `
-                -arguments '/S /VERYSILENT /SUPPRESSMSGBOXES /LOG="WinDirStat.log" /NOCANCEL /NORESTART' `
-                -fileName "windirstat.exe" -appType "EXE"
+                    -arguments '/S /VERYSILENT /SUPPRESSMSGBOXES /LOG="WinDirStat.log" /NOCANCEL /NORESTART' `
+                    -fileName "windirstat.exe" -appType "EXE"
                 # Python
                 HostAppInstaller -localInstallPath "C:\Python\Python.exe" -appName Python `
-                -arguments '/quiet InstallAllUsers=1 PrependPath=1 TargetDir=c:\Python' -fileName "python3.exe" -appType "EXE"
+                    -arguments '/quiet InstallAllUsers=1 PrependPath=1 TargetDir=c:\Python' -fileName "python3.exe" -appType "EXE"
                 # Set Environment Variables
                 [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "Machine")
                 [System.Environment]::SetEnvironmentVariable("PATH", "$env:Path;C:\Python;C:\Python\Scripts", "User")
@@ -2209,7 +2210,7 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
                 pip install --no-index $certifiWhl
                 # Azure CLI
                 HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\Microsoft SDKs\Azure\CLI2\wbin" -appName "Azure CLI" `
-                -arguments '/i azurecli.msi /qn /norestart /l*v "azurecli.log"' -fileName "azurecli.msi" -appType "MSI"
+                    -arguments '/i azurecli.msi /qn /norestart /l*v "azurecli.log"' -fileName "azurecli.msi" -appType "MSI"
             }
             # Configure Python & Azure CLI Certs
             Write-CustomVerbose -Message "Retrieving Azure Stack Root Authority certificate..." -Verbose
