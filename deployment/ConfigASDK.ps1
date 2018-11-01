@@ -357,7 +357,7 @@ function StageReset {
         [string] $progressStage
     )
     # Reset the ConfigASDK Progress database from previously being skipped, to incomplete
-    Write-Host "Operator previously skipped the $progressStage stage, but now wants to perform it. Updating ConfigASDK Progress database to Incomplete."
+    Write-Host "The $progressStage stage was either previously skipped, or failed - Updating ConfigASDK Progress database to Incomplete."
     Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Incomplete';" -Verbose:$false -ErrorAction Stop
     Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -Verbose:$false -ErrorAction Stop
 }
