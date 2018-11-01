@@ -534,6 +534,7 @@ catch {
 ### Generate App Service Offline ZIP ###################################################################################################################
 ########################################################################################################################################################
 
+$scriptStep = "APPSERVICE"
 $appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
 $appServiceLogPath = "$appServicePath\AppServiceLog$appServiceLogTime.txt"
 Set-Location "$appServicePath"
