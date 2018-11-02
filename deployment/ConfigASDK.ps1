@@ -3015,6 +3015,16 @@ $RowIndex = [array]::IndexOf($progress.Stage, "UploadScripts")
 $scriptStep = $($progress[$RowIndex].Stage).ToString().ToUpper()
 if ($progress[$RowIndex].Status -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configuration Stage: $($progress[$RowIndex].Stage) previously completed successfully"
+    if ($deploymentMode -ne "Online") {
+        $asdkOfflineRGName = "azurestack-offline"
+        $asdkOfflineStorageAccountName = "offlinestor"
+        $asdkOfflineContainerName = "offlinecontainer"
+        Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        $asdkOfflineStorageAccount = Get-AzureRmStorageAccount -Name $asdkOfflineStorageAccountName -ResourceGroupName $asdkOfflineRGName -ErrorAction SilentlyContinue
+        Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkOfflineStorageAccountName -ResourceGroupName $asdkOfflineRGName
+        $asdkOfflineContainer = Get-AzureStorageContainer -Name $asdkOfflineContainerName -ErrorAction SilentlyContinue
+        $offlineBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob.AbsoluteUri, $asdkOfflineContainerName) -replace "https", "http"
+    }
 }
 elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) -and (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Status -eq "Failed"))) {
     try {
