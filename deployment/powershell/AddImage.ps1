@@ -173,6 +173,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $publisher = "MicrosoftWindowsServer"
             $offer = "WindowsServer"
             $osVersion = "Windows"
+            $delay = 60
         }
         elseif ($image -eq "ServerFull") {
             $sku = "2016-Datacenter"
@@ -183,6 +184,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $publisher = "MicrosoftWindowsServer"
             $offer = "WindowsServer"
             $osVersion = "Windows"
+            $delay = 30
         }
         elseif ($image -eq "UbuntuServer") {
             $sku = "16.04-LTS"
@@ -197,6 +199,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 $vhdVersion = ""
             }
             $osVersion = "Linux"
+            $delay = 0
         }
 
         # Log into Azure Stack to check for existing images and push new ones if required ###
@@ -304,6 +307,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Write-Host "Version = $($azpkg.vhdVersion)"
             Write-Host "Unfortunately, no image was found with these properties."
             Write-Host "Checking to see if the VHD already exists in an Azure Stack Storage Account"
+
+            #Triggering a delay to stagger the creation of an RG/StorageAccount/Container etc
+            Start-Sleep -Seconds $delay
 
             # Test/Create RG
             if (-not (Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) { New-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop }
