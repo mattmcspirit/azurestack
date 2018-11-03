@@ -21,11 +21,9 @@ While ($jobsStillExecuting -eq $true) {
     foreach ($runningJob in $runningJobs) {
         $jobDuration = (Get-Date) - ($runningJob.PSBeginTime)
         if ($jobDuration.Hours -gt 0) {
-            #Write-Host "$($runningJob.Name)   |   Started at: $($runningJob.PSBeginTime)   |   Running for: $($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
             $jobRuntime = "$($jobDuration.Hours)h:$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
         else {
-            #Write-Host "$($runningJob.Name)   |   Started at: $($runningJob.PSBeginTime)   |   Running for: $($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
             $jobRuntime = "$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
         $jobRunningDisplay += New-Object psobject -Property @{Name = $($runningJob.Name); StartTime = $($runningJob.PSBeginTime); Duration = $jobRuntime}
