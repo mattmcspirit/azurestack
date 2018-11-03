@@ -184,7 +184,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $publisher = "MicrosoftWindowsServer"
             $offer = "WindowsServer"
             $osVersion = "Windows"
-            $delay = 30
+            $delay = 45
         }
         elseif ($image -eq "UbuntuServer") {
             $sku = "16.04-LTS"
@@ -199,7 +199,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 $vhdVersion = ""
             }
             $osVersion = "Linux"
-            $delay = 0
+            $delay = 30
         }
 
         # Log into Azure Stack to check for existing images and push new ones if required ###
