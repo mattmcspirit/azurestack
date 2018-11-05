@@ -1446,10 +1446,11 @@ if (($progress[$RowIndex].Status -eq "Incomplete") -or ($progress[$RowIndex].Sta
 
                 if ($registerASDK -and ($deploymentMode -eq "Online")) {
                     $ubuntuBuild = $azpkg.vhdVersion
-                    $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
+                    if (($ubuntuBuild).Length -gt 14) {
+                        $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
+                    }
                     $ubuntuBuild = $ubuntuBuild.split('.')[2]
                     $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-
                 }
                 elseif (!$registerASDK -and ($deploymentMode -eq "Online")) {
                     $ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
