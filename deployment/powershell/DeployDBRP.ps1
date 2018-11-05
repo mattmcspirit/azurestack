@@ -168,7 +168,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Remove-Item "$asdkPath\databases\$dbrp" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 Remove-Item "$ASDKpath\databases\$($dbrp).zip" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 # Download and Expand the RP files
-                $rpURI = "https://aka.ms/azurestack$($rp)rp"
+                $rpURI = "https://aka.ms/azurestack$($rp)rp1804"
                 $rpDownloadLocation = "$ASDKpath\databases\$($dbrp).zip"
                 DownloadWithRetry -downloadURI "$rpURI" -downloadLocation "$rpDownloadLocation" -retries 10
             }
