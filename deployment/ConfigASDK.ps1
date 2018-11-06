@@ -665,8 +665,6 @@ elseif ($VMpwd -cmatch $regex -eq $false) {
         Write-CustomVerbose -Message "Virtual Machine password matches desired complexity" 
         # Convert plain text password to a secure string
         $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
-        # Clean up unused variable
-        Remove-Variable -Name VMpwd -ErrorAction SilentlyContinue
     }
     else {
         Write-CustomVerbose -Message "No valid password was entered again. Exiting process..." -ErrorAction Stop 
