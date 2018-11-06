@@ -5,6 +5,17 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1809?
+* Major restructure using PowerShell jobs to enable concurrency of tasks
+* Use of SqlLocalDB to track script progress
+* Added support for host customization in offline scenarios
+* Removal of PSSession usage
+* Bug fixes
+
+### What's new in version 1808.1?
+* Minor cleanup and bugfixes
+* Support for Azure Stack PowerShell module 1.5.0 and AzureRMProfile 2018-03-01-hybrid (Later reverted back due to issues)
+
 ### What's new in version 1808?
 * Removal of VMSS gallery item installation - this is now built in to the ASDK
 * Removal of guest signup launch for admin/user portal

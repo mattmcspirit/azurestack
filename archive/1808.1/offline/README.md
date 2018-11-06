@@ -1,4 +1,4 @@
-ASDK Configurator 1809| Offline Mode
+ASDK Configurator 1808.1 | Offline Mode
 ==============
 
 Who is this for?
@@ -11,7 +11,7 @@ If you answered **Yes** to either of those questions, read on....
 Version Compatibility
 -----------
 The current version of the ConfigASDKdependencies.ps1 script has been **tested with the following versions**:
-* ASDK Configurator (ConfigASDK.ps1) **1809**
+* ASDK Configurator (ConfigASDK.ps1) **1808.1**
 
 Description
 -----------
@@ -131,7 +131,7 @@ Usage Examples:
 
 ### Offline Scenarios
 
-**Scenario 6** - This is a **disconnected scenario**. You **cannot** use Azure AD, so you are using ADFS for authentication. You **cannot** register the ASDK to Azure as part of the automated process as you have no internet connection. You have provided a valid -configAsdkOfflineZipPath.
+**Scenario 6** - This is a **disconnected scenario**. You **cannot** use Azure AD, so you are using ADFS for authentication. You **cannot** register the ASDK to Azure as part of the automated process as you have no internet connection. You have provided a valid -configAsdkOfflineZipPath:. Also, the ASDK host will **not** be customized, as this requires Chocolatey binaries which are pulled from the internet. This may be addressed in a future update to the ASDK Configurator.
 
 ```powershell
 .\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -configAsdkOfflineZipPath "D:\ConfigASDKfiles.zip" `

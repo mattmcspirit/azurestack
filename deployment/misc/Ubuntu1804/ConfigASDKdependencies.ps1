@@ -6,7 +6,7 @@
 
 .VERSION
 
-    1809  Latest version, to align with current ASDK Configurator version.
+    1808.2  Latest version, to align with current ASDK Configurator version.
 
 .AUTHOR
 
@@ -261,12 +261,12 @@ try {
     # Azure Stack Tools
     $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
     $row.filename = "Master.zip"; $row.path = "$ASDKpath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
-    # Ubuntu Server 16.04 ZIP
-    $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-    $row.filename = "UbuntuServer1.0.0.zip"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS zip file"; $Table.Rows.Add($row)
+    # Ubuntu Server 18.04 ZIP
+    $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/bionic/release/ubuntu-18.04-server-cloudimg-amd64.vhd.zip"
+    $row.filename = "UbuntuServer1.0.0.zip"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 18.04 LTS zip file"; $Table.Rows.Add($row)
     # Ubuntu Server AZPKG
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
-    $row.filename = "Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Ubuntu Server Marketplace Package"; $Table.Rows.Add($row)
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1804LTS-ARM.1.0.0.azpkg"
+    $row.filename = "Canonical.UbuntuServer1804LTS-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Ubuntu Server Marketplace Package"; $Table.Rows.Add($row)
     # Convert-WindowsImage.ps1 Script
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/Convert-WindowsImage.ps1"
     $row.filename = "Convert-WindowsImage.ps1"; $row.path = "$imagesPath"; $row.productName = "Convert-WindowsImage.ps1 VHD Creation Tool"; $Table.Rows.Add($row)
@@ -286,13 +286,13 @@ try {
     $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
     $row.filename = "ASDK.MSSQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "SQL Server Marketplace Package"; $Table.Rows.Add($row)
     # MySQL RP
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestackmysqlrp1804"
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestackmysqlrp"
     $row.filename = "MySQL.zip"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files"; $Table.Rows.Add($row)
     # MySQL RP Helper MSI
     $row = $table.NewRow(); $row.Uri = "https://dev.mysql.com/get/Download/sConnector-Net/mysql-connector-net-6.10.5.msi"
     $row.filename = "mysql-connector-net-6.10.5.msi"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files Offline Connector"; $Table.Rows.Add($row)
     # SQL RP
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp1804"
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp"
     $row.filename = "SQLServer.zip"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
     # MySQL Install Script
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MySQL_Offline.sh"
@@ -456,10 +456,8 @@ try {
     $row = $table.NewRow(); $row.Uri = "https://the.earth.li/~sgtatham/putty/0.70/w64/putty-64bit-0.70-installer.msi"
     $row.filename = "putty.msi"; $row.path = "$hostAppsPath"; $row.productName = "Putty MSI"; $Table.Rows.Add($row)
     # WinSCP Package
-    $WebResponse = Invoke-WebRequest "https://chocolatey.org/packages/winscp.install" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*chocolatey.org/api/v2/package/winscp.install/*")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "WinSCP.zip"; $row.path = "$hostAppsPath"; $row.productName = "WinSCP Zip"; $Table.Rows.Add($row)
+    $row = $table.NewRow(); $row.Uri = "https://winscp.net/download/WinSCP-5.13.4-Setup.exe"
+    $row.filename = "WinSCP.exe"; $row.path = "$hostAppsPath"; $row.productName = "WinSCP Exe"; $Table.Rows.Add($row)
     # Chrome Package
     $row = $table.NewRow(); $row.Uri = "http://dl.google.com/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
     $row.filename = "googlechrome.msi"; $row.path = "$hostAppsPath"; $row.productName = "Chrome MSI"; $Table.Rows.Add($row)
@@ -477,15 +475,13 @@ try {
     # PIP package
     $WebResponse = Invoke-WebRequest "https://pypi.org/project/pip/#files" -UseBasicParsing
     $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*pip-*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "PIP Wheel"; $Table.Rows.Add($row)
+    $row.filename = "pip.whl"; $row.path = "$hostAppsPath"; $row.productName = "PIP Wheel"; $Table.Rows.Add($row)
     # Certifi package
     $WebResponse = Invoke-WebRequest "https://pypi.org/project/certifi/#files" -UseBasicParsing
     $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*certifi*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
     $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "Certifi Wheel"; $Table.Rows.Add($row)
+    $row.filename = "certifi.whl"; $row.path = "$hostAppsPath"; $row.productName = "Certifi Wheel"; $Table.Rows.Add($row)
     
     Write-CustomVerbose -Message "The following files will be downloaded:"
     $table | Format-Table -AutoSize
@@ -512,29 +508,9 @@ catch {
     return
 }
 
-### EXTRACT WINSCP #################################################################################################################################
-########################################################################################################################################################
-
-$scriptStep = "WINSCP"
-try {
-    Set-Location $hostAppsPath
-    Expand-Archive -Path ".\WinSCP.zip" -DestinationPath ".\WinSCP" -Force -Verbose
-    Get-ChildItem -Path ".\WinSCP\*" -Recurse -Include *.exe -Force -Verbose | Rename-Item -NewName "WinSCP.exe" -Verbose -Force
-    Get-ChildItem -Path ".\WinSCP\*" -Recurse -Include *.exe -Force -Verbose | Move-Item -Destination "$hostAppsPath" -Verbose -Force
-    Remove-Item -Path "WinSCP.zip" -Verbose -Force
-    Remove-Item -Path ".\WinSCP\" -Recurse -Verbose -Force
-    Set-Location $ScriptLocation
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
 ### Generate App Service Offline ZIP ###################################################################################################################
 ########################################################################################################################################################
 
-$scriptStep = "APPSERVICE"
 $appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
 $appServiceLogPath = "$appServicePath\AppServiceLog$appServiceLogTime.txt"
 Set-Location "$appServicePath"
@@ -722,7 +698,7 @@ catch {
 
 $scriptStep = "CREATE ZIP"
 try {
-    $session = New-PSSession -Name CreateZip -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+    $session = New-PSSession -Name CreateZip
     Write-CustomVerbose -Message "Packaging files into a single ZIP file"
     Invoke-Command -Session $session -ArgumentList $downloadPath, $configASDKFilePath -ScriptBlock {
         $zipPath = "$Using:downloadPath\ConfigASDKfiles.zip"

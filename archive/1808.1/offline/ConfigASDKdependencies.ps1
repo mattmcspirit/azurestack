@@ -6,7 +6,7 @@
 
 .VERSION
 
-    1809  Latest version, to align with current ASDK Configurator version.
+    1807  Initial version, to align with current ASDK Configurator version.
 
 .AUTHOR
 
@@ -47,11 +47,7 @@ param (
 
     # Path to Windows Server 2016 Datacenter Evaluation ISO file
     [parameter(Mandatory = $true)]
-    [String]$ISOPath,
-
-    # This is used mainly for testing, when you want to run against a specific GitHub branch. Master should be used for all non-testing scenarios.
-    [Parameter(Mandatory = $false)]
-    [String] $branch
+    [String]$ISOPath
 )
 
 $VerbosePreference = "Continue"
@@ -111,24 +107,6 @@ $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Pri
 if (!($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))) {
     Write-CustomVerbose -Message "User is not administrator - please ensure you're running as Administrator (right-click, Run as administrator)" 
     exit
-}
-
-try {
-    if ($null -eq $branch) {
-        $branch = "master"
-    }
-    $urlToTest = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/README.md"
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $statusCode = Invoke-WebRequest "$urlToTest" -UseBasicParsing -ErrorAction SilentlyContinue | ForEach-Object {$_.StatusCode} -ErrorAction SilentlyContinue
-    if ($statusCode -eq 200) {
-        Write-Host "Accessing $urlToTest - Status Code is 200 - URL is valid" -ForegroundColor Green
-    }
-}
-catch {
-    $statusCode = [int]$_.Exception.Response.StatusCode
-    Write-Host "Accessing $urlToTest - Status Code is $statusCode - URL is invalid" -ForegroundColor Red
-    Write-Host "If you're not sure, don't specify a branch, and 'master' will be used. Error details: `r`n" -ForegroundColor Red
-    throw "Invalid Github branch specified. You tried to access $urlToTest, which doesn't exist. Status Code: $statusCode - exiting process"
 }
 
 ### GET START TIME ###
@@ -192,16 +170,6 @@ $logTime = $(Get-Date).ToString("MMdd-HHmmss")
 $logStart = Start-Transcript -Path "$downloadPath\ConfigASDKDependencyLog$logTime.txt" -Append
 Write-CustomVerbose -Message $logStart
 
-### Configure PowerShell ###############################################################################################################################
-########################################################################################################################################################
-
-Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
-Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
-Register-PsRepository -Default
-Get-PSRepository -Name "PSGallery"
-Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
-Get-PSRepository -Name "PSGallery"
-
 ### Create Folder Structure ############################################################################################################################
 ########################################################################################################################################################
 
@@ -226,16 +194,12 @@ elseif ($configASDKFilePathExists -eq $false) {
 
 $ASDKpath = mkdir "$configASDKFilePath\ASDK" -Force
 $packagePath = mkdir "$ASDKpath\packages" -Force
-$sqlLocalDBpath = mkdir "$ASDKpath\SqlLocalDB" -Force
-$hostAppsPath = mkdir "$ASDKpath\hostapps" -Force
 $templatePath = mkdir "$ASDKpath\templates" -Force
 $scriptPath = mkdir "$ASDKpath\scripts" -Force
 $binaryPath = mkdir "$ASDKpath\binaries" -Force
 $psPath = mkdir "$ASDKpath\powershell" -Force
-$psScriptPath = mkdir "$ASDKpath\powershell\Scripts" -Force
 $dbPath = mkdir "$ASDKpath\databases" -Force
 $imagesPath = mkdir "$ASDKpath\images" -Force
-$ubuntuPath = mkdir "$imagesPath\UbuntuServer" -Force
 $appServicePath = mkdir "$ASDKpath\appservice" -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -253,49 +217,46 @@ try {
     $table.Columns.Add("Uri", "string") | Out-Null
 
     # ConfigASDK.ps1 Script
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/ConfigASDK.ps1"
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/ConfigASDK.ps1"
     $row.filename = "ConfigASDK.ps1"; $row.path = "$downloadPath"; $row.productName = "ASDK Configurator Script"; $Table.Rows.Add($row)
-    # SqlLocalDB MSI
-    $row = $table.NewRow(); $row.Uri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
-    $row.filename = "SqlLocalDB.msi"; $row.path = "$sqlLocalDBPath"; $row.productName = "SqlLocalDB"; $Table.Rows.Add($row)
     # Azure Stack Tools
     $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
     $row.filename = "Master.zip"; $row.path = "$ASDKpath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
     # Ubuntu Server 16.04 ZIP
     $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-    $row.filename = "UbuntuServer1.0.0.zip"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS zip file"; $Table.Rows.Add($row)
+    $row.filename = "UbuntuServer1.0.0.zip"; $row.path = "$imagesPath"; $row.productName = "Ubuntu Server 16.04 LTS zip file"; $Table.Rows.Add($row)
     # Ubuntu Server AZPKG
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
     $row.filename = "Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Ubuntu Server Marketplace Package"; $Table.Rows.Add($row)
     # Convert-WindowsImage.ps1 Script
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/Convert-WindowsImage.ps1"
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/Convert-WindowsImage.ps1"
     $row.filename = "Convert-WindowsImage.ps1"; $row.path = "$imagesPath"; $row.productName = "Convert-WindowsImage.ps1 VHD Creation Tool"; $Table.Rows.Add($row)
     # VM Endpoint Aliases Doc
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/packages/Aliases/aliases.json"
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/Aliases/aliases.json"
     $row.filename = "aliases.json"; $row.path = "$imagesPath"; $row.productName = "VM aliases endpoint doc"; $Table.Rows.Add($row)
     # Windows Server DC AZPKG
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2016Datacenter-ARM.1.0.0.azpkg"
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/Microsoft.WindowsServer2016Datacenter-ARM.1.0.0.azpkg"
     $row.filename = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2016 Datacenter Marketplace Package"; $Table.Rows.Add($row)
     # Windows Server DC Core AZPKG
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/WindowsServer/Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"
     $row.filename = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2016 Datacenter Core Marketplace Package"; $Table.Rows.Add($row)
     # MYSQL AZPKG
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MySQL/ASDK.MySQL.1.0.0.azpkg"
     $row.filename = "ASDK.MySQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "MySQL Marketplace Package"; $Table.Rows.Add($row)
     # SQL AZPKG
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
     $row.filename = "ASDK.MSSQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "SQL Server Marketplace Package"; $Table.Rows.Add($row)
     # MySQL RP
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestackmysqlrp1804"
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestackmysqlrp"
     $row.filename = "MySQL.zip"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files"; $Table.Rows.Add($row)
     # MySQL RP Helper MSI
     $row = $table.NewRow(); $row.Uri = "https://dev.mysql.com/get/Download/sConnector-Net/mysql-connector-net-6.10.5.msi"
     $row.filename = "mysql-connector-net-6.10.5.msi"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files Offline Connector"; $Table.Rows.Add($row)
     # SQL RP
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp1804"
-    $row.filename = "SQLServer.zip"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp"
+    $row.filename = "SQL.zip"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
     # MySQL Install Script
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MySQL_Offline.sh"
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/install_MySQL_Offline.sh"
     $row.filename = "install_MySQL.sh"; $row.path = "$scriptPath"; $row.productName = "MySQL install script"; $Table.Rows.Add($row)
 
     ### Grab the MySQL Offline Binaries - used when ASDK is deployed in a completely offline mode
@@ -355,7 +316,7 @@ try {
     $row.filename = "mysql-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server dependency"; $Table.Rows.Add($row)
 
     # SQL Server Install Script
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MSSQL_Offline.sh"
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/install_MSSQL_Offline.sh"
     $row.filename = "install_MSSQL.sh"; $row.path = "$scriptPath"; $row.productName = "SQL Server Install Script"; $Table.Rows.Add($row)
 
     ### Grab the SQL Server 2017 for Ubuntu Offline Binaries - used when ASDK is deployed in a completely offline mode
@@ -424,19 +385,19 @@ try {
     $row.filename = "mssql-libsasl2.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsasl2 dependency"; $Table.Rows.Add($row)
 
     # Add MySQL Hosting Server Template
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/MySQLHosting/azuredeploy.json"
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/MySQLHosting/azuredeploy.json"
     $row.filename = "mySqlHostingTemplate.json"; $row.path = "$templatePath"; $row.productName = "Add MySQL Hosting Server template for deployment"; $Table.Rows.Add($row)
     # Add SQL Hosting Server Template
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/SQLHosting/azuredeploy.json"
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/SQLHosting/azuredeploy.json"
     $row.filename = "sqlHostingTemplate.json"; $row.path = "$templatePath"; $row.productName = "Add SQL Server Hosting Server template for deployment"; $Table.Rows.Add($row)
     # File Server Template
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/azuredeploy.json"
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/azuredeploy.json"
     $row.filename = "FileServerTemplate.json"; $row.path = "$templatePath"; $row.productName = "File Server template for deployment"; $Table.Rows.Add($row)
     # File Server PowerShell Script
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/scripts/OnStartAzureVirtualMachineFileServer.ps1"
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/scripts/OnStartAzureVirtualMachineFileServer.ps1"
     $row.filename = "OnStartAzureVirtualMachineFileServer.ps1"; $row.path = "$scriptPath"; $row.productName = "File Server script for deployment"; $Table.Rows.Add($row)
     # File Server DSC zip Script
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/templates/FileServer/scripts/fileserver.cr.zip"
+    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/templates/FileServer/scripts/fileserver.cr.zip"
     $row.filename = "fileserver.cr.zip"; $row.path = "$scriptPath"; $row.productName = "File Server DSC zip for deployment"; $Table.Rows.Add($row)
     # App Service Helper Scripts
     $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
@@ -445,48 +406,8 @@ try {
     $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmasinstaller"
     $row.filename = "appservice.exe"; $row.path = "$appServicePath"; $row.productName = "App Service installer"; $Table.Rows.Add($row)
     # App Service PreDeployment JSON
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/appservice/AppServiceDeploymentSettings.json"
     $row.filename = "AppServicePreDeploymentSettings.json"; $row.path = "$appServicePath"; $row.productName = "App Service Pre-Deployment JSON Configuration"; $Table.Rows.Add($row)
-    
-    # Grab the MSI/Exe packages to be installed
-    # VScode Package
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/win32-x64-user-stable"
-    $row.filename = "vscode.exe"; $row.path = "$hostAppsPath"; $row.productName = "VScode Exe"; $Table.Rows.Add($row)
-    # Putty Package
-    $row = $table.NewRow(); $row.Uri = "https://the.earth.li/~sgtatham/putty/0.70/w64/putty-64bit-0.70-installer.msi"
-    $row.filename = "putty.msi"; $row.path = "$hostAppsPath"; $row.productName = "Putty MSI"; $Table.Rows.Add($row)
-    # WinSCP Package
-    $WebResponse = Invoke-WebRequest "https://chocolatey.org/packages/winscp.install" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*chocolatey.org/api/v2/package/winscp.install/*")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "WinSCP.zip"; $row.path = "$hostAppsPath"; $row.productName = "WinSCP Zip"; $Table.Rows.Add($row)
-    # Chrome Package
-    $row = $table.NewRow(); $row.Uri = "http://dl.google.com/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
-    $row.filename = "googlechrome.msi"; $row.path = "$hostAppsPath"; $row.productName = "Chrome MSI"; $Table.Rows.Add($row)
-    # WinDirStat Package
-    $row = $table.NewRow(); $row.Uri = "https://windirstat.mirror.wearetriple.com/wds_current_setup.exe"
-    $row.filename = "windirstat.exe"; $row.path = "$hostAppsPath"; $row.productName = "WinDirStat Exe"; $Table.Rows.Add($row)
-    # Azure CLI Package
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/installazurecliwindows"
-    $row.filename = "azurecli.msi"; $row.path = "$hostAppsPath"; $row.productName = "Azure CLI MSI"; $Table.Rows.Add($row)
-    # Python Exe Installer
-    $WebResponse = Invoke-WebRequest "https://www.python.org/downloads/windows/" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "https://www.python.org/ftp/python/*amd64.exe")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "python3.exe"; $row.path = "$hostAppsPath"; $row.productName = "Python 3 Exe Installer"; $Table.Rows.Add($row)
-    # PIP package
-    $WebResponse = Invoke-WebRequest "https://pypi.org/project/pip/#files" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*pip-*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "PIP Wheel"; $Table.Rows.Add($row)
-    # Certifi package
-    $WebResponse = Invoke-WebRequest "https://pypi.org/project/certifi/#files" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*certifi*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "Certifi Wheel"; $Table.Rows.Add($row)
-    
     Write-CustomVerbose -Message "The following files will be downloaded:"
     $table | Format-Table -AutoSize
 }
@@ -512,29 +433,9 @@ catch {
     return
 }
 
-### EXTRACT WINSCP #################################################################################################################################
-########################################################################################################################################################
-
-$scriptStep = "WINSCP"
-try {
-    Set-Location $hostAppsPath
-    Expand-Archive -Path ".\WinSCP.zip" -DestinationPath ".\WinSCP" -Force -Verbose
-    Get-ChildItem -Path ".\WinSCP\*" -Recurse -Include *.exe -Force -Verbose | Rename-Item -NewName "WinSCP.exe" -Verbose -Force
-    Get-ChildItem -Path ".\WinSCP\*" -Recurse -Include *.exe -Force -Verbose | Move-Item -Destination "$hostAppsPath" -Verbose -Force
-    Remove-Item -Path "WinSCP.zip" -Verbose -Force
-    Remove-Item -Path ".\WinSCP\" -Recurse -Verbose -Force
-    Set-Location $ScriptLocation
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
 ### Generate App Service Offline ZIP ###################################################################################################################
 ########################################################################################################################################################
 
-$scriptStep = "APPSERVICE"
 $appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
 $appServiceLogPath = "$appServicePath\AppServiceLog$appServiceLogTime.txt"
 Set-Location "$appServicePath"
@@ -571,31 +472,9 @@ else {
 $scriptStep = "POWERSHELL"
 try {
     Write-CustomVerbose -Message "Downloading PowerShell Modules for AzureRM, Azure Stack and SQL Server" -ErrorAction Stop
-    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath -Force -RequiredVersion 2.3.0 | Out-Null
-    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath -Force -RequiredVersion 1.5.0 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath -Force -RequiredVersion 1.2.11 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath -Force -RequiredVersion 1.4.0 | Out-Null
     Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name SQLServer -Path $psPath -Force | Out-Null
-}
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-    Set-Location $ScriptLocation
-    return
-}
-
-### Download PowerShell Scripts ########################################################################################################################
-########################################################################################################################################################
-
-$scriptStep = "POWERSHELLSCRIPTS"
-try {
-    Write-CustomVerbose -Message "Downloading PowerShell scripts used for deployment" -ErrorAction Stop
-    $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/powershell"
-    $scriptArray = @()
-    $scriptArray.Clear()
-    $scriptArray = "AddAppServicePreReqs.ps1", "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", `
-        "DeployAppService.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadAppService.ps1", "DownloadWinUpdates.ps1", "GetJobStatus.ps1", "UploadScripts.ps1"
-    foreach ($script in $scriptArray) {
-        $scriptDownloadPath = "$psScriptPath\$script"
-        DownloadWithRetry -downloadURI "$scriptBaseURI/$script" -downloadLocation $scriptDownloadPath -retries 10
-    }
 }
 catch {
     Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -722,7 +601,7 @@ catch {
 
 $scriptStep = "CREATE ZIP"
 try {
-    $session = New-PSSession -Name CreateZip -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+    $session = New-PSSession -Name CreateZip
     Write-CustomVerbose -Message "Packaging files into a single ZIP file"
     Invoke-Command -Session $session -ArgumentList $downloadPath, $configASDKFilePath -ScriptBlock {
         $zipPath = "$Using:downloadPath\ConfigASDKfiles.zip"
