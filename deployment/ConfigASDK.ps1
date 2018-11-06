@@ -1753,7 +1753,6 @@ JobLauncher -jobName $jobName -jobToExecute $AddServerFullImage -Verbose
 ##############################################################################################################################################################
 
 # Define the DB Gallery Item jobs
-
 $jobName = "AddMySQLAzpkg"
 $AddMySQLAzpkg = {
     Start-Job -Name AddMySQLAzpkg -InitializationScript $export_functions -ArgumentList $ASDKpath, $azsLocation, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, `
