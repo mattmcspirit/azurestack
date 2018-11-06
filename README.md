@@ -45,7 +45,7 @@ This includes:
 * MySQL, SQL, App Service and Host Customization can be optionally skipped
 * Cleans up download folder to ensure clean future runs
 * Transcript Log for errors and troubleshooting
-* Progress Tracking and rerun reliability with ConfigASDkProgress.csv file
+* Progress Tracking and rerun reliability with ConfigASDK database hosted on SqlLocalDB (2017)
 * Stores script output in a ConfigASDKOutput.txt, for future reference
 * Supports usage in offline/disconnected environments
 
