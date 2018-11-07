@@ -180,6 +180,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Set-Location "$ASDKpath\databases"
             Expand-Archive "$ASDKpath\databases\$($dbrp).zip" -DestinationPath .\$dbrp -Force -ErrorAction Stop
             Set-Location "$ASDKpath\databases\$($dbrp)"
+            Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\*" -Recurse | Unblock-File
 
             ############################################################################################################################################################################
             # Temporary Workaround to installing DB RP with PS 1.5.0 and newer AzureRM Profile
