@@ -1233,6 +1233,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $SourceLocation = "$downloadPath\ASDK\PowerShell\Scripts"
             Copy-Item -Path "$SourceLocation\*" -Destination "$scriptPath" -Include "*.ps1" -Verbose -ErrorAction Stop
         }
+        Get-ChildItem -Path "$scriptPath\*" -Recurse | Unblock-File -Verbose
         # Update the ConfigASDK Progress database with successful completion
         StageComplete -progressStage $progressStage
     }
@@ -1527,6 +1528,7 @@ elseif ($progressCheck -eq "Complete") {
 # Change to the tools directory
 Write-CustomVerbose -Message "Changing Directory"
 $modulePath = "C:\AzureStack-Tools-master"
+Get-ChildItem -Path "$modulePath\*" -Recurse | Unblock-File -Verbose
 Set-Location $modulePath
 Disable-AzureRmDataCollection -WarningAction SilentlyContinue
 
