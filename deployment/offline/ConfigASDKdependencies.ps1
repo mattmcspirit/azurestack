@@ -722,6 +722,7 @@ catch {
 
 $scriptStep = "CREATE ZIP"
 try {
+    Get-ChildItem -Path "$downloadPath\*" -Recurse | Unblock-File -Verbose
     $session = New-PSSession -Name CreateZip -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
     Write-CustomVerbose -Message "Packaging files into a single ZIP file"
     Invoke-Command -Session $session -ArgumentList $downloadPath, $configASDKFilePath -ScriptBlock {
