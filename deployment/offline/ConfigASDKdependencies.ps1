@@ -114,7 +114,7 @@ if (!($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Admini
 }
 
 try {
-    if ($null -eq $branch) {
+    if (!$branch) {
         $branch = "master"
     }
     $urlToTest = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/README.md"
