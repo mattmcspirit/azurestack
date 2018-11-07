@@ -1397,9 +1397,9 @@ if ($authenticationType.ToString() -like "AzureAd") {
         Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r`n"
         $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
         Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
-        $testAzureSub = Get-AzureRmContext
+        $testAzureSub = Get-AzureRmContext | Out-String
         Write-CustomVerbose -Message "Selected Azure Subscription is:`r`n`r`n"
-        Write-Output $testAzureSub
+        Write-Host $testAzureSub
         Start-Sleep -Seconds 5
 
         ### TEST AZURE STACK LOGIN - Login to Azure Stack
@@ -1409,9 +1409,9 @@ if ($authenticationType.ToString() -like "AzureAd") {
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-        $testAzureSub = Get-AzureRmContext
+        $testAzureSub = Get-AzureRmContext | Out-String
         Write-CustomVerbose -Message "Selected Azure Stack Subscription is:`r`n`r`n"
-        Write-Output $testAzureSub
+        Write-Host $testAzureSub
         Start-Sleep -Seconds 5
     }
     catch {
@@ -1430,9 +1430,9 @@ elseif ($authenticationType.ToString() -like "ADFS") {
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-        $testAzureSub = Get-AzureRmContext
+        $testAzureSub = Get-AzureRmContext | Out-String
         Write-CustomVerbose -Message "Selected Azure Stack Subscription is:`r`n`r`n"
-        Write-Output $testAzureSub
+        Write-Host $testAzureSub
     }
     catch {
         Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -1445,12 +1445,12 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
         ### OPTIONAL - TEST AZURE REGISTRATION CREDS
         Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory`r`n"
         Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
-        $testAzureRegSub = Get-AzureRmContext
+        $testAzureRegSub = Get-AzureRmContext | Out-String
         Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:`r`n`r`n"
-        Write-Output $testAzureRegSub
+        Write-Host $testAzureRegSub
         Write-CustomVerbose -Message "TenantID for this subscription is:`r`n"
-        $azureRegTenantID = $testAzureRegSub.Tenant.Id
-        Write-Output $azureRegTenantID
+        $azureRegTenantID = $testAzureRegSub.Tenant.Id | Out-String
+        Write-Host $azureRegTenantID
         Start-Sleep -Seconds 5
     }
     catch {
