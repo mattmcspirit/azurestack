@@ -191,6 +191,8 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         $desktopPath = [Environment]::GetFolderPath("Desktop")
                         $manualAzureAdPermissions = "$desktopPath\PLEASE_READ_GrantAzureAdPermissions.txt"
                         New-Item $manualAzureAdPermissions -ItemType file -Force
+                        Write-Output "Unfortunately, for Azure AD accounts that have no associated subscription, the Azure Ad Application cannot be automatically granted appropriate permissions for Azure Stack" >> $manualAzureAdPermissions
+                        Write-Output "As a result, please manually activate using the steps below:" >> $manualAzureAdPermissions
                         Write-Output "To complete the App Service deployment, use this Application Id: $identityApplicationID" >> $manualAzureAdPermissions
                         Write-Output "Sign in to the Azure portal as your Azure Active Directory Service Admin ($azureAdUsername)" >> $manualAzureAdPermissions
                         Write-Output "Open the Azure AD resource provider." >> $manualAzureAdPermissions
