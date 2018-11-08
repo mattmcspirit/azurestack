@@ -169,8 +169,21 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     # Grant permissions to Azure AD Service Principal
                     $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
                     Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
-                    $context = Get-AzureRmContext
-                    if ($context) {
+                    $refreshToken = @([Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems() | Where-Object {$_.tenantId -eq $tenantId -and $_.ExpiresOn -gt (Get-Date)})[0].RefreshToken
+                    $refreshtoken = $refreshtoken.Split("`n")[0]
+                    $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
+                    $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
+                    $header = @{
+                        'Authorization'          = 'Bearer ' + $apiToken.access_token
+                        'X-Requested-With'       = 'XMLHttpRequest'
+                        'x-ms-client-request-id' = [guid]::NewGuid()
+                        'x-ms-correlation-id'    = [guid]::NewGuid()
+                    }
+                    $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
+                    Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction Stop
+                    New-Item -Path "$AppServicePath\AzureAdPermissions.txt" -ItemType file -Force
+                    #$context = Get-AzureRmContext
+                    <#if ($context) {
                         $refreshToken = @($context.TokenCache.ReadItems() | Where-Object {$_.tenantId -eq $tenantId -and $_.ExpiresOn -gt (Get-Date)})[0].RefreshToken
                         $refreshtoken = $refreshtoken.Split("`n")[0]
                         $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
@@ -203,7 +216,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         Write-Output "Select Required Permissions > Grant Permissions > Yes." >> $manualAzureAdPermissions
                         Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application" >> $manualAzureAdPermissions
                         New-Item -Path "$AppServicePath\AzureAdPermissions.txt" -ItemType file -Force
-                    }
+                    } #>
                 }
                 else {
                     Write-Host "Azure AD Permissions have been previously granted successfully"
