@@ -1275,11 +1275,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         if ($psRmProfle) {
             $cleanupRequired = $true
         }
-        $psAzureStackAdminModuleCheck = Get-Module -Name AzureRM.AzureStackAdmin -ListAvailable
-        $psAzureStackStorageModuleCheck = Get-Module -Name AzureRM.AzureStackStorage -ListAvailable
+        $psAzureRmModuleCheck = Get-Module -Name AzureRM.* -ListAvailable
+        $psAzureStorageModuleCheck = Get-Module -Name Azure.Storage -ListAvailable
         $psAzureStackModuleCheck = Get-Module -Name AzureStack -ListAvailable
         $psAzsModuleCheck = Get-Module -Name Azs.* -ListAvailable
-        if (($psAzureStackAdminModuleCheck) -or ($psAzureStackStorageModuleCheck) -or ($psAzureStackModuleCheck) -or ($psAzsModuleCheck) ) {
+        if (($psAzureRmModuleCheck) -or ($psAzureStorageModuleCheck) -or ($psAzureStackModuleCheck) -or ($psAzsModuleCheck) ) {
             $cleanupRequired = $true
         }
 
@@ -1300,8 +1300,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             catch [System.Management.Automation.CommandNotFoundException] {
                 $error.Clear()
             }
-            Uninstall-Module -Name AzureRM.AzureStackAdmin -Force -ErrorAction SilentlyContinue
-            Uninstall-Module -Name AzureRM.AzureStackStorage -Force -ErrorAction SilentlyContinue
+            Get-Module -Name AzureRM.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -WhatIf
+            Uninstall-Module -Name Azure.Storage -Force -ErrorAction SilentlyContinue
             Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction SilentlyContinue
             Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue
             Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
