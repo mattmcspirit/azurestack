@@ -1300,7 +1300,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             catch [System.Management.Automation.CommandNotFoundException] {
                 $error.Clear()
             }
-            Get-Module -Name AzureRM.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -WhatIf
+            Get-Module -Name AzureRM.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
             Uninstall-Module -Name Azure.Storage -Force -ErrorAction SilentlyContinue
             Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction SilentlyContinue
             Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue
