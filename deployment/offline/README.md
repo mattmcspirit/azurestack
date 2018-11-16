@@ -1,4 +1,4 @@
-ASDK Configurator 1809 | Offline Mode
+ASDK Configurator 1809.1 | Offline Mode
 ==============
 
 Who is this for?
@@ -11,7 +11,7 @@ If you answered **Yes** to either of those questions, read on....
 Version Compatibility
 -----------
 The current version of the ConfigASDKdependencies.ps1 script has been **tested with the following versions**:
-* ASDK Configurator (ConfigASDK.ps1) **1809**
+* ASDK Configurator (ConfigASDK.ps1) **1809.1**
 
 Description
 -----------
@@ -50,7 +50,7 @@ Once you've downloaded the script, you can run it using the following guidance. 
 
 **General Guidance**
 * For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 15GB of files
-* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files
+* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files. Windows Server 2019 or any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809) are not validated for support with the database and App Service resource providers, so don't use those builds at this time. Use the Windows Server 2016 Evaluation release.
 
 The script will create a folder structure within your chosen **downloadPath**, and will create a copy of your ISO file, and include this within the download path also. By the end of the process, your download path will contain items (and subdirectories etc.):
 * ConfigASDKfiles (Directory)
