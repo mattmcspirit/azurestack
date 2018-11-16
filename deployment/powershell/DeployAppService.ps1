@@ -198,6 +198,22 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $identityApplicationID)
             Out-File -FilePath "$AppServicePath\AppServiceDeploymentSettings.json" -InputObject $JsonConfig
 
+            # Check App Service Database is clean - could exist from a previously failed run
+            $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
+            $dbCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $SQLServerUser, $secureVMpwd -ErrorAction Stop
+            $appServiceDBCheck = Get-SqlInstance -ServerInstance $sqlAppServerFqdn -Credential $dbCreds | Get-SqlDatabase | Where-Object {$_.Name -like "*appservice*"}
+            foreach ($appServiceDB in $appServiceDBCheck) {
+                Write-Host "$($appServiceDB.Name) database found. Cleaning up to ensure a successful rerun of the AppService deployment"
+                $cleanupQuery = "DROP DATABASE $($appServiceDB.Name)"
+                Invoke-Sqlcmd -Server $sqlAppServerFqdn -Credential $dbCreds -Query "$cleanupQuery" -Verbose 
+            }
+
+            $appServiceLoginCheck = Get-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -Verbose: $false | Where-Object {$_.Name -like "appservice*"}
+            foreach ($appServiceLogin in $appServiceLoginCheck) {
+                Write-Host "$($appServiceLogin.Name) login found. Cleaning up"
+                Remove-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -LoginName $appServiceLogin.Name -Force -Verbose
+            }
+
             # Deploy App Service EXE
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
             $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
