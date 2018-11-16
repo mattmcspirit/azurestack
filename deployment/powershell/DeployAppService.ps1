@@ -214,6 +214,17 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 Remove-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -LoginName $appServiceLogin.Name -Force -Verbose
             }
 
+            # Check if there is a previous failure for the App Service deployment - easier to completely clean the RG and start fresh
+            $azsLocation = (Get-AzsLocation).Name
+            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $appServiceFailCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
+            if ($appServiceFailCheck.ProvisioningState -eq 'Failed') {
+                Write-Host "There is evidence of a previously failed App Service deployment in the App Service Resource Group. Starting cleanup..."
+                Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
+            }
+
             # Deploy App Service EXE
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
             $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
