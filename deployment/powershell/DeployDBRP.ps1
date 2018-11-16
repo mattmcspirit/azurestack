@@ -168,7 +168,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Remove-Item "$asdkPath\databases\$dbrp" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 Remove-Item "$ASDKpath\databases\$($dbrp).zip" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 # Download and Expand the RP files
-                $rpURI = "https://aka.ms/azurestack$($rp)rp1804"
+                $rpURI = "https://aka.ms/azurestack$($rp)rp11300"
                 $rpDownloadLocation = "$ASDKpath\databases\$($dbrp).zip"
                 DownloadWithRetry -downloadURI "$rpURI" -downloadLocation "$rpDownloadLocation" -retries 10
             }
@@ -180,8 +180,9 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Set-Location "$ASDKpath\databases"
             Expand-Archive "$ASDKpath\databases\$($dbrp).zip" -DestinationPath .\$dbrp -Force -ErrorAction Stop
             Set-Location "$ASDKpath\databases\$($dbrp)"
+            Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\*" -Recurse | Unblock-File -Verbose
 
-            ############################################################################################################################################################################
+            <############################################################################################################################################################################
             # Temporary Workaround to installing DB RP with PS 1.5.0 and newer AzureRM Profile
             $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
             $old = 'elseif (($azureRMModule.Version.Major -eq "1") -and ($azureRMModule.Version.Minor -eq "2") -and ($azureRMModule.Version.Build -ge "11"))'
@@ -224,7 +225,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             # End of Temporary Workaround
             ############################################################################################################################################################################
-
+            #>
             if ($dbrp -eq "MySQL") {
                 if ($deploymentMode -eq "Online") {
                     .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense

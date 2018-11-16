@@ -167,22 +167,43 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                     Clear-AzureRmContext -Scope CurrentUser -Force
                     # Grant permissions to Azure AD Service Principal
-                    $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-                    Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
-                    $context = Get-AzureRmContext
-                    $refreshToken = @($context.TokenCache.ReadItems() | Where-Object {$_.tenantId -eq $tenantId -and $_.ExpiresOn -gt (Get-Date)})[0].RefreshToken
-                    $refreshtoken = $refreshtoken.Split("`n")[0]
-                    $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
-                    $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
-                    $header = @{
-                        'Authorization'          = 'Bearer ' + $apiToken.access_token
-                        'X-Requested-With'       = 'XMLHttpRequest'
-                        'x-ms-client-request-id' = [guid]::NewGuid()
-                        'x-ms-correlation-id'    = [guid]::NewGuid()
+                    try {
+                        $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+                        Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
+                        $refreshToken = @([Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems() | Where-Object {$_.tenantId -eq $tenantId -and $_.ExpiresOn -gt (Get-Date)})[0].RefreshToken
+                        $refreshtoken = $refreshtoken.Split("`n")[0]
+                        $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
+                        $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
+                        $header = @{
+                            'Authorization'          = 'Bearer ' + $apiToken.access_token
+                            'X-Requested-With'       = 'XMLHttpRequest'
+                            'x-ms-client-request-id' = [guid]::NewGuid()
+                            'x-ms-correlation-id'    = [guid]::NewGuid()
+                        }
+                        $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
+                        Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction Stop
+                        New-Item -Path "$AppServicePath\AzureAdPermissions.txt" -ItemType file -Force
                     }
-                    $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
-                    Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction Stop
-                    New-Item -Path "$AppServicePath\AzureAdPermissions.txt" -ItemType file -Force
+                    catch {
+                        Write-Host "$_.Exception.Message"
+                        Write-Host "There was an issue granting permissions to your Azure AD application with ID: $identityApplicationID "
+                        Write-Host "Creating a document on the user's desktop with instructions on how to manually grant permissions to the Azure AD app"
+                        $desktopPath = [Environment]::GetFolderPath("Desktop")
+                        $manualAzureAdPermissions = "$desktopPath\PLEASE_READ_GrantAzureAdPermissions.txt"
+                        New-Item $manualAzureAdPermissions -ItemType file -Force
+                        Write-Output "Unfortunately, for Azure AD accounts that have no associated subscription, the Azure Ad Application cannot be automatically granted appropriate permissions for Azure Stack" >> $manualAzureAdPermissions
+                        Write-Output "As a result, please manually activate using the steps below:" >> $manualAzureAdPermissions
+                        Write-Output "To complete the App Service deployment, use this Application Id: $identityApplicationID" >> $manualAzureAdPermissions
+                        Write-Output "Sign in to the Azure portal as your Azure Active Directory Service Admin ($azureAdUsername)" >> $manualAzureAdPermissions
+                        Write-Output "Open the Azure AD resource provider." >> $manualAzureAdPermissions
+                        Write-Output "Select App Registrations." >> $manualAzureAdPermissions
+                        Write-Output "Search for Application Id ($identityApplicationID). An App Service application is listed." >> $manualAzureAdPermissions
+                        Write-Output "Select Application in the list." >> $manualAzureAdPermissions
+                        Write-Output "Select Settings." >> $manualAzureAdPermissions
+                        Write-Output "Select Required Permissions > Grant Permissions > Yes." >> $manualAzureAdPermissions
+                        Write-Output "Documented steps: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-before-you-get-started#create-an-azure-active-directory-application" >> $manualAzureAdPermissions
+                        New-Item -Path "$AppServicePath\AzureAdPermissions.txt" -ItemType file -Force
+                    }
                 }
                 else {
                     Write-Host "Azure AD Permissions have been previously granted successfully"

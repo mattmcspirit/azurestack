@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1809
+Azure Stack Development Kit Configurator 1809.1
 ==============
 
 Version Compatibility
@@ -97,8 +97,8 @@ With the script downloaded successfully, you can move on to running the script. 
 
 **General Guidance**
 * For the **-azureDirectoryTenantName**, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
-* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files.
-* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files.
+* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your ASDK host, NOT a mapped drive - known issues exist with mapped drives at this time**
+* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time**
 * **-azureStackAdminPwd** is the password you used when deploying your ASDK.
 * **-VMpwd** is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
 * **-azureAdUsername** and **-azureAdPwd** are the *Service Administrator* credentials you used when you deployed your ASDK host (in Azure AD connected mode)
@@ -170,6 +170,10 @@ In addition, you can choose to skip a particular resource provider deployment, s
 Post-Script Actions
 -------------------
 This script can take many hours to finish, depending on your hardware and download speeds. There are no specific post-script actions to perform after the script has finished.
+
+### Known Issues
+* Windows Server 2019 or any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809) are not validated for support with the database and App Service resource providers, so don't use those builds at this time. Use the Windows Server 2016 evaluation release.
+* Do not use a mapped drive for your -downloadPath on your ASDK host. There are known issues which are yet to be resolved. Please use a local drive.
 
 ### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.

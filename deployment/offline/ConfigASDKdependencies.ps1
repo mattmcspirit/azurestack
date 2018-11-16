@@ -286,13 +286,13 @@ try {
     $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MSSQL/ASDK.MSSQL.1.0.0.azpkg"
     $row.filename = "ASDK.MSSQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "SQL Server Marketplace Package"; $Table.Rows.Add($row)
     # MySQL RP
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestackmysqlrp1804"
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestackmysqlrp11300"
     $row.filename = "MySQL.zip"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files"; $Table.Rows.Add($row)
     # MySQL RP Helper MSI
     $row = $table.NewRow(); $row.Uri = "https://dev.mysql.com/get/Download/sConnector-Net/mysql-connector-net-6.10.5.msi"
     $row.filename = "mysql-connector-net-6.10.5.msi"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files Offline Connector"; $Table.Rows.Add($row)
     # SQL RP
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp1804"
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp11300"
     $row.filename = "SQLServer.zip"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
     # MySQL Install Script
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MySQL_Offline.sh"
@@ -722,6 +722,7 @@ catch {
 
 $scriptStep = "CREATE ZIP"
 try {
+    Get-ChildItem -Path "$downloadPath\*" -Recurse | Unblock-File -Verbose
     $session = New-PSSession -Name CreateZip -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
     Write-CustomVerbose -Message "Packaging files into a single ZIP file"
     Invoke-Command -Session $session -ArgumentList $downloadPath, $configASDKFilePath -ScriptBlock {

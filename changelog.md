@@ -5,6 +5,12 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1809.1?
+* Support for Database RPs 1.1.30.0
+* Support for App Service 1.4 (Update 4)
+* Handling of Azure AD tenants without associated subscription
+* Bug fixes
+
 ### What's new in version 1809?
 * Major restructure using PowerShell jobs to enable concurrency of tasks
 * Use of SqlLocalDB to track script progress

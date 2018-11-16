@@ -52,7 +52,9 @@ While ($jobsStillExecuting -eq $true) {
     ############## FAILED JOBS #####################################
     
     $failedJobs = (Get-Job | Where-Object { $_.state -eq "Failed" })
-    Write-Host "Current number of failed jobs: $($failedJobs.count)" -ForegroundColor Red
+    if ($failedJobs.count -gt 0) {
+        Write-Host "Current number of failed jobs: $($failedJobs.count)" -ForegroundColor Red
+    }
     $jobFailedDisplay = $null
     $jobFailedDisplay = @()
     foreach ($failedJob in $failedJobs) {

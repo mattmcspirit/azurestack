@@ -91,6 +91,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             Expand-Archive "$ASDKpath\appservice\appservicehelper.zip" -DestinationPath "$ASDKpath\appservice" -Force
+            Get-ChildItem -Path "$ASDKpath\appservice\*" -Recurse | Unblock-File -Verbose
             # Update the ConfigASDK database with successful completion
             $progressStage = $progressName
             StageComplete -progressStage $progressStage

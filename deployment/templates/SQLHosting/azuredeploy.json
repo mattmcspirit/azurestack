@@ -56,7 +56,6 @@
                 "instanceName": "[parameters('instanceName')]",
                 "totalSpaceMB": "[parameters('totalSpaceMB')]",
                 "alwaysOnEnabled": "[variables('alwaysOnEnabled')]",
-                "uncFileShare": "",
                 "userName": "[parameters('hostingServerSQLLoginName')]",
                 "password": "[parameters('hostingServerSQLLoginPassword')]",
                 "skuName": "[parameters('skuName')]"

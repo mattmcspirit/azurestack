@@ -1233,6 +1233,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $SourceLocation = "$downloadPath\ASDK\PowerShell\Scripts"
             Copy-Item -Path "$SourceLocation\*" -Destination "$scriptPath" -Include "*.ps1" -Verbose -ErrorAction Stop
         }
+        Get-ChildItem -Path "$scriptPath\*" -Recurse | Unblock-File -Verbose
         # Update the ConfigASDK Progress database with successful completion
         StageComplete -progressStage $progressStage
     }
@@ -1274,11 +1275,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         if ($psRmProfle) {
             $cleanupRequired = $true
         }
-        $psAzureStackAdminModuleCheck = Get-Module -Name AzureRM.AzureStackAdmin -ListAvailable
-        $psAzureStackStorageModuleCheck = Get-Module -Name AzureRM.AzureStackStorage -ListAvailable
+        $psAzureRmModuleCheck = Get-Module -Name AzureRM.* -ListAvailable
+        $psAzureStorageModuleCheck = Get-Module -Name Azure.Storage -ListAvailable
         $psAzureStackModuleCheck = Get-Module -Name AzureStack -ListAvailable
         $psAzsModuleCheck = Get-Module -Name Azs.* -ListAvailable
-        if (($psAzureStackAdminModuleCheck) -or ($psAzureStackStorageModuleCheck) -or ($psAzureStackModuleCheck) -or ($psAzsModuleCheck) ) {
+        if (($psAzureRmModuleCheck) -or ($psAzureStorageModuleCheck) -or ($psAzureStackModuleCheck) -or ($psAzsModuleCheck) ) {
             $cleanupRequired = $true
         }
 
@@ -1299,11 +1300,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             catch [System.Management.Automation.CommandNotFoundException] {
                 $error.Clear()
             }
-            Uninstall-Module -Name AzureRM.AzureStackAdmin -Force -ErrorAction SilentlyContinue
-            Uninstall-Module -Name AzureRM.AzureStackStorage -Force -ErrorAction SilentlyContinue
-            Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction SilentlyContinue
-            Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue
-            Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
+            Get-Module -Name AzureRM.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
+            Uninstall-Module -Name Azure.Storage -Force -ErrorAction SilentlyContinue -Verbose
+            Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction SilentlyContinue -Verbose
+            Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue -Verbose
+            Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
             if ($psRepository) {
                 Get-PSRepository -Name "PSGallery" | Unregister-PSRepository -ErrorAction SilentlyContinue
             }
@@ -1396,21 +1397,20 @@ if ($authenticationType.ToString() -like "AzureAd") {
         ### TEST AZURE LOGIN - Login to Azure Cloud
         Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r`n"
         $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-        Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
-        $testAzureSub = Get-AzureRmContext
-        Write-CustomVerbose -Message "Selected Azure Subscription is:`r`n`r`n"
+        $testAzureSub = Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
+        $testAzureSub = $testAzureSub | Out-String
+        Write-CustomVerbose -Message "Selected Azure Subscription is:"
         Write-Output $testAzureSub
         Start-Sleep -Seconds 5
 
         ### TEST AZURE STACK LOGIN - Login to Azure Stack
         Write-CustomVerbose -Message "Testing Azure Stack login with Azure Active Directory"
-        Write-CustomVerbose -Message "Getting Tenant ID for Login to Azure Stack"
-        Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory`r`n`r`n"
+        Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-        $testAzureSub = Get-AzureRmContext
-        Write-CustomVerbose -Message "Selected Azure Stack Subscription is:`r`n`r`n"
+        $testAzureSub = Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
+        $testAzureSub = $testAzureSub | Out-String
+        Write-CustomVerbose -Message "Selected Azure Stack Subscription is:"
         Write-Output $testAzureSub
         Start-Sleep -Seconds 5
     }
@@ -1426,12 +1426,12 @@ elseif ($authenticationType.ToString() -like "ADFS") {
         Write-CustomVerbose -Message "Testing Azure Stack login with ADFS"
         Write-CustomVerbose -Message "Getting Tenant ID for Login to Azure Stack"
         $tenantId = (invoke-restmethod "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-        Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS`r`n`r`n"
+        Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-        $testAzureSub = Get-AzureRmContext
-        Write-CustomVerbose -Message "Selected Azure Stack Subscription is:`r`n`r`n"
+        $testAzureSub = Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
+        $testAzureSub = $testAzureSub | Out-String
+        Write-CustomVerbose -Message "Selected Azure Stack Subscription is:"
         Write-Output $testAzureSub
     }
     catch {
@@ -1443,13 +1443,13 @@ elseif ($authenticationType.ToString() -like "ADFS") {
 if ($registerASDK -and ($deploymentMode -ne "Offline")) {
     try {
         ### OPTIONAL - TEST AZURE REGISTRATION CREDS
-        Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory`r`n"
-        Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
-        $testAzureRegSub = Get-AzureRmContext
-        Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:`r`n`r`n"
-        Write-Output $testAzureRegSub
-        Write-CustomVerbose -Message "TenantID for this subscription is:`r`n"
-        $azureRegTenantID = $testAzureRegSub.Tenant.Id
+        Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory"
+        $testAzureRegSub = Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
+        $testAzureRegSubString = $testAzureRegSub | Out-String
+        Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:"
+        Write-Output $testAzureRegSubString
+        Write-CustomVerbose -Message "TenantID for this registration subscription is:"
+        $azureRegTenantID = $testAzureRegSub.Context.Tenant.Id
         Write-Output $azureRegTenantID
         Start-Sleep -Seconds 5
     }
@@ -1527,6 +1527,7 @@ elseif ($progressCheck -eq "Complete") {
 # Change to the tools directory
 Write-CustomVerbose -Message "Changing Directory"
 $modulePath = "C:\AzureStack-Tools-master"
+Get-ChildItem -Path "$modulePath\*" -Recurse | Unblock-File -Verbose
 Set-Location $modulePath
 Disable-AzureRmDataCollection -WarningAction SilentlyContinue
 
@@ -1596,10 +1597,10 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
         try {
             Write-CustomVerbose -Message "Starting Azure Stack registration to Azure"
             # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
-            $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
-            $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
+            $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
             # Register the Azure Stack resource provider in your Azure subscription
