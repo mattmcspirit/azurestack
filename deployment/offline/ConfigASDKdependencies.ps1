@@ -662,7 +662,7 @@ try {
     Write-CustomVerbose -Message "Downloading $StartKB to retrieve the list of updates."
     #$kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
     $kbID = (Invoke-WebRequest -Uri 'https://support.microsoft.com/en-us/help/4000825' -UseBasicParsing).RawContent -split "`n"
-    $kbID = ($WebResponse | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
+    $kbID = ($kbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
     $kbID = ((($kbID -split"KB",2)[1])-split "\s",2)[0]
 
     # Get Download Link for the corresponding Cumulative Update
