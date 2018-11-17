@@ -665,6 +665,11 @@ try {
     $kbID = ($kbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
     $kbID = ((($kbID -split"KB",2)[1])-split "\s",2)[0]
 
+    if (!$kbID) {
+        Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
+        #throw "No KB found"
+    }
+
     # Get Download Link for the corresponding Cumulative Update
     #Write-CustomVerbose -Message "Found ID: KB$($kbID.articleID)"
     Write-CustomVerbose -Message "Found ID: KB$kbID)"
