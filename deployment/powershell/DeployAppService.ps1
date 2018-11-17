@@ -221,7 +221,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $appServiceFailCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
             if ($appServiceFailCheck.ProvisioningState -eq 'Failed') {
-                Write-Host "There is evidence of a previously failed App Service deployment in the App Service Resource Group. Starting cleanup..."
+                Write-Output "There is evidence of a previously failed App Service deployment in the App Service Resource Group. Starting cleanup..."
                 Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
             }
 
