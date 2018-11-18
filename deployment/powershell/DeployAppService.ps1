@@ -199,6 +199,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Out-File -FilePath "$AppServicePath\AppServiceDeploymentSettings.json" -InputObject $JsonConfig
 
             # Check App Service Database is clean - could exist from a previously failed run
+            Write-Host " Checking for existing App Service database and logins.  Will clean up if this is a rerun."
             $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
             $dbCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $SQLServerUser, $secureVMpwd -ErrorAction Stop
             $appServiceDBCheck = Get-SqlInstance -ServerInstance $sqlAppServerFqdn -Credential $dbCreds | Get-SqlDatabase | Where-Object {$_.Name -like "*appservice*"}
@@ -208,7 +209,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 Invoke-Sqlcmd -Server $sqlAppServerFqdn -Credential $dbCreds -Query "$cleanupQuery" -Verbose 
             }
 
-            $appServiceLoginCheck = Get-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -Verbose: $false | Where-Object {$_.Name -like "appservice*"}
+            $appServiceLoginCheck = Get-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -Verbose: $false | Where-Object {$_.Name -like "*appservice*"}
             foreach ($appServiceLogin in $appServiceLoginCheck) {
                 Write-Host "$($appServiceLogin.Name) login found. Cleaning up"
                 Remove-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -LoginName $appServiceLogin.Name -Force -Verbose
