@@ -39,7 +39,12 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
-
+    1809.2  App Service SQL DB Cleanup for reruns
+            Cleans up App Service Resource Group in case of previous run failure - ensures fresh next attempt
+            Adjusted Windows Update download to grab KB from different source web page - old one not being updated
+    1809.1  Support for Database RPs 1.1.30.0
+            Support for App Service 1.4 (Update 4)
+            Handling of Azure AD tenants without associated subscription
     1809    Updated to support ASDK 1.1809.0.90
             Support for PS 1.5.0, and new AzureRM Profile 2018-03-01-hybrid
             Use of SqlLocalDB 2017 instead of CSV file to track progress
