@@ -182,50 +182,6 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Set-Location "$ASDKpath\databases\$($dbrp)"
             Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\*" -Recurse | Unblock-File -Verbose
 
-            <############################################################################################################################################################################
-            # Temporary Workaround to installing DB RP with PS 1.5.0 and newer AzureRM Profile
-            $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
-            $old = 'elseif (($azureRMModule.Version.Major -eq "1") -and ($azureRMModule.Version.Minor -eq "2") -and ($azureRMModule.Version.Build -ge "11"))'
-            $new = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -eq "3") -and ($azureRMModule.Version.Build -ge "0"))'
-            $pattern1 = [RegEx]::Escape($old)
-            $pattern2 = [RegEx]::Escape($new)
-            if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
-                if ((Get-Content $getCommonModule) | Select-String $pattern1) {
-                    Write-Host "Known issue with AzureRMProfile 2018-03-01-hybrid and Database RP installation  - editing Common.psm1"
-                    Write-Host "Editing file"
-                    (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
-                    Write-Host "Editing completed."
-                }
-            }
-            $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
-            $old = '$StorageObject = Find-AzureRmResource'
-            $new = '$StorageObject = Get-AzureRmResource'
-            $pattern1 = [RegEx]::Escape($old)
-            $pattern2 = [RegEx]::Escape($new)
-            if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
-                if ((Get-Content $getCommonModule) | Select-String $pattern1) {
-                    Write-Host "Known issue with AzureRMProfile 2018-03-01-hybrid and Database RP installation  - editing Common.psm1"
-                    Write-Host "Editing file"
-                    (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
-                    Write-Host "Editing completed."
-                }
-            }
-            $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
-            $old = '$resourceProviderResource =  Find-AzureRmResource -ResourceGroupNameContains'
-            $new = '$resourceProviderResource =  Get-AzureRmResource -ResourceGroupName'
-            $pattern1 = [RegEx]::Escape($old)
-            $pattern2 = [RegEx]::Escape($new)
-            if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
-                if ((Get-Content $getCommonModule) | Select-String $pattern1) {
-                    Write-Host "Known issue with AzureRMProfile 2018-03-01-hybrid and Database RP installation  - editing Common.psm1"
-                    Write-Host "Editing file"
-                    (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
-                    Write-Host "Editing completed."
-                }
-            }
-            # End of Temporary Workaround
-            ############################################################################################################################################################################
-            #>
             if ($dbrp -eq "MySQL") {
                 if ($deploymentMode -eq "Online") {
                     .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense

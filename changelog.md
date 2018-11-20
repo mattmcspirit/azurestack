@@ -5,6 +5,11 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1809.2?
+* App Service SQL DB Cleanup for reruns
+* Cleans up App Service Resource Group in case of previous run failure - ensures fresh next attempt
+* Adjusted Windows Update download to grab KB from different source web page - old one not being updated
+
 ### What's new in version 1809.1?
 * Support for Database RPs 1.1.30.0
 * Support for App Service 1.4 (Update 4)

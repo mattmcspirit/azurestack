@@ -115,7 +115,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
                 Write-Host "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
                 # Define parameters
-                $StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
+                $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
+                #$StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
                 $SearchString = 'Cumulative.*Server.*x64'
 
                 ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.    
@@ -136,11 +137,20 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
                 # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
                 Write-Host "Downloading $StartKB to retrieve the list of updates."
-                $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
+                #$kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
+                $kbID = (Invoke-WebRequest -Uri 'https://support.microsoft.com/en-us/help/4000825' -UseBasicParsing).RawContent -split "`n"
+                $kbID = ($kbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
+                $kbID = ((($kbID -split "KB", 2)[1]) -split "\s", 2)[0]
+
+                if (!$kbID) {
+                    Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
+                    #throw "No KB found"
+                }
 
                 # Get Download Link for the corresponding Cumulative Update
-                Write-Host "Found ID: KB$($kbID.articleID)"
-                $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$($kbID.articleID)" -UseBasicParsing
+                #Write-Host "Found ID: KB$($kbID.articleID)"
+                Write-Host "Found ID: KB$kbID)"
+                $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$kbID" -UseBasicParsing
                 $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
                 $Available_kbIDs | Out-String | Write-Host
                 $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }

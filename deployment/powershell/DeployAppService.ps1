@@ -198,6 +198,34 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $identityApplicationID)
             Out-File -FilePath "$AppServicePath\AppServiceDeploymentSettings.json" -InputObject $JsonConfig
 
+            # Check App Service Database is clean - could exist from a previously failed run
+            Write-Host " Checking for existing App Service database and logins.  Will clean up if this is a rerun."
+            $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
+            $dbCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $SQLServerUser, $secureVMpwd -ErrorAction Stop
+            $appServiceDBCheck = Get-SqlInstance -ServerInstance $sqlAppServerFqdn -Credential $dbCreds | Get-SqlDatabase | Where-Object {$_.Name -like "*appservice*"}
+            foreach ($appServiceDB in $appServiceDBCheck) {
+                Write-Host "$($appServiceDB.Name) database found. Cleaning up to ensure a successful rerun of the AppService deployment"
+                $cleanupQuery = "DROP DATABASE $($appServiceDB.Name)"
+                Invoke-Sqlcmd -Server $sqlAppServerFqdn -Credential $dbCreds -Query "$cleanupQuery" -Verbose 
+            }
+
+            $appServiceLoginCheck = Get-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -Verbose: $false | Where-Object {$_.Name -like "*appservice*"}
+            foreach ($appServiceLogin in $appServiceLoginCheck) {
+                Write-Host "$($appServiceLogin.Name) login found. Cleaning up"
+                Remove-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -LoginName $appServiceLogin.Name -Force -Verbose
+            }
+
+            # Check if there is a previous failure for the App Service deployment - easier to completely clean the RG and start fresh
+            $azsLocation = (Get-AzsLocation).Name
+            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $appServiceFailCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
+            if ($appServiceFailCheck.ProvisioningState -eq 'Failed') {
+                Write-Output "There is evidence of a previously failed App Service deployment in the App Service Resource Group. Starting cleanup..."
+                Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
+            }
+
             # Deploy App Service EXE
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
             $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
