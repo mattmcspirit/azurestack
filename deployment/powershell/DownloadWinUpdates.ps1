@@ -136,7 +136,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 }
 
                 # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
-                Write-CustomVerbose -Message "Downloading $StartKB to retrieve the list of updates."
+                Write-Host "Downloading $StartKB to retrieve the list of updates."
                 #$kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
                 $kbID = (Invoke-WebRequest -Uri 'https://support.microsoft.com/en-us/help/4000825' -UseBasicParsing).RawContent -split "`n"
                 $kbID = ($kbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
@@ -148,8 +148,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 }
 
                 # Get Download Link for the corresponding Cumulative Update
-                #Write-CustomVerbose -Message "Found ID: KB$($kbID.articleID)"
-                Write-CustomVerbose -Message "Found ID: KB$kbID)"
+                #Write-Host "Found ID: KB$($kbID.articleID)"
+                Write-Host "Found ID: KB$kbID)"
                 $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$kbID" -UseBasicParsing
                 $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
                 $Available_kbIDs | Out-String | Write-Host
