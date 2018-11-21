@@ -61,6 +61,18 @@ Firstly, **you must have already deployed the ASDK**. Secondly, for an **Azure A
 
 **You do not need to install Azure/AzureStack PowerShell before running the script. The ASDK Configurator will install and configure Azure/AzureStack PowerShell for you. If you have already installed the Azure/AzureStack PowerShell modules, the script will first clean your PowerShell configuration to ensure optimal operation.**
 
+ASDK Host Sizing
+------------
+The ASDK Configurator will deploy a total of 12 additional virtual machines to support the MySQL, SQL Server, and App Service Resource Providers, should you choose to deploy all the RPs.  You will therefore need an ASDK host machine that has enough free memory to support these additional virtual machines:
+
+* **MySQL RP** - 2 VMs (RP VM, DB Host VM) = **7GB**
+* **SQL Server RP** - 2 VMs (RP VM, DB Host VM) = **7GB**
+* **App Service** - 8 VMs (File Server, SQL Host, Front End Scale Set, Shared Worker Tiers (2), Publisher Scale Set, CN0-VM, Management Servers Scale Set) = **28GB**
+
+**Total with all RPs deployed = 42GB in addition to the core running Azure Stack ASDK VMs**
+
+Before you run the ASDK Configurator, ensure that you have enough memory available on your ASDK host system. On a typical ASDK system, the core Azure Stack VMs will already consume between 50-60GB of host memory, so please ensure you have enough remaining to deploy the additional resource providers. A system with 128GB memory is recommended.
+
 Offline/Disconnected Support
 ------------
 * Do you want to deploy your ASDK in an environment that **doesn't have internet connectivity**?
