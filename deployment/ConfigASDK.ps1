@@ -511,6 +511,58 @@ catch {
     return
 }
 
+### HOST MEMORY CHECK ###############################################################################################################################################
+##############################################################################################################################################################
+
+Write-CustomVerbose -Message "Validating ASDK host memory to ensure you can deploy the additional resource providers on this system"
+Write-CustomVerbose -Message "Calculating ASDK host memory"
+[INT]$totalPhysicalMemory = Get-CimInstance win32_ComputerSystem -Verbose:$false | ForEach-Object {[math]::round($_.TotalPhysicalMemory / 1GB)}
+Write-CustomVerbose -Message "Total physical memory in the ASDK host = $([INT]$totalPhysicalMemory)GB"
+[INT]$totalRPMemoryRequired = "0"
+if (!$skipMySQL) {
+    Write-CustomVerbose -Message "You've chosen to deploy the MySQL Resource Provider. This requires 5.5GB RAM"
+    [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 5.5
+}
+if (!$skipMSSQL) {
+    Write-CustomVerbose -Message "You've chosen to deploy the SQL Server Resource Provider. This requires 5.5GB RAM"
+    [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 5.5
+}
+if (!$skipAppService) {
+    Write-CustomVerbose -Message "You've chosen to deploy the SQL Server Resource Provider. This requires 12.25GB RAM"
+    [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 12.25
+}
+if ([INT]$totalRPMemoryRequired -gt 0) {
+    Write-CustomVerbose -Message "Based on your resource provider selections, you need a total of $([INT]$totalRPMemoryRequired)GB to install the Resource Providers"
+    Write-CustomVerbose -Message "Calculating total current Azure Stack VM memory usage"
+    $azureStackVMs = Get-VM | Where-Object {$_.VMName -like "*Azs*"}
+    $azureStackVMs | Format-Table Name, State, @{n = "Memory"; e = {$_.memoryassigned / 1MB}} -AutoSize
+    Remove-Variable -Name totalVmMemory
+    $totalVmMemory = $azureStackVMs | Measure-Object memoryassigned –sum
+    $totalVmMemory = [math]::round($totalVmMemory.sum / 1GB)
+    [INT]$totalVmMemory = $totalVmMemory
+    Write-CustomVerbose -Message "Total physical memory in the ASDK host = $([INT]$totalPhysicalMemory)GB"
+    Write-CustomVerbose -Message "Total memory currently assigned to Azure Stack VMs on the ASDK host = $([INT]$totalVmMemory)GB"
+    Write-CustomVerbose -Message "Total memory required by your selected resource provider VMs on the ASDK host = $([INT]$totalRPMemoryRequired)GB"
+    [INT]$memoryAvailable = [INT]$totalPhysicalMemory - [INT]$totalVmMemory
+    if ([INT]$memoryAvailable -gt [INT]$totalRPMemoryRequired) {
+        Write-CustomVerbose -Message "You have $([INT]$memoryAvailable)GB memory available on your host, which is enough to run your chosen resource providers"
+        Remove-Variable -Name totalFreeMemory
+        [INT]$totalFreeMemory = Get-CimInstance Win32_OperatingSystem -Verbose:$false | ForEach-Object {[math]::round($_.FreePhysicalMemory / 1MB)}
+        Write-CustomVerbose -Message "However, the ASDK host OS is reporting a total of $([INT]$totalFreeMemory)GB free physical memory"
+        [INT]$memoryDifference = ([INT]$totalPhysicalMemory - [INT]$totalFreeMemory) - [INT]$totalVmMemory
+        Write-CustomVerbose -Message "This is a difference of $([INT]$memoryDifference)GB on top of the Azure Stack VM usage, and is most likely consumed by system processes and overheads."
+        Write-CustomVerbose -Message "If you run out of memory, this may cause the ASDK Configurator to fail."
+        Start-Sleep 10
+    }
+    else {
+        throw "Your ASDK host only has $([INT]$memoryAvailable)GB memory remaining, which is less than the required $([INT]$totalRPMemoryRequired)GB for your chosen resource providers.`
+    Add more memory or reduce the number of resource providers that you wish to deploy"
+    }
+}
+else {
+    Write-CustomVerbose -Message "It appears you've chosen to deploy none of the Resource Providers. No need for further host memory checks"
+}
+
 ### VALIDATION ###############################################################################################################################################
 ##############################################################################################################################################################
 
