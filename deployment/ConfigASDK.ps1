@@ -536,7 +536,7 @@ if ([INT]$totalRPMemoryRequired -gt 0) {
     Write-CustomVerbose -Message "Calculating total current Azure Stack VM memory usage"
     $azureStackVMs = Get-VM | Where-Object {$_.VMName -like "*Azs*"}
     $azureStackVMs | Format-Table Name, State, @{n = "Memory"; e = {$_.memoryassigned / 1MB}} -AutoSize
-    Remove-Variable -Name totalVmMemory
+    Remove-Variable -Name totalVmMemory -Force -ErrorAction SilentlyContinue
     $totalVmMemory = $azureStackVMs | Measure-Object memoryassigned –sum
     $totalVmMemory = [math]::round($totalVmMemory.sum / 1GB)
     [INT]$totalVmMemory = $totalVmMemory
@@ -546,7 +546,7 @@ if ([INT]$totalRPMemoryRequired -gt 0) {
     [INT]$memoryAvailable = [INT]$totalPhysicalMemory - [INT]$totalVmMemory
     if ([INT]$memoryAvailable -gt [INT]$totalRPMemoryRequired) {
         Write-CustomVerbose -Message "You have $([INT]$memoryAvailable)GB memory available on your host, which is enough to run your chosen resource providers"
-        Remove-Variable -Name totalFreeMemory
+        Remove-Variable -Name totalFreeMemory -Force -ErrorAction SilentlyContinue
         [INT]$totalFreeMemory = Get-CimInstance Win32_OperatingSystem -Verbose:$false | ForEach-Object {[math]::round($_.FreePhysicalMemory / 1MB)}
         Write-CustomVerbose -Message "However, the ASDK host OS is reporting a total of $([INT]$totalFreeMemory)GB free physical memory"
         [INT]$memoryDifference = ([INT]$totalPhysicalMemory - [INT]$totalFreeMemory) - [INT]$totalVmMemory
