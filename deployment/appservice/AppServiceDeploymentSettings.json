@@ -50,16 +50,16 @@
         "name": "Standard_A2"
     },
     "SelectedPublisherRoleSKUs": {
-        "name": "Standard_A2"
+        "name": "Standard_A1_v2"
     },
     "SelectedFrontEndRoleSKUs": {
-        "name": "Standard_A2"
+        "name": "Standard_A1_v2"
     },
     "SelectedWorkerSKUs": {
-        "name": "Standard_A2"
+        "name": "Standard_A1_v2"
     },
     "SelectedSmallWorkerSKUs": {
-        "name": "Standard_A1"
+        "name": "Standard_A1_v2"
     },
     "SelectedMediumWorkerSKUs": {
         "name": "Standard_A2"
@@ -91,7 +91,7 @@
     "SelectedManagementRoleInstances": 1,
     "SelectedPublisherRoleInstances": 1,
     "SelectedFrontEndRoleInstances": 1,
-    "SelectedWorkerInstances": 2,
+    "SelectedWorkerInstances": 1,
     "PlatformImage": {
         "Publisher": "MicrosoftWindowsServer",
         "Offer": "WindowsServer",

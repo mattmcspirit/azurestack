@@ -5,6 +5,10 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1809.3?
+* Adjusted VM sizes for Resource Providers to use less resources
+* Added host memory check to avoid running out of memory
+
 ### What's new in version 1809.2?
 * App Service SQL DB Cleanup for reruns
 * Cleans up App Service Resource Group in case of previous run failure - ensures fresh next attempt
