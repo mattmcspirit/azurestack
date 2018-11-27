@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1809.2
+Azure Stack Development Kit Configurator 1809.3
 ==============
 
 Version Compatibility
@@ -16,6 +16,7 @@ The purpose of this ConfigASDK.ps1 script is to automate as much as possible, th
 
 This includes:
 * Validates all input parameters
+* Checks ASDK host memory for enough resources
 * Installs Azure Stack PowerShell and AzureRM modules
 * Ensures password for VMs meets complexity required for App Service installation
 * Updated password expiration (180 days)
@@ -63,13 +64,13 @@ Firstly, **you must have already deployed the ASDK**. Secondly, for an **Azure A
 
 ASDK Host Sizing
 ------------
-The ASDK Configurator will deploy a total of 12 additional virtual machines to support the MySQL, SQL Server, and App Service Resource Providers, should you choose to deploy all the RPs.  You will therefore need an ASDK host machine that has enough free memory to support these additional virtual machines:
+The ASDK Configurator will deploy a total of 12 additional virtual machines to support the MySQL, SQL Server, and App Service Resource Providers, should you choose to deploy all the RPs.  You will therefore need an ASDK host machine that has at least 29.5GB free memory to support these additional virtual machines:
 
-* **MySQL RP** - 2 VMs (RP VM, DB Host VM) = **7GB**
-* **SQL Server RP** - 2 VMs (RP VM, DB Host VM) = **7GB**
-* **App Service** - 8 VMs (File Server, SQL Host, Front End Scale Set, Shared Worker Tiers (2), Publisher Scale Set, CN0-VM, Management Servers Scale Set) = **28GB**
+* **MySQL RP** - 2 VMs (RP VM, DB Host VM) = **5.5GB**
+* **SQL Server RP** - 2 VMs (RP VM, DB Host VM) = **5.5GB**
+* **App Service** - 8 VMs (File Server, SQL Host, Front End Scale Set, Shared Worker Tier, Publisher Scale Set, CN0-VM, Management Servers Scale Set) = **18.5GB**
 
-**Total with all RPs deployed = 42GB in addition to the core running Azure Stack ASDK VMs**
+**Total with all RPs deployed = 29.5GB in addition to the core running Azure Stack ASDK VMs**
 
 Before you run the ASDK Configurator, ensure that you have enough memory available on your ASDK host system. On a typical ASDK system, the core Azure Stack VMs will already consume between 50-60GB of host memory, so please ensure you have enough remaining to deploy the additional resource providers. A system with 128GB memory is recommended.
 
