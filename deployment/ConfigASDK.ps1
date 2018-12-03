@@ -643,12 +643,13 @@ catch {
     return
 }
 
+if (!$branch) {
+    $branch = "master"
+}
+
 # Validate Github branch exists - usually reserved for testing purposes
 if ($deploymentMode -eq "Online") {
     try {
-        if (!$branch) {
-            $branch = "master"
-        }
         $urlToTest = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/README.md"
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $statusCode = Invoke-WebRequest "$urlToTest" -UseBasicParsing -ErrorAction SilentlyContinue | ForEach-Object {$_.StatusCode} -ErrorAction SilentlyContinue
