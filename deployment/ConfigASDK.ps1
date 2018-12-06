@@ -463,7 +463,7 @@ $logPath = "$ScriptLocation\Logs\$logDate"
 Write-CustomVerbose -Message "Log folder full path is $logPath"
 
 ### START LOGGING ###
-$runTime = $(Get-Date).ToString("MMdd-HHmmss")
+$runTime = $(Get-Date).ToString("MMddyy-HHmmss")
 $fullLogPath = "$logPath\ConfigASDKLog$runTime.txt"
 $logStart = Start-Transcript -Path "$fullLogPath" -Append
 Write-CustomVerbose -Message $logStart
