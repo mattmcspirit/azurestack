@@ -2088,7 +2088,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $computeParams = $null
         $computeParams = @{
             Name                 = "compute_default"
-            CoresLimit           = 200
+            CoresCount           = 200
             AvailabilitySetCount = 20
             VirtualMachineCount  = 100
             VmScaleSetCount      = 20
@@ -2173,7 +2173,12 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
         # Create a new subscription for that offer, for the currently logged in user
         $Offer = Get-AzsOffer | Where-Object name -eq "BaseOffer"
-        New-AzsSubscription  -OfferId $Offer.Id -DisplayName "ASDK Subscription"
+        New-AzsSubscription -OfferId $Offer.Id -DisplayName "ASDK Subscription"
+        #Need to build the new subscription with the below commands, specifying the owner.
+        #$subUserName = (Get-AzureRmContext).Account.Id
+        #or
+        #$subUserName = $asdkCreds.UserName
+        #New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName "ASDK Subscription"
 
         # Log the user out of the "AzureStackAdmin" environment
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
