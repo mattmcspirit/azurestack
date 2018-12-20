@@ -6,7 +6,7 @@
 
 .VERSION
 
-    1809.2  Latest version, to align with current ASDK Configurator version.
+    1811  Latest version, to align with current ASDK Configurator version.
 
 .AUTHOR
 
