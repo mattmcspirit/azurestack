@@ -39,6 +39,9 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1811    Bug fixes
+    1809.3  Adjusted VM sizes for Resource Providers to use less resources
+            Added host memory check to avoid running out of memory
     1809.2  App Service SQL DB Cleanup for reruns
             Cleans up App Service Resource Group in case of previous run failure - ensures fresh next attempt
             Adjusted Windows Update download to grab KB from different source web page - old one not being updated
