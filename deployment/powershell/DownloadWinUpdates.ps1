@@ -121,7 +121,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
                 ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.    
                 if ($buildVersion -eq "14393") {
-                    $servicingStackKB = "4132216"
+                    $servicingStackKB = (Invoke-WebRequest -Uri 'https://portal.msrc.microsoft.com/api/security-guidance/en-US/CVE/ADV990001' -UseBasicParsing).Content
+                    $servicingStackKB = ((($servicingStackKB -split 'Windows 10 Version 1607/Server 2016</td>\\n<td>', 2)[1]).Split('<', 2)[0])
+                    #$servicingStackKB = "4465659"
                     $ServicingSearchString = 'Windows Server 2016'
                     Write-Host "Build is $buildVersion - Need to download: KB$($servicingStackKB) to update Servicing Stack before adding future Cumulative Updates"
                     $servicingKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$servicingStackKB" -UseBasicParsing
