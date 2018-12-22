@@ -205,7 +205,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $appServiceDBCheck = Get-SqlInstance -ServerInstance $sqlAppServerFqdn -Credential $dbCreds | Get-SqlDatabase | Where-Object {$_.Name -like "*appservice*"}
             foreach ($appServiceDB in $appServiceDBCheck) {
                 Write-Host "$($appServiceDB.Name) database found. Cleaning up to ensure a successful rerun of the AppService deployment"
-                $cleanupQuery = "DROP DATABASE $($appServiceDB.Name)"
+                $cleanupQuery = "ALTER DATABASE $($appServiceDB.Name) SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE $($appServiceDB.Name)"
                 Invoke-Sqlcmd -Server $sqlAppServerFqdn -Credential $dbCreds -Query "$cleanupQuery" -Verbose 
             }
 
