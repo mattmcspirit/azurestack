@@ -2579,6 +2579,25 @@ if ($scriptSuccess) {
     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     $asdkImagesRGName = "azurestack-images"
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
+
+    # Create desktop icons
+    $shortcut_name = "Azure Stack Admin Portal" 
+    $shortcut_target = "https://adminportal.local.azurestack.external" 
+    $sh = new-object -com "WScript.Shell" 
+    $p = $sh.SpecialFolders.item("AllUsersDesktop") 
+    $lnk = $sh.CreateShortcut( (join-path $p $shortcut_name) + ".lnk" ) 
+    $lnk.TargetPath = $shortcut_target 
+    $lnk.IconLocation = "$env:WINDIR\system32\imageres.dll,220"
+    $lnk.Save()
+    
+    $shortcut_name = "Azure Stack User Portal" 
+    $shortcut_target = "https://portal.local.azurestack.external" 
+    $sh = new-object -com "WScript.Shell" 
+    $p = $sh.SpecialFolders.item("AllUsersDesktop") 
+    $lnk = $sh.CreateShortcut( (join-path $p $shortcut_name) + ".lnk" ) 
+    $lnk.TargetPath = $shortcut_target 
+    $lnk.IconLocation = "$env:WINDIR\system32\imageres.dll,220"
+    $lnk.Save()
     
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
