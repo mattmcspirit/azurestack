@@ -39,7 +39,8 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
-    1811    Bug fixes
+    1811    Updated to support 1.1811.0.101
+            Bug fixes
     1809.3  Adjusted VM sizes for Resource Providers to use less resources
             Added host memory check to avoid running out of memory
     1809.2  App Service SQL DB Cleanup for reruns
@@ -2175,7 +2176,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
 
         # Create a new subscription for that offer, for the currently logged in user
-        $Offer = Get-AzsOffer | Where-Object name -eq "BaseOffer"
+        $Offer = Get-AzsManagedOffer | Where-Object name -eq "BaseOffer"
         #New-AzsSubscription -OfferId $Offer.Id -DisplayName "ASDK Subscription"
         #Need to build the new subscription with the below commands, specifying the owner.
         $subUserName = (Get-AzureRmContext).Account.Id
