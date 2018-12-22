@@ -40,6 +40,8 @@
 
 .VERSION
     1811    Updated to support 1.1811.0.101
+            Updated Windows Server image updates with dynamically obtaining Servicing Stack Update
+            Increased App Service VM Image size - More reliable
             Bug fixes
     1809.3  Adjusted VM sizes for Resource Providers to use less resources
             Added host memory check to avoid running out of memory
@@ -2177,10 +2179,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
         # Create a new subscription for that offer, for the currently logged in user
         $Offer = Get-AzsManagedOffer | Where-Object name -eq "BaseOffer"
-        #New-AzsSubscription -OfferId $Offer.Id -DisplayName "ASDK Subscription"
-        #Need to build the new subscription with the below commands, specifying the owner.
         $subUserName = (Get-AzureRmContext).Account.Id
-        #or $subUserName = $asdkCreds.UserName
         New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName "ASDK Subscription"
 
         # Log the user out of the "AzureStackAdmin" environment

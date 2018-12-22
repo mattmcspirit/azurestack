@@ -7,6 +7,8 @@ Here you'll find information on key changes, bug fixes and improvements made by 
 
 ### What's new in version 1811?
 * Updated to support ASDK 1.1811.0.101
+* Updated Windows Server image updates with dynamically obtaining Servicing Stack Update
+* Increased App Service VM Image size - More reliable
 * Bug fixes
 
 ### What's new in version 1809.3?
