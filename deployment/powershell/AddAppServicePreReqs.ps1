@@ -219,6 +219,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             # If this is an online deployment, downloadwithretry direct from GitHub then run the import command above.
             # $extensionURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/extension/filename.zip"
             # DownloadWithRetry -downloadURI $extensionURI -downloadLocation $extensionPath -retries 10
+            # Extract the download to $extensionPath
             # While (Get-AzsVMExtension -Publisher Microsoft.Compute) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}
             # Import-AzSOfflineMarketplaceItem -origin "$extensionPath" -armendpoint "$ArmEndpoint" -AzsCredential $asdkCreds
             # Check to see if it exists in the gallery then repeat the upload as necessary
