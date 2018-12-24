@@ -185,6 +185,7 @@ Post-Script Actions
 This script can take many hours to finish, depending on your hardware and download speeds. There are no specific post-script actions to perform after the script has finished.
 
 ### Known Issues
+* App Service requires Custom Script Extension (CSE) 1.9.0 or newer. Currently, the inbox CSE is version 1.8. Unless you register the ASDK as part of this process, the CSE will be missing and the App Service install will fail. This will be automated in a future release.
 * Windows Server 2019 or any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809) are not validated for support with the database and App Service resource providers, so don't use those builds at this time. Use the Windows Server 2016 evaluation release.
 * Do not use a mapped drive for your -downloadPath on your ASDK host. There are known issues which are yet to be resolved. Please use a local drive.
 
