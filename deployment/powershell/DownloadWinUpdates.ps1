@@ -118,25 +118,37 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
                 #$StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
                 $SearchString = 'Cumulative.*Server.*x64'
+                
+                # Define the arrays that will be used later
+                $kbDownloads = @()
+                $Urls = @()
 
                 ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.    
                 if ($buildVersion -eq "14393") {
-                    $servicingStackKB = "4132216"
-                    $ServicingSearchString = 'Windows Server 2016'
-                    Write-Host "Build is $buildVersion - Need to download: KB$($servicingStackKB) to update Servicing Stack before adding future Cumulative Updates"
-                    $servicingKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$servicingStackKB" -UseBasicParsing
-                    $servicingAvailable_kbIDs = $servicingKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-                    $servicingAvailable_kbIDs | Out-String | Write-Host
-                    $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
+                    $ssuArray = @("4132216", "4465659")
+                    $ssuSearchString = 'Windows Server 2016'
 
-                    # If innerHTML is empty or does not exist, use outerHTML instead
-                    if (!$servicingKbIDs) {
-                        $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
+                    #$servicingStackKB = (Invoke-WebRequest -Uri 'https://portal.msrc.microsoft.com/api/security-guidance/en-US/CVE/ADV990001' -UseBasicParsing).Content
+                    #$servicingStackKB = ((($servicingStackKB -split 'Windows 10 Version 1607/Server 2016</td>\\n<td>', 2)[1]).Split('<', 2)[0])
+                    #$servicingStackKB = "4465659"
+                    
+                    foreach ($ssu in $ssuArray) {
+                        Write-Host "Build is $buildVersion - Need to download: KB$($ssu) to update Servicing Stack before adding future Cumulative Updates"
+                        $ssuKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$ssu" -UseBasicParsing
+                        $ssuAvailable_kbIDs = $ssuKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+                        $ssuAvailable_kbIDs | Out-String | Write-Host
+                        $ssuKbIDs = $ssuKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ssuSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $ssuAvailable_kbIDs }
+
+                        # If innerHTML is empty or does not exist, use outerHTML instead
+                        if (!$ssuKbIDs) {
+                            $ssuKbIDs = $ssuKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ssuSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $ssuAvailable_kbIDs }
+                        }
+                        $kbDownloads += "$ssuKbIDs"
                     }
                 }
 
                 # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
-                Write-Host "Downloading $StartKB to retrieve the list of updates."
+                Write-Host "Accessing $StartKB to retrieve the list of updates."
                 #$kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
                 $kbID = (Invoke-WebRequest -Uri 'https://support.microsoft.com/en-us/help/4000825' -UseBasicParsing).RawContent -split "`n"
                 $kbID = ($kbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
@@ -144,7 +156,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
                 if (!$kbID) {
                     Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
-                    #throw "No KB found"
                 }
 
                 # Get Download Link for the corresponding Cumulative Update
@@ -161,12 +172,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 }
             
                 # Defined a KB array to hold the kbIDs and if the build is 14393, add the corresponding KBID to it
-                $kbDownloads = @()
-                if ($buildVersion -eq "14393") {
-                    $kbDownloads += "$servicingKbIDs"
-                }
                 $kbDownloads += "$kbIDs"
-                $Urls = @()
 
                 foreach ( $kbID in $kbDownloads ) {
                     Write-Host "KB ID: $kbID"
@@ -175,16 +181,19 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
                 }
 
-                # Download the corresponding Windows Server 2016 Cumulative Update (and possibly, Servicing Stack Update)
+                # Download the corresponding Windows Server 2016 Cumulative Update (and possibly, Servicing Stack Updates)
                 foreach ( $Url in $Urls ) {
-                    $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
+                    $filename = (((($Url.Substring($Url.LastIndexOf("/") + 1)).Split("-", 2)[1]).Split("-x", 2)[0]).ToUpper())
+                    $filename = "$($filename).msu"
                     $target = "$((Get-Item $ASDKpath).FullName)\images\$filename"
-                    Write-Host "Update will be stored at $target"
-                    Write-Host "These can be larger than 1GB, so may take a few minutes."
                     if (!(Test-Path -Path $target)) {
-                        if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393UpdateServicingStack.msu")) {
-                            Remove-Item -Path "$((Get-Item $ASDKpath).FullName)\images\14393UpdateServicingStack.msu" -Force -Verbose -ErrorAction Stop
+                        foreach ($ssu in $ssuArray) {
+                            if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393_SSU_KB$($ssu).msu")) {
+                                Remove-Item -Path "$((Get-Item $ASDKpath).FullName)\images\14393_SSU_KB$($ssu).msu" -Force -Verbose -ErrorAction Stop
+                            }
                         }
+                        Write-Host "Update will be stored at $target"
+                        Write-Host "These can be larger than 1GB, so may take a few minutes."
                         DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
                     }
                     else {
@@ -192,14 +201,17 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     }
                 }
 
-                # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied first when patching the WIM file.
+                # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
                 if ($buildVersion -eq "14393") {
-                    if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393UpdateServicingStack.msu")) {
-                        Write-Host "The 14393 Servicing Stack Update already exists within the target folder"
-                    }
-                    else {
-                        Write-Host "Renaming the Servicing Stack Update to ensure it is applied first"
-                        Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -ErrorAction Stop -Verbose
+                    foreach ($ssu in $ssuArray) {
+                        if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393_SSU_KB$($ssu).msu")) {
+                            Write-Host "The 14393 Servicing Stack Update already exists within the target folder"
+                        }
+                        else {
+                            Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
+                            #Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -ErrorAction Stop -Verbose
+                            Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "14393_SSU_KB$($ssu).msu" -Force -ErrorAction Stop -Verbose
+                        }
                     }
                     $target = "$ASDKpath\images"
                 }

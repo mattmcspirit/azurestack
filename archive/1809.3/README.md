@@ -1,13 +1,13 @@
-Azure Stack Development Kit Configurator 1811
+Azure Stack Development Kit Configurator 1809.3
 ==============
 
 Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
-* ASDK build **1.1811.0.101 (1811)**
+* ASDK build **1.1809.0.90 (1809)**
 * Azure Stack PowerShell Module **1.5.0**
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1811, Azure Stack PowerShell 1.5.0. and the new AzureRMProfile 2018-03-01-hybrid.  A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1809, Azure Stack PowerShell 1.5.0. and the new AzureRMProfile 2018-03-01-hybrid.  A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
@@ -52,7 +52,7 @@ This includes:
 
 Additionally, if you encounter an issue, try re-running the script with the same command you used to run it previously. The script is written in such a way that it shouldn't try to rerun previously completed steps.
 
-New in 1809 and newer
+New in 1809
 -----------
 Through the use of parallel jobs, the 1809 version of the ConfigASDK brings significant under-the-hood improvements to make the running of the ConfigASDK script *much* faster. In addition, the management of the process now uses SqlLocalDB, which provides a better level of control and efficiency.
 

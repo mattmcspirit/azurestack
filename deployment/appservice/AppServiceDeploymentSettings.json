@@ -50,13 +50,13 @@
         "name": "Standard_A2"
     },
     "SelectedPublisherRoleSKUs": {
-        "name": "Standard_A1_v2"
+        "name": "Standard_A2"
     },
     "SelectedFrontEndRoleSKUs": {
-        "name": "Standard_A1_v2"
+        "name": "Standard_A2"
     },
     "SelectedWorkerSKUs": {
-        "name": "Standard_A1_v2"
+        "name": "Standard_A2"
     },
     "SelectedSmallWorkerSKUs": {
         "name": "Standard_A1_v2"

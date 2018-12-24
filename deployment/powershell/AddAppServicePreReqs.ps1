@@ -209,6 +209,22 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Host "Azure AD Permissions have been previously granted successfully"
                 }
             }
+
+            <# Sideload the Custom Script Extension if the user is not registering
+            # Try/Catch
+            # Check if this exists: https://docs.microsoft.com/en-us/powershell/module/azs.compute.admin/get-azsvmextension?view=azurestackps-1.5.0 needs to be greater than 1.9.0
+            # (Get-AzsVMExtension -Publisher Microsoft.Compute) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}
+            # $extensionPath = "$ASDKpath\appservice\extension"
+            # If this is an offline deployment, load from asdkpath\extensions using the $credential = Get-Credential -Message "Enter the azure stack operator credential:"
+            # If this is an online deployment, downloadwithretry direct from GitHub then run the import command above.
+            # $extensionURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/extension/filename.zip"
+            # DownloadWithRetry -downloadURI $extensionURI -downloadLocation $extensionPath -retries 10
+            # Extract the download to $extensionPath
+            # While (Get-AzsVMExtension -Publisher Microsoft.Compute) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}
+            # Import-AzSOfflineMarketplaceItem -origin "$extensionPath" -armendpoint "$ArmEndpoint" -AzsCredential $asdkCreds
+            # Check to see if it exists in the gallery then repeat the upload as necessary
+            #>
+
             # Update the ConfigASDK database with successful completion
             $progressStage = $progressName
             StageComplete -progressStage $progressStage

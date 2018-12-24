@@ -39,12 +39,6 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
-    1811    Updated to support 1.1811.0.101
-            Updated Windows Server image updates with dynamically obtaining Servicing Stack Update
-            Increased App Service VM Image size - More reliable
-            Bug fixes
-    1809.3  Adjusted VM sizes for Resource Providers to use less resources
-            Added host memory check to avoid running out of memory
     1809.2  App Service SQL DB Cleanup for reruns
             Cleans up App Service Resource Group in case of previous run failure - ensures fresh next attempt
             Adjusted Windows Update download to grab KB from different source web page - old one not being updated
@@ -2094,7 +2088,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $computeParams = $null
         $computeParams = @{
             Name                 = "compute_default"
-            CoresCount           = 200
+            CoresLimit           = 200
             AvailabilitySetCount = 20
             VirtualMachineCount  = 100
             VmScaleSetCount      = 20
@@ -2178,9 +2172,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
 
         # Create a new subscription for that offer, for the currently logged in user
-        $Offer = Get-AzsManagedOffer | Where-Object name -eq "BaseOffer"
-        $subUserName = (Get-AzureRmContext).Account.Id
-        New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName "ASDK Subscription"
+        $Offer = Get-AzsOffer | Where-Object name -eq "BaseOffer"
+        New-AzsSubscription  -OfferId $Offer.Id -DisplayName "ASDK Subscription"
 
         # Log the user out of the "AzureStackAdmin" environment
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
@@ -2579,25 +2572,6 @@ if ($scriptSuccess) {
     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     $asdkImagesRGName = "azurestack-images"
     Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
-
-    # Create desktop icons
-    $shortcut_name = "Azure Stack Admin Portal" 
-    $shortcut_target = "https://adminportal.local.azurestack.external" 
-    $sh = new-object -com "WScript.Shell" 
-    $p = $sh.SpecialFolders.item("AllUsersDesktop") 
-    $lnk = $sh.CreateShortcut( (join-path $p $shortcut_name) + ".lnk" ) 
-    $lnk.TargetPath = $shortcut_target 
-    $lnk.IconLocation = "$env:WINDIR\system32\imageres.dll,220"
-    $lnk.Save()
-    
-    $shortcut_name = "Azure Stack User Portal" 
-    $shortcut_target = "https://portal.local.azurestack.external" 
-    $sh = new-object -com "WScript.Shell" 
-    $p = $sh.SpecialFolders.item("AllUsersDesktop") 
-    $lnk = $sh.CreateShortcut( (join-path $p $shortcut_name) + ".lnk" ) 
-    $lnk.TargetPath = $shortcut_target 
-    $lnk.IconLocation = "$env:WINDIR\system32\imageres.dll,220"
-    $lnk.Save()
     
     # Increment run counter to track successful run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
