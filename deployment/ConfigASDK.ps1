@@ -1364,11 +1364,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             catch [System.Management.Automation.CommandNotFoundException] {
                 $error.Clear()
             }
-            Get-Module -Name AzureRM.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
-            Uninstall-Module -Name Azure.Storage -Force -ErrorAction SilentlyContinue -Verbose
-            Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction SilentlyContinue -Verbose
-            Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue -Verbose
             Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
+            Get-Module -Name Azure* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
             if ($psRepository) {
                 Get-PSRepository -Name "PSGallery" | Unregister-PSRepository -ErrorAction SilentlyContinue
             }
@@ -1422,7 +1419,13 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Get-PSRepository -Name "PSGallery"
             Install-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
             Use-AzureRmProfile -Profile 2018-03-01-hybrid -Force -ErrorAction Stop
-            Install-Module -Name AzureStack -RequiredVersion 1.5.0 -Force -ErrorAction Stop
+            Install-Module -Name AzureStack -RequiredVersion 1.6.0 -Force -ErrorAction Stop
+            # Install the Azure.Storage module version 4.5.0
+            Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
+            # Install the AzureRm.Storage module version 5.0.4
+            Install-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Force -AllowClobber -Verbose
+            # Remove incompatible storage module installed by AzureRM.Storage
+            Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
         }
         elseif ($deploymentMode -ne "Online") {
             $SourceLocation = "$downloadPath\ASDK\PowerShell"
@@ -1431,8 +1434,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
             }
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
-            Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
-            Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
+            Install-Module AzureRM -Repository $RepoName -Force -AllowClobber -ErrorAction Stop -Verbose
+            Install-Module AzureStack -Repository $RepoName -Force -AllowClobber -ErrorAction Stop -Verbose
+            Install-Module Azure.Storage -Repository $RepoName -RequiredVersion 4.5.0 -Force -AllowClobber -ErrorAction Stop -Verbose
+            Install-Module AzureRM.Storage -Repository $RepoName -RequiredVersion 5.0.4 -Force -AllowClobber -ErrorAction Stop -Verbose
+            Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
         }
         StageComplete -progressStage $progressStage
     }
@@ -1445,6 +1451,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 elseif ($progressCheck -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
+
+# Load the Storage PowerShell modules explicitly specifying the versions
+Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
+Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
 
 ### TEST ALL LOGINS #########################################################################################################################################
 #############################################################################################################################################################
