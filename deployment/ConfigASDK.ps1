@@ -534,8 +534,8 @@ if (!$skipMSSQL) {
     [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 5.5
 }
 if (!$skipAppService) {
-    Write-CustomVerbose -Message "You've chosen to deploy the App Service Resource Provider. This requires 18.5GB RAM"
-    [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 18.5
+    Write-CustomVerbose -Message "You've chosen to deploy the App Service Resource Provider. This requires 23GB RAM"
+    [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 23
 }
 if ([INT]$totalRPMemoryRequired -gt 0) {
     Write-CustomVerbose -Message "Based on your resource provider selections, you need a total of $([INT]$totalRPMemoryRequired)GB to install the Resource Providers"

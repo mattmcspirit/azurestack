@@ -68,11 +68,11 @@ The ASDK Configurator will deploy a total of 12 additional virtual machines to s
 
 * **MySQL RP** - 2 VMs (RP VM, DB Host VM) = **5.5GB**
 * **SQL Server RP** - 2 VMs (RP VM, DB Host VM) = **5.5GB**
-* **App Service** - 8 VMs (File Server, SQL Host, Front End Scale Set, Shared Worker Tier, Publisher Scale Set, CN0-VM, Management Servers Scale Set) = **18.5GB**
+* **App Service** - 7 VMs (File Server, SQL Host, Front End Scale Set, Shared Worker Tier, Publisher Scale Set, CN0-VM, Management Servers Scale Set) = **23GB**
 
-**Total with all RPs deployed = 29.5GB in addition to the core running Azure Stack ASDK VMs**
+**Total with all RPs deployed = 34GB in addition to the core running Azure Stack ASDK VMs**
 
-Before you run the ASDK Configurator, ensure that you have enough memory available on your ASDK host system. On a typical ASDK system, the core Azure Stack VMs will already consume between 50-60GB of host memory, so please ensure you have enough remaining to deploy the additional resource providers. A system with 128GB memory is recommended.
+Before you run the ASDK Configurator, ensure that you have enough memory available on your ASDK host system. On a typical ASDK system, the core Azure Stack VMs will already consume between 50-60GB of host memory, so please ensure you have enough remaining to deploy the additional resource providers. As per the updated specs here: https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-deploy-considerations, a system with at least 192GB memory is recommended to evaluate all features.
 
 Offline/Disconnected Support
 ------------
