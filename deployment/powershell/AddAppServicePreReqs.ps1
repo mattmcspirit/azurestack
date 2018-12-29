@@ -106,6 +106,9 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
 
+            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
+            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+
             #### Certificates ####
             Write-Host "Generating Certificates for App Service"
             $AppServicePath = "$ASDKpath\appservice"
@@ -210,20 +213,57 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
 
-            <# Sideload the Custom Script Extension if the user is not registering
-            # Try/Catch
-            # Check if this exists: https://docs.microsoft.com/en-us/powershell/module/azs.compute.admin/get-azsvmextension?view=azurestackps-1.5.0 needs to be greater than 1.9.0
-            # (Get-AzsVMExtension -Publisher Microsoft.Compute) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}
-            # $extensionPath = "$ASDKpath\appservice\extension"
-            # If this is an offline deployment, load from asdkpath\extensions using the $credential = Get-Credential -Message "Enter the azure stack operator credential:"
-            # If this is an online deployment, downloadwithretry direct from GitHub then run the import command above.
-            # $extensionURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/extension/filename.zip"
-            # DownloadWithRetry -downloadURI $extensionURI -downloadLocation $extensionPath -retries 10
-            # Extract the download to $extensionPath
-            # While (Get-AzsVMExtension -Publisher Microsoft.Compute) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}
-            # Import-AzSOfflineMarketplaceItem -origin "$extensionPath" -armendpoint "$ArmEndpoint" -AzsCredential $asdkCreds
-            # Check to see if it exists in the gallery then repeat the upload as necessary
-            #>
+            # Sideload the Custom Script Extension if the user is not registering
+            # Check there's not a gallery item already uploaded to storage
+
+            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzureRmAccount -Environment "AzureStackAdmin"
+
+            if ((Get-AzsVMExtension -Publisher Microsoft.Compute -Verbose:$false) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}) {
+                Write-Verbose -Message "You already have a valid Custom Script Extension (1.9.x) within your Azure Stack environment. App Service deployment can continue."
+            }
+            else {
+                Write-Verbose -Message "You are missing a valid Custom Script Extension (1.9.x) within your Azure Stack environment. We will manually add one to your Azure Stack"
+                $extensionPath = "$ASDKpath\appservice\extension"
+                $extensionZipPath = "$ASDKpath\appservice\extension\CSE.zip"
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                if ($deploymentMode -eq "Online") {
+                    if (-not [System.IO.File]::Exists("$ASDKpath\appservice\extension\CSE.zip")) {
+                        Write-Verbose "This is an online deployment - downloading the Custom Script Extension from GitHub"
+                        $extensionURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/extension/CSE.zip"
+                        DownloadWithRetry -downloadURI $extensionURI -downloadLocation $extensionZipPath -retries 10
+                    }
+                    else {
+                        Write-Verbose "Valid CSE.zip file found at $extensionZipPath. No need to download."
+                    }
+                }
+                elseif ($deploymentMode -ne "Online") {
+                    if (-not [System.IO.File]::Exists("$extensionZipPath")) {
+                        throw "Missing CSE.zip file in extracted dependencies folder. Please ensure this exists at $extensionZipPath - Exiting process"
+                    }
+                    else {
+                        Write-Verbose "Valid CSE.zip file found at $extensionZipPath. Continuing process."
+                    }
+                }
+                Write-Verbose "Extracting CSE.zip file"
+                Expand-Archive "$extensionZipPath" -DestinationPath "$extensionPath" -Force
+                $cseExpandedPath = (Get-ChildItem -Directory -Path $extensionPath -Force -ErrorAction Stop -Verbose).FullName
+                $uploadCSEAttempt = 1
+                $modulePath = "C:\AzureStack-Tools-master"
+                Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
+                while ($null -eq ((Get-AzsVMExtension -Publisher Microsoft.Compute -Verbose:$false) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded") -and ($uploadCSEAttempt -le 3)})) {
+                    try {
+                        Write-Verbose -Message "Upload Attempt: $uploadCSEAttempt"
+                        Import-AzSOfflineMarketplaceItem -origin "$cseExpandedPath" -armendpoint "$ArmEndpoint" -AzsCredential $asdkCreds -Verbose
+                    }
+                    catch {
+                        Write-Verbose -Message "Upload failed."
+                        Write-Verbose -Message "$_.Exception.Message"
+                        $uploadCSEAttempt++
+                    }
+                }
+            }
 
             # Update the ConfigASDK database with successful completion
             $progressStage = $progressName
