@@ -25,6 +25,9 @@ param (
     [parameter(Mandatory = $true)]
     [String] $ERCSip,
 
+    [Parameter(Mandatory = $true)]
+    [String] $branch,
+
     [parameter(Mandatory = $true)]
     [pscredential] $asdkCreds,
 
@@ -268,7 +271,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     $itemFullPath = $item.FullName
                     $uploadItemAttempt = 1
                     $sideloadCSEZipAttempt = 1
-                    $sideloadCSEAzpkgAttempt = 1
+                    #$sideloadCSEAzpkgAttempt = 1
                     while (!$(Get-AzureStorageBlob -Container $asdkExtensionContainerName -Blob $itemName -Context $asdkExtensionStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
                         try {
                             # Log back into Azure Stack to ensure login hasn't timed out
