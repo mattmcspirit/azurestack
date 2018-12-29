@@ -64,6 +64,9 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         Clear-AzureRmContext -Scope CurrentUser -Force
         Disable-AzureRMContextAutosave -Scope CurrentUser
 
+        Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
+        Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+
         # Firstly create the appropriate RG, storage account and container
         # Scan the $asdkPath\scripts folder and retrieve both files, add to an array, then upload to the storage account
         # Save URI of the container to a variable to use later

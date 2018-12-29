@@ -110,6 +110,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Clear-AzureRmContext -Scope CurrentUser -Force
         Disable-AzureRMContextAutosave -Scope CurrentUser
 
+        Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
+        Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+
         # Need to confirm if Windows Update stage previously completed
         if ($image -ne "UbuntuServer") {
             $windowsUpdateCheck = CheckProgress -progressStage "WindowsUpdates"
