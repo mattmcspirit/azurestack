@@ -123,7 +123,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
     }
 }
 elseif ($deploymentMode -eq "Online") {
-    Write-Host "This is not an offline deployent, skipping step`r`n"
+    Write-Host "This is not an offline deployment, skipping step`r`n"
     # Update the ConfigASDK database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage
