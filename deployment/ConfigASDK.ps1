@@ -1104,6 +1104,8 @@ if (!($testEnvPath -contains "C:\Program Files\Microsoft SQL Server\140\Tools\Bi
 
 if ($deploymentMode -eq "Online") {
     # Install SQL Server Module from Online PSrepository
+    Register-PsRepository -Default -Verbose:$false -ErrorAction SilentlyContinue
+    Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted -Verbose:$false -ErrorAction SilentlyContinue
     if (!(Get-InstalledModule -Name SqlServer -ErrorAction SilentlyContinue -Verbose)) {
         Install-Module SqlServer -Force -Confirm:$false -AllowClobber -Verbose -ErrorAction Stop
     }
@@ -1328,6 +1330,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $psRepositorySourceLocation = "https://www.powershellgallery.com/api/v2"
         $psRepository = Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}
         if ($psRepository) {
+            $cleanupRequired = $false
+        }
+        else {
             $cleanupRequired = $true
         }
         try {
@@ -1339,11 +1344,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         if ($psRmProfle) {
             $cleanupRequired = $true
         }
-        $psAzureRmModuleCheck = Get-Module -Name AzureRM.* -ListAvailable
-        $psAzureStorageModuleCheck = Get-Module -Name Azure.Storage -ListAvailable
-        $psAzureStackModuleCheck = Get-Module -Name AzureStack -ListAvailable
+        $psAzureModuleCheck = Get-Module -Name Azure* -ListAvailable
         $psAzsModuleCheck = Get-Module -Name Azs.* -ListAvailable
-        if (($psAzureRmModuleCheck) -or ($psAzureStorageModuleCheck) -or ($psAzureStackModuleCheck) -or ($psAzsModuleCheck) ) {
+        if (($psAzureModuleCheck) -or ($psAzsModuleCheck) ) {
             $cleanupRequired = $true
         }
 
@@ -1366,8 +1369,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             }
             Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
             Get-Module -Name Azure* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
-            if ($psRepository) {
-                Get-PSRepository -Name "PSGallery" | Unregister-PSRepository -ErrorAction SilentlyContinue
+            if (!(Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}))
+            {
+                Get-PSRepository | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")} | Unregister-PSRepository -ErrorAction SilentlyContinue
             }
             Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azure* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
             Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azs* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
