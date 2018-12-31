@@ -25,6 +25,9 @@ param (
     [parameter(Mandatory = $true)]
     [String] $ERCSip,
 
+    [Parameter(Mandatory = $true)]
+    [String] $branch,
+
     [parameter(Mandatory = $true)]
     [pscredential] $asdkCreds,
 
@@ -105,6 +108,9 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
+
+            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
+            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
 
             #### Certificates ####
             Write-Host "Generating Certificates for App Service"
@@ -210,20 +216,112 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
 
-            <# Sideload the Custom Script Extension if the user is not registering
-            # Try/Catch
-            # Check if this exists: https://docs.microsoft.com/en-us/powershell/module/azs.compute.admin/get-azsvmextension?view=azurestackps-1.5.0 needs to be greater than 1.9.0
-            # (Get-AzsVMExtension -Publisher Microsoft.Compute) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}
-            # $extensionPath = "$ASDKpath\appservice\extension"
-            # If this is an offline deployment, load from asdkpath\extensions using the $credential = Get-Credential -Message "Enter the azure stack operator credential:"
-            # If this is an online deployment, downloadwithretry direct from GitHub then run the import command above.
-            # $extensionURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/extension/filename.zip"
-            # DownloadWithRetry -downloadURI $extensionURI -downloadLocation $extensionPath -retries 10
-            # Extract the download to $extensionPath
-            # While (Get-AzsVMExtension -Publisher Microsoft.Compute) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}
-            # Import-AzSOfflineMarketplaceItem -origin "$extensionPath" -armendpoint "$ArmEndpoint" -AzsCredential $asdkCreds
-            # Check to see if it exists in the gallery then repeat the upload as necessary
-            #>
+            # Sideload the Custom Script Extension if the user is not registering
+            # Check there's not a gallery item already uploaded to storage
+            # Log back into Azure Stack
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            if ((Get-AzsVMExtension -Publisher Microsoft.Compute -Verbose:$false) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}) {
+                Write-Verbose -Message "You already have a valid Custom Script Extension (1.9.x) within your Azure Stack environment. App Service deployment can continue."
+            }
+            else {
+                Write-Verbose -Message "You are missing a valid Custom Script Extension (1.9.x) within your Azure Stack environment. We will manually add one to your Azure Stack"
+                $extensionPath = "$ASDKpath\appservice\extension"
+                $extensionZipPath = "$ASDKpath\appservice\extension\CSE.zip"
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                if ($deploymentMode -eq "Online") {
+                    if (-not [System.IO.File]::Exists("$ASDKpath\appservice\extension\CSE.zip")) {
+                        Write-Verbose "This is an online deployment - downloading the Custom Script Extension from GitHub"
+                        $extensionURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/extension/CSE.zip"
+                        DownloadWithRetry -downloadURI $extensionURI -downloadLocation $extensionZipPath -retries 10
+                    }
+                    else {
+                        Write-Verbose "Valid CSE.zip file found at $extensionZipPath. No need to download."
+                    }
+                }
+                elseif ($deploymentMode -ne "Online") {
+                    if (-not [System.IO.File]::Exists("$extensionZipPath")) {
+                        throw "Missing CSE.zip file in extracted dependencies folder. Please ensure this exists at $extensionZipPath - Exiting process"
+                    }
+                    else {
+                        Write-Verbose "Valid CSE.zip file found at $extensionZipPath. Continuing process."
+                    }
+                }
+                Write-Verbose "Extracting CSE.zip file"
+                Expand-Archive "$extensionZipPath" -DestinationPath "$extensionPath" -Force
+            
+                # Create RG and Storage
+                $asdkExtensionRGName = "azurestack-extension"
+                $asdkExtensionStorageAccountName = "asdkextensionstor"
+                $asdkExtensionContainerName = "asdkextensioncontainer"
+                # Test/Create RG
+                if (-not (Get-AzureRmResourceGroup -Name $asdkExtensionRGName -Location $azsLocation -ErrorAction SilentlyContinue)) { New-AzureRmResourceGroup -Name $asdkExtensionRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop }
+                # Test/Create Storage
+                $asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkExtensionStorageAccountName -ResourceGroupName $asdkExtensionRGName -ErrorAction SilentlyContinue
+                if (-not ($asdkStorageAccount)) { $asdkStorageAccount = New-AzureRmStorageAccount -Name $asdkExtensionStorageAccountName -Location $azsLocation -ResourceGroupName $asdkExtensionRGName -Type Standard_LRS -ErrorAction Stop }
+                Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkExtensionStorageAccountName -ResourceGroupName $asdkExtensionRGName | Out-Null
+                # Test/Create Container
+                $asdkContainer = Get-AzureStorageContainer -Name $asdkExtensionContainerName -ErrorAction SilentlyContinue
+                if (-not ($asdkContainer)) { $asdkContainer = New-AzureStorageContainer -Name $asdkExtensionContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop }
+            
+                # Upload files to Storage
+                $extensionArray = @()
+                $extensionArray.Clear()
+                $extensionArray = Get-ChildItem -Path "$extensionPath" -Recurse -Include ("*.zip", "*.azpkg") -Exclude "CSE.zip" -ErrorAction Stop -Verbose
+                foreach ($item in $extensionArray) {
+                    $itemName = $item.Name
+                    $itemFullPath = $item.FullName
+                    $uploadItemAttempt = 1
+                    $sideloadCSEZipAttempt = 1
+                    #$sideloadCSEAzpkgAttempt = 1
+                    while (!$(Get-AzureStorageBlob -Container $asdkExtensionContainerName -Blob $itemName -Context $asdkExtensionStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
+                        try {
+                            # Log back into Azure Stack to ensure login hasn't timed out
+                            Write-Host "$itemName not found. Upload Attempt: $uploadItemAttempt"
+                            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                            Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkExtensionContainerName -Blob "$itemName" -Context $asdkExtensionStorageAccount.Context -ErrorAction Stop -Verbose | Out-Null
+                        }
+                        catch {
+                            Write-Host "Upload failed."
+                            Write-Host "$_.Exception.Message"
+                            $uploadItemAttempt++
+                        }
+                    }
+                    if ($item.Extension -eq ".zip") {
+                        while ($null -eq ((Get-AzsVMExtension -Publisher Microsoft.Compute -Verbose:$false) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}) -and ($sideloadCSEZipAttempt -le 3)) {
+                            try {
+                                # Log back into Azure Stack to ensure login hasn't timed out
+                                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                                Write-Verbose -Message "Adding Custom Script Extension (ZIP) to your environment. Attempt: $sideloadCSEZipAttempt"
+                                $URI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkExtensionContainerName, $itemName
+                                $version = "1.9.1"
+                                Add-AzsVMExtension -Publisher "Microsoft.Compute" -Type "CustomScriptExtension" -Version "$version" -ComputeRole "IaaS" -SourceBlob "$URI" -VmOsType "Windows" -ErrorAction Stop -Verbose -Force
+                                Start-Sleep -Seconds 5
+                            }
+                            catch {
+                                Write-Verbose -Message "Upload failed."
+                                Write-Verbose -Message "$_.Exception.Message"
+                                $sideloadCSEZipAttempt++
+                            }
+                        }
+                    }
+                    <#elseif ($item.Extension -eq ".azpkg") {
+                        while ($null -eq (Get-AzsGalleryItem | Where-Object {($_.ItemName -like "*CustomScriptExtension*") -and ($_.Version -ge "2.0.50")}) -and ($sideloadCSEAzpkgAttempt -le 3)) {
+                            try {
+                                # Log back into Azure Stack to ensure login hasn't timed out
+                                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                                Write-Verbose -Message "Adding Custom Script Extension (AZPKG) to your environment. Attempt: $sideloadCSEAzpkgAttempt"
+                                $URI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkExtensionContainerName, $itemName
+                                Add-AzsGalleryItem -GalleryItemUri "URI" -ErrorAction Stop -Verbose -Force
+                            }
+                            catch {
+                                Write-Verbose -Message "Upload failed."
+                                Write-Verbose -Message "$_.Exception.Message"
+                                $sideloadCSEAzpkgAttempt++
+                            }
+                        }
+                    }#>
+                }
+            }
 
             # Update the ConfigASDK database with successful completion
             $progressStage = $progressName

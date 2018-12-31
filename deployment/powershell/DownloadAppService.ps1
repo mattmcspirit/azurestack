@@ -70,6 +70,9 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 if (!$([System.IO.Directory]::Exists("$ASDKpath\appservice"))) {
                     New-Item -Path "$ASDKpath\appservice" -ItemType Directory -Force | Out-Null
                 }
+                if (!$([System.IO.Directory]::Exists("$ASDKpath\appservice\extension"))) {
+                    New-Item -Path "$ASDKpath\appservice\extension" -ItemType Directory -Force | Out-Null
+                }
                 # Install App Service To be added
                 Write-Host "Downloading App Service Installer"
                 Set-Location "$ASDKpath\appservice"

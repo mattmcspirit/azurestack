@@ -68,6 +68,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Clear-AzureRmContext -Scope CurrentUser -Force
         Disable-AzureRMContextAutosave -Scope CurrentUser
 
+        Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
+        Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop

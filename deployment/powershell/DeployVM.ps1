@@ -128,6 +128,9 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
+            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
+            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+
             if ($vmType -ne "AppServiceFS") {
                 $ubuntuImageJobCheck = CheckProgress -progressStage "UbuntuServerImage"
                 while ($ubuntuImageJobCheck -ne "Complete") {

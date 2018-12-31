@@ -237,6 +237,7 @@ $dbPath = mkdir "$ASDKpath\databases" -Force
 $imagesPath = mkdir "$ASDKpath\images" -Force
 $ubuntuPath = mkdir "$imagesPath\UbuntuServer" -Force
 $appServicePath = mkdir "$ASDKpath\appservice" -Force
+$extensionPath = mkdir "$ASDKpath\appservice\extension" -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 
@@ -447,6 +448,9 @@ try {
     # App Service PreDeployment JSON
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"
     $row.filename = "AppServicePreDeploymentSettings.json"; $row.path = "$appServicePath"; $row.productName = "App Service Pre-Deployment JSON Configuration"; $Table.Rows.Add($row)
+    # App Service Custom Script Extension
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/extension/CSE.zip"
+    $row.filename = "CSE.zip"; $row.path = "$extensionPath"; $row.productName = "App Service Custom Script Extension"; $Table.Rows.Add($row)
     
     # Grab the MSI/Exe packages to be installed
     # VScode Package
@@ -572,7 +576,9 @@ $scriptStep = "POWERSHELL"
 try {
     Write-CustomVerbose -Message "Downloading PowerShell Modules for AzureRM, Azure Stack and SQL Server" -ErrorAction Stop
     Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath -Force -RequiredVersion 2.3.0 | Out-Null
-    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath -Force -RequiredVersion 1.5.0 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath -Force -RequiredVersion 1.6.0 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name Azure.Storage -Path $psPath -Force -RequiredVersion 4.5.0 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRm.Storage -Path $psPath -Force -RequiredVersion 5.0.4 | Out-Null
     Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name SQLServer -Path $psPath -Force | Out-Null
 }
 catch {

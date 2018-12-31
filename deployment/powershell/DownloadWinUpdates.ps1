@@ -57,6 +57,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
         Disable-AzureRMContextAutosave -Scope CurrentUser
+
+        Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
+        Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
         
         # Log into Azure Stack to check for existing images and push new ones if required ###
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"

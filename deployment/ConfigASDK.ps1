@@ -1104,6 +1104,8 @@ if (!($testEnvPath -contains "C:\Program Files\Microsoft SQL Server\140\Tools\Bi
 
 if ($deploymentMode -eq "Online") {
     # Install SQL Server Module from Online PSrepository
+    Register-PsRepository -Default -Verbose:$false -ErrorAction SilentlyContinue
+    Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted -Verbose:$false -ErrorAction SilentlyContinue
     if (!(Get-InstalledModule -Name SqlServer -ErrorAction SilentlyContinue -Verbose)) {
         Install-Module SqlServer -Force -Confirm:$false -AllowClobber -Verbose -ErrorAction Stop
     }
@@ -1328,6 +1330,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $psRepositorySourceLocation = "https://www.powershellgallery.com/api/v2"
         $psRepository = Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}
         if ($psRepository) {
+            $cleanupRequired = $false
+        }
+        else {
             $cleanupRequired = $true
         }
         try {
@@ -1339,11 +1344,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         if ($psRmProfle) {
             $cleanupRequired = $true
         }
-        $psAzureRmModuleCheck = Get-Module -Name AzureRM.* -ListAvailable
-        $psAzureStorageModuleCheck = Get-Module -Name Azure.Storage -ListAvailable
-        $psAzureStackModuleCheck = Get-Module -Name AzureStack -ListAvailable
+        $psAzureModuleCheck = Get-Module -Name Azure* -ListAvailable
         $psAzsModuleCheck = Get-Module -Name Azs.* -ListAvailable
-        if (($psAzureRmModuleCheck) -or ($psAzureStorageModuleCheck) -or ($psAzureStackModuleCheck) -or ($psAzsModuleCheck) ) {
+        if (($psAzureModuleCheck) -or ($psAzsModuleCheck) ) {
             $cleanupRequired = $true
         }
 
@@ -1364,13 +1367,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             catch [System.Management.Automation.CommandNotFoundException] {
                 $error.Clear()
             }
-            Get-Module -Name AzureRM.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
-            Uninstall-Module -Name Azure.Storage -Force -ErrorAction SilentlyContinue -Verbose
-            Uninstall-Module -Name AzureRM.Bootstrapper -Force -ErrorAction SilentlyContinue -Verbose
-            Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue -Verbose
             Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
-            if ($psRepository) {
-                Get-PSRepository -Name "PSGallery" | Unregister-PSRepository -ErrorAction SilentlyContinue
+            Get-Module -Name Azure* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
+            if (!(Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}))
+            {
+                Get-PSRepository | Where-Object {($_.Name -ne "$psRepositoryName") -and ($_.InstallationPolicy -ne "$psRepositoryInstallPolicy") -and ($_.SourceLocation -ne "$psRepositorySourceLocation")} | Unregister-PSRepository -ErrorAction SilentlyContinue
             }
             Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azure* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
             Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azs* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -1422,7 +1423,13 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Get-PSRepository -Name "PSGallery"
             Install-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
             Use-AzureRmProfile -Profile 2018-03-01-hybrid -Force -ErrorAction Stop
-            Install-Module -Name AzureStack -RequiredVersion 1.5.0 -Force -ErrorAction Stop
+            Install-Module -Name AzureStack -RequiredVersion 1.6.0 -Force -ErrorAction Stop
+            # Install the Azure.Storage module version 4.5.0
+            Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
+            # Install the AzureRm.Storage module version 5.0.4
+            Install-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Force -AllowClobber -Verbose
+            # Remove incompatible storage module installed by AzureRM.Storage
+            Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
         }
         elseif ($deploymentMode -ne "Online") {
             $SourceLocation = "$downloadPath\ASDK\PowerShell"
@@ -1431,8 +1438,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
             }
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
-            Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop
-            Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop
+            Install-Module AzureRM -Repository $RepoName -Force -AllowClobber -ErrorAction Stop -Verbose
+            Install-Module AzureStack -Repository $RepoName -Force -AllowClobber -ErrorAction Stop -Verbose
+            Install-Module Azure.Storage -Repository $RepoName -RequiredVersion 4.5.0 -Force -AllowClobber -ErrorAction Stop -Verbose
+            Install-Module AzureRM.Storage -Repository $RepoName -RequiredVersion 5.0.4 -Force -AllowClobber -ErrorAction Stop -Verbose
+            Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
         }
         StageComplete -progressStage $progressStage
     }
@@ -1445,6 +1455,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 elseif ($progressCheck -eq "Complete") {
     Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
+
+# Load the Storage PowerShell modules explicitly specifying the versions
+Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
+Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
 
 ### TEST ALL LOGINS #########################################################################################################################################
 #############################################################################################################################################################
@@ -2011,11 +2025,11 @@ JobLauncher -jobName $jobName -jobToExecute $DownloadAppService -Verbose
 $jobName = "AddAppServicePreReqs"
 $AddAppServicePreReqs = {
     Start-Job -Name AddAppServicePreReqs -InitializationScript $export_functions -ArgumentList $ASDKpath, $downloadPath, $deploymentMode, $authenticationType, `
-        $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $asdkCreds, $cloudAdminCreds, $ScriptLocation, $skipAppService, `
+        $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $branch, $asdkCreds, $cloudAdminCreds, $ScriptLocation, $skipAppService, `
         $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddAppServicePreReqs.ps1 -ASDKpath $Using:ASDKpath `
             -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -authenticationType $Using:authenticationType `
-            -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -secureVMpwd $Using:secureVMpwd -ERCSip $Using:ERCSip `
+            -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -secureVMpwd $Using:secureVMpwd -ERCSip $Using:ERCSip -branch $Using:branch `
             -asdkCreds $Using:asdkCreds -cloudAdminCreds $Using:cloudAdminCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService `
             -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
