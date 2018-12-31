@@ -5,6 +5,11 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1811.1?
+* Updated to support Azure Stack PowerShell 1.6.0
+* Adding v1.9.1 of Custom Script Extension when not registering to allow App Service install
+* Bug fixes
+
 ### What's new in version 1811?
 * Updated to support ASDK 1.1811.0.101
 * Updated Windows Server image updates with dynamically obtaining Servicing Stack Update
