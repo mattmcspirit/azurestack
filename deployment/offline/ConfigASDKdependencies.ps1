@@ -237,6 +237,7 @@ $dbPath = mkdir "$ASDKpath\databases" -Force
 $imagesPath = mkdir "$ASDKpath\images" -Force
 $ubuntuPath = mkdir "$imagesPath\UbuntuServer" -Force
 $appServicePath = mkdir "$ASDKpath\appservice" -Force
+$extensionPath = mkdir "$ASDKpath\appservice\extension" -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 
@@ -447,6 +448,9 @@ try {
     # App Service PreDeployment JSON
     $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"
     $row.filename = "AppServicePreDeploymentSettings.json"; $row.path = "$appServicePath"; $row.productName = "App Service Pre-Deployment JSON Configuration"; $Table.Rows.Add($row)
+    # App Service Custom Script Extension
+    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/extension/CSE.zip"
+    $row.filename = "CSE.zip"; $row.path = "$extensionPath"; $row.productName = "App Service Custom Script Extension"; $Table.Rows.Add($row)
     
     # Grab the MSI/Exe packages to be installed
     # VScode Package
