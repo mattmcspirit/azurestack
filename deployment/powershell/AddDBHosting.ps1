@@ -38,10 +38,7 @@ param (
     [String] $databaseName,
 
     [Parameter(Mandatory = $true)]
-    [String] $tableName,
-
-    [Parameter(Mandatory = $false)]
-    [String] $serialMode
+    [String] $tableName
 )
 
 $Global:VerbosePreference = "Continue"
