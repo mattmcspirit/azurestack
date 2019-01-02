@@ -161,8 +161,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
                         $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
                         while ($mySQLProgressCheck -eq "Incomplete") {
-                            Write-Host "The MySQLRP stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 30 seconds"
-                            Start-Sleep -Seconds 30
+                            Write-Host "The MySQLRP stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                            Start-Sleep -Seconds 60
                             $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
                             if ($mySQLProgressCheck -eq "Failed") {
                                 Write-Host "MySQLRP deployment seems to have failed, but this doesn't affect the SQL Server RP Deployment. Process can continue."
@@ -174,8 +174,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 elseif ($dbrp -eq "MySQL") {
                     $appDBProgressCheck = CheckProgress -progressStage "AppServiceSQLServer"
                     while ($appDBProgressCheck -eq "Incomplete") {
-                        Write-Host "The AppServiceSQLServer stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 30 seconds"
-                        Start-Sleep -Seconds 30
+                        Write-Host "The AppServiceSQLServer stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                        Start-Sleep -Seconds 60
                         $appDBProgressCheck = CheckProgress -progressStage "AppServiceSQLServer"
                         if ($appDBProgressCheck -eq "Failed") {
                             Write-Host "AppServiceSQLServer deployment seems to have failed, but this doesn't affect the Database RP Deployment. Process can continue."

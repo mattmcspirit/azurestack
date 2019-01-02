@@ -213,8 +213,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 if ($vmType -eq "SQLServer") {
                     $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
                     while ($mySQLProgressCheck -eq "Incomplete") {
-                        Write-Host "The MySQLDBVM stage of the process has not yet completed. Checking again in 30 seconds"
-                        Start-Sleep -Seconds 30
+                        Write-Host "The MySQLDBVM stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                        Start-Sleep -Seconds 60
                         $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
                         if ($mySQLProgressCheck -eq "Failed") {
                             Write-Host "MySQLDBVM deployment seems to have failed, but this doesn't affect the SQL Server VM Deployment. Process can continue."
@@ -225,8 +225,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 elseif ($vmType -eq "AppServiceDB") {
                     $msSQLProgressCheck = CheckProgress -progressStage "SQLServerDBVM"
                     while (($msSQLProgressCheck -eq "Incomplete")) {
-                        Write-Host "The SQLServerDBVM stage of the process has not yet completed. Checking again in 30 seconds"
-                        Start-Sleep -Seconds 30
+                        Write-Host "The SQLServerDBVM stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                        Start-Sleep -Seconds 60
                         $msSQLProgressCheck = CheckProgress -progressStage "SQLServerDBVM"
                         if ($msSQLProgressCheck -eq "Failed") {
                             Write-Host "SQLServerDBVM deployment seems to have failed, but this doesn't affect the App Service DB VM Deployment. Process can continue."
@@ -237,8 +237,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 elseif ($vmType -eq "AppServiceFS") {
                     $sqlRPProgressCheck = CheckProgress -progressStage "SQLServerRP"
                     while (($sqlRPProgressCheck -eq "Incomplete")) {
-                        Write-Host "The SQLServerRP stage of the process has not yet completed. Checking again in 30 seconds"
-                        Start-Sleep -Seconds 30
+                        Write-Host "The SQLServerRP stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                        Start-Sleep -Seconds 60
                         $sqlRPProgressCheck = CheckProgress -progressStage "SQLServerRP"
                         if ($sqlRPProgressCheck -eq "Failed") {
                             Write-Host "SQLServerRP deployment seems to have failed, but this doesn't affect the App Service File Server VM Deployment. Process can continue."
