@@ -219,6 +219,23 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             # Sideload the Custom Script Extension if the user is not registering
             # Check there's not a gallery item already uploaded to storage
             # Log back into Azure Stack
+            # Firstly need to establish a check to see if the AddVmExtensions job is executing (to avoid conflict) and if it is, wait.  If it's not, start the sideload process.
+
+            $AddVmExtensionsJobCheck = CheckProgress -progressStage "AddVMExtensions"
+            while ($AddVmExtensionsJobCheck -ne "Complete") {
+                Write-Host "The AddVMExtensions stage of the process has not yet completed. Checking again in 20 seconds"
+                Start-Sleep -Seconds 20
+                $AddVmExtensionsJobCheck = CheckProgress -progressStage "AddVMExtensions"
+                if ($AddVmExtensionsJobCheck -eq "Skipped") {
+                    Write-Host "The AddVMExtensions stage of the process was skipped - the script will proceed to sideload a valid Custom Script Extension (1.9.x) into your Azure Stack environment to allow App Service deployment to continue."
+                    BREAK
+                }
+                elseif ($AddVmExtensionsJobCheck -eq "Failed") {
+                    Write-Host "The AddVMExtensions stage of the process failed - the script will proceed to sideload a valid Custom Script Extension (1.9.x) into your Azure Stack environment to allow App Service deployment to continue."
+                    BREAK
+                }
+            }
+
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             if ((Get-AzsVMExtension -Publisher Microsoft.Compute -Verbose:$false) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}) {
                 Write-Verbose -Message "You already have a valid Custom Script Extension (1.9.x) within your Azure Stack environment. App Service deployment can continue."
