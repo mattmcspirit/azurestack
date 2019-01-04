@@ -39,6 +39,10 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1811.2  New -serialMode to deploy VMs one at a time - useful for older, lower performance hardware
+    1811.1  Updated to support Azure Stack PowerShell 1.6.0
+            Adding v1.9.1 of Custom Script Extension when not registering to allow App Service install
+            Bug fixes
     1811    Updated to support 1.1811.0.101
             Updated Windows Server image updates with dynamically obtaining Servicing Stack Update
             Increased App Service VM Image size - More reliable
