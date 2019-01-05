@@ -148,6 +148,18 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         }
                         $kbDownloads += "$ssuKbIDs"
                     }
+
+                    # Get latest Malicious Software Update and other relevant updates
+                    #$maliciousKb = (((Invoke-WebRequest -Uri "https://www.microsoft.com/en-us/download/malicious-software-removal-tool-details.aspx" -UseBasicParsing).links | Select-Object href | Where-Object {($_.href -like "http:*KB*")} | Sort-Object | Select-Object -First 1).href.ToString()).Split("/")[4].Trim()
+                    #$updateArray = @("$maliciousKb", "4091664")
+                    $updateArray = @("4091664")
+                    foreach ($update in $updateArray) {
+                        Write-Host "Build is $buildVersion - Need to download: KB$($update) to ensure image is fully updated at first run"
+                        $updateKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$update%20x64%202016" -UseBasicParsing
+                        $updateAvailable_kbIDs = $updateKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID | Select-Object -First 1
+                        $updateAvailable_kbIDs | Out-String | Write-Host
+                        $kbDownloads += "$updateAvailable_kbIDs"
+                    }
                 }
 
                 # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
@@ -186,8 +198,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
                 # Download the corresponding Windows Server 2016 Cumulative Update (and possibly, Servicing Stack Updates)
                 foreach ( $Url in $Urls ) {
-                    $filename = (((($Url.Substring($Url.LastIndexOf("/") + 1)).Split("-", 2)[1]).Split("-x", 2)[0]).ToUpper())
-                    $filename = "$($filename).msu"
+                    $filename = (($Url.Substring($Url.LastIndexOf("/") + 1)).Split("-", 2)[1])
+                    $filename = $filename -replace "_.*\.","."
                     $target = "$((Get-Item $ASDKpath).FullName)\images\$filename"
                     if (!(Test-Path -Path $target)) {
                         foreach ($ssu in $ssuArray) {
@@ -207,7 +219,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
                 if ($buildVersion -eq "14393") {
                     foreach ($ssu in $ssuArray) {
-                        if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393_SSU_KB$($ssu).msu")) {
+                        if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393_ssu_kb$($ssu).msu")) {
                             Write-Host "The 14393 Servicing Stack Update already exists within the target folder"
                         }
                         else {
