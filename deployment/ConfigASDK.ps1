@@ -1376,8 +1376,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             }
             Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
             Get-Module -Name Azure* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
-            if (!(Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}))
-            {
+            if (!(Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")})) {
                 Get-PSRepository | Where-Object {($_.Name -ne "$psRepositoryName") -and ($_.InstallationPolicy -ne "$psRepositoryInstallPolicy") -and ($_.SourceLocation -ne "$psRepositorySourceLocation")} | Unregister-PSRepository -ErrorAction SilentlyContinue
             }
             Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azure* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -2575,8 +2574,8 @@ if ($scriptSuccess) {
     Write-CustomVerbose -Message "Congratulations - all steps completed successfully:`r`n"
     Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction Stop
 
-    if ([bool](Get-ChildItem -Path $downloadPath\* -Include "*.txt" -ErrorAction SilentlyContinue -Verbose)) {
-        # Move log files to Completed folder - first check for 'Completed' folder, and create if not existing
+    if ([bool](Get-ChildItem -Path $downloadPath\* -Include "*.txt", "*.ps1" -ErrorAction SilentlyContinue -Verbose)) {
+        # Move log files and cleanup files to Completed folder - first check for 'Completed' folder, and create if not existing
         if (!$([System.IO.Directory]::Exists("$downloadPath\Completed"))) {
             New-Item -Path "$downloadPath\Completed" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
         }
@@ -2584,7 +2583,7 @@ if ($scriptSuccess) {
         $completedPath = "$downloadPath\Completed\$runTime"
         New-Item -Path "$completedPath" -ItemType Directory -Force -ErrorAction SilentlyContinue -Verbose | Out-Null
         # Then move the files to this folder
-        Get-ChildItem -Path "$downloadPath\*" -Include "*.txt" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ -Destination "$completedPath" -Force -ErrorAction SilentlyContinue -Verbose }
+        Get-ChildItem -Path "$downloadPath\*" -Include "*.txt", "*.ps1" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ -Destination "$completedPath" -Force -ErrorAction SilentlyContinue -Verbose }
     }
 
     Write-CustomVerbose -Message "Retaining App Service Certs for potential App Service updates in the future"
