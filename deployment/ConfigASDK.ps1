@@ -1165,7 +1165,7 @@ $configAsdkSqlLoginExists = Get-SqlLogin -ServerInstance $sqlServerInstance -Log
 if (!$configAsdkSqlLoginExists) {
     $sqlLocalDbAdmin = "asdkadmin"
     $sqlLocalDbCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $sqlLocalDbAdmin, $secureVMpwd -ErrorAction Stop
-    Add-SqlLogin -ServerInstance $sqlServerInstance -LoginName "asdkadmin" -LoginPSCredential $sqlLocalDbCreds -LoginType SqlLogin -DefaultDatabase "ConfigASDK" -Enable -GrantConnectSql -ErrorAction SilentlyContinue
+    Add-SqlLogin -ServerInstance $sqlServerInstance -LoginName "asdkadmin" -LoginPSCredential $sqlLocalDbCreds -LoginType SqlLogin -DefaultDatabase "ConfigASDK" -Enable -GrantConnectSql -ErrorAction SilentlyContinue -Verbose:$false
 }
 else {
     Write-Host "The ConfigASDK Admin Login already exists. No need to recreate."
