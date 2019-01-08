@@ -137,12 +137,33 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Set-Location "$AppServicePath"
                     $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.local.azurestack.external" -TenantArmEndpoint "management.local.azurestack.external" `
                         -CertificateFilePath "$AppServicePath\sso.appservice.local.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds
-                    $appIdPath = "$downloadPath\ApplicationIDBackup.txt"
                     $identityApplicationID = $applicationId
-                    New-Item $appIdPath -ItemType file -Force
-                    Write-Output $identityApplicationID > $appIdPath
                     Write-Host "You don't need to sign into the Azure Portal to grant permissions, ASDK Configurator will automate this for you. Please wait."
                     Start-Sleep -Seconds 20
+                    # Create Cleanup Doc - First Create File
+                    $cleanUpAppServicePs1Path = "$downloadPath\ASDKAppServiceCleanUp.ps1"
+                    Remove-Item -Path $cleanUpAppServicePs1Path -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
+                    New-Item "$cleanUpAppServicePs1Path" -ItemType file -Force
+                    # Populate key info
+                    Write-Output "# This script should be used to remove an App Service resource from Azure AD, prior to redeploying your ASDK on this hardware." -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    Write-Output "# Values are already populated based on the prior deployment.`n" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    Write-Output "# Populate key parameters" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    Write-Output "`$identityApplicationID = `"$identityApplicationID`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    # Populate AAD Information
+                    Write-Output "`n# Populate AAD Information" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    $azureUsername = $($asdkCreds).UserName
+                    Write-Output "`$azureUsername = `"$azureUsername`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    Write-Output "`$azureTenantID = `"$tenantID`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    Write-Output "`$azureCreds = Get-Credential -UserName `"$azureUsername`" -Message `"Enter the AAD password you used when deploying this ASDK with the username: $azureUsername.`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    Write-Output "`$azureLogin = Add-AzureRmAccount -EnvironmentName `"AzureCloud`" -tenantId `"$tenantId`" -Credential `$azureCreds" -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    # Remove the App from Azure AD
+                    Write-Output "`n# Remove the App from Azure AD" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    Write-Output "`$appToRemove = Get-AzureRmADApplication | Where-Object {`$_.ApplicationId -eq `"$identityApplicationID`"} -ErrorAction SilentlyContinue -Verbose" | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    Write-Output "Set-AzureRMADApplication -ObjectId `$appToRemove.ObjectId -AvailableToOtherTenants `$false -Verbose -ErrorAction Stop" | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    Write-Output "Remove-AzureRMADApplication -ObjectId `$appToRemove.ObjectId -ErrorAction Stop -Verbose -Force" | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    $appIdPath = "$downloadPath\ApplicationIDBackup.txt"
+                    New-Item $appIdPath -ItemType file -Force
+                    Write-Output $identityApplicationID > $appIdPath
                 }
                 elseif ($authenticationType.ToString() -like "ADFS") {
                     $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
