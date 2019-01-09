@@ -2646,8 +2646,8 @@ if ($scriptSuccess) {
     try {Invoke-WebRequest "http://bit.ly/asdksuccessrun" -UseBasicParsing -DisableKeepAlive | Out-Null } catch {$_.Exception.Response.StatusCode.Value__}
 
     # Final Cleanup
-    while (Get-ChildItem -Path "$downloadPath\*" -Include "*.txt" -ErrorAction SilentlyContinue -Verbose) {
-        Get-ChildItem -Path "$downloadPath\*" -Include "*.txt" -ErrorAction SilentlyContinue -Verbose | Remove-Item -Force -Verbose -ErrorAction SilentlyContinue
+    while (Get-ChildItem -Path "$downloadPath\*" -Include "*.txt","*.ps1" -ErrorAction SilentlyContinue -Verbose) {
+        Get-ChildItem -Path "$downloadPath\*" -Include "*.txt","*.ps1" -ErrorAction SilentlyContinue -Verbose | Remove-Item -Force -Verbose -ErrorAction SilentlyContinue
     }
 
     # Take a copy of the log file at this point
