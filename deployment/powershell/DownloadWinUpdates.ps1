@@ -203,8 +203,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     $target = "$((Get-Item $ASDKpath).FullName)\images\$filename"
                     if (!(Test-Path -Path $target)) {
                         foreach ($ssu in $ssuArray) {
-                            if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393_SSU_KB$($ssu).msu")) {
-                                Remove-Item -Path "$((Get-Item $ASDKpath).FullName)\images\14393_SSU_KB$($ssu).msu" -Force -Verbose -ErrorAction Stop
+                            if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393_ssu_kb$($ssu).msu")) {
+                                Remove-Item -Path "$((Get-Item $ASDKpath).FullName)\images\14393_ssu_kb$($ssu).msu" -Force -Verbose -ErrorAction Stop
                             }
                         }
                         Write-Host "Update will be stored at $target"
@@ -225,7 +225,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         else {
                             Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
                             #Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -ErrorAction Stop -Verbose
-                            Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "14393_SSU_KB$($ssu).msu" -Force -ErrorAction Stop -Verbose
+                            Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "14393_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
                         }
                     }
                     $target = "$ASDKpath\images"
