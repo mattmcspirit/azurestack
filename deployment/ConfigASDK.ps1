@@ -1707,7 +1707,8 @@ if ($registerASDK -and ($deploymentMode -ne "Offline")) {
             Write-Output "`$asdkRegName = `"$asdkRegName`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
             # Populate AAD Registration Information
             Write-Output "`n# Populate AAD Registration Information" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
-            Write-Output "`$azureRegCreds = Get-Credential -UserName `"$azureRegUsername`" -Message `"Enter the credentials you used to register this ASDK for username:$azureRegUsername.`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
+            $azureUsername = $azureRegCreds.Username
+            Write-Output "`$azureRegCreds = Get-Credential -UserName `"$azureUsername`" -Message `"Enter the credentials you used to register this ASDK for username:$azureUsername.`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
             Write-Output "`$azureRegSubId = `"$azureRegSubId`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
             Write-Output "`$azureRegSub = Add-AzureRmAccount -EnvironmentName `"AzureCloud`" -SubscriptionId `"$azureRegSubId`" -Credential `$azureRegCreds" -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
             # Get ASDK Privileged Endpoint Creds
