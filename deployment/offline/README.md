@@ -1,4 +1,4 @@
-ASDK Configurator 1811.1 | Offline Mode
+ASDK Configurator 1811.2 | Offline Mode
 ==============
 
 Who is this for?
@@ -34,6 +34,10 @@ The ASDK Configurator will deploy a total of 12 additional virtual machines to s
 **Total with all RPs deployed = 34GB in addition to the core running Azure Stack ASDK VMs**
 
 Before you run the ASDK Configurator, ensure that you have enough memory available on your ASDK host system. On a typical ASDK system, the core Azure Stack VMs will already consume between 50-60GB of host memory, so please ensure you have enough remaining to deploy the additional resource providers. As per the updated specs here: https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-deploy-considerations, a system with at least 192GB memory is recommended to evaluate all features.
+
+Running on older/low perf hardware
+------------
+If your system doesn't have SSDs, or is an older model, the ASDK Configurator may experience issues during parallel deployment of virtual machines. This may also be true in environments where you have virtualized the ASDK, and are running it nested on an alternative virtualization/cloud platform, such as ESXi, or in an Azure VM. If that's the case, it's recommended to run the ConfigASDK.ps1 script with the **-serialMode flag**, and this will instruct the script to deploy any VMs, one at a time. This takes a little longer, but offers increased reliability on systems with lower levels of performance.
 
 Step by Step Guidance - Download Dependencies
 ------------
