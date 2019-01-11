@@ -147,7 +147,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 throw "Missing File Server FQDN - Exiting process"
             }
             if ($VMpwd) {
-                Write-Host "Virtual Machine password is present: $VMpwd"
+                Write-Host "Virtual Machine password is present."
             }
             else {
                 throw "Missing Virtual Machine password - Exiting process"

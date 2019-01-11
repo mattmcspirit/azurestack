@@ -50,7 +50,10 @@ param (
     [String] $databaseName,
 
     [Parameter(Mandatory = $true)]
-    [String] $tableName
+    [String] $tableName,
+
+    [Parameter(Mandatory = $false)]
+    [String] $serialMode
 )
 
 $Global:VerbosePreference = "Continue"
@@ -194,15 +197,57 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             # Need to confirm that both DB Hosting VM deployments don't operate at exactly the same time, or there may be a conflict with creating the resource groups and other resources at the start of the deployment
-            if ($vmType -eq "SQLServer") {
-                if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
-                    $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
-                    if ($mySQLProgressCheck -ne "Complete") {
-                        Write-Host "To avoid deployment conflicts, delaying the SQL Server VM deployment by 2 minutes to allow initial resources to be created"
-                        Start-Sleep -Seconds 120
+            if ($serialMode -eq $false) {
+                if ($vmType -eq "SQLServer") {
+                    if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
+                        $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
+                        if ($mySQLProgressCheck -ne "Complete") {
+                            Write-Host "To avoid deployment conflicts, delaying the SQL Server VM deployment by 2 minutes to allow initial resources to be created"
+                            Start-Sleep -Seconds 120
+                        }
                     }
                 }
             }
+            # If the user had chosen to deploy with SerialMode, this will stagger the VM deployments, one after another.
+            if ($serialMode -eq $true) {
+                if ($vmType -eq "SQLServer") {
+                    $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
+                    while ($mySQLProgressCheck -eq "Incomplete") {
+                        Write-Host "The MySQLDBVM stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                        Start-Sleep -Seconds 60
+                        $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
+                        if ($mySQLProgressCheck -eq "Failed") {
+                            Write-Host "MySQLDBVM deployment seems to have failed, but this doesn't affect the SQL Server VM Deployment. Process can continue."
+                            BREAK
+                        }
+                    }
+                }
+                elseif ($vmType -eq "AppServiceDB") {
+                    $msSQLProgressCheck = CheckProgress -progressStage "SQLServerDBVM"
+                    while (($msSQLProgressCheck -eq "Incomplete")) {
+                        Write-Host "The SQLServerDBVM stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                        Start-Sleep -Seconds 60
+                        $msSQLProgressCheck = CheckProgress -progressStage "SQLServerDBVM"
+                        if ($msSQLProgressCheck -eq "Failed") {
+                            Write-Host "SQLServerDBVM deployment seems to have failed, but this doesn't affect the App Service DB VM Deployment. Process can continue."
+                            BREAK
+                        }
+                    }
+                }
+                elseif ($vmType -eq "AppServiceFS") {
+                    $sqlRPProgressCheck = CheckProgress -progressStage "SQLServerRP"
+                    while (($sqlRPProgressCheck -eq "Incomplete")) {
+                        Write-Host "The SQLServerRP stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                        Start-Sleep -Seconds 60
+                        $sqlRPProgressCheck = CheckProgress -progressStage "SQLServerRP"
+                        if ($sqlRPProgressCheck -eq "Failed") {
+                            Write-Host "SQLServerRP deployment seems to have failed, but this doesn't affect the App Service File Server VM Deployment. Process can continue."
+                            BREAK
+                        }
+                    }
+                }
+            }
+
             ### Login to Azure Stack ###
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop

@@ -5,6 +5,11 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1811.2?
+* New -serialMode to deploy VMs one at a time - useful for older, lower performance hardware
+* Support for Database RPs 1.1.33.0
+* Bug fixes and logging cleanup - removal of passwords from logs
+
 ### What's new in version 1811.1?
 * Updated to support Azure Stack PowerShell 1.6.0
 * Adding v1.9.1 of Custom Script Extension when not registering to allow App Service install

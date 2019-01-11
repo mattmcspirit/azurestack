@@ -41,7 +41,10 @@ param (
     [String] $databaseName,
 
     [Parameter(Mandatory = $true)]
-    [String] $tableName
+    [String] $tableName,
+
+    [Parameter(Mandatory = $false)]
+    [String] $serialMode
 )
 
 $Global:VerbosePreference = "Continue"
@@ -117,6 +120,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     throw "The ServerCoreImage stage of the process has failed. This should fully complete before the Windows Server full image is created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
                 }
             }
+
             ### Login to Azure Stack ###
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
@@ -152,15 +156,46 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Start-Sleep -Seconds 240
 
             # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
-            if ($dbrp -eq "SQLServer") {
-                if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
-                    $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
-                    if ($mySQLProgressCheck -ne "Complete") {
-                        Write-Host "To avoid deployment conflicts with the MySQL RP, delaying the SQL Server RP deployment by 2 minutes"
-                        Start-Sleep -Seconds 120
+            if ($serialMode -eq $true) {
+                if ($dbrp -eq "SQLServer") {
+                    if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
+                        $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
+                        while ($mySQLProgressCheck -eq "Incomplete") {
+                            Write-Host "The MySQLRP stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                            Start-Sleep -Seconds 60
+                            $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
+                            if ($mySQLProgressCheck -eq "Failed") {
+                                Write-Host "MySQLRP deployment seems to have failed, but this doesn't affect the SQL Server RP Deployment. Process can continue."
+                                BREAK
+                            }
+                        }
+                    }
+                }
+                elseif ($dbrp -eq "MySQL") {
+                    $appDBProgressCheck = CheckProgress -progressStage "AppServiceSQLServer"
+                    while ($appDBProgressCheck -eq "Incomplete") {
+                        Write-Host "The AppServiceSQLServer stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                        Start-Sleep -Seconds 60
+                        $appDBProgressCheck = CheckProgress -progressStage "AppServiceSQLServer"
+                        if ($appDBProgressCheck -eq "Failed") {
+                            Write-Host "AppServiceSQLServer deployment seems to have failed, but this doesn't affect the Database RP Deployment. Process can continue."
+                            BREAK
+                        }
                     }
                 }
             }
+            elseif ($serialMode -eq $false) {
+                if ($dbrp -eq "SQLServer") {
+                    if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
+                        $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
+                        if ($mySQLProgressCheck -eq "Incomplete") {
+                            Write-Host "To avoid deployment conflicts with the MySQL RP, delaying the SQL Server RP deployment by 2 minutes"
+                            Start-Sleep -Seconds 120
+                        }
+                    }
+                }
+            }
+
             # Login to Azure Stack
             Write-Host "Downloading and installing $dbrp Resource Provider"
             if (!$([System.IO.Directory]::Exists("$ASDKpath\databases"))) {
@@ -171,7 +206,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Remove-Item "$asdkPath\databases\$dbrp" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 Remove-Item "$ASDKpath\databases\$($dbrp).zip" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 # Download and Expand the RP files
-                $rpURI = "https://aka.ms/azurestack$($rp)rp11300"
+                $rpURI = "https://aka.ms/azurestack$($rp)rp11330"
                 $rpDownloadLocation = "$ASDKpath\databases\$($dbrp).zip"
                 DownloadWithRetry -downloadURI "$rpURI" -downloadLocation "$rpDownloadLocation" -retries 10
             }

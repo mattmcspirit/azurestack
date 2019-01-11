@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1811.1
+Azure Stack Development Kit Configurator 1811.2
 ==============
 
 Version Compatibility
@@ -49,6 +49,7 @@ This includes:
 * Progress Tracking and rerun reliability with ConfigASDK database hosted on SqlLocalDB (2017)
 * Stores script output in a ConfigASDKOutput.txt, for future reference
 * Supports usage in offline/disconnected environments
+* New -serialMode which excecutes VM deployments in serial, rather than parallel - better for older hardware
 
 Additionally, if you encounter an issue, try re-running the script with the same command you used to run it previously. The script is written in such a way that it shouldn't try to rerun previously completed steps.
 
@@ -73,6 +74,10 @@ The ASDK Configurator will deploy a total of 12 additional virtual machines to s
 **Total with all RPs deployed = 34GB in addition to the core running Azure Stack ASDK VMs**
 
 Before you run the ASDK Configurator, ensure that you have enough memory available on your ASDK host system. On a typical ASDK system, the core Azure Stack VMs will already consume between 50-60GB of host memory, so please ensure you have enough remaining to deploy the additional resource providers. As per the updated specs here: https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-deploy-considerations, a system with at least 192GB memory is recommended to evaluate all features.
+
+Running on older/low performance hardware
+------------
+If your system doesn't have SSDs, or is an older system, the ASDK Configurator may experience issues during parallel deployment of virtual machines. This may also be true in environments where you have virtualized the ASDK, and are running it nested on an alternative virtualization/cloud platform, such as ESXi, or in an Azure VM. If that's the case, it's recommended to run the ConfigASDK.ps1 script with the **-serialMode flag**, and this will instruct the script to deploy any VMs, one at a time. This takes a little longer, but offers increased reliability on systems with lower levels of performance.
 
 Offline/Disconnected Support
 ------------
@@ -118,6 +123,7 @@ With the script downloaded successfully, you can move on to running the script. 
 * Use the **-registerASDK** flag to instruct the script to register your ASDK to Azure.
 * Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK.
 * If you specify -registerASDK but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials.
+* If you are using older hardware, or lower performance hardware with no SSD storage, and are experiencing VM deployment errors, use **-serialMode** to set the script to deploy VMs one at a time, rather than in parallel. This can help with reliability on older, lower performance hardware.
 
 Usage Examples:
 -------------
@@ -185,7 +191,6 @@ Post-Script Actions
 This script can take many hours to finish, depending on your hardware and download speeds. There are no specific post-script actions to perform after the script has finished.
 
 ### Known Issues
-* App Service requires Custom Script Extension (CSE) 1.9.0 or newer. Currently, the inbox CSE is version 1.8. Unless you register the ASDK as part of this process, the CSE will be missing and the App Service install will fail. This will be automated in a future release.
 * Windows Server 2019 or any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809) are not validated for support with the database and App Service resource providers, so don't use those builds at this time. Use the Windows Server 2016 evaluation release.
 * Do not use a mapped drive for your -downloadPath on your ASDK host. There are known issues which are yet to be resolved. Please use a local drive.
 
