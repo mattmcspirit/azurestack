@@ -1767,6 +1767,40 @@ else {
 # Get Azure Stack location
 $azsLocation = (Get-AzsLocation).Name
 
+### SCRIPT CHECK #############################################################################################################################################
+##############################################################################################################################################################
+
+try {
+    $scriptPath = [System.IO.Directory]::Exists("$ScriptLocation\Scripts")
+    if ($scriptPath -eq $true) {
+        $scriptPath = "$ScriptLocation\Scripts"
+        $scriptArray = @()
+        $scriptArray.Clear()
+        $scriptArray = "AddAppServicePreReqs.ps1", "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", `
+            "DeployAppService.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadAppService.ps1", "DownloadWinUpdates.ps1", "GetJobStatus.ps1", "UploadScripts.ps1"
+        foreach ($script in $scriptArray) {
+            $testScript = [System.IO.File]::Exists("$scriptPath\$script")
+            if ($testScript -eq $false) {
+                throw "Didn't find $script within the $scriptPath folder. If this is a rerun, ensure your ConfigASDK.ps1 file is located in the same location as the first run, for example, if your ConfigASDK.ps1 file is located at `
+C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\ConfigASDK\Scripts. Moving your ConfigASDK.ps1 file to another folder for a rerun will likely cause the script to fail, unless you also move your Scripts folder."
+                return
+            }
+            else {
+                Write-Host "$script located at $scriptPath\$script"
+            }
+        }
+    }
+    elseif ($scriptPath -eq $false) {
+        throw "Didn't find the Scripts folder located with your ConfigASDK.ps1 file. If this is a rerun, ensure your ConfigASDK.ps1 file is located in the same location as the first run, for example, if your ConfigASDK.ps1 file is located at `
+C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\ConfigASDK\Scripts. Moving your ConfigASDK.ps1 file to another folder for a rerun will likely cause the script to fail, unless you also move your Scripts folder."
+        return
+    }
+}
+catch {
+    throw $_.Exception.Message
+    return
+}
+
 ### ADD VM IMAGES - JOB SETUP ################################################################################################################################
 ##############################################################################################################################################################
 
@@ -2648,8 +2682,8 @@ if ($scriptSuccess) {
     try {Invoke-WebRequest "http://bit.ly/asdksuccessrun" -UseBasicParsing -DisableKeepAlive | Out-Null } catch {$_.Exception.Response.StatusCode.Value__}
 
     # Final Cleanup
-    while (Get-ChildItem -Path "$downloadPath\*" -Include "*.txt","*.ps1" -ErrorAction SilentlyContinue -Verbose) {
-        Get-ChildItem -Path "$downloadPath\*" -Include "*.txt","*.ps1" -ErrorAction SilentlyContinue -Verbose | Remove-Item -Force -Verbose -ErrorAction SilentlyContinue
+    while (Get-ChildItem -Path "$downloadPath\*" -Include "*.txt", "*.ps1" -ErrorAction SilentlyContinue -Verbose) {
+        Get-ChildItem -Path "$downloadPath\*" -Include "*.txt", "*.ps1" -ErrorAction SilentlyContinue -Verbose | Remove-Item -Force -Verbose -ErrorAction SilentlyContinue
     }
 
     # Take a copy of the log file at this point
