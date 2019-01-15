@@ -250,7 +250,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             ### Get the package information ###
             $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
             $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-            $product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object -Property @{Expression = {$_.properties.offerVersion}; Ascending = $true} | Select-Object -Last 1 -ErrorAction Stop
+            $productList = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object -Property @{Expression = {$_.properties.offerVersion}; Ascending = $false} -ErrorAction Stop
+            foreach ($product in $productList) {
+                if (($product.properties.productProperties.version).Length -gt 14) {
+                    $product.properties.productProperties.version = ($product.properties.productProperties.version) -replace ".$"
+                }
+            }
+            $product = $productList | Sort-Object -Property @{Expression = {$_.properties.productProperties.version}; Ascending = $true} | Select-Object -Last 1 -ErrorAction Stop
+            #$product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object -Property @{Expression = {$_.properties.offerVersion}; Ascending = $true} | Select-Object -Last 1 -ErrorAction Stop
 
             $azpkg.id = $product.name.Split('/')[-1]
             $azpkg.type = $product.properties.productKind
