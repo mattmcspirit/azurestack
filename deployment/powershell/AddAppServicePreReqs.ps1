@@ -375,6 +375,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
     }
 }
 elseif ($skipAppService -and ($progressCheck -ne "Complete")) {
+    Write-Host "Operator chose to skip App Service Deployment`r`n"
     # Update the ConfigASDK database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage
