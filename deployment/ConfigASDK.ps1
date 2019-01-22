@@ -858,16 +858,16 @@ if ($authenticationType.ToString() -like "AzureAd") {
     
         Write-CustomVerbose -Message "Checking to see if the Azure AD username is correctly formatted..."
     
-        if ($azureRegUsername -cmatch $emailRegex -eq $true) {
+        if ($azureRegUsername.ToLower() -cmatch $emailRegex -eq $true) {
             Write-CustomVerbose -Message "Azure AD username is correctly formatted." 
             Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure."
         }
     
-        elseif ($azureRegUsername -cmatch $emailRegex -eq $false) {
+        elseif ($azureRegUsername.ToLower() -cmatch $emailRegex -eq $false) {
             Write-CustomVerbose -Message "Azure AD username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
             # Obtain new username
             $azureRegUsername = Read-Host "Enter Azure AD username again"
-            if ($azureRegUsername -cmatch $emailRegex -eq $true) {
+            if ($azureRegUsername.ToLower() -cmatch $emailRegex -eq $true) {
                 Write-CustomVerbose -Message "Azure AD username is correctly formatted." 
                 Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure." 
             }
