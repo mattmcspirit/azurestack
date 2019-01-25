@@ -16,21 +16,11 @@
             },
             {
                 "name": "scriptBaseUrl",
-                "type": "Microsoft.Common.DropDown",
+                "type": "Microsoft.Common.TextBox",
                 "label": "SQL Server 2017 Install Script URL",
-                "defaultValue": "ONLINE - https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
-                "toolTip": "Choose the URL location of where the SQL Server 2017 Custom Script can be found. If your ASDK host is connected to the internet, choose Online, but if this is disconnected, use Local, but ensure script files have been added to a local storage account first. The ASDK Configurator will have performed this step for you.",
+                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
+                "toolTip": "Enter the URL location of where the SQL Server 2017 Custom Script can be found. If you're not sure, leave the default value in place.",
                 "constraints": {
-                    "allowedValues": [
-                        {
-                          "label": "ONLINE - https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
-                          "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
-                        },
-                        {
-                          "label": "LOCAL - http://offlinestor.blob.local.azurestack.external/offlinecontainer/",
-                          "value": "http://offlinestor.blob.local.azurestack.external/offlinecontainer/"
-                        }
-                      ],
                     "required": true
                 },
                 "visible": true
@@ -189,7 +179,7 @@
                                 "name": "storageAccount",
                                 "type": "Microsoft.Storage.StorageAccountSelector",
                                 "label": "Storage account",
-                                "toolTip": "Storage account for the Virtual Machine disks",
+                                "toolTip": "Storage account for the managed disks",
                                 "defaultValue": {
                                     "name": "[concat('sqlstor',substring(guid(),0,4))]",
                                     "type": "Standard_LRS"
@@ -208,6 +198,30 @@
                             }
                         ],
                         "visible": true
+                    },
+                    {
+                        "name": "ManagedDisks",
+                        "type": "Microsoft.Common.DropDown",
+                        "label": "Managed Disks",
+                        "toolTip": "Select Managed Disks account type",
+                        "defaultValue": "StandardSSD_LRS",
+                        "constraints": {
+                            "allowedValues": [
+                                {
+                                    "label": "Standard SSD LRS",
+                                    "value": "StandardSSD_LRS"
+                                },
+                                {
+                                    "label": "Premium SSD LRS",
+                                    "value": "PremiumSSD_LRS"
+                                },
+                                {
+                                    "label": "Standard HDD LRS",
+                                    "value": "StandardHDD_LRS"
+                                }
+                            ]
+                        },
+                        "visible": true
                     }
                 ]
             },
@@ -224,19 +238,19 @@
                         "name": "msSQLPassword",
                         "type": "Microsoft.Common.PasswordBox",
                         "label": {
-                          "password": "Password for SQL Server 2017 Database Server",
-                          "confirmPassword": "Confirm password"
+                            "password": "Password for SQL Server 2017 Database Server",
+                            "confirmPassword": "Confirm password"
                         },
                         "toolTip": "Password for SQL Server 2017 Database Server",
                         "constraints": {
-                          "required": true
+                            "required": true
                         },
                         "options": {
-                          "hideConfirmation": false
+                            "hideConfirmation": false
                         },
                         "visible": true
-                      }
-                    ]
+                    }
+                ]
             }
         ],
         "outputs": {
@@ -258,7 +272,8 @@
             "virtualNetworkSubnetAddressPrefix": "[steps('settings').Network.virtualNetwork.subnets.subnet1.addressPrefix]",
             "storageAccountName": "[steps('settings').Storage.storageAccount.name]",
             "storageAccountType": "[steps('settings').Storage.storageAccount.type]",
-            "storageAccountNewOrExisting": "[steps('settings').Storage.storageAccount.newOrExisting]"
+            "storageAccountNewOrExisting": "[steps('settings').Storage.storageAccount.newOrExisting]",
+            "managedDiskAccountType": "[steps('settings').ManagedDisks]"
         }
     }
 }

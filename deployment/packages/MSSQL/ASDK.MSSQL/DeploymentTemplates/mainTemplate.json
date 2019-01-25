@@ -27,7 +27,7 @@
             "type": "string",
             "defaultValue": "password",
             "metadata": {
-                "description": "Authentication Type [password|sshPublicKey]"
+                "description": "Authentication Type [password | sshPublicKey]"
             }
         },
         "adminPassword": {
@@ -109,6 +109,10 @@
         },
         "storageAccountNewOrExisting": {
             "type": "string",
+            "allowedValues": [
+                "new",
+                "existing"
+            ],
             "defaultValue": "new",
             "metadata": {
                 "description": "Storage Account New or Existing"
@@ -124,8 +128,24 @@
         "storageAccountType": {
             "type": "string",
             "defaultValue": "Standard_LRS",
+            "allowedValues": [
+                "Premium_LRS",
+                "Standard_LRS"
+            ],
             "metadata": {
-                "description": "Storage Account Type"
+                "description": "Managed Disks Storage Account Type"
+            }
+        },
+        "managedDiskAccountType": {
+            "type": "string",
+            "defaultValue": "StandardSSD_LRS",
+            "allowedValues": [
+                "PremiumSSD_LRS",
+                "StandardSSD_LRS",
+                "StandardHDD_LRS"
+            ],
+            "metadata": {
+                "description": "Managed Disks Storage Account Type"
             }
         },
         "scriptBaseUrl": {
@@ -134,228 +154,220 @@
                 "artifactsBaseUrl": "",
                 "description": "Choose where the SQL Server 2017 install script can be found"
             },
-            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
-            "allowedValues": [
-                "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
-                "http://offlinestor.blob.local.azurestack.external/offlinecontainer/"
-            ]
+            "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
         }
     },
     "variables": {
         "storageAccountResourceGroup": "[resourceGroup().name]",
         "virtualNetworkResourceGroup": "[resourceGroup().name]",
         "publicIPAddressResourceGroup": "[resourceGroup().name]",
-        "vmDeploymentName": "[concat('DeployVM_', uniqueString(parameters('vmName')))]",
-        "vnetDeploymentName": "[concat('DeployVNET_', uniqueString(parameters('vmName')))]",
-        "nsgDeploymentName": "[concat('DeployNSG_', uniqueString(parameters('vmName')))]",
-        "storDeploymentName": "[concat('DeploySTOR_', uniqueString(parameters('vmName')))]",
-        "pipDeploymentName": "[concat('DeployPIP_', uniqueString(parameters('vmName')))]",
+        "publicIpAddressId": {
+            "id": "[resourceId(variables('publicIpAddressResourceGroup'), 'Microsoft.Network/publicIPAddresses', parameters('publicIpAddressName'))]"
+        },
+        "linuxConfiguration": {
+            "disablePasswordAuthentication": true,
+            "ssh": {
+                "publicKeys": [
+                    {
+                        "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+                        "keyData": "[parameters('sshPublicKey')]"
+                    }
+                ]
+            }
+        },
         "nsgName": "[toLower(concat(parameters('vmName'), '_nsg'))]",
         "nicName": "[toLower(concat(parameters('vmName'), '_nic'))]",
+        "osDiskName": "[toLower(concat(parameters('vmName'), '_osdisk'))]",
         "imagePublisher": "Canonical",
         "imageOffer": "UbuntuServer",
         "imageSku": "16.04-LTS",
-        "imageVersion": "latest",
-        "longBaseTemplateURI": "[string(deployment().properties.templateLink.uri)]",
-        "shortBaseTemplateURI": "[replace(variables('longBaseTemplateURI'),'mainTemplate.json', '')]",
-        "storageAccountSetupUrl": "[concat(variables('shortBaseTemplateURI'),'storage-',parameters('storageAccountNewOrExisting'),'.json')]",
-        "publicIpAddressSetupUrl": "[concat(variables('shortBaseTemplateURI'),'publicip-',parameters('publicIPAddressNewOrExisting'),'.json')]",
-        "vnetSetupUrl": "[concat(variables('shortBaseTemplateURI'),'vnet-',parameters('virtualNetworkNewOrExisting'),'.json')]",
-        "vmSetupUrl": "[concat(variables('shortBaseTemplateURI'),'compute-',parameters('authenticationType'),'.json')]",
-        "networkSecurityGroupSetupUrl": "[concat(variables('shortBaseTemplateURI'),'networkSecurityGroup.json')]"
+        "imageVersion": "latest"
     },
     "resources": [
         {
-            "name": "[variables('storDeploymentName')]",
-            "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2015-01-01",
-            "properties": {
-                "mode": "Incremental",
-                "templateLink": {
-                    "uri": "[variables('storageAccountSetupUrl')]",
-                    "contentVersion": "1.0.0.0"
-                },
-                "parameters": {
-                    "storageAccountType": {
-                        "value": "[parameters('storageAccountType')]"
-                    },
-                    "storageAccountResourceGroup": {
-                        "value": "[variables('storageAccountResourceGroup')]"
-                    },
-                    "storageAccountName": {
-                        "value": "[parameters('storageAccountName')]"
-                    }
-                }
-            }
-        },
-        {
-            "name": "[variables('nsgDeploymentName')]",
-            "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2015-01-01",
-            "dependsOn": [],
-            "properties": {
-                "mode": "Incremental",
-                "templateLink": {
-                    "uri": "[variables('networkSecurityGroupSetupUrl')]",
-                    "contentVersion": "1.0.0.0"
-                },
-                "parameters": {
-                    "nsgName": {
-                        "value": "[variables('nsgName')]"
-                    }
-                }
-            }
-        },
-        {
-            "name": "[variables('vnetDeploymentName')]",
-            "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2015-01-01",
-            "dependsOn": [
-                "[concat('Microsoft.Resources/deployments/', variables('nsgDeploymentName'))]"
-            ],
-            "properties": {
-                "mode": "Incremental",
-                "templateLink": {
-                    "uri": "[variables('vnetSetupUrl')]",
-                    "contentVersion": "1.0.0.0"
-                },
-                "parameters": {
-                    "virtualNetworkName": {
-                        "value": "[parameters('virtualNetworkName')]"
-                    },
-                    "virtualNetworkResourceGroup": {
-                        "value": "[variables('virtualNetworkResourceGroup')]"
-                    },
-                    "virtualNetworkAddressPrefix": {
-                        "value": "[parameters('virtualNetworkAddressPrefix')]"
-                    },
-                    "virtualNetworkSubnetName": {
-                        "value": "[parameters('virtualNetworkSubnetName')]"
-                    },
-                    "virtualNetworkSubnetAddressPrefix": {
-                        "value": "[parameters('virtualNetworkSubnetAddressPrefix')]"
-                    }
-                }
-            }
-        },
-        {
-            "name": "[variables('pipDeploymentName')]",
-            "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2015-01-01",
-            "dependsOn": [],
-            "properties": {
-                "mode": "Incremental",
-                "templateLink": {
-                    "uri": "[variables('publicIpAddressSetupUrl')]",
-                    "contentVersion": "1.0.0.0"
-                },
-                "parameters": {
-                    "publicIPAddressName": {
-                        "value": "[parameters('publicIPAddressName')]"
-                    },
-                    "publicIPAddressResourceGroup": {
-                        "value": "[variables('publicIPAddressResourceGroup')]"
-                    },
-                    "publicIPAddressDomainNameLabel": {
-                        "value": "[parameters('publicIPAddressDomainNameLabel')]"
-                    }
-                }
-            }
-        },
-        {
-            "apiVersion": "2015-06-15",
-            "type": "Microsoft.Network/networkInterfaces",
-            "name": "[variables('nicName')]",
+            "condition": "[equals(parameters('storageAccountNewOrExisting'), 'new')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2017-06-01",
+            "name": "[parameters('storageAccountName')]",
             "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[concat('Microsoft.Resources/deployments/', variables('pipDeploymentName'))]",
-                "[concat('Microsoft.Resources/deployments/', variables('vnetDeploymentName'))]",
-                "[concat('Microsoft.Resources/deployments/', variables('nsgDeploymentName'))]"
-            ],
+            "kind": "Storage",
+            "sku": {
+                "name": "[parameters('storageAccountType')]"
+            }
+        },
+        {
+            "condition": "[equals(parameters('publicIpAddressNewOrExisting'), 'new')]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2017-09-01",
+            "name": "[parameters('publicIpAddressName')]",
+            "location": "[resourceGroup().location]",
             "properties": {
-                "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups',variables('nsgName'))]"
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[parameters('publicIPAddressDomainNameLabel')]"
+                }
+            }
+        },
+        {
+            "condition": "[equals(parameters('virtualNetworkNewOrExisting'), 'new')]",
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2017-09-01",
+            "name": "[parameters('virtualNetworkName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": "[parameters('virtualNetworkAddressPrefix')]"
                 },
-                "ipConfigurations": [
+                "subnets": [
                     {
-                        "name": "ipconfig1",
+                        "name": "[parameters('virtualNetworkSubnetName')]",
                         "properties": {
-                            "privateIPAllocationMethod": "Dynamic",
-                            "publicIPAddress": {
-                                "id": "[reference(variables('pipDeploymentName')).outputs.publicIpId.value]"
-                            },
-                            "subnet": {
-                                "id": "[reference(variables('vnetDeploymentName')).outputs.subnetRef.value]"
-                            }
+                            "addressPrefix": "[parameters('virtualNetworkSubnetAddressPrefix')]"
                         }
                     }
                 ]
             }
         },
         {
-            "name": "[variables('vmDeploymentName')]",
-            "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2015-01-01",
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[variables('nsgName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "SQL",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "1433",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "ssh",
+                        "properties": {
+                            "description": "Allow SSH",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 201,
+                            "direction": "Inbound"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2017-09-01",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[variables('nicName')]",
+            "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[concat('Microsoft.Resources/deployments/', variables('storDeploymentName'))]",
-                "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+                "[parameters('publicIpAddressName')]",
+                "[parameters('virtualNetworkName')]"
             ],
             "properties": {
-                "mode": "Incremental",
-                "templateLink": {
-                    "uri": "[variables('vmSetupUrl')]",
-                    "contentVersion": "1.0.0.0"
-                },
-                "parameters": {
-                    "vmName": {
-                        "value": "[parameters('vmName')]"
-                    },
-                    "vmSize": {
-                        "value": "[parameters('vmSize')]"
-                    },
-                    "imagePublisher": {
-                        "value": "[variables('imagePublisher')]"
-                    },
-                    "imageOffer": {
-                        "value": "[variables('imageOffer')]"
-                    },
-                    "imageSku": {
-                        "value": "[variables('imageSku')]"
-                    },
-                    "imageVersion": {
-                        "value": "[variables('imageVersion')]"
-                    },
-                    "adminUserName": {
-                        "value": "[parameters('adminUserName')]"
-                    },
-                    "adminPassword": {
-                        "value": "[parameters('adminPassword')]"
-                    },
-                    "msSQLPassword": {
-                        "value": "[parameters('msSQLPassword')]"
-                    },
-                    "sshPublicKey": {
-                        "value": "[parameters('sshPublicKey')]"
-                    },
-                    "storageAccountName": {
-                        "value": "[parameters('storageAccountName')]"
-                    },
-                    "storageAccountResourceGroup": {
-                        "value": "[variables('storageAccountResourceGroup')]"
-                    },
-                    "nicName": {
-                        "value": "[variables('nicName')]"
-                    },
-                    "scriptBaseUrl": {
-                        "value": "[parameters('scriptBaseUrl')]"
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[resourceId(variables('virtualNetworkResourceGroup'), 'Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('virtualNetworkSubnetName'))]"
+                            },
+                            "publicIPAddress": "[if(not(equals(parameters('publicIpAddressNewOrExisting'), 'none')), variables('publicIpAddressId') , json('null'))]"
+                        }
                     }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2017-03-30",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('vmName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[parameters('storageAccountName')]",
+                "[variables('nicName')]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('vmSize')]"
+                },
+                "osProfile": {
+                    "computerName": "[parameters('vmName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]",
+                    "linuxConfiguration": "[if(equals(parameters('authenticationType'), 'password'), json('null'), variables('linuxConfiguration'))]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "[variables('imagePublisher')]",
+                        "offer": "[variables('imageOffer')]",
+                        "sku": "[variables('imageSKU')]",
+                        "version": "[variables('imageVersion')]"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[variables('osDiskName')]",
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage",
+                        "diskSizeGB": 30,
+                        "managedDisk": {
+                            "storageAccountType": "[parameters('managedDiskAccountType')]"
+                        }
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true,
+                        "storageUri": "[reference(resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2017-06-01').primaryEndpoints.blob]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('vmName'),'/CustomScriptExtension')]",
+            "apiVersion": "2016-03-30",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.OSTCExtensions",
+                "type": "CustomScriptForLinux",
+                "typeHandlerVersion": "1.5",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "fileUris": [
+                        "[concat(parameters('scriptBaseUrl'), 'install_MSSQL.sh')]"
+                    ]
+                },
+                "protectedSettings": {
+                    "commandToExecute": "[concat('bash install_MSSQL.sh ', parameters('msSQLPassword'))]"
                 }
             }
         }
     ],
     "outputs": {
         "SQLVMFQDN:": {
-            "value": "[reference(variables('pipDeploymentName')).outputs.fqdn.value]",
+            "value": "[concat('https://',reference(resourceId('Microsoft.Network/publicIPAddresses',parameters('publicIPAddressName'))).dnsSettings.fqdn)]",
             "type": "string"
         },
         "SQLAdminUsername ": {

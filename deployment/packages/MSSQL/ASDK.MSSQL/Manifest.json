@@ -31,60 +31,6 @@
             "type": "Custom",
             "path": "DeploymentTemplates\\azuredeploy.parameters.json",
             "isDefault": false
-        },
-        {
-            "name": "compute-password.json",
-            "type": "Custom",
-            "path": "DeploymentTemplates\\compute-password.json",
-            "isDefault": false
-        },
-        {
-            "name": "compute-sshPublicKey.json",
-            "type": "Custom",
-            "path": "DeploymentTemplates\\compute-sshPublicKey.json",
-            "isDefault": false
-        },
-        {
-            "name": "publicip-existing.json",
-            "type": "Custom",
-            "path": "DeploymentTemplates\\publicip-existing.json",
-            "isDefault": false
-        },
-        {
-            "name": "publicip-new.json",
-            "type": "Custom",
-            "path": "DeploymentTemplates\\publicip-new.json",
-            "isDefault": false
-        },
-        {
-            "name": "storage-existing.json",
-            "type": "Custom",
-            "path": "DeploymentTemplates\\storage-existing.json",
-            "isDefault": false
-        },
-        {
-            "name": "storage-new.json",
-            "type": "Custom",
-            "path": "DeploymentTemplates\\storage-new.json",
-            "isDefault": false
-        },
-        {
-            "name": "NetworkSecurityGroup.json",
-            "type": "Custom",
-            "path": "DeploymentTemplates\\networkSecurityGroup.json",
-            "isDefault": false
-        },
-        {
-            "name": "vnet-existing.json",
-            "type": "Custom",
-            "path": "DeploymentTemplates\\vnet-existing.json",
-            "isDefault": false
-        },
-        {
-            "name": "vnet-new.json",
-            "type": "Custom",
-            "path": "DeploymentTemplates\\vnet-new.json",
-            "isDefault": false
         }
     ],
     "categories": [

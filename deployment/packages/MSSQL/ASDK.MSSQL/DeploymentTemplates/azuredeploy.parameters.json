@@ -3,13 +3,13 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "vmName": {
-      "value": "mysqlvm"
+      "value": "sqlvm"
     },
     "vmSize": {
       "value": "Standard_D3_v2"
     },
     "adminUsername": {
-      "value": "mysqladmin"
+      "value": "sqladmin"
     },
     "adminPassword": {
       "value": ""
@@ -24,7 +24,7 @@
       "value": "password"
     },
     "virtualNetworkName": {
-      "value": "mysql_vnet"
+      "value": "sql_vnet"
     },
     "virtualNetworkAddressPrefix": {
       "value": "10.0.0.0/16"
@@ -33,16 +33,16 @@
       "value": "new"
     },
     "virtualNetworkSubnetName": {
-      "value": "mysql_subnet"
+      "value": "sql_subnet"
     },
     "virtualNetworkSubnetAddressPrefix": {
       "value": "10.0.0.0/24"
     },
     "publicIPAddressName": {
-      "value": "mysql_ip"
+      "value": "sql_ip"
     },
     "publicIPAddressDomainNameLabel": {
-      "value": "mysql"
+      "value": "sql"
     },
     "publicIPAddressNewOrExisting": {
       "value": "new"
@@ -59,9 +59,7 @@
     "resourceGroupName": {
       "value": ""
     },
-    "templateBaseUrl": {
-      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/"
-    },
+
     "scriptBaseUrl": {
       "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
     }
