@@ -1,0 +1,27 @@
+{
+  "handler": "Microsoft.Compute.SingleVm",
+  "version": "0.0.1-preview",
+  "parameters": {
+    "osPlatform": "Windows",
+    "recommendedSizes": [
+      "Standard_DS1_v2",
+      "Standard_DS2_v2",
+      "Standard_DS11_v2",
+      "Standard_DS1",
+      "Standard_DS2",
+      "Standard_DS11",
+      "Standard_D1_v2",
+      "Standard_D1",
+      "Standard_A1"
+    ],
+    "imageReference": {
+      "publisher": "MicrosoftWindowsServer",
+      "offer": "WindowsServer",
+      "sku": "2019-Datacenter"
+    },
+    "diskType": "Premium",
+    "dataDisks": [],
+    "supportsSriov": true,
+    "supportsBackup": true
+  }
+}

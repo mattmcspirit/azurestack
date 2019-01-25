@@ -1,0 +1,12 @@
+{
+	"displayName": "Windows Server 2019 Datacenter",
+	"publisherDisplayName": "Microsoft",
+	"publisherLegalName": "Microsoft",
+	"summary": "Windows Server 2019 Datacenter is the operating system that bridges on-premises environments with Azure services enabling hybrid scenarios and maximizing existing investments.",
+	"longSummary": "Windows Server 2019 Datacenter is the operating system that bridges on-premises environments with Azure services enabling hybrid scenarios and maximizing existing investments.",
+	"description": "Windows Server 2019 Datacenter is the operating system that bridges on-premises environments with Azure services enabling hybrid scenarios and maximizing existing investments. Increase security and reduce business risk with multiple layers of protection built into the operating system. Evolve your datacenter infrastructure to achieve greater efficiency and scale with Hyper-converged Infrastructure. Enable Developers and IT Pros to create cloud native and modernize their traditional apps using containers and micro-services.",
+	"linkDisplayName0": "Documentation",
+	"linkDisplayName1": "What's New in Windows Server",
+	"linkDisplayName2": "Windows Container Quick Start",
+	"linkDisplayName3": "Learn more about Windows Containers"
+}
