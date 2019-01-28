@@ -5,7 +5,7 @@ Instead of using the Azure Stack Portal, you can use PowerShell to deploy SQL Se
 ## Run AzureRM PowerShell cmdlets
 In this example, you run a script to deploy a virtual machine to Azure Stack Development Kit using a Resource Manager template.  Before proceeding, ensure you have [configured PowerShell](https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-configure-admin)  
 
-1. Go to the [MSSQL template folder](<ASDK.MSSQL/DeploymentTemplates>) and grab the mainTemplate.json, saving it to the following location: c:\\templates\\SQLTemplate.json.
+1. Go to the [MSSQL template folder](<ASDKConfigurator.MSSQL/DeploymentTemplates>) and grab the mainTemplate.json, saving it to the following location: c:\\templates\\SQLTemplate.json.
 2. In PowerShell, run the following deployment script. Replace *username*, *password* and *msSQlPassword* with your username and password. On subsequent uses, increment the value for the *$myNum* parameter to prevent overwriting your deployment.
    
    ```PowerShell
@@ -40,7 +40,7 @@ In this example, you run a script to deploy a virtual machine to Azure Stack Dev
            -publicIPAddressDomainNameLabel sql$myNum `
            -publicIPAddressNewOrExisting new `
            -scriptBaseUrl "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/" `
-           -templateBaseUrl "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDK.MSSQL/DeploymentTemplates/"
+           -templateBaseUrl "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MSSQL/ASDKConfigurator.MSSQL/DeploymentTemplates/"
    ```
 3. Open the Azure Stack portal, click **Browse**, click **Virtual machines**, and look for your new virtual machine (*SQLDeployment001*).
 

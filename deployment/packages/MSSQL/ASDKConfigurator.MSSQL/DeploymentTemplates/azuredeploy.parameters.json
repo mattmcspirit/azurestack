@@ -53,13 +53,15 @@
     "storageAccountType": {
       "value": "Standard_LRS"
     },
+    "managedDiskAccountType": {
+      "value": "StandardSSD_LRS"
+    },
     "storageAccountNewOrExisting": {
       "value": "new"
     },
     "resourceGroupName": {
       "value": ""
     },
-
     "scriptBaseUrl": {
       "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
     }
