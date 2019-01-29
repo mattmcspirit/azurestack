@@ -52,7 +52,7 @@ With the updates downloaded, you can now run the 2nd script. For this script, si
 
 ```powershell
 .\WS2019Images.ps1 -authenticationType AzureAD -azureDirectoryTenantName "contoso.onmicrosoft.com" `
--ImagePath "D:\ImageUpdates" -image ServerFull -ISOPath "D:\WS2019EVALISO.iso" `
+-ImagePath "D:\WS2019IMAGES" -image ServerFull -ISOPath "D:\WS2019IMAGES\WS2019EVAL.iso" `
 -ArmEndpoint "https://adminmanagement.local.azurestack.external" -vhdSize "30"
 ```
 
@@ -63,7 +63,7 @@ For an ADFS-deployed Azure Stack, everything is the same as above **apart from**
 * Do **NOT** provide your **directory tenant name**.
 
 ```powershell
-.\WS2019Images.ps1 -authenticationType ADFS -ImagePath "D:\ImageUpdates" -image ServerFull `
+.\WS2019Images.ps1 -authenticationType ADFS -ImagePath "D:\WS2019IMAGES\WS2019EVAL.iso" -image ServerFull `
 -ISOPath "D:\WS2019EVALISO.iso" -ArmEndpoint "https://adminmanagement.local.azurestack.external" `
 -vhdSize "30"
 ```
