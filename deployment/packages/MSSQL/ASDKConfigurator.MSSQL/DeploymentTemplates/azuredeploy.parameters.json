@@ -54,7 +54,7 @@
       "value": "Standard_LRS"
     },
     "managedDiskAccountType": {
-      "value": "StandardSSD_LRS"
+      "value": "PremiumSSD_LRS"
     },
     "storageAccountNewOrExisting": {
       "value": "new"
