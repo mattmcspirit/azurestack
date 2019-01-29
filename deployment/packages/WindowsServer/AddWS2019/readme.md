@@ -60,6 +60,7 @@ With the updates downloaded, you can now run the 2nd script, **WS2019Images.ps1*
 
 For an ADFS-deployed Azure Stack, everything is the same as above **apart from**:
 
+* Choose your authentication type: ADFS
 * Do **NOT** provide your **directory tenant name**.
 
 ```powershell
