@@ -22,8 +22,10 @@ Set-Location "D:\WS2019IMAGES"
 
 # Download the scripts.
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-Webrequest https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/WindowsServer/AddWS2019/WS2019Images.ps1 -UseBasicParsing -OutFile WS2019Images.ps1
-https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/WindowsServer/AddWS2019/WS2019Updates.ps1 -UseBasicParsing -OutFile WS2019Updates.ps1
+Invoke-Webrequest https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/WindowsServer/AddWS2019/WS2019Images.ps1 `
+-UseBasicParsing -OutFile WS2019Images.ps1
+Invoke-Webrequest https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/WindowsServer/AddWS2019/WS2019Updates.ps1 `
+-UseBasicParsing -OutFile WS2019Updates.ps1
 ```
 
 With the 2 script files downloaded, you **first run the WS2019Updates** script, which will mount your ISO file, check the build, then go to the internet and download a select set of updates including Servicing Stack updates, Cumulative Updates and .NET updates.
