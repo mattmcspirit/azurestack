@@ -60,7 +60,7 @@ With the updates downloaded, you can now run the 2nd script. For this script, si
 
 For an ADFS-deployed Azure Stack, everything is the same as above **apart from**:
 
-* Provide your **directory tenant name**. If this is an Azure AD deployment, use your appropriate Azure AD tenant.
+* Do **NOT** provide your **directory tenant name**.
 
 ```powershell
 .\WS2019Images.ps1 -authenticationType ADFS -ImagePath "D:\ImageUpdates" -image ServerFull `
