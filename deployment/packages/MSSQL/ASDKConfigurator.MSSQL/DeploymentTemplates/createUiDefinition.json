@@ -13,17 +13,6 @@
                     "regex": "^[a-z0-9]{1,25}$",
                     "validationMessage": "Only lowercase letters and numbers are allowed, and the value must be 1-25 characters long."
                 }
-            },
-            {
-                "name": "scriptBaseUrl",
-                "type": "Microsoft.Common.TextBox",
-                "label": "SQL Server 2017 Install Script URL",
-                "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
-                "toolTip": "Enter the URL location of where the SQL Server 2017 Custom Script can be found. If you're not sure, leave the default value in place.",
-                "constraints": {
-                    "required": true
-                },
-                "visible": true
             }
         ],
         "steps": [
@@ -249,17 +238,28 @@
                             "hideConfirmation": false
                         },
                         "visible": true
+                    },
+                    {
+                        "name": "scriptBaseUrl",
+                        "type": "Microsoft.Common.TextBox",
+                        "label": "SQL Server 2017 Install Script URL",
+                        "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
+                        "toolTip": "Enter the URL location of where the SQL Server 2017 Custom Script can be found. If you're not sure, leave the default value in place.",
+                        "constraints": {
+                            "required": true
+                        },
+                        "visible": true
                     }
                 ]
             }
         ],
         "outputs": {
             "vmName": "[steps('basicsStep').vmName]",
-            "scriptBaseUrl": "[steps('basicsStep').scriptBaseUrl]",
             "vmSize": "[steps('settings').Compute.vmSize]",
             "adminUsername": "[steps('settings').Compute.adminUsername]",
             "adminPassword": "[steps('settings').Compute.adminPassword.password]",
             "msSQLPassword": "[steps('sqlsettings').msSQLPassword]",
+            "scriptBaseUrl": "[steps('sqlsettings').scriptBaseUrl]",
             "sshPublicKey": "[steps('settings').Compute.adminPassword.sshPublicKey]",
             "authenticationType": "[steps('settings').Compute.adminPassword.authenticationType]",
             "publicIPAddressName": "[steps('settings').Network.ipAddress.name]",
