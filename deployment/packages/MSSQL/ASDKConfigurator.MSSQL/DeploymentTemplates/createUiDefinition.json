@@ -193,7 +193,7 @@
                         "type": "Microsoft.Common.DropDown",
                         "label": "Managed Disks",
                         "toolTip": "Select Managed Disks account type",
-                        "defaultValue": "StandardSSD_LRS",
+                        "defaultValue": "PremiumSSD_LRS",
                         "constraints": {
                             "allowedValues": [
                                 {
