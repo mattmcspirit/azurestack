@@ -68,11 +68,11 @@ Post-Script
 -----------
 Once the script has completed running successfully, you should be able to easily validate the new Windows Server 2019 images and gallery items in the Admin Portal. Log into the portal, and navigate to **Region Management**, then **Compute**, then **VM Images**, and you should see your Windows Server 2019 images shown:
 
-![WS2019Image](deployment/offline/media/WS2019Image.png)
+![WS2019Image](</deployment/offline/media/WS2019Image.png>)
 
 In addition, you should also see a Windows Server 2019 Datacenter gallery item, for you and your users to deploy using the Azure Stack portal.
 
-![WS2019gallery](deployment/offline/media/WS2019gallery.png)
+![WS2019gallery](</deployment/offline/media/WS2019gallery.png>)
 
 ### Cleanup
 Should you want to remove the images and gallery items, run the following:
