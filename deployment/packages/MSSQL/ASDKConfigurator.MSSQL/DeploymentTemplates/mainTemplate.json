@@ -141,7 +141,6 @@
             "defaultValue": "StandardSSD_LRS",
             "allowedValues": [
                 "PremiumSSD_LRS",
-                "StandardSSD_LRS",
                 "StandardHDD_LRS"
             ],
             "metadata": {
