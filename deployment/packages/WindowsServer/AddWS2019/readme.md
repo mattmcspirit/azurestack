@@ -28,7 +28,7 @@ Invoke-Webrequest https://raw.githubusercontent.com/mattmcspirit/azurestack/mast
 -UseBasicParsing -OutFile WS2019Updates.ps1
 ```
 
-With the 2 script files downloaded, you **first run the WS2019Updates** script, which will mount your ISO file, check the build, then go to the internet and download a select set of updates including Servicing Stack updates, Cumulative Updates and .NET updates.
+With the 2 script files downloaded, you **first run the WS2019Updates.ps1** script, which will mount your ISO file, check the build, then go to the internet and download a select set of updates including Servicing Stack updates, Cumulative Updates and .NET updates.
 
 To run the script, simply provide the folder you would like to download the updates into, and the path to your newly downloaded Windows Server 2019 ISO file.
 
@@ -38,7 +38,7 @@ To run the script, simply provide the folder you would like to download the upda
 
 This will take a few minutes to run, depending on your connection speed.  Once complete, you should have a number of updates downloaded, including one with "SSU" in the file name.
 
-With the updates downloaded, you can now run the 2nd script. For this script, simply run the following:
+With the updates downloaded, you can now run the 2nd script, **WS2019Images.ps1**. For this script, simply run the following:
 
 ### For an Azure Stack system deployed with Azure AD authentication ###
 
