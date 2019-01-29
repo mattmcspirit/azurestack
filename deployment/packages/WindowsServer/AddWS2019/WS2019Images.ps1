@@ -13,8 +13,12 @@ param (
     [parameter(Mandatory = $true)]
     [String] $ArmEndpoint,
 
-    [parameter(Mandatory = $true)]
+    [parameter(Mandatory = $false)]
     [String] $azureDirectoryTenantName,
+
+    [Parameter(Mandatory = $true)]
+    [ValidateSet("AzureAd", "ADFS")]
+    [String] $authenticationType,
 
     [parameter(Mandatory = $true)]
     [String] $vhdSizeInGB
@@ -87,10 +91,16 @@ elseif ($image -eq "ServerFull") {
 
 # Log into Azure Stack
 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-$ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
-$tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-$uploadCreds = Get-Credential -Message "Enter your Azure Stack credentials"
-Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantId -Credential $uploadCreds -ErrorAction Stop
+if ($authenticationType.ToString() -like "AzureAd") {
+    $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
+    $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+    $uploadCreds = Get-Credential -Message "Enter your Azure Stack credentials"
+    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantId -Credential $uploadCreds -ErrorAction Stop
+}
+elseif ($authenticationType.ToString() -like "ADFS") {
+    $uploadCreds = Get-Credential -Message "Enter your Azure Stack credentials. For an ASDK with ADFS authentication, this will be cloudadmin@azurestack.local, but for an Integrated System, check with your Service Administrator."
+    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $uploadCreds -ErrorAction Stop
+}
 
 # Get current Azure Stack location
 $azsLocation = (Get-AzsLocation).Name
@@ -168,7 +178,12 @@ else {
         Try {
             # Log back into Azure Stack to ensure login hasn't timed out
             Write-Host "Upload Attempt: $uploadVhdAttempt"
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $uploadCreds -ErrorAction Stop | Out-Null
+            if ($authenticationType.ToString() -like "AzureAd") {
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $uploadCreds -ErrorAction Stop | Out-Null
+            }
+            elseif ($authenticationType.ToString() -like "ADFS") {
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $uploadCreds -ErrorAction Stop
+            }
             Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
             $uploadSuccess = $true
         }
@@ -185,7 +200,12 @@ else {
         Try {
             # Log back into Azure Stack to ensure login hasn't timed out
             Write-Host "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $uploadCreds -ErrorAction Stop | Out-Null
+            if ($authenticationType.ToString() -like "AzureAd") {
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $uploadCreds -ErrorAction Stop | Out-Null
+            }
+            elseif ($authenticationType.ToString() -like "ADFS") {
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $uploadCreds -ErrorAction Stop
+            }
             Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
             $uploadSuccess = $true
         }
@@ -202,7 +222,12 @@ else {
         Try {
             # Log back into Azure Stack to ensure login hasn't timed out
             Write-Host "No existing image found. Upload Attempt: $uploadVhdAttempt"
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $uploadCreds -ErrorAction Stop | Out-Null
+            if ($authenticationType.ToString() -like "AzureAd") {
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $uploadCreds -ErrorAction Stop | Out-Null
+            }
+            elseif ($authenticationType.ToString() -like "ADFS") {
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $uploadCreds -ErrorAction Stop
+            }
             Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
             $uploadSuccess = $true
         }
