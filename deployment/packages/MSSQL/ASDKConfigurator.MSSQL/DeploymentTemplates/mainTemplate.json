@@ -216,7 +216,9 @@
             "location": "[resourceGroup().location]",
             "properties": {
                 "addressSpace": {
-                    "addressPrefixes": "[parameters('virtualNetworkAddressPrefix')]"
+                    "addressPrefixes": [
+                        "[parameters('virtualNetworkAddressPrefix')]"
+                    ]
                 },
                 "subnets": [
                     {
