@@ -138,7 +138,7 @@
         },
         "managedDiskAccountType": {
             "type": "string",
-            "defaultValue": "StandardSSD_LRS",
+            "defaultValue": "PremiumSSD_LRS",
             "allowedValues": [
                 "PremiumSSD_LRS",
                 "StandardHDD_LRS"
@@ -186,7 +186,7 @@
         {
             "condition": "[equals(parameters('storageAccountNewOrExisting'), 'new')]",
             "type": "Microsoft.Storage/storageAccounts",
-            "apiVersion": "2017-06-01",
+            "apiVersion": "2017-10-01",
             "name": "[parameters('storageAccountName')]",
             "location": "[resourceGroup().location]",
             "kind": "Storage",
@@ -197,7 +197,7 @@
         {
             "condition": "[equals(parameters('publicIpAddressNewOrExisting'), 'new')]",
             "type": "Microsoft.Network/publicIPAddresses",
-            "apiVersion": "2017-09-01",
+            "apiVersion": "2017-10-01",
             "name": "[parameters('publicIpAddressName')]",
             "location": "[resourceGroup().location]",
             "properties": {
@@ -210,7 +210,7 @@
         {
             "condition": "[equals(parameters('virtualNetworkNewOrExisting'), 'new')]",
             "type": "Microsoft.Network/virtualNetworks",
-            "apiVersion": "2017-09-01",
+            "apiVersion": "2017-10-01",
             "name": "[parameters('virtualNetworkName')]",
             "location": "[resourceGroup().location]",
             "properties": {
@@ -230,7 +230,7 @@
             }
         },
         {
-            "apiVersion": "2015-06-15",
+            "apiVersion": "2017-10-01",
             "type": "Microsoft.Network/networkSecurityGroups",
             "name": "[variables('nsgName')]",
             "location": "[resourceGroup().location]",
@@ -267,7 +267,7 @@
             }
         },
         {
-            "apiVersion": "2017-09-01",
+            "apiVersion": "2017-10-01",
             "type": "Microsoft.Network/networkInterfaces",
             "name": "[variables('nicName')]",
             "location": "[resourceGroup().location]",
@@ -345,7 +345,7 @@
         {
             "type": "Microsoft.Compute/virtualMachines/extensions",
             "name": "[concat(parameters('vmName'),'/CustomScriptExtension')]",
-            "apiVersion": "2016-03-30",
+            "apiVersion": "2017-03-30",
             "location": "[resourceGroup().location]",
             "dependsOn": [
                 "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
