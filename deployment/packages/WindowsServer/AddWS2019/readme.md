@@ -1,6 +1,6 @@
 Adding Windows Server 2019 Eval Images to Azure Stack
 ==============
-There is not currently a Windows Server 2019 image available for depoloyment within an Azure Stack environment. For those of you who wish to add a Windows Server 2019 Evaluation image, for either Server Core, Server with Desktop Experience, or both, the following guide will help you do add the images and corresponding gallery items to your Azure Stack system.
+There is not currently a Windows Server 2019 image available for deployment within an Azure Stack environment. For those of you who wish to add a Windows Server 2019 Evaluation image, for either Server Core, Server with Desktop Experience, or both, the following guide will help you do add the images and corresponding gallery items to your Azure Stack system.
 
 Requirements
 -----------
@@ -73,6 +73,16 @@ Once the script has completed running successfully, you should be able to easily
 In addition, you should also see a Windows Server 2019 Datacenter gallery item, for you and your users to deploy using the Azure Stack portal.
 
 ![WS2019gallery](deployment/offline/media/WS2019gallery.png)
+
+### Cleanup
+Should you want to remove the images and gallery items, run the following:
+
+```powershell
+Get-AzsGalleryItem | Where-Object {$_.Name -like "*WindowsServer2019Datacenter-ARM*"} | Remove-AzsGalleryItem -Confirm:$true
+Get-AzsGalleryItem | Where-Object {$_.Name -like "*WindowsServer2019DatacenterServerCore-ARM*"} | Remove-AzsGalleryItem -Confirm:$true
+Get-AzsPlatformImage | Where-Object {$_.Sku -like "2019-Datacenter"} | Remove-AzsPlatformImage -Confirm:$true
+Get-AzsPlatformImage | Where-Object {$_.Sku -like "2019-Datacenter-Server-Core"} | Remove-AzsPlatformImage -Confirm:$true
+```
 
 ### Known Issues
 * These scripts have been developed with simplicity in mind, and don't have the same level of error validation as the main ASDK Configurator scripts, so you may experience the occasional random error.
