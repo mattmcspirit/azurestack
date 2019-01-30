@@ -250,7 +250,6 @@
             "name": "[variables('osDiskName')]",
             "caching": "ReadWrite",
             "createOption": "FromImage",
-            "diskSizeGB": 30,
             "managedDisk": {
               "storageAccountType": "[variables('managedDiskAccountType')]"
             }
