@@ -1884,26 +1884,39 @@ $freeCSVSpace = [int](((Get-ClusterSharedVolume | Select-Object -Property Name -
 Write-CustomVerbose -Message "Free space on Cluster Shared Volume = $($freeCSVSpace)GB"
 Start-Sleep 3
 
-if ($freeCSVSpace -lt 45) {
-    Write-CustomVerbose -Message "Free space is less than 45GB - you don't have enough room on the drive to create the Windows Server image with updates"
-    throw "You need additional space to create a Windows Server image. Minimum required free space is 45GB"
+if ($null -eq $2019ISOPath) {
+    $sm = "45"
+    $med = "82"
+    $lg = "115"
+    $xlg = "115"
 }
-elseif ($freeCSVSpace -ge 45 -and $freeCSVSpace -lt 82) {
-    Write-CustomVerbose -Message "Free space is less than 82GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
+else {
+    $sm = "45"
+    $med = "82"
+    $lg = "115"
+    $xlg = "200"
+}
+
+if ($freeCSVSpace -lt $sm) {
+    Write-CustomVerbose -Message "Free space is less than $($sm)GB - you don't have enough room on the drive to create the Windows Server image with updates"
+    throw "You need additional space to create a Windows Server image. Minimum required free space is $($sm)GB"
+}
+elseif ($freeCSVSpace -ge $sm -and $freeCSVSpace -lt $md) {
+    Write-CustomVerbose -Message "Free space is less than $($md)GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
     Write-CustomVerbose -Message "Your Ubuntu Server and Windows Server images will be created serially.  This could take some time."
-    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core 3. Windows Server Full
+    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core 3. Windows Server Full (+ WS 2019 Core, + WS 2019 Full Optionally)
     $runMode = "serial"
 }
-elseif ($freeCSVSpace -ge 82 -and $freeCSVSpace -lt 115) {
-    Write-CustomVerbose -Message "Free space is less than 115GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
+elseif ($freeCSVSpace -ge $med -and $freeCSVSpace -lt $lg) {
+    Write-CustomVerbose -Message "Free space is less than $($lg)GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
     Write-CustomVerbose -Message "Your Ubuntu Server will be created first, then Windows Server images will be created in parallel.  This could take some time."
-    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after both prior jobs have finished.
+    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after both prior jobs have finished 3. (+ WS 2019 Core, + WS 2019 Full Optionally)
     $runMode = "partialParallel"
 }
-elseif ($freeCSVSpace -ge 115) {
-    Write-CustomVerbose -Message "Free space is more than 115GB - you have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
+elseif ($freeCSVSpace -ge $xlg) {
+    Write-CustomVerbose -Message "Free space is more than $($xlg)GB - you have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
     Write-CustomVerbose -Message "This is the fastest way to populate the Azure Stack Platform Image Repository."
-    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after Windows Update job is finished.
+    # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel (+ WS 2019 Core, + WS 2019 Full Optionally) after Windows Update job is finished.
     $runMode = "parallel"
 }
 
@@ -1940,7 +1953,7 @@ $AddServerCore2016Image = {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK `
             -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID `
             -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath `
-            -image "ServerCore" -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
+            -image "ServerCore2016" -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddServerCore2016Image -Verbose
@@ -1953,7 +1966,7 @@ $AddServerFull2016Image = {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath -image "ServerFull" -branch $Using:branch `
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath -image "ServerFull2016" -branch $Using:branch `
             -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
@@ -1967,7 +1980,7 @@ $AddServerCore2019Image = {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK `
             -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID `
             -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath `
-            -image "ServerCore" -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
+            -image "ServerCore2019" -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $AddServerCore2019Image -Verbose
@@ -1980,7 +1993,7 @@ $AddServerFull2019Image = {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath -image "ServerFull" -branch $Using:branch `
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath -image "ServerFull2019" -branch $Using:branch `
             -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
