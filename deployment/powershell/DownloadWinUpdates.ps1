@@ -69,7 +69,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         # Pre-validate that the Windows Server 2016 Server Core VM Image is not already available
         Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
         $sku = "2016-Datacenter-Server-Core"
-        $platformImageCore = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
+        $platformImageCore = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
         $serverCoreVMImageAlreadyAvailable = $false
 
         if ($platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
@@ -80,7 +80,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         # Pre-validate that the Windows Server 2016 Full Image is not already available
         Remove-Variable -Name platformImageFull -Force -ErrorAction SilentlyContinue
         $sku = "2016-Datacenter"
-        $platformImageFull = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
+        $platformImageFull = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
         $serverFullVMImageAlreadyAvailable = $false
 
         if ($platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
@@ -114,6 +114,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
                 $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
                 $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
+                $spVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
                 Dismount-DiskImage -ImagePath $ISOPath
 
                 Write-Host "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
@@ -126,9 +127,18 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 $kbDownloads = @()
                 $Urls = @()
 
-                ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.    
+                ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
+                # There is a major build version, 14393, but there are also certain newer MSDN builds, from Jan 2017 and Feb 2018, with different
+                # minor build numbers. These have issues with applying the updates, specifically:
+                # KB ----- has an issue on Jan 2017 build
+                # KB4465659 has an issue on Feb 2018 build.
                 if ($buildVersion -eq "14393") {
-                    $ssuArray = @("4132216", "4465659")
+                    if ($spVersion -gt "0") {
+                        $ssuArray = @("4132216")
+                    }
+                    else {
+                        $ssuArray = @("4132216", "4465659")
+                    }
                     $ssuSearchString = 'Windows Server 2016'
 
                     #$servicingStackKB = (Invoke-WebRequest -Uri 'https://portal.msrc.microsoft.com/api/security-guidance/en-US/CVE/ADV990001' -UseBasicParsing).Content

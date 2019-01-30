@@ -111,13 +111,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
 
             # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
-            $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
-            while ($serverCoreJobCheck -ne "Complete") {
-                Write-Host "The ServerCoreImage stage of the process has not yet completed. Checking again in 20 seconds"
+            $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
+            while ($serverCore2016JobCheck -ne "Complete") {
+                Write-Host "The ServerCore2016Image stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
-                $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
-                if ($serverCoreJobCheck -eq "Failed") {
-                    throw "The ServerCoreImage stage of the process has failed. This should fully complete before the Windows Server full image is created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
+                $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
+                if ($serverCore2016JobCheck -eq "Failed") {
+                    throw "The ServerCore2016Image stage of the process has failed. This should fully complete before the Windows Server core image is created. Check the Windows Server image log, ensure that step is completed first, and rerun."
                 }
             }
 
@@ -130,14 +130,14 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $azsLocation = (Get-AzsLocation).Name
             # Need to 100% confirm that the ServerCoreImage is ready as it seems that starting the MySQL/SQL RP deployment immediately is causing an issue
             Write-Host "Need to confirm that the Windows Server 2016 Core image is available in the gallery and ready"
-            $azsPlatformImageExists = (Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'
-            $azureRmVmPlatformImageExists = (Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).StatusCode -eq 'OK'
+            $azsPlatformImageExists = (Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'
+            $azureRmVmPlatformImageExists = (Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK'
             Write-Host "Check #1 - Using Get-AzsPlatformImage to check for Windows Server 2016 Core image"
             if ($azsPlatformImageExists) {
                 Write-Host "Get-AzsPlatformImage, successfully located an appropriate image with the following details:"
                 Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
             }
-            While (!$(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+            While (!$(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                 Write-Host "Using Get-AzsPlatformImage, ServerCoreImage is not ready yet. Delaying by 20 seconds"
                 Start-Sleep -Seconds 20
             }
@@ -146,7 +146,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Using Get-AzureRmVMImage, successfully located an appropriate image with the following details:"
                 Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
             }
-            While (!$(Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).StatusCode -eq 'OK') {
+            While (!$(Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK') {
                 Write-Host "Using Get-AzureRmVMImage to test, ServerCoreImage is not ready yet. Delaying by 20 seconds"
                 Start-Sleep -Seconds 20
             }

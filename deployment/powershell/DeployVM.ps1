@@ -146,13 +146,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             elseif ($vmType -eq "AppServiceFS") {
-                $serverFullJobCheck = CheckProgress -progressStage "ServerFullImage"
-                while ($serverFullJobCheck -ne "Complete") {
-                    Write-Host "The ServerFullImage stage of the process has not yet completed. Checking again in 20 seconds"
+                $serverFull2016JobCheck = CheckProgress -progressStage "ServerFull2016Image"
+                while ($serverFull2016JobCheck -ne "Complete") {
+                    Write-Host "The ServerFull2016Image stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
-                    $serverFullJobCheck = CheckProgress -progressStage "ServerFullImage"
-                    if ($serverFullJobCheck -eq "Failed") {
-                        throw "The ServerFullImage stage of the process has failed. This should fully complete before the File Server can be deployed. Check the ServerFullImage log, ensure that step is completed first, and rerun."
+                    $serverFull2016JobCheck = CheckProgress -progressStage "ServerFull2016Image"
+                    if ($serverFull2016JobCheck -eq "Failed") {
+                        throw "The ServerFull2016Image stage of the process has failed. This should fully complete before the File Server can be deployed. Check the ServerFullImage log, ensure that step is completed first, and rerun."
                     }
                 }
             }

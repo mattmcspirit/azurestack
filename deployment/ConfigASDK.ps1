@@ -1187,8 +1187,10 @@ if (!$configAsdkSqlTableExists) {
         Registration         = "Incomplete";
         UbuntuServerImage    = "Incomplete";
         WindowsUpdates       = "Incomplete";
-        ServerCoreImage      = "Incomplete";
-        ServerFullImage      = "Incomplete";
+        ServerCore2016Image  = "Incomplete";
+        ServerFull2016Image  = "Incomplete";
+        ServerCore2019Image  = "Incomplete";
+        ServerFull2019Image  = "Incomplete";
         MySQLGalleryItem     = "Incomplete";
         SQLServerGalleryItem = "Incomplete";
         AddVMExtensions      = "Incomplete";

@@ -25,7 +25,7 @@ param (
     [String] $tenantID,
 
     [parameter(Mandatory = $true)]
-    [ValidateSet("ServerCore", "ServerFull", "UbuntuServer")]
+    [ValidateSet("ServerCore2016", "ServerFull2016","ServerCore2019", "ServerFull2019", "UbuntuServer")]
     [String] $image,
 
     [parameter(Mandatory = $false)]
@@ -154,13 +154,13 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 }
             }
             elseif ($runMode -eq "serial") {
-                $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
-                while ($serverCoreJobCheck -ne "Complete") {
-                    Write-Host "The ServerCoreImage stage of the process has not yet completed. Checking again in 20 seconds"
+                $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
+                while ($serverCore2016JobCheck -ne "Complete") {
+                    Write-Host "The ServerCore2016Image stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
-                    $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
-                    if ($serverCoreJobCheck -eq "Failed") {
-                        throw "The ServerCoreImage stage of the process has failed. This should fully complete before the Windows Server full image is created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
+                    $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
+                    if ($serverCore2016JobCheck -eq "Failed") {
+                        throw "The ServerCore2016Image stage of the process has failed. This should fully complete before the Windows Server full image is created. Check the Windows Server logs, ensure that step is completed first, and rerun."
                     }
                 }
             }
@@ -172,7 +172,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $edition = 'Windows Server 2016 SERVERDATACENTERCORE'
             $onlinePackage = "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*"
             $offlinePackage = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0"
-            $vhdVersion = "1.0.0"
+            $date = Get-Date -Format FileDate
+            $vhdVersion = "2016.40.$date"
             $publisher = "MicrosoftWindowsServer"
             $offer = "WindowsServer"
             $osVersion = "Windows"
@@ -183,7 +184,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $edition = 'Windows Server 2016 SERVERDATACENTER'
             $onlinePackage = "*Microsoft.WindowsServer2016Datacenter-ARM*"
             $offlinePackage = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0"
-            $vhdVersion = "1.0.0"
+            $date = Get-Date -Format FileDate
+            $vhdVersion = "2016.40.$date"
             $publisher = "MicrosoftWindowsServer"
             $offer = "WindowsServer"
             $osVersion = "Windows"
@@ -196,7 +198,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $publisher = "Canonical"
             $offer = "UbuntuServer"
             if (($registerASDK -eq $false) -or (($registerASDK -eq $true) -and ($deploymentMode -ne "Online"))) {
-                $vhdVersion = "1.0.0"
+                $date = Get-Date -Format FileDate
+                $vhdVersion = "16.04.$date"
             }
             else {
                 $vhdVersion = ""
@@ -304,13 +307,13 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         ### Log back into Azure Stack to check for existing images and push new ones if required ###
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         Write-Host "Checking to see if the image is present in your Azure Stack Platform Image Repository"
-        if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+        if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
             Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
-            Write-Host ('VM Image with publisher " {0}", offer " {1}", sku " {2}", version " {3}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
+            Write-Host ('VM Image with publisher " {0}", offer " {1}", sku " {2}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku) -ErrorAction SilentlyContinue
         }
         else {
             Write-Host "No existing suitable $($azpkg.sku) VM image exists." 
-            Write-Host "The image in the Azure Stack Platform Image Repository must have the following properties:"
+            Write-Host "The image in the Azure Stack Platform Image Repository should have the following properties:"
             Write-Host "Publisher Name = $($azpkg.publisher)"
             Write-Host "Offer = $($azpkg.offer)"
             Write-Host "SKU = $($azpkg.sku)"
@@ -332,7 +335,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             if (-not ($asdkContainer)) { $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop }
 
             if ($image -eq "UbuntuServer") { $blobName = "$($azpkg.offer)$($azpkg.vhdVersion).vhd" }
-            else { $blobName = "$($image).vhd" }
+            else { $blobName = "$($image).$($vhdVersion).vhd" }
 
             if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$blobName" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
                 Write-Host "You already have an upload of $blobName within your Storage Account. No need to re-upload."
