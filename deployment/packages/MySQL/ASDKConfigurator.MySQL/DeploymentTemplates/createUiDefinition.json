@@ -6,34 +6,13 @@
             {
                 "name": "vmName",
                 "type": "Microsoft.Common.TextBox",
-                "label": "MySQL Virtual Machine Name",
+                "label": "MySQL Server Virtual Machine Name",
                 "defaultValue": "mysql",
                 "constraints": {
                     "required": true,
                     "regex": "^[a-z0-9]{1,25}$",
                     "validationMessage": "Only lowercase letters and numbers are allowed, and the value must be 1-25 characters long."
                 }
-            },
-            {
-                "name": "scriptBaseUrl",
-                "type": "Microsoft.Common.DropDown",
-                "label": "MySQL Install Script URL",
-                "defaultValue": "ONLINE - https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
-                "toolTip": "Choose the URL location of where the MySQL Custom Script can be found. If your ASDK host is connected to the internet, choose Online, but if this is disconnected, use Local, but ensure script files have been added to a local storage account first. The ASDK Configurator will have performed this step for you.",
-                "constraints": {
-                    "allowedValues": [
-                        {
-                          "label": "ONLINE - https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
-                          "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
-                        },
-                        {
-                          "label": "LOCAL - http://offlinestor.blob.local.azurestack.external/offlinecontainer/",
-                          "value": "http://offlinestor.blob.local.azurestack.external/offlinecontainer/"
-                        }
-                      ],
-                    "required": true
-                },
-                "visible": true
             }
         ],
         "steps": [
@@ -92,9 +71,9 @@
                                 "label": "Virtual Machine Size",
                                 "toolTip": "The size of virtual machine to provision.",
                                 "recommendedSizes": [
-                                    "Standard_D2_v2",
-                                    "Standard_D3",
-                                    "Standard_DS3"
+                                    "Standard_DS1_v2",
+                                    "Standard_DS2_v2",
+                                    "Standard_DS3_v3"
                                 ],
                                 "constraints": {
                                     "allowedSizes": [],
@@ -186,23 +165,23 @@
                         "label": "Storage",
                         "elements": [
                             {
-                                "name": "storageAccount",
-                                "type": "Microsoft.Storage.StorageAccountSelector",
-                                "label": "Storage account",
-                                "toolTip": "Storage account for the Virtual Machine disks",
-                                "defaultValue": {
-                                    "name": "[concat('mysqlstor',substring(guid(),0,4))]",
-                                    "type": "Standard_LRS"
-                                },
+                                "name": "ManagedDisks",
+                                "type": "Microsoft.Common.DropDown",
+                                "label": "VM disk type",
+                                "toolTip": "Select Managed Disks account type. Ensure your chosen VM type supports your chosen storage type.",
+                                "defaultValue": "Standard_LRS",
                                 "constraints": {
-                                    "allowedTypes": [
-                                        "Standard_LRS",
-                                        "Premium_LRS"
-                                    ],
-                                    "excludedTypes": []
-                                },
-                                "options": {
-                                    "hideExisting": false
+                                    "required": true,
+                                    "allowedValues": [
+                                        {
+                                            "label": "Premium SSD",
+                                            "value": "Premium_LRS"
+                                        },
+                                        {
+                                            "label": "Standard HDD",
+                                            "value": "Standard_LRS"
+                                        }
+                                    ]
                                 },
                                 "visible": true
                             }
@@ -255,18 +234,26 @@
                             ]
                         },
                         "visible": true
+                    },
+                    {
+                        "name": "scriptBaseUrl",
+                        "type": "Microsoft.Common.TextBox",
+                        "label": "MySQL Install Script URL",
+                        "defaultValue": "ONLINE - https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
+                        "toolTip": "Choose the URL location of where the MySQL Custom Script can be found. If your ASDK host is connected to the internet, choose Online, but if this is disconnected, use Local, but ensure script files have been added to a local storage account first. The ASDK Configurator will have performed this step for you.",
+                        "constraints": {
+                            "required": true
+                        },
+                        "visible": true
                     }
                 ]
             }
         ],
         "outputs": {
             "vmName": "[steps('basicsStep').vmName]",
-            "scriptBaseUrl": "[steps('basicsStep').scriptBaseUrl]",
             "vmSize": "[steps('settings').Compute.vmSize]",
             "adminUsername": "[steps('settings').Compute.adminUsername]",
             "adminPassword": "[steps('settings').Compute.adminPassword.password]",
-            "mySQLPassword": "[steps('mysqlsettings').mySQLPassword]",
-            "allowRemoteConnections": "[steps('mysqlsettings').allowRemoteConnections]",
             "sshPublicKey": "[steps('settings').Compute.adminPassword.sshPublicKey]",
             "authenticationType": "[steps('settings').Compute.adminPassword.authenticationType]",
             "publicIPAddressName": "[steps('settings').Network.ipAddress.name]",
@@ -277,9 +264,10 @@
             "virtualNetworkNewOrExisting": "[steps('settings').Network.virtualNetwork.newOrExisting]",
             "virtualNetworkSubnetName": "[steps('settings').Network.virtualNetwork.subnets.subnet1.name]",
             "virtualNetworkSubnetAddressPrefix": "[steps('settings').Network.virtualNetwork.subnets.subnet1.addressPrefix]",
-            "storageAccountName": "[steps('settings').Storage.storageAccount.name]",
-            "storageAccountType": "[steps('settings').Storage.storageAccount.type]",
-            "storageAccountNewOrExisting": "[steps('settings').Storage.storageAccount.newOrExisting]"
+            "managedDiskAccountType": "[steps('settings').Storage.ManagedDisks]",
+            "mySQLPassword": "[steps('mysqlsettings').mySQLPassword]",
+            "scriptBaseUrl": "[steps('mysqlsettings').scriptBaseUrl]",
+            "allowRemoteConnections": "[steps('mysqlsettings').allowRemoteConnections]"
         }
     }
 }

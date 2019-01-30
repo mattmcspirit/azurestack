@@ -6,7 +6,7 @@
       "value": "mysqlvm"
     },
     "vmSize": {
-      "value": "Standard_D3_v2"
+      "value": "Standard_DS1_v2"
     },
     "adminUsername": {
       "value": "mysqladmin"
@@ -47,23 +47,14 @@
     "publicIPAddressNewOrExisting": {
       "value": "new"
     },
-    "storageAccountName": {
-      "value": "mysqlstor"
-    },
-    "storageAccountType": {
-      "value": "Standard_LRS"
-    },
-    "storageAccountNewOrExisting": {
-      "value": "new"
+    "managedDiskAccountType": {
+      "value": "Premium_LRS"
     },
     "resourceGroupName": {
       "value": ""
     },
     "allowRemoteConnections": {
       "value": "No"
-    },
-    "templateBaseUrl": {
-      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/packages/MySQL/AzureStack.MySQL/DeploymentTemplates/"
     },
     "scriptBaseUrl": {
       "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
