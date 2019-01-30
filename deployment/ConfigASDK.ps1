@@ -135,6 +135,10 @@ param (
     [parameter(Mandatory = $false)]
     [String]$ISOPath,
 
+    # Path to Windows Server 2019 Datacenter Evaluation ISO file
+    [parameter(Mandatory = $false)]
+    [String]$2019ISOPath,
+
     # Password used for deployment of the ASDK.
     [parameter(Mandatory = $false)]
     [String]$azureStackAdminPwd,
@@ -650,6 +654,9 @@ try {
     # If both the ConfigASDKfiles.zip file exists AND the $ISOPath has been provided by the user, set the $ISOPath to $null as it will be defined later
     if (([System.IO.File]::Exists($configAsdkOfflineZipPath)) -and ([System.IO.File]::Exists($ISOPath))) { 
         $ISOPath = $null
+    }
+    if (([System.IO.File]::Exists($configAsdkOfflineZipPath)) -and ([System.IO.File]::Exists($2019ISOPath))) { 
+        $2019ISOPath = $null
     }
 }
 catch {
@@ -1234,12 +1241,12 @@ else {
 ### VALIDATE ISO ############################################################################################################################################
 #############################################################################################################################################################
 
-$scriptStep = "VALIDATE ISO"
+$scriptStep = "VALIDATE 2016 ISO"
 try {
-    Write-CustomVerbose -Message "Validating ISO path"
+    Write-CustomVerbose -Message "Validating Windows Server 2016 ISO path"
     # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
     if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
-        $ISOPath = Get-ChildItem -Path "$downloadPath\*" -Recurse -Include *.iso -ErrorAction Stop | ForEach-Object { $_.FullName }
+        $ISOPath = Get-ChildItem -Path "$downloadPath\2016iso\*" -Recurse -Include *.iso -ErrorAction Stop | ForEach-Object { $_.FullName }
     }
     $validISOPath = [System.IO.File]::Exists($ISOPath)
     $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
@@ -1263,11 +1270,71 @@ try {
             Write-CustomVerbose -Message "The Windows Server 2016 Eval found at $ISOPath will be used" 
         }
     }
+    # Mount the ISO, check the image for the version, then dismount
+    Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
+    $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath -StorageType ISO -PassThru
+    $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
+    $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
+    $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
+    Dismount-DiskImage -ImagePath $ISOPath
+    Write-CustomVerbose -Message "The Windows Server 2016 Eval build version is: $buildVersion"
+    if ($buildVersion -ne "14393") {
+        Throw "$buildVersion does not equal 14393 - this is not a valid Windows Server 2016 RTM ISO image. Please check your image, and rerun the script"
+    }
 }
 catch {
     Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
     Set-Location $ScriptLocation
     return
+}
+
+if ($null -ne $2019ISOPath) {
+    $scriptStep = "VALIDATE 2019 ISO"
+    try {
+        Write-CustomVerbose -Message "Validating Windows Server 2019 ISO path"
+        # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
+        if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
+            $2019ISOPath = Get-ChildItem -Path "$downloadPath\2019iso\*" -Recurse -Include *.iso -ErrorAction Stop | ForEach-Object { $_.FullName }
+        }
+        $valid2019ISOPath = [System.IO.File]::Exists($2019ISOPath)
+        $validISOfile = [System.IO.Path]::GetExtension("$2019ISOPath")
+        if ($valid2019ISOPath -eq $true -and $validISOfile -eq ".iso") {
+            Write-CustomVerbose -Message "Found path to valid ISO file" 
+            $2019ISOPath = [System.IO.Path]::GetFullPath($2019ISOPath)
+            Write-CustomVerbose -Message "The Windows Server 2019 Eval found at $2019ISOPath will be used" 
+        }
+        elseif ($valid2019ISOPath -eq $false -or $validISOfile -ne ".iso") {
+            $2019ISOPath = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2019 ISO"
+            $valid2019ISOPath = [System.IO.File]::Exists($2019ISOPath)
+            $validISOfile = [System.IO.Path]::GetExtension("$2019ISOPath")
+            if ($valid2019ISOPath -eq $false -or $validISOfile -ne ".iso") {
+                Write-CustomVerbose -Message "No valid path to a Windows Server 2019 ISO was entered again. Exiting process..." -ErrorAction Stop
+                Set-Location $ScriptLocation
+                return
+            }
+            elseif ($valid2019ISOPath -eq $true -and $validISOfile -eq ".iso") {
+                Write-CustomVerbose -Message "Found path to valid ISO file" 
+                $2019ISOPath = [System.IO.Path]::GetFullPath($2019ISOPath)
+                Write-CustomVerbose -Message "The Windows Server 2019 Eval found at $2019ISOPath will be used" 
+            }
+        }
+        # Mount the ISO, check the image for the version, then dismount
+        Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
+        $isoMountForVersion = Mount-DiskImage -ImagePath $2019ISOPath -StorageType ISO -PassThru
+        $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
+        $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
+        $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
+        Dismount-DiskImage -ImagePath $2019ISOPath
+        Write-CustomVerbose -Message "The Windows Server 2019 Eval build version is: $buildVersion"
+        if ($buildVersion -ne "17763") {
+            Throw "Build version: $buildVersion does not equal 17763 - this is not a valid Windows Server 2019 RTM ISO image. Please check your image, and rerun the script"
+        }
+    }
+    catch {
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
 }
 
 ### VALIDATE PS SCRIPTS LOCATION ############################################################################################################################
@@ -1843,12 +1910,12 @@ elseif ($freeCSVSpace -ge 115) {
 # Define the image jobs
 $jobName = "AddUbuntuImage"
 $AddUbuntuImage = {
-    Start-Job -Name AddUbuntuImage -InitializationScript $export_functions -ArgumentList $ISOpath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, `
+    Start-Job -Name AddUbuntuImage -InitializationScript $export_functions -ArgumentList $ISOpath, $2019ISOPath, $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, $modulePath, `
         $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "UbuntuServer" -branch $Using:branch -runMode $Using:runMode `
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath -image "UbuntuServer" -branch $Using:branch -runMode $Using:runMode `
             -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
     } -Verbose -ErrorAction Stop
 }
@@ -1856,41 +1923,68 @@ JobLauncher -jobName $jobName -jobToExecute $AddUbuntuImage -Verbose
 
 $jobName = "DownloadWindowsUpdates"
 $DownloadWindowsUpdates = {
-    Start-Job -Name DownloadWindowsUpdates -InitializationScript $export_functions -ArgumentList $ISOpath, $ASDKpath, $azsLocation, `
+    Start-Job -Name DownloadWindowsUpdates -InitializationScript $export_functions -ArgumentList $ISOpath, $2019ISOPath, $ASDKpath, $azsLocation, `
         $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-        Set-Location $Using:ScriptLocation; .\Scripts\DownloadWinUpdates.ps1 -ISOpath $Using:ISOpath -ASDKpath $Using:ASDKpath `
+        Set-Location $Using:ScriptLocation; .\Scripts\DownloadWinUpdates.ps1 -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds `
             -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -ScriptLocation $Using:ScriptLocation
     } -Verbose -ErrorAction Stop
 }
 JobLauncher -jobName $jobName -jobToExecute $DownloadWindowsUpdates -Verbose
 
-$jobName = "AddServerCoreImage"
-$AddServerCoreImage = {
-    Start-Job -Name AddServerCoreImage -InitializationScript $export_functions -ArgumentList $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, `
-        $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath, $branch, `
+$jobName = "AddServerCore2016Image"
+$AddServerCore2016Image = {
+    Start-Job -Name AddServerCore2016Image -InitializationScript $export_functions -ArgumentList $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, `
+        $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath, $2019ISOPath, $branch, `
         $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK `
             -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID `
-            -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath `
+            -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath `
             -image "ServerCore" -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
-JobLauncher -jobName $jobName -jobToExecute $AddServerCoreImage -Verbose
+JobLauncher -jobName $jobName -jobToExecute $AddServerCore2016Image -Verbose
 
-$jobName = "AddServerFullImage"
-$AddServerFullImage = {
-    Start-Job -Name AddServerFullImage -InitializationScript $export_functions -ArgumentList $ASDKpath, $azsLocation, `
+$jobName = "AddServerFull2016Image"
+$AddServerFull2016Image = {
+    Start-Job -Name AddServerFull2016Image -InitializationScript $export_functions -ArgumentList $ASDKpath, $azsLocation, `
         $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, `
-        $runMode, $ISOpath, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        $runMode, $ISOpath, $2019ISOPath, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
         Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
             -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
             -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -image "ServerFull" -branch $Using:branch `
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath -image "ServerFull" -branch $Using:branch `
             -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
     } -Verbose -ErrorAction Stop
 }
-JobLauncher -jobName $jobName -jobToExecute $AddServerFullImage -Verbose
+JobLauncher -jobName $jobName -jobToExecute $AddServerFull2016Image -Verbose
+
+$jobName = "AddServerCore2019Image"
+$AddServerCore2019Image = {
+    Start-Job -Name AddServerCore2019Image -InitializationScript $export_functions -ArgumentList $ASDKpath, $azsLocation, $registerASDK, $deploymentMode, `
+        $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath, $2019ISOPath, $branch, `
+        $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK `
+            -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID `
+            -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath `
+            -image "ServerCore" -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
+    } -Verbose -ErrorAction Stop
+}
+JobLauncher -jobName $jobName -jobToExecute $AddServerCore2019Image -Verbose
+
+$jobName = "AddServerFull2019Image"
+$AddServerFull2019Image = {
+    Start-Job -Name AddServerFull2019Image -InitializationScript $export_functions -ArgumentList $ASDKpath, $azsLocation, `
+        $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, `
+        $runMode, $ISOpath, $2019ISOPath, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+        Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
+            -azsLocation $Using:azsLocation -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
+            -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
+            -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -2019ISOpath $Using:2019ISOpath -image "ServerFull" -branch $Using:branch `
+            -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
+    } -Verbose -ErrorAction Stop
+}
+JobLauncher -jobName $jobName -jobToExecute $AddServerFull2019Image -Verbose
 
 ### ADD DB GALLERY ITEMS - JOB SETUP #########################################################################################################################
 ##############################################################################################################################################################
