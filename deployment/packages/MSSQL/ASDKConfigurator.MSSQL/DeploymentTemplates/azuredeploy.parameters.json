@@ -47,11 +47,8 @@
     "publicIPAddressNewOrExisting": {
       "value": "new"
     },
-    "storageAccountType": {
-      "value": "Standard_LRS"
-    },
     "managedDiskAccountType": {
-      "value": "PremiumS_LRS"
+      "value": "Premium_LRS"
     },
     "resourceGroupName": {
       "value": ""
