@@ -203,10 +203,10 @@
                         "name": "msSQLPassword",
                         "type": "Microsoft.Common.PasswordBox",
                         "label": {
-                            "password": "Password for SQL Server 2017 Database Server",
+                            "password": "Password for SQL Server 2017 Database",
                             "confirmPassword": "Confirm password"
                         },
-                        "toolTip": "Password for SQL Server 2017 Database Server",
+                        "toolTip": "Password for SQL Server 2017 Database",
                         "constraints": {
                             "required": true
                         },
