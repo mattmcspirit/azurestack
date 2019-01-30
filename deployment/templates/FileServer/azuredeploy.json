@@ -12,9 +12,7 @@
     "fileServerVirtualMachineSize": {
       "type": "string",
       "defaultValue": "Standard_F2s",
-      "allowedValues": [
-
-      ],
+      "allowedValues": [],
       "metadata": {
         "description": "Size of VM"
       }
@@ -93,6 +91,7 @@
     "sku": "2016-Datacenter",
     "version": "latest",
     "managedDiskAccountType": "Premium_LRS",
+    "osDiskName": "[toLower(concat(parameters('vmName'), '_osdisk'))]",
     "randomGUID": "[substring(uniqueString(subscription().subscriptionId, resourceGroup().id, parameters('vmName'),parameters('adminUsername')),0,6)]",
     "diagStorageAccountName": "[concat(parameters('vmName'),'diagstor', variables('randomGUID'))]",
     "nicName": "[concat(parameters('vmName'),'_nic')]",
@@ -110,7 +109,7 @@
       }
     },
     {
-      "apiVersion": "2015-05-01-preview",
+      "apiVersion": "2017-10-01",
       "type": "Microsoft.Network/networkSecurityGroups",
       "name": "[variables('nsgName')]",
       "location": "[resourceGroup().location]",
@@ -148,7 +147,7 @@
       }
     },
     {
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2017-10-01",
       "type": "Microsoft.Network/publicIPAddresses",
       "name": "[variables('publicIPAddressName')]",
       "location": "[resourceGroup().location]",
@@ -160,7 +159,7 @@
       }
     },
     {
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2017-10-01",
       "type": "Microsoft.Network/virtualNetworks",
       "name": "[variables('virtualNetworkName')]",
       "location": "[resourceGroup().location]",
@@ -181,7 +180,7 @@
       }
     },
     {
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2017-10-01",
       "type": "Microsoft.Network/networkInterfaces",
       "name": "[variables('nicName')]",
       "location": "[resourceGroup().location]",
@@ -211,7 +210,7 @@
       }
     },
     {
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2017-03-30",
       "type": "Microsoft.Compute/virtualMachines",
       "name": "[parameters('vmName')]",
       "location": "[resourceGroup().location]",
@@ -238,9 +237,14 @@
             "version": "[variables('version')]"
           },
           "osDisk": {
-            "name": "osdisk",
+            "osType": "Windows",
+            "name": "[variables('osDiskName')]",
             "caching": "ReadWrite",
-            "createOption": "FromImage"
+            "createOption": "FromImage",
+            "diskSizeGB": 30,
+            "managedDisk": {
+              "storageAccountType": "[variables('managedDiskAccountType')]"
+            }
           }
         },
         "networkProfile": {
@@ -252,16 +256,16 @@
         },
         "diagnosticsProfile": {
           "bootDiagnostics": {
-              "enabled": true,
-              "storageUri": "[reference(resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', variables('diagStorageAccountName'))).primaryEndpoints.blob]"
+            "enabled": true,
+            "storageUri": "[reference(resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', variables('diagStorageAccountName'))).primaryEndpoints.blob]"
           }
-      }
+        }
       }
     },
     {
       "type": "Microsoft.Compute/virtualMachines/extensions",
       "name": "[concat(parameters('vmName'),'/configurefileserver')]",
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2017-03-30",
       "location": "[resourceGroup().location]",
       "dependsOn": [
         "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
@@ -285,11 +289,11 @@
   ],
   "outputs": {
     "fqdn": {
-      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName')), '2015-06-15').dnsSettings.fqdn]",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))).dnsSettings.fqdn]",
       "type": "string"
     },
     "ipaddress": {
-      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName')), '2015-06-15').ipAddress]",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))).ipAddress]",
       "type": "string"
     }
   }
