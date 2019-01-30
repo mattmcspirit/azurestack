@@ -264,7 +264,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     $mainTemplateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/azuredeploy.json"
                 }
                 else {
-                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.$azpkg*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
+                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDKConfigurator.$azpkg*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
                     $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
                 }
             }
@@ -278,7 +278,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     $mainTemplateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
                 }
                 else {
-                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDK.$azpkg*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
+                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDKConfigurator.$azpkg*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
                 }
                 $scriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob, $asdkOfflineContainerName) -replace "https", "http"
             }
@@ -304,14 +304,14 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     New-AzureRmResourceGroupDeployment -Name "DeployMySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                         -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
                         -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" `
-                        -vmSize Standard_A1_v2 -mode Incremental -scriptBaseUrl $scriptBaseURI -Verbose -ErrorAction Stop
+                        -vmSize Standard_F1s -managedDiskAccountType "Premium_LRS" -mode Incremental -scriptBaseUrl $scriptBaseURI -Verbose -ErrorAction Stop
                 }
                 elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost" -ErrorAction SilentlyContinue)) {
                     Write-Host "No previous deployment found - starting deployment of $vmType database host"
                     New-AzureRmResourceGroupDeployment -Name "DeployMySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                         -vmName "mysqlhost" -adminUsername "mysqladmin" -adminPassword $secureVMpwd -mySQLPassword $secureVMpwd -allowRemoteConnections "Yes" `
                         -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "mysqlhost" `
-                        -vmSize Standard_A1_v2 -mode Incremental -scriptBaseUrl $scriptBaseURI -Verbose -ErrorAction Stop
+                        -vmSize Standard_F1s -managedDiskAccountType "Premium_LRS" -mode Incremental -scriptBaseUrl $scriptBaseURI -Verbose -ErrorAction Stop
                 }
             }
             elseif ($vmType -eq "SQLServer") {
@@ -337,14 +337,14 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                             -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
                             -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" `
-                            -vmSize Standard_A1_v2 -mode Incremental -Verbose -ErrorAction Stop
+                            -vmSize Standard_F1s -managedDiskAccountType "Premium_LRS" -mode Incremental -Verbose -ErrorAction Stop
                     }
                     else {
                         # Assume MySQL RP was deployed, and DB Hosting RG and networks were previously created
                         New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                             -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
                             -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" `
-                            -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A1_v2 -mode Incremental -Verbose -ErrorAction Stop
+                            -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_F1s -managedDiskAccountType "Premium_LRS" -mode Incremental -Verbose -ErrorAction Stop
                     }
                 }
                 elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost" -ErrorAction SilentlyContinue)) {
@@ -354,14 +354,14 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                             -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
                             -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" -publicIPAddressDomainNameLabel "sqlhost" `
-                            -vmSize Standard_A1_v2 -mode Incremental -Verbose -ErrorAction Stop
+                            -vmSize Standard_F1s -mode Incremental -Verbose -ErrorAction Stop
                     }
                     else {
                         # Assume MySQL RP was deployed, and DB Hosting RG and networks were previously created
                         New-AzureRmResourceGroupDeployment -Name "DeploySQLHost" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
                             -vmName "sqlhost" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -scriptBaseUrl $scriptBaseURI `
                             -virtualNetworkNewOrExisting "existing" -virtualNetworkName "dbhosting_vnet" -virtualNetworkSubnetName "dbhosting_subnet" `
-                            -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_A1_v2 -mode Incremental -Verbose -ErrorAction Stop
+                            -publicIPAddressDomainNameLabel "sqlhost" -vmSize Standard_F1s -managedDiskAccountType "Premium_LRS" -mode Incremental -Verbose -ErrorAction Stop
                     }
                 }
             }
@@ -424,13 +424,15 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Host "Starting deployment again..."
                     New-AzureRmResourceGroupDeployment -Name "DeployAppServiceDB" -ResourceGroupName $rg -TemplateUri $mainTemplateURI -scriptBaseUrl $scriptBaseURI `
                         -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
-                        -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A1_v2 -mode Incremental -Verbose -ErrorAction Stop
+                        -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_F1s `
+                        -managedDiskAccountType "Premium_LRS" -mode Incremental -Verbose -ErrorAction Stop
                 }
                 elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" -ErrorAction SilentlyContinue)) {
                     Write-Host "No previous deployment found - starting deployment of File Server"
                     New-AzureRmResourceGroupDeployment -Name "DeployAppServiceDB" -ResourceGroupName $rg -TemplateUri $mainTemplateURI -scriptBaseUrl $scriptBaseURI `
                         -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
-                        -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_A1_v2 -mode Incremental -Verbose -ErrorAction Stop
+                        -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_F1s `
+                        -managedDiskAccountType "Premium_LRS" -mode Incremental -Verbose -ErrorAction Stop
                 }
                 # Get the FQDN of the VM
                 $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName $rg).DnsSettings.Fqdn
