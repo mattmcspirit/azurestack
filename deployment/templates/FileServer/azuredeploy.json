@@ -101,8 +101,8 @@
     "version": "latest",
     "managedDiskAccountType": "Premium_LRS",
     "osDiskName": "[toLower(concat(parameters('vmName'), '_osdisk'))]",
-    "randomGUID": "[substring(uniqueString(subscription().subscriptionId, resourceGroup().id, parameters('vmName'),parameters('adminUsername')),0,6)]",
-    "diagStorageAccountName": "[concat(parameters('vmName'),'diagstor', variables('randomGUID'))]",
+    "randomGUID": "[substring(uniqueString(subscription().subscriptionId, resourceGroup().id, parameters('vmName'),parameters('adminUsername')),0,4)]",
+    "diagStorageAccountName": "[concat(parameters('vmName'),'diag', variables('randomGUID'))]",
     "nicName": "[concat(parameters('vmName'),'_nic')]",
     "nsgName": "[concat(parameters('vmName'),'_nsg')]"
   },
