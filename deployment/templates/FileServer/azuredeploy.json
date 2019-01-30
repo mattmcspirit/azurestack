@@ -11,21 +11,12 @@
     },
     "fileServerVirtualMachineSize": {
       "type": "string",
-      "defaultValue": "Standard_A2",
+      "defaultValue": "Standard_F2s",
       "allowedValues": [
-        "Standard_A1",
-        "Standard_A1_v2",
-        "Standard_A2",
-        "Standard_A2_v2",
-        "Standard_A3",
-        "Standard_A4",
-        "Standard_D1",
-        "Standard_D2",
-        "Standard_D3",
-        "Standard_D4"
+
       ],
       "metadata": {
-        "description": "Size of vm"
+        "description": "Size of VM"
       }
     },
     "dnsNameForPublicIP": {
@@ -84,6 +75,7 @@
     }
   },
   "variables": {
+    "storageAccountResourceGroup": "[resourceGroup().name]",
     "powershell_fileShareOwner": "[concat('base64:', base64(parameters('fileShareOwner')))]",
     "powershell_fileShareOwnerPassword": "[concat('base64:', base64(parameters('fileShareOwnerPassword')))]",
     "powershell_fileShareUser": "[concat('base64:', base64(parameters('fileShareUser')))]",
@@ -100,22 +92,21 @@
     "offer": "WindowsServer",
     "sku": "2016-Datacenter",
     "version": "latest",
-    "storageAccountType": "Standard_LRS",
-    "uniqueStorageString": "[uniqueString(toLower(resourceGroup().id),parameters('vmName'))]",
-    "namingInfix": "[toLower(take(trim(parameters('vmName')), 10))]",
-    "storageAccountName": "[concat(variables('namingInfix'), variables('uniqueStorageString'))]",
+    "managedDiskAccountType": "Premium_LRS",
+    "randomGUID": "[substring(uniqueString(subscription().subscriptionId, resourceGroup().id, parameters('vmName'),parameters('adminUsername')),0,6)]",
+    "diagStorageAccountName": "[concat(parameters('vmName'),'diagstor', variables('randomGUID'))]",
     "nicName": "[concat(parameters('vmName'),'_nic')]",
     "nsgName": "[concat(parameters('vmName'),'_nsg')]"
   },
   "resources": [
     {
-      "apiVersion": "2016-01-01",
+      "apiVersion": "2017-10-01",
       "type": "Microsoft.Storage/storageAccounts",
-      "name": "[variables('storageAccountName')]",
+      "name": "[variables('diagStorageAccountName')]",
       "location": "[resourceGroup().location]",
       "kind": "Storage",
       "sku": {
-        "name": "[variables('storageAccountType')]"
+        "name": "Standard_LRS"
       }
     },
     {
@@ -228,7 +219,6 @@
         "displayName": "Standalone file server virtual machines"
       },
       "dependsOn": [
-        "[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
         "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
       ],
       "properties": {
@@ -249,9 +239,6 @@
           },
           "osDisk": {
             "name": "osdisk",
-            "vhd": {
-              "uri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName')), '2015-06-15').primaryEndpoints.blob,'vhds/fileserverosdisk.vhd')]"
-            },
             "caching": "ReadWrite",
             "createOption": "FromImage"
           }
@@ -262,7 +249,13 @@
               "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
             }
           ]
-        }
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+              "enabled": true,
+              "storageUri": "[reference(resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', variables('diagStorageAccountName'))).primaryEndpoints.blob]"
+          }
+      }
       }
     },
     {
