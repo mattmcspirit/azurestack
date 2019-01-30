@@ -47,17 +47,11 @@
     "publicIPAddressNewOrExisting": {
       "value": "new"
     },
-    "storageAccountName": {
-      "value": "mysqlstor"
-    },
     "storageAccountType": {
       "value": "Standard_LRS"
     },
     "managedDiskAccountType": {
-      "value": "PremiumSSD_LRS"
-    },
-    "storageAccountNewOrExisting": {
-      "value": "new"
+      "value": "PremiumS_LRS"
     },
     "resourceGroupName": {
       "value": ""
