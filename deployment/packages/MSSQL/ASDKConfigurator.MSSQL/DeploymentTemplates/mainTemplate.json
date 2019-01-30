@@ -11,7 +11,7 @@
         },
         "vmSize": {
             "type": "string",
-            "defaultValue": "Standard_D3_v2",
+            "defaultValue": "Standard_DS1_v2",
             "metadata": {
                 "description": "VM Size"
             }
@@ -107,41 +107,12 @@
                 "description": "Public IP domain name prefix"
             }
         },
-        "storageAccountNewOrExisting": {
+        "managedDiskAccountType": {
             "type": "string",
-            "allowedValues": [
-                "new",
-                "existing"
-            ],
-            "defaultValue": "new",
-            "metadata": {
-                "description": "Storage Account New or Existing"
-            }
-        },
-        "storageAccountName": {
-            "type": "string",
-            "defaultValue": "sqlstor",
-            "metadata": {
-                "description": "Storage Account Name"
-            }
-        },
-        "storageAccountType": {
-            "type": "string",
-            "defaultValue": "Standard_LRS",
+            "defaultValue": "Premium_LRS",
             "allowedValues": [
                 "Premium_LRS",
                 "Standard_LRS"
-            ],
-            "metadata": {
-                "description": "Managed Disks Storage Account Type"
-            }
-        },
-        "managedDiskAccountType": {
-            "type": "string",
-            "defaultValue": "PremiumSSD_LRS",
-            "allowedValues": [
-                "PremiumSSD_LRS",
-                "StandardHDD_LRS"
             ],
             "metadata": {
                 "description": "Managed Disks Storage Account Type"
@@ -157,6 +128,8 @@
         }
     },
     "variables": {
+        "randomGUID": "[substring(uniqueString(subscription().subscriptionId, resourceGroup().id, parameters('vmName'),parameters('adminUsername')),0,6)]",
+        "diagStorageAccountName": "[concat(parameters('vmName'),'diagstor', variables('randomGUID'))]",
         "storageAccountResourceGroup": "[resourceGroup().name]",
         "virtualNetworkResourceGroup": "[resourceGroup().name]",
         "publicIPAddressResourceGroup": "[resourceGroup().name]",
@@ -184,14 +157,13 @@
     },
     "resources": [
         {
-            "condition": "[equals(parameters('storageAccountNewOrExisting'), 'new')]",
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2017-10-01",
-            "name": "[parameters('storageAccountName')]",
+            "name": "[variables('diagStorageAccountName')]",
             "location": "[resourceGroup().location]",
             "kind": "Storage",
             "sku": {
-                "name": "[parameters('storageAccountType')]"
+                "name": "Standard_LRS"
             }
         },
         {
@@ -296,7 +268,6 @@
             "name": "[parameters('vmName')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[parameters('storageAccountName')]",
                 "[variables('nicName')]"
             ],
             "properties": {
@@ -337,7 +308,7 @@
                 "diagnosticsProfile": {
                     "bootDiagnostics": {
                         "enabled": true,
-                        "storageUri": "[reference(resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2017-06-01').primaryEndpoints.blob]"
+                        "storageUri": "[reference(resourceId(variables('storageAccountResourceGroup'), 'Microsoft.Storage/storageAccounts/', variables('diagStorageAccountName'))).primaryEndpoints.blob]"
                     }
                 }
             }

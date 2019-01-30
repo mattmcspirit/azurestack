@@ -6,7 +6,7 @@
       "value": "sqlvm"
     },
     "vmSize": {
-      "value": "Standard_D3_v2"
+      "value": "Standard_DS1_v2"
     },
     "adminUsername": {
       "value": "sqladmin"

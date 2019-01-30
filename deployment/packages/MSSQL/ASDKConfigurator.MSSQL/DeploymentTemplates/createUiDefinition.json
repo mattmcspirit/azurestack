@@ -71,9 +71,9 @@
                                 "label": "Virtual Machine Size",
                                 "toolTip": "The size of virtual machine to provision.",
                                 "recommendedSizes": [
-                                    "Standard_D2_v2",
-                                    "Standard_D3",
-                                    "Standard_DS3"
+                                    "Standard_DS1_v2",
+                                    "Standard_DS2_v2",
+                                    "Standard_DS3_v3"
                                 ],
                                 "constraints": {
                                     "allowedSizes": [],
@@ -165,47 +165,26 @@
                         "label": "Storage",
                         "elements": [
                             {
-                                "name": "storageAccount",
-                                "type": "Microsoft.Storage.StorageAccountSelector",
-                                "label": "Storage account",
-                                "toolTip": "Storage account for the managed disks",
-                                "defaultValue": {
-                                    "name": "[concat('sqlstor',substring(guid(),0,4))]",
-                                    "type": "Standard_LRS"
-                                },
+                                "name": "ManagedDisks",
+                                "type": "Microsoft.Common.DropDown",
+                                "label": "VM disk type",
+                                "toolTip": "Select Managed Disks account type. Ensure your chosen VM type supports your chosen storage type.",
+                                "defaultValue": "Standard_LRS",
                                 "constraints": {
-                                    "allowedTypes": [
-                                        "Standard_LRS",
-                                        "Premium_LRS"
-                                    ],
-                                    "excludedTypes": []
-                                },
-                                "options": {
-                                    "hideExisting": false
+                                    "allowedValues": [
+                                        {
+                                            "label": "Premium SSD",
+                                            "value": "Premium_LRS"
+                                        },
+                                        {
+                                            "label": "Standard HDD",
+                                            "value": "Standard_LRS"
+                                        }
+                                    ]
                                 },
                                 "visible": true
                             }
                         ],
-                        "visible": true
-                    },
-                    {
-                        "name": "ManagedDisks",
-                        "type": "Microsoft.Common.DropDown",
-                        "label": "Managed Disks",
-                        "toolTip": "Select Managed Disks account type",
-                        "defaultValue": "PremiumSSD_LRS",
-                        "constraints": {
-                            "allowedValues": [
-                                {
-                                    "label": "Premium SSD LRS",
-                                    "value": "PremiumSSD_LRS"
-                                },
-                                {
-                                    "label": "Standard HDD LRS",
-                                    "value": "StandardHDD_LRS"
-                                }
-                            ]
-                        },
                         "visible": true
                     }
                 ]
@@ -266,10 +245,7 @@
             "virtualNetworkNewOrExisting": "[steps('settings').Network.virtualNetwork.newOrExisting]",
             "virtualNetworkSubnetName": "[steps('settings').Network.virtualNetwork.subnets.subnet1.name]",
             "virtualNetworkSubnetAddressPrefix": "[steps('settings').Network.virtualNetwork.subnets.subnet1.addressPrefix]",
-            "storageAccountName": "[steps('settings').Storage.storageAccount.name]",
-            "storageAccountType": "[steps('settings').Storage.storageAccount.type]",
-            "storageAccountNewOrExisting": "[steps('settings').Storage.storageAccount.newOrExisting]",
-            "managedDiskAccountType": "[steps('settings').ManagedDisks]"
+            "managedDiskAccountType": "[steps('settings')Storage.ManagedDisks]"
         }
     }
 }
