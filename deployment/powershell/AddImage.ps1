@@ -395,7 +395,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     # Display Legal Terms
                     $legalTerms = $productDetails.properties.description
                     $legalDisplay = $legalTerms -replace '<.*?>', ''
-                    Write-Host "$legalDisplay" -ForegroundColor Yellow
+                    Write-Host "Legal display for AZPKG file: $legalDisplay"
 
                     if ($image -eq "UbuntuServer") {
                         # Get download information for Ubuntu Server 16.04 LTS VHD file
@@ -432,7 +432,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             ### Log back into Azure Stack to check for existing images and push new ones if required ###
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Checking to see if the image is present in your Azure Stack Platform Image Repository"
-            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Succeeded"}) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
                 Write-Host ('VM Image with publisher " {0}", offer " {1}", sku " {2}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku) -ErrorAction SilentlyContinue
             }
