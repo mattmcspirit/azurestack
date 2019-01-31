@@ -79,7 +79,7 @@ $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($image)$runTime.txt"
-Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
+Start-Transcript -Path "$fullLogPath" -Append
 
 $progressStage = "$($image)Image"
 $progressCheck = CheckProgress -progressStage $progressStage
@@ -113,31 +113,37 @@ if (!$([System.IO.Directory]::Exists("$csvImagePath\Images\$image"))) {
 
 # Check if 2019 images are going to be created by confirming ISO path is present
 if (($progressStage -eq "ServerCore2019Image") -or ($progressStage -eq "ServerFull2019Image")) {
+    Write-Host "Checking if valid ISO file has been provided for Windows Server 2019"
     if (!$ISOPath2019) {
+        Write-Host "No ISO file has been provided for Windows Server 2019 - skipping creating 2019 Images"
         $skip2019Images = $true
     }
 }
 
-
+Write-Host "Checking on current status for this stage"
 if ($progressCheck -eq "Complete") {
     Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
-elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
+elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
+    Write-Host "skip2019Images doesn't exist, and status isn't complete"
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             if ($progressCheck -eq "Failed") {
                 StageReset -progressStage $progressStage
             }
 
+            Write-Host "Cleaning up old stale logins for this session"
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
-            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
-            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+            Write-Host "Importing storage modules"
+            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
+            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
 
             # Need to confirm if Windows Update stage previously completed
             if ($image -ne "UbuntuServer") {
+                Write-Host "Checking the Windows Update stage progress"
                 $windowsUpdateCheck = CheckProgress -progressStage "WindowsUpdates"
                 while ($windowsUpdateCheck -ne "Complete") {
                     Write-Host "The WindowsUpdates stage of the process has not yet completed. Checking again in 20 seconds"
@@ -189,7 +195,8 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             if ($image -eq "ServerCore2019") {
-                elseif ($runMode -eq "partialParallel") {
+                Write-Host "Image is $image - checking run mode and progress"
+                if ($runMode -eq "partialParallel") {
                     $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
                     while ($serverCore2016JobCheck -ne "Complete") {
                         Write-Host "The ServerCore2016Image stage of the process has not yet completed. Checking again in 20 seconds"
@@ -201,6 +208,7 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                 }
                 elseif ($runMode -eq "serial") {
+                    Write-Host "Image is $image - checking run mode and progress"
                     $serverFull2016JobCheck = CheckProgress -progressStage "ServerFull2016Image"
                     while ($serverFull2016JobCheck -ne "Complete") {
                         Write-Host "The ServerFull2016Image stage of the process has not yet completed. Checking again in 20 seconds"
@@ -213,7 +221,8 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             if ($image -eq "ServerFull2019") {
-                elseif ($runMode -eq "partialParallel") {
+                Write-Host "Image is $image - checking run mode and progress"
+                if ($runMode -eq "partialParallel") {
                     $serverFull2016JobCheck = CheckProgress -progressStage "ServerFull2016Image"
                     while ($serverFull2016JobCheck -ne "Complete") {
                         Write-Host "The ServerFull2016Image stage of the process has not yet completed. Checking again in 20 seconds"
@@ -248,6 +257,7 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
+                $imageType = "ServerCore"
                 $delay = 60
             }
             elseif ($image -eq "ServerFull2016") {
@@ -260,6 +270,7 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
+                $imageType = "ServerFull"
                 $delay = 45
             }
             if ($image -eq "ServerCore2019") {
@@ -272,6 +283,7 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
+                $imageType = "ServerCore"
                 $delay = 90
             }
             elseif ($image -eq "ServerFull2019") {
@@ -284,6 +296,7 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
+                $imageType = "ServerFull"
                 $delay = 75
             }
             elseif ($image -eq "UbuntuServer") {
@@ -304,12 +317,14 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             # Log into Azure Stack to check for existing images and push new ones if required ###
+            Write-Host "Logging into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
                 if ($image -notlike "*2019") {
                     # Logout to clean up
+                    Write-Host "Logging out to clear up stale logins"
                     Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                     Clear-AzureRmContext -Scope CurrentUser -Force
                     ### Login to Azure to get all the details about the syndicated marketplace offering ###
@@ -444,7 +459,7 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
                 if (-not ($asdkContainer)) { $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop }
 
                 if ($image -eq "UbuntuServer") { $blobName = "$($azpkg.offer)$($azpkg.vhdVersion).vhd" }
-                else { $blobName = "$($image).$($vhdVersion).vhd" }
+                else { $blobName = "$($imageType).$($vhdVersion).vhd" }
 
                 if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob "$blobName" -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
                     Write-Host "You already have an upload of $blobName within your Storage Account. No need to re-upload."
@@ -515,10 +530,10 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
                             if ($deploymentMode -eq "Online") {
                                 # Download Convert-WindowsImage.ps1
                                 $convertWindowsURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/Convert-WindowsImage.ps1"
-                                $convertWindowsDownloadLocation = "$ASDKpath\images\$image\Convert-Windows$($image)Image.ps1"
-                                $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\$image\Convert-Windows$($image)Image.ps1")
+                                $convertWindowsDownloadLocation = "$ASDKpath\images\$image\Convert-Windows$($imageType)Image.ps1"
+                                $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\$image\Convert-Windows$($imageType)Image.ps1")
                                 if ($convertWindowsImageExists -eq $false) {
-                                    Write-Host "Downloading Convert-Windows$($image)Image.ps1 to create the VHD from the ISO"
+                                    Write-Host "Downloading Convert-Windows$($imageType)Image.ps1 to create the VHD from the ISO"
                                     Write-Host "The download will be stored in $ASDKpath\images"
                                     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                                     DownloadWithRetry -downloadURI "$convertWindowsURI" -downloadLocation "$convertWindowsDownloadLocation" -retries 10
@@ -527,7 +542,7 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
                             elseif ($deploymentMode -ne "Online") {
                                 $convertWindowsImageExists = [System.IO.File]::Exists("$ASDKpath\images\Convert-WindowsImage.ps1")
                                 if ($convertWindowsImageExists -eq $true) {
-                                    Copy-Item -Path "$ASDKpath\images\Convert-WindowsImage.ps1" -Destination "$ASDKpath\images\$image\Convert-Windows$($image)Image.ps1" -Force -Verbose -ErrorAction Stop
+                                    Copy-Item -Path "$ASDKpath\images\Convert-WindowsImage.ps1" -Destination "$ASDKpath\images\$image\Convert-Windows$($imageType)Image.ps1" -Force -Verbose -ErrorAction Stop
                                 }
                                 else {
                                     throw "Convert-WindowsImage.ps1 is missing from your download folder. This is required for the image creation and should be located here: $ASDKpath\images"
@@ -546,11 +561,11 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
                             Copy-Item -Path "$ASDKpath\images\$v\*" -Include "*.msu" -Destination "$csvImagePath\Images\$image\" -Force -Verbose -ErrorAction Stop
                             $target = "$csvImagePath\Images\$image\"
                             if ($image -eq "ServerCore$($v)") {
-                                .\Convert-WindowsServerCore$($v)Image.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\Images\$image\$($image).vhd" `
+                                .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\Images\$image\$($blobname)" `
                                     -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                             }
                             elseif ($image -eq "ServerFull$($v)") {
-                                .\Convert-WindowsServerFull$($v)Image.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\Images\$image\$($image).vhd" `
+                                .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\Images\$image\$($blobname)" `
                                     -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                             }
                             $serverVHD = Get-ChildItem -Path "$csvImagePath\Images\$image\$blobName"
