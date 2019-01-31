@@ -194,7 +194,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     if (!$kbIDs) {
                         $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
                     }
-            
                     # Defined a KB array to hold the kbIDs and if the build is 14393, add the corresponding KBID to it
                     $kbDownloads += "$kbIDs"
 
@@ -220,7 +219,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
                         #$Available_kbIDs | Out-String | Write-Host
                         $NETkbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
-            
                         # Defined a KB array to hold the NETkbIDs
                         $kbDownloads += "$NETkbIDs"
                     }
