@@ -96,7 +96,7 @@ if (!$([System.IO.Directory]::Exists("$ASDKpath\images"))) {
 if (!$([System.IO.Directory]::Exists("$ASDKpath\images\2016"))) {
     New-Item -Path "$ASDKpath\images\2016" -ItemType Directory -Force | Out-Null   
 }
-if (null -ne $2019ISOPath) {
+if ($null -ne $2019ISOPath) {
     if (!$([System.IO.Directory]::Exists("$ASDKpath\images\2019"))) {
         New-Item -Path "$ASDKpath\images\2019" -ItemType Directory -Force | Out-Null   
     }
