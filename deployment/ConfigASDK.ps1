@@ -1292,7 +1292,7 @@ catch {
     return
 }
 
-if ($null -ne $ISOPath2019) {
+if ($ISOPath2019) {
     $scriptStep = "VALIDATE 2019 ISO"
     try {
         Write-CustomVerbose -Message "Validating Windows Server 2019 ISO path"
