@@ -7,7 +7,7 @@ param (
     [String] $ISOPath,
 
     [Parameter(Mandatory = $false)]
-    [String] $2019ISOPath,
+    [String] $ISOPath2019,
 
     [Parameter(Mandatory = $true)]
     [String] $azsLocation,
@@ -69,7 +69,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         
-        if ($null -ne $2019ISOPath) {
+        if ($null -ne $ISOPath2019) {
             $versionArray = @("2016","2019")
         }
         else {
@@ -119,7 +119,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     # Mount the ISO, check the image for the version, then dismount
                     Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
                     if ($v -eq "2019") {
-                        $ISOPath = $2019ISOPath
+                        $ISOPath = $ISOPath2019
                     }
                     $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath -StorageType ISO -PassThru
                     $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter

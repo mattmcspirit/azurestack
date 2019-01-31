@@ -41,7 +41,7 @@ param (
     [String] $ISOpath,
 
     [Parameter(Mandatory = $false)]
-    [String] $2019ISOPath,
+    [String] $ISOPath2019,
 
     [parameter(Mandatory = $true)]
     [ValidateSet("serial", "partialParallel", "parallel")]
@@ -96,7 +96,7 @@ if (!$([System.IO.Directory]::Exists("$ASDKpath\images"))) {
 if (!$([System.IO.Directory]::Exists("$ASDKpath\images\2016"))) {
     New-Item -Path "$ASDKpath\images\2016" -ItemType Directory -Force | Out-Null   
 }
-if ($null -ne $2019ISOPath) {
+if ($null -ne $ISOPath2019) {
     if (!$([System.IO.Directory]::Exists("$ASDKpath\images\2019"))) {
         New-Item -Path "$ASDKpath\images\2019" -ItemType Directory -Force | Out-Null   
     }
@@ -113,7 +113,7 @@ if (!$([System.IO.Directory]::Exists("$csvImagePath\Images\$image"))) {
 
 # Check if 2019 images are going to be created by confirming ISO path is present
 if (($progressStage -eq "ServerCore2019Image") -or ($progressStage -eq "ServerFull2019Image")) {
-    if ($null -eq $2019ISOPath) {
+    if ($null -eq $ISOPath2019) {
         $skip2019Images = $true
     }
 }
@@ -538,7 +538,7 @@ elseif (($skip2019Images -eq $false) -and ($progressCheck -ne "Complete")) {
 
                             if ($image -like "*2019") {
                                 $v = "2019"
-                                $ISOpath = $2019ISOPath
+                                $ISOpath = $ISOPath2019
                             }
                             else {
                                 $v = "2016"
