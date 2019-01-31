@@ -123,7 +123,6 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                 }
             }
         }
-        Write-Host "Stage completed successfully, updating ConfigASDK database."
         $progressStage = $progressName
         StageComplete -progressStage $progressStage
     }
