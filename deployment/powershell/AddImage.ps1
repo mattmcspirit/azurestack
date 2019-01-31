@@ -60,7 +60,7 @@ param (
     [String] $tableName
 )
 
-$Global:VerbosePreference = "Continue"
+#$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -78,8 +78,9 @@ $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
 
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
-$fullLogPath = "$logPath\$($image)$runTime.txt"
+$fullLogPath = "$logPath\$($image)-$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append
+Write-Host "Log started at $runTime"
 
 $progressStage = "$($image)Image"
 $progressCheck = CheckProgress -progressStage $progressStage
@@ -736,4 +737,6 @@ elseif ($skip2019Images -and ($progressCheck -ne "Complete")) {
     StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
+$endTime = $(Get-Date).ToString("MMdd-HHmmss")
+Write-Host "Logging stopped at $endTime"
 Stop-Transcript -ErrorAction SilentlyContinue
