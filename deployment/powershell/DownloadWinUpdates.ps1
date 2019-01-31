@@ -70,7 +70,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         
         if ($null -ne $2019ISOPath) {
-            $versionArray = @("2016,2019")
+            $versionArray = @("2016","2019")
         }
         else {
             $versionArray = @("2016")
@@ -85,7 +85,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $platformImageCore = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
             $serverCoreVMImageAlreadyAvailable = $false
             if ($platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
-                Write-Host "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
+                Write-Host "There appears to be at least 1 suitable Windows Server $v Datacenter Server Core image within your Platform Image Repository which we will use for the ASDK Configurator." 
                 $serverCoreVMImageAlreadyAvailable = $true
             }
 
@@ -96,7 +96,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $serverFullVMImageAlreadyAvailable = $false
 
             if ($platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
-                Write-Host "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
+                Write-Host "There appears to be at least 1 suitable Windows Server $v Datacenter Server Full image within your Platform Image Repository which we will use for the ASDK Configurator." 
                 $serverFullVMImageAlreadyAvailable = $true
             }
             if ($serverCoreVMImageAlreadyAvailable -eq $false) {
@@ -155,7 +155,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         Write-Host "Build is $buildVersion - Need to download: KB$($ssu) to update Servicing Stack before adding future Cumulative Updates"
                         $ssuKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$ssu" -UseBasicParsing
                         $ssuAvailable_kbIDs = $ssuKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-                        $ssuAvailable_kbIDs | Out-String | Write-Host
+                        #$ssuAvailable_kbIDs | Out-String | Write-Host
                         $ssuKbIDs = $ssuKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ssuSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $ssuAvailable_kbIDs }
 
                         # If innerHTML is empty or does not exist, use outerHTML instead
@@ -169,7 +169,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         Write-Host "Build is $buildVersion - Need to download: KB$($update) to ensure image is fully updated at first run"
                         $updateKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$update%20x64%20$v" -UseBasicParsing
                         $updateAvailable_kbIDs = $updateKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID | Select-Object -First 1
-                        $updateAvailable_kbIDs | Out-String | Write-Host
+                        #$updateAvailable_kbIDs | Out-String | Write-Host
                         $kbDownloads += "$updateAvailable_kbIDs"
                     }
                     
@@ -184,10 +184,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     }
 
                     # Get Download Link for the corresponding Cumulative Update
-                    Write-Host "Found ID: KB$kbID)"
+                    Write-Host "Found latest Cumulative Update: KB$kbID"
                     $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$kbID" -UseBasicParsing
                     $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-                    $Available_kbIDs | Out-String | Write-Host
+                    #$Available_kbIDs | Out-String | Write-Host
                     $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
 
                     # If innerHTML is empty or does not exist, use outerHTML instead
@@ -215,10 +215,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         }
 
                         # Get Download Link for the corresponding Cumulative Update
-                        Write-Host "Found ID: KB$NETkbID)"
+                        Write-Host "Found latest .NET Framework update: KB$NETkbID"
                         $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$NETkbID" -UseBasicParsing
                         $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-                        $Available_kbIDs | Out-String | Write-Host
+                        #$Available_kbIDs | Out-String | Write-Host
                         $NETkbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
             
                         # Defined a KB array to hold the NETkbIDs
@@ -226,7 +226,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     }
                     
                     foreach ( $kbID in $kbDownloads ) {
-                        Write-Host "KB ID: $kbID"
+                        Write-Host "Need to download the following update file with KB ID: $kbID"
                         $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
                         $PostBody = @{ updateIDs = "[$Post]" } 
                         $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
