@@ -1243,7 +1243,7 @@ else {
 
 $scriptStep = "VALIDATE 2016 ISO"
 try {
-    Write-CustomVerbose -Message "Validating Windows Server 2016 ISO path"
+    Write-CustomVerbose -Message "Validating Windows Server 2016 RTM ISO path"
     # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
     if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
         $ISOPath = Get-ChildItem -Path "$downloadPath\2016iso\*" -Recurse -Include *.iso -ErrorAction Stop | ForEach-Object { $_.FullName }
@@ -1251,23 +1251,23 @@ try {
     $validISOPath = [System.IO.File]::Exists($ISOPath)
     $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
     if ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
-        Write-CustomVerbose -Message "Found path to valid ISO file" 
+        Write-CustomVerbose -Message "Found path to a valid ISO file. Need to confirm that this is a valid Windows Server 2016 RTM ISO." 
         $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
-        Write-CustomVerbose -Message "The Windows Server 2016 Eval found at $ISOPath will be used" 
+        Write-CustomVerbose -Message "The ISO file found at $ISOPath will be validated to ensure it is build 14393" 
     }
     elseif ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
-        $ISOPath = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2016 ISO"
+        $ISOPath = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2016 RTM ISO"
         $validISOPath = [System.IO.File]::Exists($ISOPath)
         $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
         if ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
-            Write-CustomVerbose -Message "No valid path to a Windows Server 2016 ISO was entered again. Exiting process..." -ErrorAction Stop
+            Write-CustomVerbose -Message "No valid path to a Windows Server 2016 RTM ISO was entered again. Exiting process..." -ErrorAction Stop
             Set-Location $ScriptLocation
             return
         }
         elseif ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
-            Write-CustomVerbose -Message "Found path to valid ISO file" 
+            Write-CustomVerbose -Message "Found path to a valid ISO file. Need to confirm that this is a valid Windows Server 2016 RTM ISO."
             $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
-            Write-CustomVerbose -Message "The Windows Server 2016 Eval found at $ISOPath will be used" 
+            Write-CustomVerbose -Message "The ISO file found at $ISOPath will be validated to ensure it is build 14393" 
         }
     }
     # Mount the ISO, check the image for the version, then dismount
@@ -1277,14 +1277,18 @@ try {
     $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
     $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
     Dismount-DiskImage -ImagePath $ISOPath
-    Write-CustomVerbose -Message "The Windows Server 2016 Eval build version is: $buildVersion"
+    Write-CustomVerbose -Message "The ISO file found at $ISOpath has a Windows Server build version of: $buildVersion"
     if ($buildVersion -ne "14393") {
-        Throw "$buildVersion does not equal 14393 - this is not a valid Windows Server 2016 RTM ISO image. Please check your image, and rerun the script"
+        Throw "The Windows Server $buildVersion does not equal 14393 - this is not a valid Windows Server 2016 RTM ISO image. Please check your image, and rerun the script"
+    }
+    else {
+        Write-CustomVerbose -Message "The Windows Server $buildVersion does equal 14393, which is a valid build number and the process will continue"
     }
 }
 catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    #Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
     Set-Location $ScriptLocation
+    throw $_.Exception.Message
     return
 }
 
@@ -1299,23 +1303,23 @@ if ($null -ne $ISOPath2019) {
         $validISOPath2019 = [System.IO.File]::Exists($ISOPath2019)
         $valid2019ISOfile = [System.IO.Path]::GetExtension("$ISOPath2019")
         if ($validISOPath2019 -eq $true -and $valid2019ISOfile -eq ".iso") {
-            Write-CustomVerbose -Message "Found path to valid ISO file" 
+            Write-CustomVerbose -Message "Found path to a valid ISO file. Need to confirm that this is a valid Windows Server 2019 RTM ISO." 
             $ISOPath2019 = [System.IO.Path]::GetFullPath($ISOPath2019)
-            Write-CustomVerbose -Message "The Windows Server 2019 Eval found at $ISOPath2019 will be used" 
+            Write-CustomVerbose -Message "The ISO file found at $ISOPath2019 will be validated to ensure it is build 17763" 
         }
         elseif ($validISOPath2019 -eq $false -or $valid2019ISOfile -ne ".iso") {
-            $ISOPath2019 = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2019 ISO"
+            $ISOPath2019 = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2019 RTM ISO"
             $validISOPath2019 = [System.IO.File]::Exists($ISOPath2019)
             $valid2019ISOfile = [System.IO.Path]::GetExtension("$ISOPath2019")
             if ($validISOPath2019 -eq $false -or $valid2019ISOfile -ne ".iso") {
-                Write-CustomVerbose -Message "No valid path to a Windows Server 2019 ISO was entered again. Exiting process..." -ErrorAction Stop
+                Write-CustomVerbose -Message "No valid path to a Windows Server 2019 RTM ISO was entered again. Exiting process..." -ErrorAction Stop
                 Set-Location $ScriptLocation
                 return
             }
             elseif ($validISOPath2019 -eq $true -and $valid2019ISOfile -eq ".iso") {
-                Write-CustomVerbose -Message "Found path to valid ISO file" 
+                Write-CustomVerbose -Message "Found path to a valid ISO file. Need to confirm that this is a valid Windows Server 2019 RTM ISO."
                 $ISOPath2019 = [System.IO.Path]::GetFullPath($ISOPath2019)
-                Write-CustomVerbose -Message "The Windows Server 2019 Eval found at $ISOPath2019 will be used" 
+                Write-CustomVerbose -Message "The ISO file found at $ISOPath2019 will be validated to ensure it is build 17763"
             }
         }
         # Mount the ISO, check the image for the version, then dismount
@@ -1325,14 +1329,18 @@ if ($null -ne $ISOPath2019) {
         $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
         $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
         Dismount-DiskImage -ImagePath $ISOPath2019
-        Write-CustomVerbose -Message "The Windows Server 2019 Eval build version is: $buildVersion"
+        Write-CustomVerbose -Message "The ISO file found at $ISOpath2019 has a Windows Server build version of: $buildVersion"
         if ($buildVersion -ne "17763") {
             Throw "Build version: $buildVersion does not equal 17763 - this is not a valid Windows Server 2019 RTM ISO image. Please check your image, and rerun the script"
         }
+        else {
+            Write-CustomVerbose -Message "The Windows Server $buildVersion does equal 17763, which is a valid build number and the process will continue"
+        }
     }
     catch {
-        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        #Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
         Set-Location $ScriptLocation
+        throw $_.Exception.Message
         return
     }
 }
