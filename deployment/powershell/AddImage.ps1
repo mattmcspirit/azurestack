@@ -121,7 +121,7 @@ if (($progressStage -eq "ServerCore2019Image") -or ($progressStage -eq "ServerFu
     }
 }
 
-Write-Host "Checking on current status for this stage"
+Write-Host "Checking on current status for this stage: $progressStage"
 if ($progressCheck -eq "Complete") {
     Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
@@ -335,7 +335,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
                     $asdkHostName = ($env:computername).ToLower()
                     $Registration = (Get-AzureRmResource | Where-Object { ($_.ResourceType -eq "Microsoft.AzureStack/registrations") `
-                                -and (($_.Name -like "asdkreg-$asdkHostName*") -or ($_.Name -like "AzureStack*"))} | Select-Object -First 1 -ErrorAction SilentlyContinue -Verbose).Name
+                                -and (($_.Name -like "asdkreg-$asdkHostName*") -or ($_.Name -like "AzureStack*"))} | Select-Object -First 1 -ErrorAction SilentlyContinue).Name
                     if (!$Registration) {
                         throw "No registration records found in your chosen Azure subscription. Please validate the success of your ASDK registration and ensure records have been created successfully."
                         Set-Location $ScriptLocation
@@ -650,7 +650,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     }
                     else {
                         Write-Host "Cleaning up local hard drive space - deleting VHD file"
-                        Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($image).vhd" | Remove-Item -Force
+                        Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($blobname)" | Remove-Item -Force
                         Write-Host "Cleaning up VHD from storage account"
                         Remove-AzureStorageBlob -Blob $serverVHD.Name -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                     }
@@ -731,7 +731,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
         }
     }
 }
-elseif ($skip2019Images -and ($progressCheck -ne "Complete")) {
+elseif (($skip2019Images) -and ($progressCheck -ne "Complete")) {
     # Update the ConfigASDK database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage
