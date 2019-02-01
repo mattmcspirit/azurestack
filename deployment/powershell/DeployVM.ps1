@@ -423,14 +423,14 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     Start-Sleep -Seconds 30
                     Write-Host "Starting deployment again..."
                     New-AzureRmResourceGroupDeployment -Name "DeployAppServiceDB" -ResourceGroupName $rg -TemplateUri $mainTemplateURI -scriptBaseUrl $scriptBaseURI `
-                        -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
+                        -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
                         -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_F1s `
                         -managedDiskAccountType "Premium_LRS" -mode Incremental -Verbose -ErrorAction Stop
                 }
                 elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" -ErrorAction SilentlyContinue)) {
-                    Write-Host "No previous deployment found - starting deployment of File Server"
+                    Write-Host "No previous deployment found - creating a dedicated database host for the App Service"
                     New-AzureRmResourceGroupDeployment -Name "DeployAppServiceDB" -ResourceGroupName $rg -TemplateUri $mainTemplateURI -scriptBaseUrl $scriptBaseURI `
-                        -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd -storageAccountName "sqlappstor" `
+                        -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
                         -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_F1s `
                         -managedDiskAccountType "Premium_LRS" -mode Incremental -Verbose -ErrorAction Stop
                 }
