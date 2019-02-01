@@ -60,7 +60,7 @@
         },
         "virtualNetworkName": {
             "type": "string",
-            "defaultValue": "sql_vnet",
+            "defaultValue": "mysql_vnet",
             "metadata": {
                 "description": "Virtual Network Name"
             }
@@ -74,7 +74,7 @@
         },
         "virtualNetworkSubnetName": {
             "type": "string",
-            "defaultValue": "sql_subnet",
+            "defaultValue": "mysql_subnet",
             "metadata": {
                 "description": "Virtual Network subnet name"
             }
@@ -95,14 +95,14 @@
         },
         "publicIPAddressName": {
             "type": "string",
-            "defaultValue": "sql_ip",
+            "defaultValue": "mysql_ip",
             "metadata": {
                 "description": "Public IP Address Name"
             }
         },
         "publicIPAddressDomainNameLabel": {
             "type": "string",
-            "defaultValue": "sql",
+            "defaultValue": "mysql",
             "metadata": {
                 "description": "Public IP domain name prefix"
             }
