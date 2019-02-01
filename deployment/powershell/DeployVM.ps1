@@ -206,8 +206,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
                             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            while (!$(Get-AzureRmVirtualNetwork -ResourceGroupName "azurestack-dbhosting" -Name "dbhosting_vnet" | Get-AzureRmVirtualNetworkSubnetConfig).ProvisioningState -eq "Succeeded") {
-                                Write-Host "Waiting for deployment of database virtual network and subnet before continuing with deployment of SQL Server for DB hosting "
+                            while (!$(Get-AzureRmVirtualNetwork -ResourceGroupName "azurestack-dbhosting" -Name "dbhosting_vnet" -ErrorAction SilentlyContinue | Get-AzureRmVirtualNetworkSubnetConfig).ProvisioningState -eq "Succeeded") {
+                                Write-Host "Waiting for deployment of database virtual network and subnet before continuing with deployment of SQL Server for DB hosting. Checking again in 10 seconds."
                                 Start-Sleep 10
                             }
                             #Write-Host "To avoid deployment conflicts, delaying the SQL Server VM deployment by 2 minutes to allow initial resources to be created"
