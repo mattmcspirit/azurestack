@@ -733,7 +733,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
 }
 elseif (($skip2019Images) -and ($progressCheck -ne "Complete")) {
     # Update the ConfigASDK database with skip status
-    $progressStage = $progressName
+    $progressStage = "$($image)Image"
     StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
