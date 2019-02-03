@@ -588,7 +588,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             # Sometimes the gallery item doesn't get added successfully, so perform checks and attempt multiple uploads if necessary
                             while (($imageCreationSuccess -eq $false) -and ($imageRetries++ -lt 3)) {
                                 try {
-                                    Write-Host "Starting image creation process"
+                                    Write-Host "Starting image creation process. Creation attempt: $imageRetries"
                                     if ($image -eq "ServerCore$($v)") {
                                         .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\Images\$image\$($blobname)" `
                                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
@@ -604,11 +604,13 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                     Write-Host "Image creation wasn't successful. Cleaning up, then waiting 10 seconds before retrying."
                                     Write-Host "$_.Exception.Message"
                                     Dismount-DiskImage -ImagePath $ISOPath -ErrorAction SilentlyContinue
-                                    Get-ChildItem -Path "$csvImagePath\Images\$image\*" -Include "*.vhd" | Remove-Item -Force
+                                    Get-ChildItem -Path "$csvImagePath\Images\$image\*" -Include "*.vhd" | Remove-Item -Force -ErrorAction SilentlyContinue
                                     Start-Sleep -Seconds 10
                                 }
                             }
                             if (($imageCreationSuccess -eq $false) -and ($imageRetries++ -ge 3)) {
+                                Dismount-DiskImage -ImagePath $ISOPath -ErrorAction SilentlyContinue
+                                Get-ChildItem -Path "$csvImagePath\Images\$image\*" -Include "*.vhd" | Remove-Item -Force -ErrorAction SilentlyContinue
                                 throw "Creating a Windows Server ($blobname) image failed after $imageRetries attempts. Check the logs then retry. Exiting process."
                                 Set-Location $ScriptLocation
                                 return
