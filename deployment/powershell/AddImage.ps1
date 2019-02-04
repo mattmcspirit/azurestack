@@ -597,8 +597,16 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                         .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\Images\$image\$($blobname)" `
                                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                                     }
-                                    Write-Host "$blobname has been successfully created."
-                                    $imageCreationSuccess = $true
+                                    if (!$(Get-ChildItem -Path "$csvImagePath\Images\$image\$blobName" -ErrorAction SilentlyContinue)) {
+                                        Write-Host "Something went wrong during image creation but the error cannot be caught here."
+                                        Write-Host "Cleaning up"
+                                        $imageCreationSuccess = $false
+                                        throw "Image creation failed. Check the logs but we'll retry a few times."
+                                    }
+                                    else {
+                                        Write-Host "$blobname has been successfully created."
+                                        $imageCreationSuccess = $true
+                                    }
                                 }
                                 catch {
                                     Write-Host "Image creation wasn't successful. Cleaning up, then waiting 10 seconds before retrying."
@@ -608,9 +616,10 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                     Start-Sleep -Seconds 10
                                 }
                             }
-                            if (($imageCreationSuccess -eq $false) -and ($imageRetries++ -ge 3)) {
+                            if (($imageCreationSuccess -eq $false) -and ($imageRetries -ge 3)) {
                                 Dismount-DiskImage -ImagePath $ISOPath -ErrorAction SilentlyContinue
                                 Get-ChildItem -Path "$csvImagePath\Images\$image\*" -Include "*.vhd" | Remove-Item -Force -ErrorAction SilentlyContinue
+                                $imageRetries = --$imageRetries;
                                 throw "Creating a Windows Server ($blobname) image failed after $imageRetries attempts. Check the logs then retry. Exiting process."
                                 Set-Location $ScriptLocation
                                 return
@@ -760,7 +769,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         Start-Sleep -Seconds 5
                     }
                 }
-                if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
+                if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries -ge 20)) {
                     throw "Uploading gallery item failed after $Retries attempts. Exiting process."
                     Set-Location $ScriptLocation
                     return
