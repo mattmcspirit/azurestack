@@ -753,16 +753,16 @@ if ($ISOPath2019) {
     ### Copy ISO file to $downloadPath ###
     try {
         Write-CustomVerbose -Message "Copying Windows Server 2019 ISO image to $isoTarget2019" -ErrorAction Stop
-        $ISOFile2019 = Split-Path $isoTarget2019 -leaf
+        $ISOFile2019 = Split-Path $isoPath2019 -leaf
         $ISOinDownloadPath = [System.IO.File]::Exists("$isoTarget2019\$ISOFile2019")
         if (!$ISOinDownloadPath) {
-            Copy-Item "$isoTarget2019" -Destination "$isoTarget2019" -Force -Verbose
+            Copy-Item "$isoPath2019" -Destination "$isoTarget2019" -Force -Verbose
             $ISOPath2019 = "$isoTarget2019\$ISOFile2019"
         }
         else {
             Write-CustomVerbose -Message "Windows Server 2019 ISO image exists within $isoTarget2019." -ErrorAction Stop
             Write-CustomVerbose -Message "Full path is $isoTarget2019\$ISOFile2019" -ErrorAction Stop
-            $isoTarget2019 = "$isoTarget2016\$ISOFile2019"
+            $isoPath2019 = "$isoTarget2016\$ISOFile2019"
         }
     }
     catch {
