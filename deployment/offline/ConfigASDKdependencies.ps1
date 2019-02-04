@@ -242,9 +242,6 @@ if ($ISOPath2019) {
     try {
         Write-CustomVerbose -Message "Validating Windows Server 2019 ISO path"
         # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
-        if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
-            $ISOPath2019 = Get-ChildItem -Path "$downloadPath\2019iso\*" -Recurse -Include *.iso -ErrorAction Stop | ForEach-Object { $_.FullName }
-        }
         $validISOPath2019 = [System.IO.File]::Exists($ISOPath2019)
         $valid2019ISOfile = [System.IO.Path]::GetExtension("$ISOPath2019")
         if ($validISOPath2019 -eq $true -and $valid2019ISOfile -eq ".iso") {
@@ -327,10 +324,6 @@ elseif ($configASDKFilePathExists -eq $false) {
     $configASDKFilePath = mkdir "$downloadPath\ConfigASDKfiles" -Force
 }
 
-$isoPath2016 = mkdir "$configASDKFilePath\2016iso" -Force
-if ($ISOPath2019) {
-    $isoPath2019 = mkdir "$configASDKFilePath\2019iso" -Force
-}
 $ASDKpath = mkdir "$configASDKFilePath\ASDK" -Force
 $packagePath = mkdir "$ASDKpath\packages" -Force
 $sqlLocalDBpath = mkdir "$ASDKpath\SqlLocalDB" -Force
@@ -342,6 +335,12 @@ $psPath = mkdir "$ASDKpath\powershell" -Force
 $psScriptPath = mkdir "$ASDKpath\powershell\Scripts" -Force
 $dbPath = mkdir "$ASDKpath\databases" -Force
 $imagesPath = mkdir "$ASDKpath\images" -Force
+$isoTarget2016 = mkdir "$configASDKFilePath\2016iso" -Force
+if ($ISOPath2019) {
+    $isoTarget2019 = mkdir "$configASDKFilePath\2019iso" -Force
+    mkdir "$imagesPath\2019" -Force
+}
+mkdir "$imagesPath\2016" -Force
 $ubuntuPath = mkdir "$imagesPath\UbuntuServer" -Force
 $appServicePath = mkdir "$ASDKpath\appservice" -Force
 $extensionPath = mkdir "$ASDKpath\appservice\extension" -Force
@@ -386,6 +385,14 @@ try {
     # Windows Server DC Core AZPKG
     $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"
     $row.filename = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2016 Datacenter Core Marketplace Package"; $Table.Rows.Add($row)
+    if ($ISOPath2019) {
+        # Windows Server 2019 DC AZPKG
+        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2019Datacenter-ARM.1.0.0.azpkg"
+        $row.filename = "Microsoft.WindowsServer2019Datacenter-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2019 Datacenter Marketplace Package"; $Table.Rows.Add($row)
+        # Windows Server 2019 DC Core AZPKG
+        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0.azpkg"
+        $row.filename = "Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2019 Datacenter Core Marketplace Package"; $Table.Rows.Add($row)
+    }
     # MYSQL AZPKG
     $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/ASDKConfigurator.MySQL.1.0.0.azpkg"
     $row.filename = "ASDKConfigurator.MySQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "MySQL Marketplace Package"; $Table.Rows.Add($row)
@@ -641,7 +648,7 @@ catch {
     return
 }
 
-### Generate App Service Offline ZIP ###################################################################################################################
+<### Generate App Service Offline ZIP ###################################################################################################################
 ########################################################################################################################################################
 
 $scriptStep = "APPSERVICE"
@@ -674,6 +681,7 @@ else {
         $i++
     }
 }
+#>
 
 ### Download PowerShell ################################################################################################################################
 ########################################################################################################################################################
@@ -721,17 +729,17 @@ catch {
 $scriptStep = "WINDOWSSERVER2016ISO"
 ### Copy ISO file to $downloadPath ###
 try {
-    Write-CustomVerbose -Message "Copying Windows Server 2016 ISO image to $configASDKFilePath\$isoPath2016" -ErrorAction Stop
+    Write-CustomVerbose -Message "Copying Windows Server 2016 ISO image to $isoTarget2016" -ErrorAction Stop
     $ISOFile = Split-Path $ISOPath -leaf
-    $ISOinDownloadPath = [System.IO.File]::Exists("$configASDKFilePath\$isoPath2016\$ISOFile")
+    $ISOinDownloadPath = [System.IO.File]::Exists("$isoTarget2016\$ISOFile")
     if (!$ISOinDownloadPath) {
-        Copy-Item "$ISOPath" -Destination "$configASDKFilePath\$isoPath2016" -Force -Verbose
-        $ISOPath = "$configASDKFilePath\$isoPath2016\$ISOFile"
+        Copy-Item "$ISOPath" -Destination "$isoTarget2016" -Force -Verbose
+        $ISOPath = "$isoTarget2016\$ISOFile"
     }
     else {
-        Write-CustomVerbose -Message "Windows Server 2016 ISO image exists within $configASDKFilePath\$isoPath2016." -ErrorAction Stop
-        Write-CustomVerbose -Message "Full path is $configASDKFilePath\$isoPath2016\$ISOFile" -ErrorAction Stop
-        $ISOPath = "$configASDKFilePath\$isoPath2016\$ISOFile"
+        Write-CustomVerbose -Message "Windows Server 2016 ISO image exists within $isoTarget2016." -ErrorAction Stop
+        Write-CustomVerbose -Message "Full path is $isoTarget2016\$ISOFile" -ErrorAction Stop
+        $ISOPath = "$isoTarget2016\$ISOFile"
     }
 }
 catch {
@@ -744,17 +752,17 @@ if ($ISOPath2019) {
     $scriptStep = "WINDOWSSERVER2019ISO"
     ### Copy ISO file to $downloadPath ###
     try {
-        Write-CustomVerbose -Message "Copying Windows Server 2019 ISO image to $configASDKFilePath\$isoPath2019" -ErrorAction Stop
-        $ISOFile2019 = Split-Path $ISOPath2019 -leaf
-        $ISOinDownloadPath = [System.IO.File]::Exists("$configASDKFilePath\$isoPath2019\$ISOFile2019")
+        Write-CustomVerbose -Message "Copying Windows Server 2019 ISO image to $isoTarget2019" -ErrorAction Stop
+        $ISOFile2019 = Split-Path $isoTarget2019 -leaf
+        $ISOinDownloadPath = [System.IO.File]::Exists("$isoTarget2019\$ISOFile2019")
         if (!$ISOinDownloadPath) {
-            Copy-Item "$ISOPath2019" -Destination "$configASDKFilePath\$isoPath2019" -Force -Verbose
-            $ISOPath2019 = "$configASDKFilePath\$isoPath2019\$ISOFile2019"
+            Copy-Item "$isoTarget2019" -Destination "$isoTarget2019" -Force -Verbose
+            $ISOPath2019 = "$isoTarget2019\$ISOFile2019"
         }
         else {
-            Write-CustomVerbose -Message "Windows Server 2019 ISO image exists within $configASDKFilePath\$isoPath2019." -ErrorAction Stop
-            Write-CustomVerbose -Message "Full path is $configASDKFilePath\$isoPath2019\$ISOFile2019" -ErrorAction Stop
-            $ISOPath2019 = "$configASDKFilePath\$isoPath2019\$ISOFile2019"
+            Write-CustomVerbose -Message "Windows Server 2019 ISO image exists within $isoTarget2019." -ErrorAction Stop
+            Write-CustomVerbose -Message "Full path is $isoTarget2019\$ISOFile2019" -ErrorAction Stop
+            $isoTarget2019 = "$isoTarget2016\$ISOFile2019"
         }
     }
     catch {
