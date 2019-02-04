@@ -6,7 +6,7 @@
 
 .VERSION
 
-    1811  Latest version, to align with current ASDK Configurator version.
+    1901  Latest version, to align with current ASDK Configurator version.
 
 .AUTHOR
 
@@ -48,6 +48,10 @@ param (
     # Path to Windows Server 2016 Datacenter Evaluation ISO file
     [parameter(Mandatory = $true)]
     [String]$ISOPath,
+
+    # Path to Windows Server 2019 Datacenter Evaluation ISO file
+    [parameter(Mandatory = $false)]
+    [String]$ISOPath2019,
 
     # This is used mainly for testing, when you want to run against a specific GitHub branch. Master should be used for all non-testing scenarios.
     [Parameter(Mandatory = $false)]
@@ -160,9 +164,56 @@ elseif ($validDownloadPath -eq $false) {
     }
 }
 
-### Validate path to ISO File ###
-Write-CustomVerbose -Message "Checking to see if the path to the ISO exists"
+try {
+    Write-CustomVerbose -Message "Validating Windows Server 2016 RTM ISO path"
+    # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
+    $validISOPath = [System.IO.File]::Exists($ISOPath)
+    $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
+    if ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
+        Write-CustomVerbose -Message "Found path to a valid ISO file. Need to confirm that this is a valid Windows Server 2016 RTM ISO." 
+        $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
+        Write-CustomVerbose -Message "The ISO file found at $ISOPath will be validated to ensure it is build 14393" 
+    }
+    elseif ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
+        $ISOPath = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2016 RTM ISO"
+        $validISOPath = [System.IO.File]::Exists($ISOPath)
+        $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
+        if ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
+            Write-CustomVerbose -Message "No valid path to a Windows Server 2016 RTM ISO was entered again. Exiting process..." -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
+        elseif ($validISOPath -eq $true -and $validISOfile -eq ".iso") {
+            Write-CustomVerbose -Message "Found path to a valid ISO file. Need to confirm that this is a valid Windows Server 2016 RTM ISO."
+            $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
+            Write-CustomVerbose -Message "The ISO file found at $ISOPath will be validated to ensure it is build 14393" 
+        }
+    }
+    # Mount the ISO, check the image for the version, then dismount
+    Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
+    $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath -StorageType ISO -PassThru
+    $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
+    $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
+    $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
+    Dismount-DiskImage -ImagePath $ISOPath
+    Write-CustomVerbose -Message "The ISO file found at $ISOpath has a Windows Server build version of: $buildVersion"
+    if ($buildVersion -ne "14393") {
+        Throw "The Windows Server $buildVersion does not equal 14393 - this is not a valid Windows Server 2016 RTM ISO image. Please check your image, and rerun the script"
+    }
+    else {
+        Write-CustomVerbose -Message "The Windows Server $buildVersion does equal 14393, which is a valid build number and the process will continue"
+    }
+}
+catch {
+    #Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+    Set-Location $ScriptLocation
+    throw $_.Exception.Message
+    return
+}
 
+### Validate path to ISO File ###
+$scriptStep = "VALIDATE 2016 ISO"
+Write-CustomVerbose -Message "Checking to see if the path to the ISO exists"
 $validISOPath = [System.IO.File]::Exists($ISOPath)
 $validISOfile = [System.IO.Path]::GetExtension("$ISOPath")
 
@@ -184,6 +235,58 @@ elseif ($validISOPath -eq $false -or $validISOfile -ne ".iso") {
         Write-CustomVerbose -Message "Found path to valid ISO file" 
         $ISOPath = [System.IO.Path]::GetFullPath($ISOPath)
         Write-CustomVerbose -Message "The Windows Server 2016 Eval found at $ISOPath will be used" 
+    }
+}
+if ($ISOPath2019) {
+    $scriptStep = "VALIDATE 2019 ISO"
+    try {
+        Write-CustomVerbose -Message "Validating Windows Server 2019 ISO path"
+        # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
+        if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
+            $ISOPath2019 = Get-ChildItem -Path "$downloadPath\2019iso\*" -Recurse -Include *.iso -ErrorAction Stop | ForEach-Object { $_.FullName }
+        }
+        $validISOPath2019 = [System.IO.File]::Exists($ISOPath2019)
+        $valid2019ISOfile = [System.IO.Path]::GetExtension("$ISOPath2019")
+        if ($validISOPath2019 -eq $true -and $valid2019ISOfile -eq ".iso") {
+            Write-CustomVerbose -Message "Found path to a valid ISO file. Need to confirm that this is a valid Windows Server 2019 RTM ISO." 
+            $ISOPath2019 = [System.IO.Path]::GetFullPath($ISOPath2019)
+            Write-CustomVerbose -Message "The ISO file found at $ISOPath2019 will be validated to ensure it is build 17763" 
+        }
+        elseif ($validISOPath2019 -eq $false -or $valid2019ISOfile -ne ".iso") {
+            $ISOPath2019 = Read-Host "ISO path is invalid - please enter a valid path to the Windows Server 2019 RTM ISO"
+            $validISOPath2019 = [System.IO.File]::Exists($ISOPath2019)
+            $valid2019ISOfile = [System.IO.Path]::GetExtension("$ISOPath2019")
+            if ($validISOPath2019 -eq $false -or $valid2019ISOfile -ne ".iso") {
+                Write-CustomVerbose -Message "No valid path to a Windows Server 2019 RTM ISO was entered again. Exiting process..." -ErrorAction Stop
+                Set-Location $ScriptLocation
+                return
+            }
+            elseif ($validISOPath2019 -eq $true -and $valid2019ISOfile -eq ".iso") {
+                Write-CustomVerbose -Message "Found path to a valid ISO file. Need to confirm that this is a valid Windows Server 2019 RTM ISO."
+                $ISOPath2019 = [System.IO.Path]::GetFullPath($ISOPath2019)
+                Write-CustomVerbose -Message "The ISO file found at $ISOPath2019 will be validated to ensure it is build 17763"
+            }
+        }
+        # Mount the ISO, check the image for the version, then dismount
+        Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
+        $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath2019 -StorageType ISO -PassThru
+        $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
+        $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
+        $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
+        Dismount-DiskImage -ImagePath $ISOPath2019
+        Write-CustomVerbose -Message "The ISO file found at $ISOpath2019 has a Windows Server build version of: $buildVersion"
+        if ($buildVersion -ne "17763") {
+            Throw "Build version: $buildVersion does not equal 17763 - this is not a valid Windows Server 2019 RTM ISO image. Please check your image, and rerun the script"
+        }
+        else {
+            Write-CustomVerbose -Message "The Windows Server $buildVersion does equal 17763, which is a valid build number and the process will continue"
+        }
+    }
+    catch {
+        #Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        Set-Location $ScriptLocation
+        throw $_.Exception.Message
+        return
     }
 }
 
@@ -224,6 +327,10 @@ elseif ($configASDKFilePathExists -eq $false) {
     $configASDKFilePath = mkdir "$downloadPath\ConfigASDKfiles" -Force
 }
 
+$isoPath2016 = mkdir "$configASDKFilePath\2016iso" -Force
+if ($ISOPath2019) {
+    $isoPath2019 = mkdir "$configASDKFilePath\2019iso" -Force
+}
 $ASDKpath = mkdir "$configASDKFilePath\ASDK" -Force
 $packagePath = mkdir "$ASDKpath\packages" -Force
 $sqlLocalDBpath = mkdir "$ASDKpath\SqlLocalDB" -Force
@@ -239,7 +346,6 @@ $ubuntuPath = mkdir "$imagesPath\UbuntuServer" -Force
 $appServicePath = mkdir "$ASDKpath\appservice" -Force
 $extensionPath = mkdir "$ASDKpath\appservice\extension" -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
 
 ### Create Download Table ##############################################################################################################################
 ########################################################################################################################################################
@@ -609,23 +715,23 @@ catch {
     return
 }
 
-### Copy Windows Server ISO & Download Updates ##########################################################################################################
+### Copy Windows Server ISOs & Download Updates ##########################################################################################################
 #########################################################################################################################################################
 
-$scriptStep = "WINDOWS"
+$scriptStep = "WINDOWSSERVER2016ISO"
 ### Copy ISO file to $downloadPath ###
 try {
-    Write-CustomVerbose -Message "Copying Windows Server 2016 ISO image to $configASDKFilePath" -ErrorAction Stop
+    Write-CustomVerbose -Message "Copying Windows Server 2016 ISO image to $configASDKFilePath\$isoPath2016" -ErrorAction Stop
     $ISOFile = Split-Path $ISOPath -leaf
-    $ISOinDownloadPath = [System.IO.File]::Exists("$configASDKFilePath\$ISOFile")
+    $ISOinDownloadPath = [System.IO.File]::Exists("$configASDKFilePath\$isoPath2016\$ISOFile")
     if (!$ISOinDownloadPath) {
-        Copy-Item "$ISOPath" -Destination "$configASDKFilePath" -Force -Verbose
-        $ISOPath = "$configASDKFilePath\$ISOFile"
+        Copy-Item "$ISOPath" -Destination "$configASDKFilePath\$isoPath2016" -Force -Verbose
+        $ISOPath = "$configASDKFilePath\$isoPath2016\$ISOFile"
     }
     else {
-        Write-CustomVerbose -Message "Windows Server 2016 ISO image exists within $configASDKFilePath." -ErrorAction Stop
-        Write-CustomVerbose -Message "Full path is $configASDKFilePath\$ISOFile" -ErrorAction Stop
-        $ISOPath = "$configASDKFilePath\$ISOFile"
+        Write-CustomVerbose -Message "Windows Server 2016 ISO image exists within $configASDKFilePath\$isoPath2016." -ErrorAction Stop
+        Write-CustomVerbose -Message "Full path is $configASDKFilePath\$isoPath2016\$ISOFile" -ErrorAction Stop
+        $ISOPath = "$configASDKFilePath\$isoPath2016\$ISOFile"
     }
 }
 catch {
@@ -634,99 +740,184 @@ catch {
     return
 }
 
-### Get appropriate update packages and store in $ASDKpath ###
-try {
-    # Mount the ISO, check the image for the version, then dismount
-    Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
-    $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath -StorageType ISO -PassThru
-    $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
-    $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
-    $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
-    Dismount-DiskImage -ImagePath $ISOPath
-
-    # Define parameters
-    $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
-    $SearchString = 'Cumulative.*Server.*x64'
-
-    ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.    
-    if ($buildVersion -eq "14393") {
-        $servicingStackKB = (Invoke-WebRequest -Uri 'https://portal.msrc.microsoft.com/api/security-guidance/en-US/CVE/ADV990001' -UseBasicParsing).Content
-        $servicingStackKB = ((($servicingStackKB -split 'Windows 10 Version 1607/Server 2016</td>\\n<td>', 2)[1]).Split('<', 2)[0])
-        #$servicingStackKB = "4465659"
-        $ServicingSearchString = 'Windows Server 2016'
-        Write-CustomVerbose -Message "Build is $buildVersion - Need to download: KB$($servicingStackKB) to update Servicing Stack before adding future Cumulative Updates"
-        $servicingKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$servicingStackKB" -UseBasicParsing
-        $servicingAvailable_kbIDs = $servicingKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-        $servicingAvailable_kbIDs | Out-String | Write-Verbose
-        $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
-
-        # If innerHTML is empty or does not exist, use outerHTML instead
-        if ($servicingKbIDs -eq $Null) {
-            $servicingKbIDs = $servicingKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ServicingSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $servicingAvailable_kbIDs }
-        }
-    }
-
-    # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
-    Write-CustomVerbose -Message "Downloading $StartKB to retrieve the list of updates."
-    #$kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
-    $kbID = (Invoke-WebRequest -Uri 'https://support.microsoft.com/en-us/help/4000825' -UseBasicParsing).RawContent -split "`n"
-    $kbID = ($kbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
-    $kbID = ((($kbID -split"KB",2)[1])-split "\s",2)[0]
-
-    if (!$kbID) {
-        Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
-        #throw "No KB found"
-    }
-
-    # Get Download Link for the corresponding Cumulative Update
-    #Write-CustomVerbose -Message "Found ID: KB$($kbID.articleID)"
-    Write-CustomVerbose -Message "Found ID: KB$kbID)"
-    $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$kbID" -UseBasicParsing
-    $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-    $Available_kbIDs | Out-String | Write-Verbose
-    $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
-
-    # If innerHTML is empty or does not exist, use outerHTML instead
-    If ($kbIDs -eq $Null) {
-        $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
-    }
-
-    # Defined a KB array to hold the kbIDs and if the build is 14393, add the corresponding KBID to it
-    $kbDownloads = @()
-    if ($buildVersion -eq "14393") {
-        $kbDownloads += "$servicingKbIDs"
-    }
-    $kbDownloads += "$kbIDs"
-    $Urls = @()
-
-    foreach ( $kbID in $kbDownloads ) {
-        Write-CustomVerbose -Message "KB ID: $kbID"
-        $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
-        $PostBody = @{ updateIDs = "[$Post]" } 
-        $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
-    }
-
-    # Download the corresponding Windows Server 2016 Cumulative Update (and possibly, Servicing Stack Update)
-    foreach ( $Url in $Urls ) {
-        $filename = $Url.Substring($Url.LastIndexOf("/") + 1)
-        $target = "$((Get-Item $imagesPath).FullName)\$filename"
-        Write-CustomVerbose -Message "Update will be stored at $target"
-        Write-CustomVerbose -Message "These can be larger than 1GB, so may take a few minutes."
-        if (!(Test-Path -Path $target)) {
-            DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
+if ($ISOPath2019) {
+    $scriptStep = "WINDOWSSERVER2019ISO"
+    ### Copy ISO file to $downloadPath ###
+    try {
+        Write-CustomVerbose -Message "Copying Windows Server 2019 ISO image to $configASDKFilePath\$isoPath2019" -ErrorAction Stop
+        $ISOFile2019 = Split-Path $ISOPath2019 -leaf
+        $ISOinDownloadPath = [System.IO.File]::Exists("$configASDKFilePath\$isoPath2019\$ISOFile2019")
+        if (!$ISOinDownloadPath) {
+            Copy-Item "$ISOPath2019" -Destination "$configASDKFilePath\$isoPath2019" -Force -Verbose
+            $ISOPath2019 = "$configASDKFilePath\$isoPath2019\$ISOFile2019"
         }
         else {
-            Write-CustomVerbose -Message "File exists: $target. Skipping download."
+            Write-CustomVerbose -Message "Windows Server 2019 ISO image exists within $configASDKFilePath\$isoPath2019." -ErrorAction Stop
+            Write-CustomVerbose -Message "Full path is $configASDKFilePath\$isoPath2019\$ISOFile2019" -ErrorAction Stop
+            $ISOPath2019 = "$configASDKFilePath\$isoPath2019\$ISOFile2019"
         }
     }
-
-    # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied first when patching the WIM file.
-    if ($buildVersion -eq "14393") {
-        Write-CustomVerbose -Message "Renaming the Servicing Stack Update to ensure it is applied first"
-        Get-ChildItem -Path $imagesPath -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -Verbose
-        $target = $imagesPath
+    catch {
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
     }
+}
 
+$scriptStep = "WINDOWSUPDATES"
+try {
+    if ($ISOPath2019) {
+        $versionArray = @("2016", "2019")
+    }
+    else {
+        $versionArray = @("2016")
+    }
+    foreach ($v in $versionArray) {
+        # Mount the ISO, check the image for the version, then dismount
+        Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
+        if ($v -eq "2019") {
+            $ISOPath = $ISOPath2019
+        }
+        $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath -StorageType ISO -PassThru
+        $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
+        $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
+        $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
+        Dismount-DiskImage -ImagePath $ISOPath
+        Write-Host "You're missing at least one of the Windows Server $v Datacenter images, so we'll first download the latest Cumulative Update."
+                        
+        # Define parameters
+        if ($v -eq "2019") {
+            $StartKB = 'https://support.microsoft.com/en-us/help/4464619'
+        }
+        else {
+            $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
+        }
+        $SearchString = 'Cumulative.*Server.*x64'
+        # Define the arrays that will be used later
+        $kbDownloads = @()
+        $Urls = @()
+    
+        ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
+        if ($buildVersion -eq "14393") {
+            $ssuArray = @("4132216", "4465659")
+            $updateArray = @("4091664")
+            $ssuSearchString = 'Windows Server 2016'
+        }
+        elseif ($buildVersion -eq "17763") {
+            $ssuArray = @("4470788")
+            $updateArray = @("4465065")
+            $ssuSearchString = 'Windows Server 2019'
+        }
+        foreach ($ssu in $ssuArray) {
+            Write-Host "Build is $buildVersion - Need to download: KB$($ssu) to update Servicing Stack before adding future Cumulative Updates"
+            $ssuKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$ssu" -UseBasicParsing
+            $ssuAvailable_kbIDs = $ssuKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+            #$ssuAvailable_kbIDs | Out-String | Write-Host
+            $ssuKbIDs = $ssuKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ssuSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $ssuAvailable_kbIDs }
+    
+            # If innerHTML is empty or does not exist, use outerHTML instead
+            if (!$ssuKbIDs) {
+                $ssuKbIDs = $ssuKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ssuSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $ssuAvailable_kbIDs }
+            }
+            $kbDownloads += "$ssuKbIDs"
+        }
+                        
+        foreach ($update in $updateArray) {
+            Write-Host "Build is $buildVersion - Need to download: KB$($update) to ensure image is fully updated at first run"
+            $updateKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$update%20x64%20$v" -UseBasicParsing
+            $updateAvailable_kbIDs = $updateKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID | Select-Object -First 1
+            #$updateAvailable_kbIDs | Out-String | Write-Host
+            $kbDownloads += "$updateAvailable_kbIDs"
+        }
+                        
+        # Find the KB Article Number for the latest Windows Server Cumulative Update
+        Write-Host "Accessing $StartKB to retrieve the list of updates."
+        $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
+        $kbID = ($kbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
+        $kbID = ((($kbID -split "KB", 2)[1]) -split "\s", 2)[0]
+    
+        if (!$kbID) {
+            Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
+        }
+    
+        # Get Download Link for the corresponding Cumulative Update
+        Write-Host "Found latest Cumulative Update: KB$kbID"
+        $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$kbID" -UseBasicParsing
+        $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+        #$Available_kbIDs | Out-String | Write-Host
+        $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+    
+        # If innerHTML is empty or does not exist, use outerHTML instead
+        if (!$kbIDs) {
+            $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+        }
+        # Defined a KB array to hold the kbIDs and if the build is 14393, add the corresponding KBID to it
+        $kbDownloads += "$kbIDs"
+    
+        if ($v -eq "2019") {
+            ## .NET CU Download ####
+            # Find the KB Article Number for the latest .NET on Windows Server 2019 (Build 17763) Cumulative Update
+            $ie = New-Object -ComObject "InternetExplorer.Application"
+            $ie.silent = $true
+            $ie.Navigate("https://support.microsoft.com/en-us/help/4466961")
+            while ($ie.ReadyState -ne 4) {start-sleep -m 100}
+            $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object {$_.textContent -like "*KB*"}).innerHTML | Select-Object -First 1
+            $NETkbID = ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
+            [System.Runtime.Interopservices.Marshal]::ReleaseComObject($ie)
+            Remove-Variable ie -ErrorAction SilentlyContinue
+    
+            if (!$NETkbID) {
+                Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will not have the latest .NET update"
+            }
+    
+            # Get Download Link for the corresponding Cumulative Update
+            Write-Host "Found latest .NET Framework update: KB$NETkbID"
+            $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$NETkbID" -UseBasicParsing
+            $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+            #$Available_kbIDs | Out-String | Write-Host
+            $NETkbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+            # Defined a KB array to hold the NETkbIDs
+            $kbDownloads += "$NETkbIDs"
+        }
+                        
+        foreach ( $kbID in $kbDownloads ) {
+            Write-Host "Need to download the following update file with KB ID: $kbID"
+            $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
+            $PostBody = @{ updateIDs = "[$Post]" } 
+            $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
+        }
+    
+        # Download the corresponding Windows Server Cumulative Update (and possibly, Servicing Stack Updates)
+        foreach ( $Url in $Urls ) {
+            $filename = (($Url.Substring($Url.LastIndexOf("/") + 1)).Split("-", 2)[1])
+            $filename = $filename -replace "_.*\.", "."
+            $target = "$((Get-Item $ASDKpath).FullName)\images\$v\$filename"
+            if (!(Test-Path -Path $target)) {
+                foreach ($ssu in $ssuArray) {
+                    if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
+                        Remove-Item -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu" -Force -Verbose -ErrorAction Stop
+                    }
+                }
+                Write-Host "Update will be stored at $target"
+                Write-Host "These can be larger than 1GB, so may take a few minutes."
+                DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
+            }
+            else {
+                Write-Host "File exists: $target. Skipping download."
+            }
+        }
+    
+        # Rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
+        foreach ($ssu in $ssuArray) {
+            if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
+                Write-Host "The $buildVersion Servicing Stack Update already exists within the target folder"
+            }
+            else {
+                Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
+                Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
+            }
+        }
+    }
 }
 catch {
     Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
