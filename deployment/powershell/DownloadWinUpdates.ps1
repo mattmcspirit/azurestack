@@ -46,7 +46,7 @@ $logPath = "$ScriptLocation\Logs\$logDate\WindowsUpdates"
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\WindowsUpdates$runTime.txt"
-Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
+Start-Transcript -Path "$fullLogPath" -Append
 
 $progressStage = "WindowsUpdates"
 $progressCheck = CheckProgress -progressStage $progressStage
