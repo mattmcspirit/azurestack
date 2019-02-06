@@ -501,14 +501,14 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     else {
                         if ($image -eq "UbuntuServer") {
                             # Split for Ubuntu Image
-                            $validDownloadPathZIP = [System.IO.File]::Exists("$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip")
-                            if ($validDownloadPathZIP -eq $true) {
+                            $validDownloadPathZIP = $(Get-ChildItem -Path "$ASDKpath\images\$image\$($azpkg.offer)*.zip" -ErrorAction SilentlyContinue)
+                            if ($validDownloadPathZIP) {
                                 Write-Host "Cannot find a previously extracted Ubuntu Server VHD with name $blobName"
                                 Write-Host "Checking to see if the Ubuntu Server ZIP already exists in ASDK Configurator folder"
-                                $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                                $UbuntuServerZIP = Get-ChildItem -Path "$ASDKpath\images\$image\$($azpkg.offer)*.zip"
                                 Write-Host "Ubuntu Server ZIP located at $UbuntuServerZIP"
-                                if (!([System.IO.File]::Exists("$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"))) {
-                                    Copy-Item -Path "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Destination "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
+                                if (!$(Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction SilentlyContinue)) {
+                                    Copy-Item -Path "$ASDKpath\images\$image\$($azpkg.offer)*.zip" -Destination "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
                                     $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                                 }
                                 else {
