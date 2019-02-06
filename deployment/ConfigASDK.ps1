@@ -1292,14 +1292,20 @@ catch {
     return
 }
 
+# Do a quick check of the extracted zip file (if it exists) to check if there's a 2019 ISO in there.
+# If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
+if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
+    Write-Host "Looing in your Extracted ZIP file for a Windows Server 2019 ISO..."
+    if (Get-ChildItem -Path "$downloadPath\2019iso\*" -Recurse -Include *.iso -ErrorAction SilentlyContinue) {
+        $ISOPath2019 = Get-ChildItem -Path "$downloadPath\2019iso\*" -Recurse -Include *.iso -ErrorAction Stop | ForEach-Object { $_.FullName }
+        Write-Host "It looks like a Windows Server 2019 ISO has been found here: $ISOPath2019 - this will now be validated"
+    }
+}
+
 if ($ISOPath2019) {
     $scriptStep = "VALIDATE 2019 ISO"
     try {
         Write-CustomVerbose -Message "Validating Windows Server 2019 ISO path"
-        # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
-        if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
-            $ISOPath2019 = Get-ChildItem -Path "$downloadPath\2019iso\*" -Recurse -Include *.iso -ErrorAction Stop | ForEach-Object { $_.FullName }
-        }
         $validISOPath2019 = [System.IO.File]::Exists($ISOPath2019)
         $valid2019ISOfile = [System.IO.Path]::GetExtension("$ISOPath2019")
         if ($validISOPath2019 -eq $true -and $valid2019ISOfile -eq ".iso") {
