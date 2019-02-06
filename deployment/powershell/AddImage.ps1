@@ -197,7 +197,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             }
             if ($image -eq "ServerCore2019") {
                 Write-Host "Image is $image - checking run mode and progress"
-                # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
+                <# Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
                 $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
                 while ($serverCore2016JobCheck -ne "Complete") {
                     Write-Host "The ServerCore2016Image stage of the process has not yet completed. Checking again in 20 seconds"
@@ -207,8 +207,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         Write-Host "The ServerCore2016Image stage of the process has failed. This should ideally complete before the Windows Server 2019 Core image is created, but we can continue the process to create the 2019 image anyway."
                         BREAK
                     }
-                }
-                <#if ($runMode -eq "partialParallel") {
+                }#>
+                if ($runMode -eq "partialParallel") {
                     $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
                     while ($serverCore2016JobCheck -ne "Complete") {
                         Write-Host "The ServerCore2016Image stage of the process has not yet completed. Checking again in 20 seconds"
@@ -230,11 +230,11 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             throw "The ServerFull2016Image stage of the process has failed. This should fully complete before the Windows Server full image is created. Check the Windows Server logs, ensure that step is completed first, and rerun."
                         }
                     }
-                }#>
+                }
             }
             if ($image -eq "ServerFull2019") {
                 Write-Host "Image is $image - checking run mode and progress"
-                $serverFull2016JobCheck = CheckProgress -progressStage "ServerFull2016Image"
+                <#$serverFull2016JobCheck = CheckProgress -progressStage "ServerFull2016Image"
                 while ($serverFull2016JobCheck -ne "Complete") {
                     Write-Host "The ServerFull2016Image stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 30
@@ -243,8 +243,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         Write-Host "The ServerFull2016Image stage of the process has failed. This should ideally complete before the Windows Server 2019 Full image is created, but we can continue the process to create the 2019 image anyway."
                         BREAK
                     }
-                }
-                <#if ($runMode -eq "partialParallel") {
+                }#>
+                if ($runMode -eq "partialParallel") {
                     $serverFull2016JobCheck = CheckProgress -progressStage "ServerFull2016Image"
                     while ($serverFull2016JobCheck -ne "Complete") {
                         Write-Host "The ServerFull2016Image stage of the process has not yet completed. Checking again in 20 seconds"
@@ -265,7 +265,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             throw "The ServerCore2019Image stage of the process has failed. This should fully complete before the Windows Server Core image is created. Check the Windows Server logs, ensure that step is completed first, and rerun."
                         }
                     }
-                }#>
+                }
             }
             Set-Location "$ASDKpath\images"
             # Check which image is being deployed
