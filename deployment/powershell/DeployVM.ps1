@@ -390,6 +390,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     Remove-AzureRmResourceGroup -Name $rg -Force
                     Start-Sleep -Seconds 30
                     Write-Host "Starting deployment again..."
+                    Write-Host "Creating a dedicated Resource Group for all assets"
+                    if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                        New-AzureRmResourceGroup -Name $rg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+                    }
                     if ($deploymentMode -eq "Online") {
                         New-AzureRmResourceGroupDeployment -Name "DeployAppServiceFileServer" -ResourceGroupName $rg -vmName "fileserver" -TemplateUri $mainTemplateURI `
                             -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
@@ -402,6 +406,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
                 elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer" -ErrorAction SilentlyContinue)) {
                     Write-Host "No previous deployment found - starting deployment of File Server"
+                    Write-Host "Creating a dedicated Resource Group for all assets"
+                    if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                        New-AzureRmResourceGroup -Name $rg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+                    }
                     if ($deploymentMode -eq "Online") {
                         New-AzureRmResourceGroupDeployment -Name "DeployAppServiceFileServer" -ResourceGroupName $rg -vmName "fileserver" -TemplateUri $mainTemplateURI `
                             -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd -Mode Incremental -Verbose -ErrorAction Stop
@@ -430,6 +438,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     Remove-AzureRmResourceGroup -Name $rg -Force
                     Start-Sleep -Seconds 30
                     Write-Host "Starting deployment again..."
+                    Write-Host "Creating a dedicated Resource Group for all assets"
+                    if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                        New-AzureRmResourceGroup -Name $rg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+                    }
                     New-AzureRmResourceGroupDeployment -Name "DeployAppServiceDB" -ResourceGroupName $rg -TemplateUri $mainTemplateURI -scriptBaseUrl $scriptBaseURI `
                         -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
                         -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_F1s `
@@ -437,6 +449,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
                 elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceDB" -ErrorAction SilentlyContinue)) {
                     Write-Host "No previous deployment found - creating a dedicated database host for the App Service"
+                    Write-Host "Creating a dedicated Resource Group for all assets"
+                    if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                        New-AzureRmResourceGroup -Name $rg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+                    }
                     New-AzureRmResourceGroupDeployment -Name "DeployAppServiceDB" -ResourceGroupName $rg -TemplateUri $mainTemplateURI -scriptBaseUrl $scriptBaseURI `
                         -vmName "sqlapp" -adminUsername "sqladmin" -adminPassword $secureVMpwd -msSQLPassword $secureVMpwd `
                         -publicIPAddressDomainNameLabel "sqlapp" -publicIPAddressName "sqlapp_ip" -vmSize Standard_F1s `
