@@ -1411,7 +1411,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Clear-Host
         Write-CustomVerbose -Message "Checking for a previous installation of PowerShell. If found, to ensure full compatibility with the ConfigASDK, this will be cleaned up...please wait..."
         $cleanupRequired = $false
-        $psRepositoryName = "PSGallery"
+        <#$psRepositoryName = "PSGallery"
         $psRepositoryInstallPolicy = "Trusted"
         $psRepositorySourceLocation = "https://www.powershellgallery.com/api/v2"
         $psRepository = Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}
@@ -1420,7 +1420,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         }
         else {
             $cleanupRequired = $true
-        }
+        }#>
         try {
             $psRmProfle = Get-AzureRmProfile -ErrorAction Ignore | Where-Object {($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile")}
         }
