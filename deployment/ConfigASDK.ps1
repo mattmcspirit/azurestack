@@ -2510,7 +2510,7 @@ elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
                 Write-CustomVerbose -Message "Upgrading pip"
                 $pipWhl = (Get-ChildItem -Path .\* -Include "pip*.whl" -Force -Verbose -ErrorAction Stop).Name
                 python -m pip install --no-index $pipWhl
-                python -m ensurepip --default-pip
+                #python -m ensurepip --default-pip
                 Write-CustomVerbose -Message "Installing certifi"
                 # pip install certifi
                 $certifiWhl = (Get-ChildItem -Path .\* -Include "certifi*.whl" -Force -Verbose -ErrorAction Stop).Name
