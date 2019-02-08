@@ -350,7 +350,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                             Write-Host "$itemName not found. Upload Attempt: $uploadItemAttempt"
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             #Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkExtensionContainerName -Blob "$itemName" -Context $asdkExtensionStorageAccount.Context -ErrorAction Stop -Verbose | Out-Null
-                            $uploadFile = AzCopy /Source:$itemFullPath /Dest:$asdkExtensionContainerName /Pattern:"$itemName" /Y /V
+                            $azCopyUpload = AzCopy /Source:$itemFullPath /Dest:$asdkExtensionContainerName /Pattern:"$itemName" /Y /V:$logPath
                         }
                         catch {
                             Write-Host "Upload failed."

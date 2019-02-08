@@ -115,7 +115,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                     Write-Host "$itemName not found. Upload Attempt: $uploadItemAttempt"
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     #Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkOfflineContainerName -Blob "$itemName" -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
-                    $uploadFile = AzCopy /Source:$itemFullPath /Dest:$asdkOfflineContainerName /Pattern:"$itemName" /Y /V
+                    $azCopyUpload = AzCopy /Source:$itemFullPath /Dest:$asdkOfflineContainerName /Pattern:"$itemName" /Y /V:$logPath
                 }
                 catch {
                     Write-Host "Upload failed."

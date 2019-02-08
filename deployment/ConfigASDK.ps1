@@ -257,7 +257,7 @@ function AddOfflineAZPKG {
                 Write-Verbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
                 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                 #Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $asdkImagesContainerName -Blob "$azpkgFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
-                AzCopy /Source:$azpkgFullPath /Dest:$asdkImagesContainerName /Pattern:"$azpkgFileName" /Y /V
+                $azCopyUpload = AzCopy /Source:$azpkgFullPath /Dest:$asdkImagesContainerName /Pattern:"$azpkgFileName" /Y /V:$azCopyLogPath
             }
             catch {
                 Write-Verbose -Message "Upload failed."
@@ -1114,6 +1114,11 @@ HostAppInstaller -localInstallPath "$azCopyInstallPath\AzCopy.exe" -appName AzCo
 $testEnvPath = $Env:path
 if (!($testEnvPath -contains "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\")) {
     $Env:path = $env:path + ";C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\"
+}
+
+if (![System.IO.Directory]::Exists("$logPath\AzCopyLogs")) {
+    mkdir "$logPath\AzCopyLogs" -Force | Out-Null
+    $azCopyLogPath = "$logPath\AzCopyLogs"
 }
 
 ### DOWNLOAD SQLLOCALDB #####################################################################################################################################
