@@ -256,7 +256,8 @@ function AddOfflineAZPKG {
                 # Log back into Azure Stack to ensure login hasn't timed out
                 Write-Verbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
                 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $asdkImagesContainerName -Blob "$azpkgFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
+                #Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $asdkImagesContainerName -Blob "$azpkgFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
+                AzCopy /Source:$azpkgFullPath /Dest:$asdkImagesContainerName /Pattern:"$azpkgFileName" /Y /V
             }
             catch {
                 Write-Verbose -Message "Upload failed."

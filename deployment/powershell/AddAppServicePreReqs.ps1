@@ -349,7 +349,8 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                             # Log back into Azure Stack to ensure login hasn't timed out
                             Write-Host "$itemName not found. Upload Attempt: $uploadItemAttempt"
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkExtensionContainerName -Blob "$itemName" -Context $asdkExtensionStorageAccount.Context -ErrorAction Stop -Verbose | Out-Null
+                            #Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkExtensionContainerName -Blob "$itemName" -Context $asdkExtensionStorageAccount.Context -ErrorAction Stop -Verbose | Out-Null
+                            $uploadFile = AzCopy /Source:$itemFullPath /Dest:$asdkExtensionContainerName /Pattern:"$itemName" /Y /V
                         }
                         catch {
                             Write-Host "Upload failed."

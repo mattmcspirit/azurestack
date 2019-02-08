@@ -114,7 +114,8 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                     # Log back into Azure Stack to ensure login hasn't timed out
                     Write-Host "$itemName not found. Upload Attempt: $uploadItemAttempt"
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkOfflineContainerName -Blob "$itemName" -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
+                    #Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkOfflineContainerName -Blob "$itemName" -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
+                    $uploadFile = AzCopy /Source:$itemFullPath /Dest:$asdkOfflineContainerName /Pattern:"$itemName" /Y /V
                 }
                 catch {
                     Write-Host "Upload failed."
