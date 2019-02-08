@@ -311,7 +311,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         throw "Missing CSE.zip file in extracted dependencies folder. Please ensure this exists at $extensionZipPath - Exiting process"
                     }
                     else {
-                        Write-Host"Valid CSE.zip file found at $extensionZipPath. Continuing process."
+                        Write-Host "Valid CSE.zip file found at $extensionZipPath. Continuing process."
                     }
                 }
                 Write-Host "Extracting CSE.zip file"
