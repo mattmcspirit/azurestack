@@ -1554,7 +1554,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Get-PSRepository -Name "PSGallery"
             Install-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
             Use-AzureRmProfile -Profile 2018-03-01-hybrid -Force -ErrorAction Stop
-            Install-Module -Name AzureStack -RequiredVersion 1.6.0 -Force -ErrorAction Stop
+            Install-Module AzureRM -RequiredVersion 2.4.0 -Force -ErrorAction Stop
+            Install-Module -Name AzureStack -RequiredVersion 1.7.0 -Force -ErrorAction Stop
             # Install the Azure.Storage module version 4.5.0
             Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
             # Install the AzureRm.Storage module version 5.0.4
