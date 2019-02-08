@@ -2772,6 +2772,9 @@ if ($scriptSuccess) {
             Remove-Item -Path "$csvPath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
             Remove-Item "$csvPath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
         }
+        if ($(Get-ChildItem -Directory -Path "$downloadPath\*" | Where-Object {$_.Name -like "20*iso"} -ErrorAction SilentlyContinue)) {
+            Get-ChildItem -Directory -Path "$downloadPath\*" | Where-Object {$_.Name -like "20*iso"} -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        }
         $i++
     }
     Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
