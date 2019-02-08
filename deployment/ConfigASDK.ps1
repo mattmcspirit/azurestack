@@ -1081,6 +1081,40 @@ elseif ($ASDKpath -eq $false) {
     New-Item $ConfigAsdkRunFlag -ItemType file -Force
 }
 
+### DOWNLOAD AzCopy #########################################################################################################################################
+#############################################################################################################################################################
+
+# Check for existence of directory for AzCopy and creating if it doesn't exist
+if (![System.IO.Directory]::Exists("$asdkPath\azcopy")) {
+    mkdir "$asdkPath\azcopy" -Force | Out-Null
+    $azCopyPath = "$asdkPath\azcopy"
+}
+else {
+    $azCopyPath = "$asdkPath\azcopy"
+}
+
+# If there isn't already a copy of the MSI locally, pull it down
+$azCopyUri = "https://aka.ms/downloadazcopy"
+$azCopyMSIPath = "$azCopyPath\AzCopy.msi"
+if (![System.IO.File]::Exists($azCopyMSIPath)) {
+    DownloadWithRetry -downloadURI $azCopyUri -downloadLocation $azCopyMSIPath -retries 10
+}
+
+### INSTALL AzCopy ##########################################################################################################################################
+#############################################################################################################################################################
+
+# Install AzCopy from MSI
+$azCopyInstallPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\"
+HostAppInstaller -localInstallPath "$azCopyInstallPath\AzCopy.exe" -appName AzCopy `
+    -arguments "/i `"$azCopyPath\AzCopy.msi`" /qn  /l*v `"$azCopyPath\AzCopy.log`"" `
+    -fileName "AzCopy.msi" -appType "MSI"
+
+# Add AzCopy to $env:Path
+$testEnvPath = $Env:path
+if (!($testEnvPath -contains "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\")) {
+    $Env:path = $env:path + ";C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\"
+}
+
 ### DOWNLOAD SQLLOCALDB #####################################################################################################################################
 #############################################################################################################################################################
 
