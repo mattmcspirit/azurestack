@@ -641,7 +641,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             # Log back into Azure Stack to ensure login hasn't timed out
                             Write-Host "Upload Attempt: $uploadVhdAttempt"
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            #Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            $azCopyUpload = AzCopy /Source:"$($serverVHD.FullName)" /Dest:$asdkImagesContainerName /Pattern:"$($serverVHD.Name)" /Y /V:$azCopyLogPath
                             $uploadSuccess = $true
                         }
                         catch {
@@ -658,7 +659,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             # Log back into Azure Stack to ensure login hasn't timed out
                             Write-Host "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            #Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            $azCopyUpload = AzCopy /Source:"$($serverVHD.FullName)" /Dest:$asdkImagesContainerName /Pattern:"$($serverVHD.Name)" /Y /V:$azCopyLogPath
                             $uploadSuccess = $true
                         }
                         catch {
@@ -675,7 +677,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             # Log back into Azure Stack to ensure login hasn't timed out
                             Write-Host "No existing image found. Upload Attempt: $uploadVhdAttempt"
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            #Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+                            $azCopyUpload = AzCopy /Source:"$($serverVHD.FullName)" /Dest:$asdkImagesContainerName /Pattern:"$($serverVHD.Name)" /Y /V:$azCopyLogPath
                             $uploadSuccess = $true
                         }
                         catch {
