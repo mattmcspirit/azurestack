@@ -70,7 +70,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         
         if ($ISOPath2019) {
-            $versionArray = @("2016","2019")
+            $versionArray = @("2016", "2019")
         }
         else {
             $versionArray = @("2016")
@@ -251,17 +251,16 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     }
 
                     # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
-                        foreach ($ssu in $ssuArray) {
-                            if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
-                                Write-Host "The $buildVersion Servicing Stack Update already exists within the target folder"
-                            }
-                            else {
-                                Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
-                                Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
-                            }
+                    foreach ($ssu in $ssuArray) {
+                        if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
+                            Write-Host "The $buildVersion Servicing Stack Update already exists within the target folder"
                         }
-                        $target = "$ASDKpath\images\$v"
-                    
+                        else {
+                            Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
+                            Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
+                        }
+                    }
+                    $target = "$ASDKpath\images\$v"
                 }
                 elseif ($deploymentMode -ne "Online") {
                     $target = "$ASDKpath\images\$v"
