@@ -133,7 +133,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                         Write-Host $s 
                     }
                     if ($LASTEXITCODE -ne 0){
-                        Throw "Upload file failed: $itemName";
+                        Throw "Upload file failed: $itemName. Check logs at $azCopyLogPath";
                         break;
                     }
                     ################## AzCopy Testing ##############################################

@@ -62,6 +62,13 @@ $progressName = $logFolder
 $logDate = Get-Date -Format FileDate
 New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\$logFolder" -Force | Out-Null
 $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
+$azCopyLogPath = "$logPath\AzCopy$logDate.log"
+
+# Add AzCopy to $env:Path
+$testEnvPath = $Env:path
+if (!($testEnvPath -contains "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\")) {
+    $Env:path = $env:path + ";C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\"
+}
 
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
@@ -341,6 +348,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 foreach ($item in $extensionArray) {
                     $itemName = $item.Name
                     $itemFullPath = $item.FullName
+                    $itemDirectory = $item.DirectoryName
                     $uploadItemAttempt = 1
                     $sideloadCSEZipAttempt = 1
                     #$sideloadCSEAzpkgAttempt = 1
@@ -350,7 +358,20 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                             Write-Host "$itemName not found. Upload Attempt: $uploadItemAttempt"
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             #Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkExtensionContainerName -Blob "$itemName" -Context $asdkExtensionStorageAccount.Context -ErrorAction Stop -Verbose | Out-Null
-                            $azCopyUpload = AzCopy /Source:$itemFullPath /Dest:$asdkExtensionContainerName /Pattern:"$itemName" /Y /V:$logPath
+                            ################## AzCopy Testing ##############################################
+                            $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\"
+                            $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkExtensionRGName -Name $asdkExtensionStorageAccountName).Value[0]
+                            $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $itemDirectory, $asdkExtensionContainerName, $storageAccountKey, $itemName, $azCopyLogPath)
+                            Write-Host "$azCopyCmd"
+                            $result = cmd /c $azCopyCmd
+                            foreach ($s in $result) {
+                                Write-Host $s 
+                            }
+                            if ($LASTEXITCODE -ne 0) {
+                                Throw "Upload file failed: $itemName. Check logs at $azCopyLogPath";
+                                break;
+                            }
+                            ################## AzCopy Testing ##############################################
                         }
                         catch {
                             Write-Host "Upload failed."
