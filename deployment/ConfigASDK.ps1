@@ -236,7 +236,13 @@ function AddOfflineAZPKG {
     param
     (
         [parameter(Mandatory = $true)]
-        [string]$azpkgPackageName
+        [string]$azpkgPackageName,
+
+        ################## AzCopy Testing ##############################################
+        [parameter(Mandatory = $true)]
+        [string]$azCopyLogPath
+        ################## AzCopy Testing ##############################################
+
     )
     #### Need to upload to blob storage first from extracted ZIP ####
     $azpkgFullPath = $null
@@ -257,7 +263,17 @@ function AddOfflineAZPKG {
                 Write-Verbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
                 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                 #Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $asdkImagesContainerName -Blob "$azpkgFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
-                $azCopyUpload = AzCopy /Source:$azpkgFullPath /Dest:$asdkImagesContainerName /Pattern:"$azpkgFileName" /Y /V:$azCopyLogPath
+                ################## AzCopy Testing ##############################################
+                $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\"
+                $azpkgDirectory = "$ASDKpath\packages"
+                $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkImagesRGName -Name $asdkImagesStorageAccountName).Value[0]
+                $azCopyCmd = [string]::Format("""{0}"" /source:{1} /dest:{2} /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $azpkgDirectory, $asdkImagesContainerName, $storageAccountKey, $azpkgFileName, $azCopyLogPath)
+                Write-Host "$azCopyCmd"
+                $result = cmd /c $azCopyCmd
+                foreach ($s in $result) {
+                    Write-Host $s 
+                }
+                ################## AzCopy Testing ##############################################
             }
             catch {
                 Write-Verbose -Message "Upload failed."

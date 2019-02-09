@@ -75,6 +75,13 @@ else {
 $logDate = Get-Date -Format FileDate
 New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\$logFolder" -Force | Out-Null
 $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
+$azCopyLogPath = "$logPath\AzCopy$logDate.log"
+
+# Add AzCopy to $env:Path
+$testEnvPath = $Env:path
+if (!($testEnvPath -contains "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\")) {
+    $Env:path = $env:path + ";C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\"
+}
 
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
@@ -676,7 +683,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     $asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName -ErrorAction SilentlyContinue
                     Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName | Out-Null
                     $asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
-                    $azpkgPackageURL = AddOfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
+                    $azpkgPackageURL = AddOfflineAZPKG -azpkgPackageName $azpkgPackageName -azCopyLogPath $azCopyLogPath -Verbose
                 }
                 $Retries = 0
                 # Sometimes the gallery item doesn't get added successfully, so perform checks and attempt multiple uploads if necessary
