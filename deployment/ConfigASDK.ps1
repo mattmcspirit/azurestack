@@ -267,11 +267,15 @@ function AddOfflineAZPKG {
                 $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\"
                 $azpkgDirectory = "$ASDKpath\packages"
                 $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkImagesRGName -Name $asdkImagesStorageAccountName).Value[0]
-                $azCopyCmd = [string]::Format("""{0}"" /source:{1} /dest:{2} /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $azpkgDirectory, $asdkImagesContainerName, $storageAccountKey, $azpkgFileName, $azCopyLogPath)
+                $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $azpkgDirectory, $asdkImagesContainerName, $storageAccountKey, $azpkgFileName, $azCopyLogPath)
                 Write-Host "$azCopyCmd"
                 $result = cmd /c $azCopyCmd
                 foreach ($s in $result) {
                     Write-Host $s 
+                }
+                if ($LASTEXITCODE -ne 0){
+                    Throw "Upload file failed: $itemName";
+                    break;
                 }
                 ################## AzCopy Testing ##############################################
             }
