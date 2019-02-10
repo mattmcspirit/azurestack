@@ -366,7 +366,7 @@ try {
     $row = $table.NewRow(); $row.Uri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
     $row.filename = "SqlLocalDB.msi"; $row.path = "$sqlLocalDBPath"; $row.productName = "SqlLocalDB"; $Table.Rows.Add($row)
     # AZCopy MSI
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/downloadazcopy"
+    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azcopyforazurestack20171109"
     $row.filename = "AzCopy.msi"; $row.path = "$azCopyPath"; $row.productName = "AzCopy"; $Table.Rows.Add($row)
     # Azure Stack Tools
     $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
