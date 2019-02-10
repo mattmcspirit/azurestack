@@ -648,7 +648,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
                             $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkImagesRGName -Name $asdkImagesStorageAccountName).Value[0]
                             $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $serverVHDDirectory, $containerDestination, $storageAccountKey, $blobName, $azCopyLogPath)
-                            Write-Host "$azCopyCmd"
+                            Write-Host "Executing the following command:`n'n$azCopyCmd"
                             $result = cmd /c $azCopyCmd
                             foreach ($s in $result) {
                                 Write-Host $s
