@@ -352,17 +352,18 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     $uploadItemAttempt = 1
                     $sideloadCSEZipAttempt = 1
                     #$sideloadCSEAzpkgAttempt = 1
-                    while (!$(Get-AzureStorageBlob -Container $asdkExtensionContainerName -Blob $itemName -Context $asdkExtensionStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
+                    while (!$(Get-AzureStorageBlob -Container $asdkExtensionContainerName -Blob $itemName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
                         try {
                             # Log back into Azure Stack to ensure login hasn't timed out
                             Write-Host "$itemName not found. Upload Attempt: $uploadItemAttempt"
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             #Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkExtensionContainerName -Blob "$itemName" -Context $asdkExtensionStorageAccount.Context -ErrorAction Stop -Verbose | Out-Null
                             ################## AzCopy Testing ##############################################
-                            $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\"
+                            $containerDestination = '{0}{1}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkExtensionContainerName
+                            $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
                             $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkExtensionRGName -Name $asdkExtensionStorageAccountName).Value[0]
-                            $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $itemDirectory, $asdkExtensionContainerName, $storageAccountKey, $itemName, $azCopyLogPath)
-                            Write-Host "$azCopyCmd"
+                            $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $itemDirectory, $containerDestination, $storageAccountKey, $itemName, $azCopyLogPath)
+                            Write-Host "Executing the following command:`n'n$azCopyCmd"
                             $result = cmd /c $azCopyCmd
                             foreach ($s in $result) {
                                 Write-Host $s 

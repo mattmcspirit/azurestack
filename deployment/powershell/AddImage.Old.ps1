@@ -642,7 +642,22 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             Write-Host "Upload Attempt: $uploadVhdAttempt"
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             #Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                            $azCopyUpload = AzCopy /Source:"$($serverVHD.FullName)" /Dest:$asdkImagesContainerName /Pattern:"$($serverVHD.Name)" /Y /V:$azCopyLogPath
+                            ################## AzCopy Testing ##############################################
+                            $serverVHDDirectory = ($serverVHD).DirectoryName
+                            $containerDestination = '{0}{1}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkImagesContainerName
+                            $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
+                            $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkImagesRGName -Name $asdkImagesStorageAccountName).Value[0]
+                            $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $serverVHDDirectory, $containerDestination, $storageAccountKey, $blobName, $azCopyLogPath)
+                            Write-Host "$azCopyCmd"
+                            $result = cmd /c $azCopyCmd
+                            foreach ($s in $result) {
+                                Write-Host $s
+                            }
+                            if ($LASTEXITCODE -ne 0) {
+                                Throw "Upload file failed: $itemName. Check logs at $azCopyLogPath";
+                                break;
+                            }
+                            ################## AzCopy Testing ##############################################
                             $uploadSuccess = $true
                         }
                         catch {
@@ -652,6 +667,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             $uploadSuccess = $false
                         }
                     }
+                    <#Commenting out for AzCopy Testing
                     # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
                     # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
                     while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$uploadSuccess) -and ($uploadVhdAttempt -le 3)) {
@@ -694,6 +710,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         Set-Location $ScriptLocation
                         return
                     }
+                    End of AzCopy Testing #>
                 }
                 # To reach this stage, there is now a valid image in the Storage Account, ready to be uploaded into the PIR
                 # Add the Platform Image
