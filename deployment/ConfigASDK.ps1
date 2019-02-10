@@ -264,11 +264,12 @@ function AddOfflineAZPKG {
                 Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                 #Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $asdkImagesContainerName -Blob "$azpkgFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
                 ################## AzCopy Testing ##############################################
-                $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\"
+                $containerDestination = '{0}{1}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkImagesContainerName
+                $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
                 $azpkgDirectory = "$ASDKpath\packages"
                 $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkImagesRGName -Name $asdkImagesStorageAccountName).Value[0]
-                $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $azpkgDirectory, $asdkImagesContainerName, $storageAccountKey, $azpkgFileName, $azCopyLogPath)
-                Write-Host "$azCopyCmd"
+                $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $azpkgDirectory, $containerDestination, $storageAccountKey, $azpkgFileName, $azCopyLogPath)
+                Write-Host "Executing the following command:`n'n$azCopyCmd"
                 $result = cmd /c $azCopyCmd
                 foreach ($s in $result) {
                     Write-Host $s 
@@ -1115,7 +1116,7 @@ else {
 }
 
 # If there isn't already a copy of the MSI locally, pull it down
-$azCopyUri = "https://aka.ms/downloadazcopy"
+$azCopyUri = "https://aka.ms/azcopyforazurestack20171109"
 $azCopyMSIPath = "$azCopyPath\AzCopy.msi"
 if (![System.IO.File]::Exists($azCopyMSIPath)) {
     DownloadWithRetry -downloadURI $azCopyUri -downloadLocation $azCopyMSIPath -retries 10
