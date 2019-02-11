@@ -5,6 +5,16 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1901?
+* Updated to support ASDK 1.1901.0.95
+* Updated to support Azure Stack PowerShell 1.7.0 and AzureRM 2.4.0
+* Added support for creating and uploading Windows Server 2019 (Build 17763) into the PIR
+* Now using AzCopy for transfer of items into Azure Stack Storage Accounts - Faster transfers
+* Updated AZPKG files for VM deployment including newer API versions
+* VMs now all deploy with Managed Disks (apart from DB RPs and App Service VMs)
+* VM sizes updates for greater efficiency
+* Bug fixes and logging cleanup
+
 ### What's new in version 1811.2?
 * New -serialMode to deploy VMs one at a time - useful for older, lower performance hardware
 * Support for Database RPs 1.1.33.0
