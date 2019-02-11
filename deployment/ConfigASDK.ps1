@@ -12,6 +12,7 @@
     * Tools installation (Azure Stack Tools)
     * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
     * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
+    * Windows Server 2019 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository (Optional)
     * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
     * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
     * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
@@ -39,6 +40,14 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1901    Updated to support ASDK 1.1901.0.95
+            Updated to support Azure Stack PowerShell 1.7.0 and AzureRM 2.4.0
+            Added support for creating and uploading Windows Server 2019 (Build 17763) into the PIR
+            Now using AzCopy for transfer of items into Azure Stack Storage Accounts - Faster transfers
+            Updated AZPKG files for VM deployment including newer API versions
+            VMs now all deploy with Managed Disks (apart from DB RPs and App Service VMs)
+            VM sizes updates for greater efficiency
+            Bug fixes and logging cleanup
     1811.2  New -serialMode to deploy VMs one at a time - useful for older, lower performance hardware
             Support for Database RPs 1.1.33.0
             Bug fixes and logging cleanup - removal of passwords from logs
