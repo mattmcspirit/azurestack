@@ -224,7 +224,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             # Temporary Workaround to installing DB RP with PS 1.7.0 and newer AzureRM 2.4.0
             $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
             $old = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -eq "3") -and ($azureRMModule.Version.Build -ge "0"))'
-            $new = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -eq "4") -and ($azureRMModule.Version.Build -ge "0"))'
+            $new = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -ge "3") -and ($azureRMModule.Version.Build -ge "0"))'
             $pattern1 = [RegEx]::Escape($old)
             $pattern2 = [RegEx]::Escape($new)
             if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
