@@ -1,4 +1,4 @@
-ASDK Configurator 1811.2 | Offline Mode
+ASDK Configurator 1901 | Offline Mode
 ==============
 
 Who is this for?
@@ -11,7 +11,7 @@ If you answered **Yes** to either of those questions, read on....
 Version Compatibility
 -----------
 The current version of the ConfigASDKdependencies.ps1 script has been **tested with the following versions**:
-* ASDK Configurator (ConfigASDK.ps1) **1811.1**
+* ASDK Configurator (ConfigASDK.ps1) **1901**
 
 Description
 -----------
@@ -55,7 +55,7 @@ Set-Location "C:\ConfigASDKfiles"
 Invoke-Webrequest http://bit.ly/asdkoffline -UseBasicParsing -OutFile ConfigASDKdependencies.ps1
 ```
 
-Once you've downloaded the script, you can run it using the following guidance. The length of time the script takes to execute will depend on your internet connection speed, and the speed of you local storage. In my lab, on relatively modern hardware, with an 88Mbps internet connection (according to Fast.com), it took 31 minutes to complete the process. The script will download the required dependencies, such as an Ubuntu image, Database resource providers, App Service binaries and more. It will also grab your Windows Server 2016 ISO file, and zip them all up into a convenient zip file.
+Once you've downloaded the script, you can run it using the following guidance. The length of time the script takes to execute will depend on your internet connection speed, and the speed of you local storage. In my lab, on relatively modern hardware, with an 88Mbps internet connection (according to Fast.com), it took 31 minutes to complete the process. The script will download the required dependencies, such as an Ubuntu image, Database resource providers, App Service binaries and more. It will also grab your Windows Server 2016 ISO file (and optionally, Windows Server 2019), and zip them all up into a convenient zip file.
 
 ### Step 2 - Run the ConfigASDKdependencies.ps1 script ###
 
@@ -64,9 +64,18 @@ Once you've downloaded the script, you can run it using the following guidance. 
 .\ConfigASDKdependencies.ps1 -downloadPath "C:\ASDKdependencies" -ISOPath "C:\WS2016EVAL.iso"
 ```
 
+Alternatively, if you would like to include Windows Server 2019:
+
+```powershell
+# Initiate the downloader.
+.\ConfigASDKdependencies.ps1 -downloadPath "C:\ASDKdependencies" -ISOPath "C:\WS2016EVAL.iso" -ISOPath2019 "C:\WS2019EVAL.iso"
+```
+
 **General Guidance**
-* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 15GB of files
-* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files. Windows Server 2019 or any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809) are not validated for support with the database and App Service resource providers, so don't use those builds at this time. Use the Windows Server 2016 Evaluation release.
+
+* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 20GB of files
+* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time**
+* **-ISOPath2019** is optional, and should point to the Windows Server 2019 Evaluation media that you can download from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images**
 
 The script will create a folder structure within your chosen **downloadPath**, and will create a copy of your ISO file, and include this within the download path also. By the end of the process, your download path will contain items (and subdirectories etc.):
 * ConfigASDKfiles (Directory)
@@ -170,6 +179,11 @@ In addition, you can choose to skip a particular resource provider deployment, s
 Post-Script Actions
 -------------------
 The ConfigASDK.ps1 script can take over 6 hours to finish, depending on your hardware. An offline deployment will generally be quicker than a connected one, as you have already downloaded the relevant files in advance.
+
+### Known Issues
+* A Windows Server 2016 ISO is required.  This should be build 1607 (The RTM release) and not any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809). These have not been validated for support with the database and App Service resource providers, so don't use those builds at this time. The script will block their usage.
+* If you wish to upload Windows Server 2019 images for testing, please use the 17763 build, which is the Windows Server 2019 RTM and can be downloaded from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019
+* Do not use a mapped drive for your -downloadPath on your ASDK host. There are known issues which are yet to be resolved. Please use a local drive.
 
 #### Troubleshooting & Improvements ####
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
