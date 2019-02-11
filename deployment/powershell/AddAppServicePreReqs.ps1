@@ -115,6 +115,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     throw "The DownloadAppService stage of the process has failed. This should fully complete before the App Service PreReqs can be started. Check the DownloadAppService log, ensure that step is completed first, and rerun."
                 }
             }
+            Write-Host "Logging into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
@@ -330,15 +331,26 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $asdkExtensionStorageAccountName = "asdkextensionstor"
                 $asdkExtensionContainerName = "asdkextensioncontainer"
                 $azsLocation = (Get-AzsLocation).Name
+                Write-Host "Resource Group = $asdkExtensionRGName, Storage Account = $asdkExtensionStorageAccountName and Container = $asdkExtensionContainerName"
                 # Test/Create RG
-                if (-not (Get-AzureRmResourceGroup -Name $asdkExtensionRGName -Location $azsLocation -ErrorAction SilentlyContinue)) { New-AzureRmResourceGroup -Name $asdkExtensionRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop }
+                if (-not (Get-AzureRmResourceGroup -Name $asdkExtensionRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                    Write-Host "Creating the resource group: $asdkExtensionRGName"
+                    New-AzureRmResourceGroup -Name $asdkExtensionRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop 
+                }
                 # Test/Create Storage
                 $asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkExtensionStorageAccountName -ResourceGroupName $asdkExtensionRGName -ErrorAction SilentlyContinue
-                if (-not ($asdkStorageAccount)) { $asdkStorageAccount = New-AzureRmStorageAccount -Name $asdkExtensionStorageAccountName -Location $azsLocation -ResourceGroupName $asdkExtensionRGName -Type Standard_LRS -ErrorAction Stop }
+                if (-not ($asdkStorageAccount)) {
+                    Write-Host "Creating the storage account: $asdkExtensionStorageAccountName"
+                    $asdkStorageAccount = New-AzureRmStorageAccount -Name $asdkExtensionStorageAccountName -Location $azsLocation -ResourceGroupName $asdkExtensionRGName -Type Standard_LRS -ErrorAction Stop
+                }
+                Write-Host "Setting the storage context"
                 Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkExtensionStorageAccountName -ResourceGroupName $asdkExtensionRGName | Out-Null
                 # Test/Create Container
                 $asdkContainer = Get-AzureStorageContainer -Name $asdkExtensionContainerName -ErrorAction SilentlyContinue
-                if (-not ($asdkContainer)) { $asdkContainer = New-AzureStorageContainer -Name $asdkExtensionContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop }
+                if (-not ($asdkContainer)) { 
+                    Write-Host "Creating the storage container: $asdkExtensionContainerName"
+                    $asdkContainer = New-AzureStorageContainer -Name $asdkExtensionContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop 
+                }
             
                 # Upload files to Storage
                 Write-Host "Uploading files to the newly created storage account"
@@ -351,7 +363,6 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     $itemDirectory = $item.DirectoryName
                     $uploadItemAttempt = 1
                     $sideloadCSEZipAttempt = 1
-                    #$sideloadCSEAzpkgAttempt = 1
                     while (!$(Get-AzureStorageBlob -Container $asdkExtensionContainerName -Blob $itemName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
                         try {
                             # Log back into Azure Stack to ensure login hasn't timed out
