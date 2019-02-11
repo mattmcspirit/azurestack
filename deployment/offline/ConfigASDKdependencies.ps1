@@ -164,6 +164,17 @@ elseif ($validDownloadPath -eq $false) {
     }
 }
 
+### Start Logging ###
+$logTime = $(Get-Date).ToString("MMdd-HHmmss")
+$logPath = "$downloadPath\ConfigASDKDependencyLog$logTime.txt"
+$logStart = Start-Transcript -Path "$logPath" -Append
+Write-CustomVerbose -Message $logStart
+Write-Host "Creating log folder"
+Write-Host "Log folder has been created in your $downloadPath"
+Write-Host "Log will be written to $logPath"
+Write-Host "Starting logging"
+Write-Host "Log started at $logTime"
+
 try {
     Write-CustomVerbose -Message "Validating Windows Server 2016 RTM ISO path"
     # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
@@ -287,10 +298,7 @@ if ($ISOPath2019) {
     }
 }
 
-### Start Logging ###
-$logTime = $(Get-Date).ToString("MMdd-HHmmss")
-$logStart = Start-Transcript -Path "$downloadPath\ConfigASDKDependencyLog$logTime.txt" -Append
-Write-CustomVerbose -Message $logStart
+
 
 ### Configure PowerShell ###############################################################################################################################
 ########################################################################################################################################################
