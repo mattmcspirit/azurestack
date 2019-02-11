@@ -44,18 +44,19 @@ $logName = $logFolder
 $progressName = $logFolder
 
 ### SET LOG LOCATION ###
-Write-Host "Creating log folder"
 $logDate = Get-Date -Format FileDate
 New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\$logFolder" -Force | Out-Null
 $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
 $azCopyLogPath = "$logPath\AzCopy$logDate.log"
-Write-Host "Log folder has been created at $logPath"
 
 ### START LOGGING ###
-Write-Host "Starting logging"
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append
+Write-Host "Creating log folder"
+Write-Host "Log folder has been created at $logPath"
+Write-Host "Log file stored at $fullLogPath"
+Write-Host "Starting logging"
 Write-Host "Log started at $runTime"
 
 $progressStage = $progressName

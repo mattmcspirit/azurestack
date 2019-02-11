@@ -49,6 +49,7 @@ $fullLogPath = "$logPath\WindowsUpdates$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append
 Write-Host "Creating log folder"
 Write-Host "Log folder has been created at $logPath"
+Write-Host "Log file stored at $fullLogPath"
 Write-Host "Starting logging"
 Write-Host "Log started at $runTime"
 
