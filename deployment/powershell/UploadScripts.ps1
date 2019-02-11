@@ -52,6 +52,9 @@ if (!($testEnvPath -contains "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append
+Write-Host "Creating log folder"
+Write-Host "Log folder has been created at $logPath"
+Write-Host "Starting logging"
 Write-Host "Log started at $runTime"
 
 $progressStage = $progressName
