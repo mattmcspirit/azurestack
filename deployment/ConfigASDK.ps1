@@ -1573,10 +1573,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Get-PSRepository -Name "PSGallery"
             Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
             Get-PSRepository -Name "PSGallery"
-            Install-Module -Name AzureRm.BootStrapper -Force -ErrorAction Stop
-            Use-AzureRmProfile -Profile 2018-03-01-hybrid -Force -ErrorAction Stop
-            Install-Module AzureRM -RequiredVersion 2.4.0 -Force -ErrorAction Stop
             Install-Module -Name AzureStack -RequiredVersion 1.7.0 -Force -ErrorAction Stop
+            Install-Module AzureRM -RequiredVersion 2.4.0 -Force -ErrorAction Stop
             # Install the Azure.Storage module version 4.5.0
             Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
             # Install the AzureRm.Storage module version 5.0.4
@@ -1591,8 +1589,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
             }
             # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
-            Install-Module AzureRM -Repository $RepoName -Force -AllowClobber -ErrorAction Stop -Verbose
-            Install-Module AzureStack -Repository $RepoName -Force -AllowClobber -ErrorAction Stop -Verbose
+            Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop -Verbose
+            Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop -Verbose
             Install-Module Azure.Storage -Repository $RepoName -RequiredVersion 4.5.0 -Force -AllowClobber -ErrorAction Stop -Verbose
             Install-Module AzureRM.Storage -Repository $RepoName -RequiredVersion 5.0.4 -Force -AllowClobber -ErrorAction Stop -Verbose
             Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
@@ -2304,6 +2302,8 @@ JobLauncher -jobName $jobName -jobToExecute $DeployAppService -Verbose
 Set-Location $ScriptLocation
 Clear-Host
 .\Scripts\GetJobStatus.ps1
+
+BREAK
 
 #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
 ##############################################################################################################################################################
