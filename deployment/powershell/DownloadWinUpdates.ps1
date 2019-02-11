@@ -34,7 +34,7 @@ param (
     [String] $tableName
 )
 
-$Global:VerbosePreference = "Continue"
+#$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -47,6 +47,10 @@ $logPath = "$ScriptLocation\Logs\$logDate\WindowsUpdates"
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\WindowsUpdates$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append
+Write-Host "Creating log folder"
+Write-Host "Log folder has been created at $logPath"
+Write-Host "Starting logging"
+Write-Host "Log started at $runTime"
 
 $progressStage = "WindowsUpdates"
 $progressCheck = CheckProgress -progressStage $progressStage
@@ -57,18 +61,21 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             StageReset -progressStage $progressStage
         }
 
+        Write-Host "Clearing previous Azure/Azure Stack logins"
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
         Disable-AzureRMContextAutosave -Scope CurrentUser
 
+        Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
         Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
         Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
         
         # Log into Azure Stack to check for existing images and push new ones if required ###
+        Write-Host "Logging into Azure Stack to check if images are required, and therefore if updates need downloading"
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        
+        Write-Host "Determine if a Windows Server 2019 ISO has been provided"
         if ($ISOPath2019) {
             $versionArray = @("2016", "2019")
         }
@@ -77,7 +84,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         }
 
         foreach ($v in $versionArray) {
-
             # Pre-validate that the Windows Server Server Core VM Image is not already available
             Write-Host "Checking to see if a Windows Server $v image is present in your Azure Stack Platform Image Repository"
             Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
@@ -115,7 +121,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             ### Download the latest Cumulative Update for Windows Server - Existing Azure Stack Tools module doesn't work ###
             if ($downloadCURequired -eq $true) {
                 if ($deploymentMode -eq "Online") {
-
+                    Write-Host "Updates are required. Checking the ISO for correct build version"
                     # Mount the ISO, check the image for the version, then dismount
                     Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
                     if ($v -eq "2019") {
@@ -129,6 +135,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     Write-Host "You're missing at least one of the Windows Server $v Datacenter images, so we'll first download the latest Cumulative Update."
                     
                     # Define parameters
+                    Write-Host "Defining StartKB"
                     if ($v -eq "2019") {
                         $StartKB = 'https://support.microsoft.com/en-us/help/4464619'
                     }
@@ -136,11 +143,13 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
                     }
                     $SearchString = 'Cumulative.*Server.*x64'
+                    Write-Host "StartKB is: $StartKB and Search String is: $SearchString"
                     # Define the arrays that will be used later
                     $kbDownloads = @()
                     $Urls = @()
 
                     ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
+                    Write-Host "Checking build number to determine Servicing Stack Upadtes"
                     if ($buildVersion -eq "14393") {
                         $ssuArray = @("4132216", "4465659")
                         $updateArray = @("4091664")
@@ -200,6 +209,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     if ($v -eq "2019") {
                         ## .NET CU Download ####
                         # Find the KB Article Number for the latest .NET on Windows Server 2019 (Build 17763) Cumulative Update
+                        Write-Host "This is a Windows Server 2019 image, so we will download the latest .NET update for the image"
                         $ie = New-Object -ComObject "InternetExplorer.Application"
                         $ie.silent = $true
                         $ie.Navigate("https://support.microsoft.com/en-us/help/4466961")
@@ -282,4 +292,5 @@ elseif ($progressCheck -eq "Complete") {
     Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
+Write-Host "Logging stopped at $endTime"
 Stop-Transcript -ErrorAction SilentlyContinue
