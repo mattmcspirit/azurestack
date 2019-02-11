@@ -76,6 +76,7 @@ $logDate = Get-Date -Format FileDate
 New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\$logFolder" -Force | Out-Null
 $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
 $azCopyLogPath = "$logPath\AzCopy-$image-$logDate.log"
+$journalPath = "$logPath\$($image)Journal"
 Write-Host "Log folder has been created at $logPath"
 
 ### START LOGGING ###
@@ -649,7 +650,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             $containerDestination = '{0}{1}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkImagesContainerName
                             $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
                             $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkImagesRGName -Name $asdkImagesStorageAccountName).Value[0]
-                            $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /BlobType:""page"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $serverVHDDirectory, $containerDestination, $storageAccountKey, $blobName, $azCopyLogPath)
+                            $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /BlobType:""page"" /Pattern:""{4}"" /Y /V:""{5}"" /Z:""{6}""", $azCopyPath, $serverVHDDirectory, $containerDestination, $storageAccountKey, $blobName, $azCopyLogPath, $journalPath)
                             Write-Host "Executing the following command:`n'n$azCopyCmd"
                             $result = cmd /c $azCopyCmd
                             foreach ($s in $result) {
