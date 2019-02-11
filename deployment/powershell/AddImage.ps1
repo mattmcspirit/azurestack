@@ -457,11 +457,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             ### Log back into Azure Stack to check for existing images and push new ones if required ###
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Checking to see if the image is present in your Azure Stack Platform Image Repository"
-            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Succeeded"}) {
-                Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
-                Write-Host ('VM Image with publisher " {0}", offer " {1}", sku " {2}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku) -ErrorAction SilentlyContinue
-            }
-            elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"}) {
+            Write-Host "We first want to check if there is a failed or canceled upload from a previous attempt"
+            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"}) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a failed state"
                 Write-Host "Cleaning up the image from the PIR"
                 (Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
@@ -471,6 +468,11 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Cleaning up the image from the PIR"
                 (Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
             }
+            Write-Host "There are no failed or canceled images in the PIR, so moving on to checking for a valid, successful image"
+            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Succeeded"}) {
+                Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
+                Write-Host ('VM Image with publisher " {0}", offer " {1}", sku " {2}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku) -ErrorAction SilentlyContinue
+            }
             else {
                 Write-Host "No existing suitable $($azpkg.sku) VM image exists." 
                 Write-Host "The image in the Azure Stack Platform Image Repository should have the following properties:"
@@ -479,7 +481,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 Write-Host "SKU = $($azpkg.sku)"
                 Write-Host "Version = $($azpkg.vhdVersion)"
                 Write-Host "Unfortunately, no image was found with these properties."
-                #Write-Host "Checking to see if the VHD already exists in an Azure Stack Storage Account"
+                Write-Host "Checking to see if the VHD already exists in an Azure Stack Storage Account"
 
                 #Triggering a delay to stagger the creation of an RG/StorageAccount/Container etc
                 Start-Sleep -Seconds $delay
