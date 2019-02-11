@@ -358,271 +358,284 @@ $extensionPath = mkdir "$ASDKpath\appservice\extension" -Force
 ### Create Download Table ##############################################################################################################################
 ########################################################################################################################################################
 $scriptStep = "CREATE TABLE"
-try {
-    Write-CustomVerbose -Message "Creating table to store list of downloads" -ErrorAction Stop
-    $table = New-Object System.Data.DataTable
-    $table.Clear()
-    $table.Columns.Add("productName", "string") | Out-Null
-    $table.Columns.Add("filename", "string") | Out-Null
-    $table.Columns.Add("path", "string") | Out-Null
-    $table.Columns.Add("Uri", "string") | Out-Null
+$tableSuccess = $false
+$tableRetries = 1
+While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
+    try {
+        Write-CustomVerbose -Message "Creating table to store list of downloads"
+        Write-Host "Attempting to generate table. This is attempt: $tableRetries"
+        $table = New-Object System.Data.DataTable
+        $table.Clear()
+        $table.Columns.Add("productName", "string") | Out-Null
+        $table.Columns.Add("filename", "string") | Out-Null
+        $table.Columns.Add("path", "string") | Out-Null
+        $table.Columns.Add("Uri", "string") | Out-Null
 
-    # ConfigASDK.ps1 Script
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/ConfigASDK.ps1"
-    $row.filename = "ConfigASDK.ps1"; $row.path = "$downloadPath"; $row.productName = "ASDK Configurator Script"; $Table.Rows.Add($row)
-    # SqlLocalDB MSI
-    $row = $table.NewRow(); $row.Uri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
-    $row.filename = "SqlLocalDB.msi"; $row.path = "$sqlLocalDBPath"; $row.productName = "SqlLocalDB"; $Table.Rows.Add($row)
-    # AZCopy MSI
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azcopyforazurestack20171109"
-    $row.filename = "AzCopy.msi"; $row.path = "$azCopyPath"; $row.productName = "AzCopy"; $Table.Rows.Add($row)
-    # Azure Stack Tools
-    $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
-    $row.filename = "Master.zip"; $row.path = "$ASDKpath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
-    # Ubuntu Server 16.04 ZIP
-    #$row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-    #hard coding to a known working VHD
-    $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/16.04/release-20180831/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-    $row.filename = "UbuntuServer1.0.0.zip"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS zip file"; $Table.Rows.Add($row)
-    # Ubuntu Server AZPKG
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
-    $row.filename = "Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Ubuntu Server Marketplace Package"; $Table.Rows.Add($row)
-    # Convert-WindowsImage.ps1 Script
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/Convert-WindowsImage.ps1"
-    $row.filename = "Convert-WindowsImage.ps1"; $row.path = "$imagesPath"; $row.productName = "Convert-WindowsImage.ps1 VHD Creation Tool"; $Table.Rows.Add($row)
-    # VM Endpoint Aliases Doc
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/packages/Aliases/aliases.json"
-    $row.filename = "aliases.json"; $row.path = "$imagesPath"; $row.productName = "VM aliases endpoint doc"; $Table.Rows.Add($row)
-    # Windows Server DC AZPKG
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2016Datacenter-ARM.1.0.0.azpkg"
-    $row.filename = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2016 Datacenter Marketplace Package"; $Table.Rows.Add($row)
-    # Windows Server DC Core AZPKG
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"
-    $row.filename = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2016 Datacenter Core Marketplace Package"; $Table.Rows.Add($row)
-    if ($ISOPath2019) {
-        # Windows Server 2019 DC AZPKG
-        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2019Datacenter-ARM.1.0.0.azpkg"
-        $row.filename = "Microsoft.WindowsServer2019Datacenter-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2019 Datacenter Marketplace Package"; $Table.Rows.Add($row)
-        # Windows Server 2019 DC Core AZPKG
-        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0.azpkg"
-        $row.filename = "Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2019 Datacenter Core Marketplace Package"; $Table.Rows.Add($row)
+        # ConfigASDK.ps1 Script
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/ConfigASDK.ps1"
+        $row.filename = "ConfigASDK.ps1"; $row.path = "$downloadPath"; $row.productName = "ASDK Configurator Script"; $Table.Rows.Add($row)
+        # SqlLocalDB MSI
+        $row = $table.NewRow(); $row.Uri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
+        $row.filename = "SqlLocalDB.msi"; $row.path = "$sqlLocalDBPath"; $row.productName = "SqlLocalDB"; $Table.Rows.Add($row)
+        # AZCopy MSI
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/azcopyforazurestack20171109"
+        $row.filename = "AzCopy.msi"; $row.path = "$azCopyPath"; $row.productName = "AzCopy"; $Table.Rows.Add($row)
+        # Azure Stack Tools
+        $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
+        $row.filename = "Master.zip"; $row.path = "$ASDKpath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
+        # Ubuntu Server 16.04 ZIP
+        #$row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
+        #hard coding to a known working VHD
+        $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/16.04/release-20180831/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
+        $row.filename = "UbuntuServer1.0.0.zip"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS zip file"; $Table.Rows.Add($row)
+        # Ubuntu Server AZPKG
+        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
+        $row.filename = "Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Ubuntu Server Marketplace Package"; $Table.Rows.Add($row)
+        # Convert-WindowsImage.ps1 Script
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/Convert-WindowsImage.ps1"
+        $row.filename = "Convert-WindowsImage.ps1"; $row.path = "$imagesPath"; $row.productName = "Convert-WindowsImage.ps1 VHD Creation Tool"; $Table.Rows.Add($row)
+        # VM Endpoint Aliases Doc
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/packages/Aliases/aliases.json"
+        $row.filename = "aliases.json"; $row.path = "$imagesPath"; $row.productName = "VM aliases endpoint doc"; $Table.Rows.Add($row)
+        # Windows Server DC AZPKG
+        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2016Datacenter-ARM.1.0.0.azpkg"
+        $row.filename = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2016 Datacenter Marketplace Package"; $Table.Rows.Add($row)
+        # Windows Server DC Core AZPKG
+        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"
+        $row.filename = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2016 Datacenter Core Marketplace Package"; $Table.Rows.Add($row)
+        if ($ISOPath2019) {
+            # Windows Server 2019 DC AZPKG
+            $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2019Datacenter-ARM.1.0.0.azpkg"
+            $row.filename = "Microsoft.WindowsServer2019Datacenter-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2019 Datacenter Marketplace Package"; $Table.Rows.Add($row)
+            # Windows Server 2019 DC Core AZPKG
+            $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0.azpkg"
+            $row.filename = "Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2019 Datacenter Core Marketplace Package"; $Table.Rows.Add($row)
+        }
+        # MYSQL AZPKG
+        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/ASDKConfigurator.MySQL.1.0.0.azpkg"
+        $row.filename = "ASDKConfigurator.MySQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "MySQL Marketplace Package"; $Table.Rows.Add($row)
+        # SQL AZPKG
+        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MSSQL/ASDKConfigurator.MSSQL.1.0.0.azpkg"
+        $row.filename = "ASDKConfigurator.MSSQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "SQL Server Marketplace Package"; $Table.Rows.Add($row)
+        # MySQL RP
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestackmysqlrp11330"
+        $row.filename = "MySQL.zip"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files"; $Table.Rows.Add($row)
+        # MySQL RP Helper MSI
+        $row = $table.NewRow(); $row.Uri = "https://dev.mysql.com/get/Download/sConnector-Net/mysql-connector-net-6.10.5.msi"
+        $row.filename = "mysql-connector-net-6.10.5.msi"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files Offline Connector"; $Table.Rows.Add($row)
+        # SQL RP
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp11330"
+        $row.filename = "SQLServer.zip"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
+        # MySQL Install Script
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MySQL_Offline.sh"
+        $row.filename = "install_MySQL.sh"; $row.path = "$scriptPath"; $row.productName = "MySQL install script"; $Table.Rows.Add($row)
+
+        ### Grab the MySQL Offline Binaries - used when ASDK is deployed in a completely offline mode
+        ### The MySQL script would usually install MySQL via apt-get, however in an offline mode, this isn't possible, hence
+        ### we download them here, and upload them to local Azure Stack storage as part of the ASDK Configurator
+
+        # MySQL Offline Dependency #1
+        $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/" -UseBasicParsing
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libaio*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") -and ($_.href -notlike "*dbg*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/$fileToDownload"
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mysql-libaio.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libaio dependency"; $Table.Rows.Add($row)
+
+        # MySQL Offline Dependency #2
+        $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/" -UseBasicParsing
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libevent-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/$fileToDownload"
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mysql-libevent-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libevent dependency"; $Table.Rows.Add($row)
+
+        # MySQL Offline Dependency #3
+        $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/" -UseBasicParsing
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libmecab*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/$fileToDownload"
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mysql-libmecab.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libmecab dependency"; $Table.Rows.Add($row)
+
+        # MySQL Offline Dependency #4
+        $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/" -UseBasicParsing
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-client*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mysql-client.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client dependency"; $Table.Rows.Add($row)
+
+        # MySQL Offline Dependency #5
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-client-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mysql-client-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client core dependency"; $Table.Rows.Add($row)
+
+        # MySQL Offline Dependency #6
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-common*.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mysql-common.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL common dependency"; $Table.Rows.Add($row)
+
+        # MySQL Offline Dependency #7
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-server-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mysql-server-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server Core dependency"; $Table.Rows.Add($row)
+
+        # MySQL Offline Dependency #8
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-server*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mysql-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server dependency"; $Table.Rows.Add($row)
+
+        # SQL Server Install Script
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MSSQL_Offline.sh"
+        $row.filename = "install_MSSQL.sh"; $row.path = "$scriptPath"; $row.productName = "SQL Server Install Script"; $Table.Rows.Add($row)
+
+        ### Grab the SQL Server 2017 for Ubuntu Offline Binaries - used when ASDK is deployed in a completely offline mode
+        ### The SQL Server 2017 script would usually install SQL Server via apt-get, however in an offline mode, this isn't possible, hence
+        ### we download them here, and upload them to local Azure Stack storage as part of the ASDK Configurator
+
+        # SQL Server 2017 Main Binary
+        $WebResponse = Invoke-WebRequest "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/" -UseBasicParsing
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mssql-server*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $downloadFileURL = "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/$fileToDownload"
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-server.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 binary"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #1
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libjemalloc1/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libjemalloc1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libjemalloc.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libjemalloc dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #2
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libc++1/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libc++1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libc.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libc dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #3
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libc++abi1/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libc++abi1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libcabi.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcabi dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #4
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/gdb/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*gdb_7*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-gdb.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 gdb dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #5
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libsss-nss-idmap0/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libsss-nss-idmap0*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libsss.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsss dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #6
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libbabeltrace1/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libbabeltrace1_1.3*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libbabeltrace1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace1 dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #7
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libbabeltrace-ctf1/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libbabeltrace-ctf1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libbabeltrace-ctf1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace-ctf1 dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #8
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libcurl3/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libcurl3_7.4*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libcurl3.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcurl3 dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #9
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libsasl2-modules-gssapi-mit/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libsasl2-modules-gssapi-mit*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libsasl2.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsasl2 dependency"; $Table.Rows.Add($row)
+
+        # Add MySQL Hosting Server Template
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/MySQLHosting/azuredeploy.json"
+        $row.filename = "mySqlHostingTemplate.json"; $row.path = "$templatePath"; $row.productName = "Add MySQL Hosting Server template for deployment"; $Table.Rows.Add($row)
+        # Add SQL Hosting Server Template
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/SQLHosting/azuredeploy.json"
+        $row.filename = "sqlHostingTemplate.json"; $row.path = "$templatePath"; $row.productName = "Add SQL Server Hosting Server template for deployment"; $Table.Rows.Add($row)
+        # File Server Template
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/azuredeploy.json"
+        $row.filename = "FileServerTemplate.json"; $row.path = "$templatePath"; $row.productName = "File Server template for deployment"; $Table.Rows.Add($row)
+        # File Server PowerShell Script
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/scripts/OnStartAzureVirtualMachineFileServer.ps1"
+        $row.filename = "OnStartAzureVirtualMachineFileServer.ps1"; $row.path = "$scriptPath"; $row.productName = "File Server script for deployment"; $Table.Rows.Add($row)
+        # File Server DSC zip Script
+        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/templates/FileServer/scripts/fileserver.cr.zip"
+        $row.filename = "fileserver.cr.zip"; $row.path = "$scriptPath"; $row.productName = "File Server DSC zip for deployment"; $Table.Rows.Add($row)
+        # App Service Helper Scripts
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
+        $row.filename = "appservicehelper.zip"; $row.path = "$appServicePath"; $row.productName = "App Service Resource Provider Helper files"; $Table.Rows.Add($row)
+        # App Service Installer
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmasinstaller"
+        $row.filename = "appservice.exe"; $row.path = "$appServicePath"; $row.productName = "App Service installer"; $Table.Rows.Add($row)
+        # App Service PreDeployment JSON
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"
+        $row.filename = "AppServicePreDeploymentSettings.json"; $row.path = "$appServicePath"; $row.productName = "App Service Pre-Deployment JSON Configuration"; $Table.Rows.Add($row)
+        # App Service Custom Script Extension
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/extension/CSE.zip"
+        $row.filename = "CSE.zip"; $row.path = "$extensionPath"; $row.productName = "App Service Custom Script Extension"; $Table.Rows.Add($row)
+    
+        # Grab the MSI/Exe packages to be installed
+        # VScode Package
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/win32-x64-user-stable"
+        $row.filename = "vscode.exe"; $row.path = "$hostAppsPath"; $row.productName = "VScode Exe"; $Table.Rows.Add($row)
+        # Putty Package
+        $row = $table.NewRow(); $row.Uri = "https://the.earth.li/~sgtatham/putty/0.70/w64/putty-64bit-0.70-installer.msi"
+        $row.filename = "putty.msi"; $row.path = "$hostAppsPath"; $row.productName = "Putty MSI"; $Table.Rows.Add($row)
+        # WinSCP Package
+        $WebResponse = Invoke-WebRequest "https://chocolatey.org/packages/winscp.install" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*chocolatey.org/api/v2/package/winscp.install/*")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "WinSCP.zip"; $row.path = "$hostAppsPath"; $row.productName = "WinSCP Zip"; $Table.Rows.Add($row)
+        # Chrome Package
+        $row = $table.NewRow(); $row.Uri = "http://dl.google.com/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
+        $row.filename = "googlechrome.msi"; $row.path = "$hostAppsPath"; $row.productName = "Chrome MSI"; $Table.Rows.Add($row)
+        # WinDirStat Package
+        $row = $table.NewRow(); $row.Uri = "https://windirstat.mirror.wearetriple.com/wds_current_setup.exe"
+        $row.filename = "windirstat.exe"; $row.path = "$hostAppsPath"; $row.productName = "WinDirStat Exe"; $Table.Rows.Add($row)
+        # Azure CLI Package
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/installazurecliwindows"
+        $row.filename = "azurecli.msi"; $row.path = "$hostAppsPath"; $row.productName = "Azure CLI MSI"; $Table.Rows.Add($row)
+        # Python Exe Installer
+        $WebResponse = Invoke-WebRequest "https://www.python.org/downloads/windows/" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "https://www.python.org/ftp/python/*amd64.exe")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "python3.exe"; $row.path = "$hostAppsPath"; $row.productName = "Python 3 Exe Installer"; $Table.Rows.Add($row)
+        # PIP package
+        $WebResponse = Invoke-WebRequest "https://pypi.org/project/pip/#files" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*pip-*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "PIP Wheel"; $Table.Rows.Add($row)
+        # Certifi package
+        $WebResponse = Invoke-WebRequest "https://pypi.org/project/certifi/#files" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*certifi*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "Certifi Wheel"; $Table.Rows.Add($row)
+        Write-CustomVerbose -Message "The following files will be downloaded:"
+        $table | Format-Table -AutoSize
+        $tableSuccess = $true
     }
-    # MYSQL AZPKG
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/ASDKConfigurator.MySQL.1.0.0.azpkg"
-    $row.filename = "ASDKConfigurator.MySQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "MySQL Marketplace Package"; $Table.Rows.Add($row)
-    # SQL AZPKG
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MSSQL/ASDKConfigurator.MSSQL.1.0.0.azpkg"
-    $row.filename = "ASDKConfigurator.MSSQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "SQL Server Marketplace Package"; $Table.Rows.Add($row)
-    # MySQL RP
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestackmysqlrp11330"
-    $row.filename = "MySQL.zip"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files"; $Table.Rows.Add($row)
-    # MySQL RP Helper MSI
-    $row = $table.NewRow(); $row.Uri = "https://dev.mysql.com/get/Download/sConnector-Net/mysql-connector-net-6.10.5.msi"
-    $row.filename = "mysql-connector-net-6.10.5.msi"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files Offline Connector"; $Table.Rows.Add($row)
-    # SQL RP
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp11330"
-    $row.filename = "SQLServer.zip"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
-    # MySQL Install Script
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MySQL_Offline.sh"
-    $row.filename = "install_MySQL.sh"; $row.path = "$scriptPath"; $row.productName = "MySQL install script"; $Table.Rows.Add($row)
-
-    ### Grab the MySQL Offline Binaries - used when ASDK is deployed in a completely offline mode
-    ### The MySQL script would usually install MySQL via apt-get, however in an offline mode, this isn't possible, hence
-    ### we download them here, and upload them to local Azure Stack storage as part of the ASDK Configurator
-
-    # MySQL Offline Dependency #1
-    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/" -UseBasicParsing
-    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libaio*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") -and ($_.href -notlike "*dbg*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
-    $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/$fileToDownload"
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mysql-libaio.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libaio dependency"; $Table.Rows.Add($row)
-
-    # MySQL Offline Dependency #2
-    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/" -UseBasicParsing
-    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libevent-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
-    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/$fileToDownload"
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mysql-libevent-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libevent dependency"; $Table.Rows.Add($row)
-
-    # MySQL Offline Dependency #3
-    $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/" -UseBasicParsing
-    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libmecab*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
-    $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/$fileToDownload"
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mysql-libmecab.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libmecab dependency"; $Table.Rows.Add($row)
-
-    # MySQL Offline Dependency #4
-    $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/" -UseBasicParsing
-    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-client*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
-    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mysql-client.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client dependency"; $Table.Rows.Add($row)
-
-    # MySQL Offline Dependency #5
-    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-client-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
-    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mysql-client-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client core dependency"; $Table.Rows.Add($row)
-
-    # MySQL Offline Dependency #6
-    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-common*.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
-    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mysql-common.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL common dependency"; $Table.Rows.Add($row)
-
-    # MySQL Offline Dependency #7
-    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-server-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
-    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mysql-server-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server Core dependency"; $Table.Rows.Add($row)
-
-    # MySQL Offline Dependency #8
-    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-server*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
-    $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mysql-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server dependency"; $Table.Rows.Add($row)
-
-    # SQL Server Install Script
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MSSQL_Offline.sh"
-    $row.filename = "install_MSSQL.sh"; $row.path = "$scriptPath"; $row.productName = "SQL Server Install Script"; $Table.Rows.Add($row)
-
-    ### Grab the SQL Server 2017 for Ubuntu Offline Binaries - used when ASDK is deployed in a completely offline mode
-    ### The SQL Server 2017 script would usually install SQL Server via apt-get, however in an offline mode, this isn't possible, hence
-    ### we download them here, and upload them to local Azure Stack storage as part of the ASDK Configurator
-
-    # SQL Server 2017 Main Binary
-    $WebResponse = Invoke-WebRequest "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/" -UseBasicParsing
-    $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mssql-server*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
-    $downloadFileURL = "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/$fileToDownload"
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mssql-server.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 binary"; $Table.Rows.Add($row)
-
-    # SQL Server 2017 Offline Dependency #1
-    $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libjemalloc1/download" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libjemalloc1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mssql-libjemalloc.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libjemalloc dependency"; $Table.Rows.Add($row)
-
-    # SQL Server 2017 Offline Dependency #2
-    $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libc++1/download" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libc++1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mssql-libc.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libc dependency"; $Table.Rows.Add($row)
-
-    # SQL Server 2017 Offline Dependency #3
-    $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libc++abi1/download" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libc++abi1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mssql-libcabi.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcabi dependency"; $Table.Rows.Add($row)
-
-    # SQL Server 2017 Offline Dependency #4
-    $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/gdb/download" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*gdb_7*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mssql-gdb.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 gdb dependency"; $Table.Rows.Add($row)
-
-    # SQL Server 2017 Offline Dependency #5
-    $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libsss-nss-idmap0/download" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libsss-nss-idmap0*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mssql-libsss.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsss dependency"; $Table.Rows.Add($row)
-
-    # SQL Server 2017 Offline Dependency #6
-    $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libbabeltrace1/download" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libbabeltrace1_1.3*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mssql-libbabeltrace1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace1 dependency"; $Table.Rows.Add($row)
-
-    # SQL Server 2017 Offline Dependency #7
-    $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libbabeltrace-ctf1/download" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libbabeltrace-ctf1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mssql-libbabeltrace-ctf1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace-ctf1 dependency"; $Table.Rows.Add($row)
-
-    # SQL Server 2017 Offline Dependency #8
-    $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libcurl3/download" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libcurl3_7.4*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mssql-libcurl3.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcurl3 dependency"; $Table.Rows.Add($row)
-
-    # SQL Server 2017 Offline Dependency #9
-    $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libsasl2-modules-gssapi-mit/download" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libsasl2-modules-gssapi-mit*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "mssql-libsasl2.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsasl2 dependency"; $Table.Rows.Add($row)
-
-    # Add MySQL Hosting Server Template
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/MySQLHosting/azuredeploy.json"
-    $row.filename = "mySqlHostingTemplate.json"; $row.path = "$templatePath"; $row.productName = "Add MySQL Hosting Server template for deployment"; $Table.Rows.Add($row)
-    # Add SQL Hosting Server Template
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/SQLHosting/azuredeploy.json"
-    $row.filename = "sqlHostingTemplate.json"; $row.path = "$templatePath"; $row.productName = "Add SQL Server Hosting Server template for deployment"; $Table.Rows.Add($row)
-    # File Server Template
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/azuredeploy.json"
-    $row.filename = "FileServerTemplate.json"; $row.path = "$templatePath"; $row.productName = "File Server template for deployment"; $Table.Rows.Add($row)
-    # File Server PowerShell Script
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/scripts/OnStartAzureVirtualMachineFileServer.ps1"
-    $row.filename = "OnStartAzureVirtualMachineFileServer.ps1"; $row.path = "$scriptPath"; $row.productName = "File Server script for deployment"; $Table.Rows.Add($row)
-    # File Server DSC zip Script
-    $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/templates/FileServer/scripts/fileserver.cr.zip"
-    $row.filename = "fileserver.cr.zip"; $row.path = "$scriptPath"; $row.productName = "File Server DSC zip for deployment"; $Table.Rows.Add($row)
-    # App Service Helper Scripts
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
-    $row.filename = "appservicehelper.zip"; $row.path = "$appServicePath"; $row.productName = "App Service Resource Provider Helper files"; $Table.Rows.Add($row)
-    # App Service Installer
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmasinstaller"
-    $row.filename = "appservice.exe"; $row.path = "$appServicePath"; $row.productName = "App Service installer"; $Table.Rows.Add($row)
-    # App Service PreDeployment JSON
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"
-    $row.filename = "AppServicePreDeploymentSettings.json"; $row.path = "$appServicePath"; $row.productName = "App Service Pre-Deployment JSON Configuration"; $Table.Rows.Add($row)
-    # App Service Custom Script Extension
-    $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/extension/CSE.zip"
-    $row.filename = "CSE.zip"; $row.path = "$extensionPath"; $row.productName = "App Service Custom Script Extension"; $Table.Rows.Add($row)
-    
-    # Grab the MSI/Exe packages to be installed
-    # VScode Package
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/win32-x64-user-stable"
-    $row.filename = "vscode.exe"; $row.path = "$hostAppsPath"; $row.productName = "VScode Exe"; $Table.Rows.Add($row)
-    # Putty Package
-    $row = $table.NewRow(); $row.Uri = "https://the.earth.li/~sgtatham/putty/0.70/w64/putty-64bit-0.70-installer.msi"
-    $row.filename = "putty.msi"; $row.path = "$hostAppsPath"; $row.productName = "Putty MSI"; $Table.Rows.Add($row)
-    # WinSCP Package
-    $WebResponse = Invoke-WebRequest "https://chocolatey.org/packages/winscp.install" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*chocolatey.org/api/v2/package/winscp.install/*")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "WinSCP.zip"; $row.path = "$hostAppsPath"; $row.productName = "WinSCP Zip"; $Table.Rows.Add($row)
-    # Chrome Package
-    $row = $table.NewRow(); $row.Uri = "http://dl.google.com/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
-    $row.filename = "googlechrome.msi"; $row.path = "$hostAppsPath"; $row.productName = "Chrome MSI"; $Table.Rows.Add($row)
-    # WinDirStat Package
-    $row = $table.NewRow(); $row.Uri = "https://windirstat.mirror.wearetriple.com/wds_current_setup.exe"
-    $row.filename = "windirstat.exe"; $row.path = "$hostAppsPath"; $row.productName = "WinDirStat Exe"; $Table.Rows.Add($row)
-    # Azure CLI Package
-    $row = $table.NewRow(); $row.Uri = "https://aka.ms/installazurecliwindows"
-    $row.filename = "azurecli.msi"; $row.path = "$hostAppsPath"; $row.productName = "Azure CLI MSI"; $Table.Rows.Add($row)
-    # Python Exe Installer
-    $WebResponse = Invoke-WebRequest "https://www.python.org/downloads/windows/" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "https://www.python.org/ftp/python/*amd64.exe")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "python3.exe"; $row.path = "$hostAppsPath"; $row.productName = "Python 3 Exe Installer"; $Table.Rows.Add($row)
-    # PIP package
-    $WebResponse = Invoke-WebRequest "https://pypi.org/project/pip/#files" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*pip-*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "PIP Wheel"; $Table.Rows.Add($row)
-    # Certifi package
-    $WebResponse = Invoke-WebRequest "https://pypi.org/project/certifi/#files" -UseBasicParsing
-    $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*certifi*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
-    $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
-    $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-    $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "Certifi Wheel"; $Table.Rows.Add($row)
-    
-    Write-CustomVerbose -Message "The following files will be downloaded:"
-    $table | Format-Table -AutoSize
+    catch [System.Net.WebException] { 
+        Write-Host "An exception was caught: $($_.Exception.Message)"
+        Write-Host "The URL that was attempted was: $($_.Exception.Response.ResponseURI.OriginalString)"
+        Write-Host "Table creation failed. We will attempt this again, up to 10 times. Waiting 5 seconds before retrying."
+        $tableRetries++
+        Start-Sleep -Seconds 5
+    }
 }
-catch {
-    Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+
+if (($tableSuccess -eq $false) -and ($tableRetries -gt 10)) {
+    throw "Table creation failed after $tableRetries attempts. Check your internet connection, then rerun. Exiting process."
     Set-Location $ScriptLocation
     return
 }
