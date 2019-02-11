@@ -624,6 +624,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         Write-CustomVerbose -Message "The following files will be downloaded:"
         $table | Format-Table -AutoSize
         $tableSuccess = $true
+        Write-CustomVerbose -Message "Table created successfully!"
     }
     catch [System.Net.WebException] { 
         Write-Host "An exception was caught: $($_.Exception.Message)"
@@ -633,7 +634,6 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         Start-Sleep -Seconds 5
     }
 }
-
 if (($tableSuccess -eq $false) -and ($tableRetries -gt 10)) {
     throw "Table creation failed after $tableRetries attempts. Check your internet connection, then rerun. Exiting process."
     Set-Location $ScriptLocation
