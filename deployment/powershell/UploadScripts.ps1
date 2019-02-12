@@ -123,6 +123,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
             #$itemFullPath = $item.FullName
             $itemDirectory = $item.DirectoryName
             $uploadItemAttempt = 1
+            $uploadFailed = $false
             while (!$(Get-AzureStorageBlob -Container $asdkOfflineContainerName -Blob $itemName -Context $asdkOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
                 try {
                     # Log back into Azure Stack to ensure login hasn't timed out
@@ -130,16 +131,17 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     #Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkOfflineContainerName -Blob "$itemName" -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
                     ################## AzCopy Testing ##############################################
-                    $containerDestination = '{0}{1}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkOfflineContainerName
+                    $containerDestination = '{0}{1}' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob, $asdkOfflineContainerName
+                    Write-Host "Container destination is: $containerDestination"
                     $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
                     $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkOfflineRGName -Name $asdkOfflineStorageAccountName).Value[0]
-                    $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}"" /Z:""{6}""", $azCopyPath, $itemDirectory, $containerDestination, $storageAccountKey, $itemName, $azCopyLogPath,$journalPath)
+                    $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}"" /Z:""{6}""", $azCopyPath, $itemDirectory, $containerDestination, $storageAccountKey, $itemName, $azCopyLogPath, $journalPath)
                     Write-Host "Executing the following command:`n'n$azCopyCmd"
                     $result = cmd /c $azCopyCmd
                     foreach ($s in $result) {
                         Write-Host $s 
                     }
-                    if ($LASTEXITCODE -ne 0){
+                    if ($LASTEXITCODE -ne 0) {
                         Throw "Upload file failed: $itemName. Check logs at $azCopyLogPath";
                         break;
                     }
@@ -150,6 +152,13 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                     Write-Host "$_.Exception.Message"
                     $uploadItemAttempt++
                 }
+                if ($uploadItemAttempt -gt 3) {
+                    $uploadFailed = $true
+                }
+            }
+            if ($uploadFailed -eq $true) {
+                throw "At least one of the files failed to upload. Check the logs for further info."
+                Break
             }
         }
         $progressStage = $progressName
