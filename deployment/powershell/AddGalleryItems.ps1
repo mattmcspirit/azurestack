@@ -77,8 +77,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Disable-AzureRMContextAutosave -Scope CurrentUser
 
         Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
-        Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
-        Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+        Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
+        Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
 
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         Write-Host "Logging into Azure Stack"

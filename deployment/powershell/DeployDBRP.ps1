@@ -114,8 +114,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
             Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
-            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
-            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
+            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
 
             # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
             $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"

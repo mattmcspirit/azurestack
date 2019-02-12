@@ -68,8 +68,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Disable-AzureRMContextAutosave -Scope CurrentUser
 
         Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
-        Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
-        Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+        Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
+        Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
         
         # Log into Azure Stack to check for existing images and push new ones if required ###
         Write-Host "Logging into Azure Stack to check if images are required, and therefore if updates need downloading"
