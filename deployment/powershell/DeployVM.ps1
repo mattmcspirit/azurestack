@@ -317,7 +317,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
                 elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Failed"}) {
                     Write-Host "Resource group currently in a failed state - cleaning up"
-                    Get-AzureRmResource -ResourceGroupName "azurestack-dbhosting" | Where-Object {$_.Name -like "mysql*"} -ErrorAction SilentlyContinue | Remove-AzureRmResource -Force -Verbose
+                    Get-AzureRmResource -ResourceGroupName "azurestack-dbhosting" | `
+                    Where-Object {($_.Name -like "mysql*") -and ($_.ResourceType -like "*VirtualMachines")} -ErrorAction SilentlyContinue | Remove-AzureRmResource -Force -Verbose
+                    Get-AzureRmResource -ResourceGroupName "azurestack-dbhosting" | `
+                    Where-Object {$_.Name -like "mysql*"} -ErrorAction SilentlyContinue | Remove-AzureRmResource -Force -Verbose
                     Remove-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployMySQLHost"
                     Start-Sleep -Seconds 30
                     Write-Host "Starting deployment again..."
@@ -348,7 +351,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
                 elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Failed"}) {
                     Write-Host "Resource group currently in a failed state - cleaning up"
-                    Get-AzureRmResource -ResourceGroupName "azurestack-dbhosting" | Where-Object {$_.Name -like "sql*"} -ErrorAction SilentlyContinue | Remove-AzureRmResource -Force -Verbose
+                    Get-AzureRmResource -ResourceGroupName "azurestack-dbhosting" | `
+                    Where-Object {($_.Name -like "sql*") -and ($_.ResourceType -like "*VirtualMachines")} -ErrorAction SilentlyContinue | Remove-AzureRmResource -Force -Verbose
+                    Get-AzureRmResource -ResourceGroupName "azurestack-dbhosting" | `
+                    Where-Object {$_.Name -like "sql*"} -ErrorAction SilentlyContinue | Remove-AzureRmResource -Force -Verbose
                     Remove-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeploySQLHost"
                     Start-Sleep -Seconds 30
                     Write-Host "Starting deployment again..."
