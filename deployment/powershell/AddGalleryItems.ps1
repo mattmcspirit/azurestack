@@ -48,6 +48,8 @@ $logDate = Get-Date -Format FileDate
 New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\$logFolder" -Force | Out-Null
 $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
 $azCopyLogPath = "$logPath\AzCopy$logDate.log"
+$journalPath = "$logPath\Journal"
+New-Item -ItemType Directory -Path "$journalPath" -Force | Out-Null
 
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")

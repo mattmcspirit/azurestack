@@ -41,6 +41,8 @@ $logDate = Get-Date -Format FileDate
 New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\$logFolder" -Force | Out-Null
 $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
 $azCopyLogPath = "$logPath\AzCopy$logDate.log"
+$journalPath = "$logPath\Journal"
+New-Item -ItemType Directory -Path "$journalPath" -Force | Out-Null
 
 # Add AzCopy to $env:Path
 $testEnvPath = $Env:path
@@ -131,7 +133,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                     $containerDestination = '{0}{1}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkOfflineContainerName
                     $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
                     $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkOfflineRGName -Name $asdkOfflineStorageAccountName).Value[0]
-                    $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $itemDirectory, $containerDestination, $storageAccountKey, $itemName, $azCopyLogPath)
+                    $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}"" /Z:""{6}""", $azCopyPath, $itemDirectory, $containerDestination, $storageAccountKey, $itemName, $azCopyLogPath,$journalPath)
                     Write-Host "Executing the following command:`n'n$azCopyCmd"
                     $result = cmd /c $azCopyCmd
                     foreach ($s in $result) {

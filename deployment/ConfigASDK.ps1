@@ -277,7 +277,7 @@ function AddOfflineAZPKG {
                 $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
                 $azpkgDirectory = "$ASDKpath\packages"
                 $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkImagesRGName -Name $asdkImagesStorageAccountName).Value[0]
-                $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}""", $azCopyPath, $azpkgDirectory, $containerDestination, $storageAccountKey, $azpkgFileName, $azCopyLogPath)
+                $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}"" /Z:""{6}""", $azCopyPath, $azpkgDirectory, $containerDestination, $storageAccountKey, $azpkgFileName, $azCopyLogPath,$journalPath)
                 Write-Host "Executing the following command:`n'n$azCopyCmd"
                 $result = cmd /c $azCopyCmd
                 foreach ($s in $result) {

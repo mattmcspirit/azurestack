@@ -795,7 +795,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     $asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName -ErrorAction SilentlyContinue
                     Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName | Out-Null
                     $asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
-                    $azpkgPackageURL = AddOfflineAZPKG -azpkgPackageName $azpkgPackageName -Verbose
+                    $azpkgPackageURL = AddOfflineAZPKG -azpkgPackageName $azpkgPackageName -azCopyLogPath $azCopyLogPath -Verbose
                 }
                 $Retries = 0
                 # Sometimes the gallery item doesn't get added successfully, so perform checks and attempt multiple uploads if necessary
