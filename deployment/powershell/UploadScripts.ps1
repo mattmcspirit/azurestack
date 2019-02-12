@@ -120,7 +120,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         Write-Host "Beginning upload of scripts to storage account"
         foreach ($item in $offlineArray) {
             $itemName = $item.Name
-            $itemFullPath = $item.FullName
+            #$itemFullPath = $item.FullName
             $itemDirectory = $item.DirectoryName
             $uploadItemAttempt = 1
             while (!$(Get-AzureStorageBlob -Container $asdkOfflineContainerName -Blob $itemName -Context $asdkOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
