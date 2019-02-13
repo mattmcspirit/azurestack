@@ -153,6 +153,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     Write-Host "Checking build number to determine Servicing Stack Upadtes"
                     if ($buildVersion -eq "14393") {
                         $ssuArray = @("4132216", "4465659", "4485447")
+                        #Fix for broken Feb 2019 update
+                        #$ssuArray = @("4132216", "4465659")
                         $updateArray = @("4091664")
                         $ssuSearchString = 'Windows Server 2016'
                     }
@@ -192,6 +194,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     if (!$kbID) {
                         Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
                     }
+
+                    #Hard code to January 2019 update:
+                    #$kbID = "4480977"
 
                     # Get Download Link for the corresponding Cumulative Update
                     Write-Host "Found latest Cumulative Update: KB$kbID"
