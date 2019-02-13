@@ -162,7 +162,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     }
                 }
 
-                # Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
+                <# Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
                 Write-Host "Accessing $StartKB to retrieve the list of updates."
                 #$kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
                 $kbID = (Invoke-WebRequest -Uri 'https://support.microsoft.com/en-us/help/4000825' -UseBasicParsing).RawContent -split "`n"
@@ -172,6 +172,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 if (!$kbID) {
                     Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
                 }
+                #>
+
+                $kbID = "4480977"
 
                 # Get Download Link for the corresponding Cumulative Update
                 #Write-Host "Found ID: KB$($kbID.articleID)"
