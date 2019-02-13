@@ -833,7 +833,7 @@ try {
     
         ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
         if ($buildVersion -eq "14393") {
-            $ssuArray = @("4132216", "4465659")
+            $ssuArray = @("4132216", "4485447")
             $updateArray = @("4091664")
             $ssuSearchString = 'Windows Server 2016'
         }
