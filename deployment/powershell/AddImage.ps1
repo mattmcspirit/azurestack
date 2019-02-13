@@ -601,8 +601,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             else {
                                 $v = "2016"
                             }
-                            Copy-Item -Path "$ASDKpath\images\$v\*" -Include "*.msu" -Destination "$csvImagePath\Images\$image\" -Force -Verbose -ErrorAction Stop
-                            $target = "$csvImagePath\Images\$image\"
+                            Copy-Item -Path "$ASDKpath\images\$v\*" -Destination "$csvImagePath\Images\$image\" -Recurse -Force -Verbose -ErrorAction Stop
+                            $target = "$csvImagePath\Images\$image\SSU"
 
                             $imageCreationSuccess = $false
                             $imageRetries = 0
@@ -625,7 +625,19 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                         throw "Image creation failed. Check the logs but we'll retry a few times."
                                     }
                                     else {
-                                        Write-Host "$blobname has been successfully created."
+                                        Write-Host "$blobname has been successfully created with Servicing Stack Updates."
+                                        Write-Host "Mounting $blobname to inject cumulative updates"
+                                        Write-Host "Creating a mount directory"
+                                        New-Item -ItemType Directory -Path "$csvImagePath\Images\$image\Mount" -Force | Out-Null
+                                        Write-Host "Mounting the VHD"
+                                        Mount-WindowsImage -ImagePath "$csvImagePath\Images\$image\$blobName" -Index 1 `
+                                        -Path "$csvImagePath\Images\$image\Mount" -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
+                                        Write-Host "Adding the Update packages"
+                                        Add-WindowsPackage -Path "$csvImagePath\Images\$image\Mount" -PackagePath "$csvImagePath\Images\$image\CU" `
+                                        -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
+                                        Write-Host "Saving the image"
+                                        Dismount-WindowsImage -Path "$csvImagePath\Images\$image\Mount" -Save `
+                                        -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
                                         $imageCreationSuccess = $true
                                     }
                                 }
