@@ -833,7 +833,7 @@ try {
     
         ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
         if ($buildVersion -eq "14393") {
-            $ssuArray = @("4132216", "4485447")
+            $ssuArray = @("4132216", "4465659", "4485447")
             $updateArray = @("4091664")
             $ssuSearchString = 'Windows Server 2016'
         }
@@ -951,6 +951,11 @@ try {
                 Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
             }
         }
+        # All updates should now be downloaded - time to distribute them into correct folders.
+        New-Item -ItemType Directory -Path "$ASDKpath\images\$v\SSU" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$ASDKpath\images\$v\CU" -Force | Out-Null
+        Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object {$_.FullName -like "*ssu*"} | Move-Item -Destination "$ASDKpath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
+        Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object {$_.FullName -notlike "*ssu*"} | Move-Item -Destination "$ASDKpath\images\$v\CU" -Force -ErrorAction Stop -Verbose
     }
 }
 catch {
