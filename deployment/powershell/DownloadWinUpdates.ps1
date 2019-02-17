@@ -213,6 +213,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     $kbDownloads += "$kbIDs"
 
                     if ($v -eq "2019") {
+                        # Bypass Internet Explorer Setup Popup
+                        $keyPath = 'Registry::HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Main'
+                        if (!(Test-Path $keyPath)) { New-Item $keyPath -Force }
+                        Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1
+
                         ## .NET CU Download ####
                         # Find the KB Article Number for the latest .NET on Windows Server 2019 (Build 17763) Cumulative Update
                         Write-Host "This is a Windows Server 2019 image, so we will download the latest .NET update for the image"
