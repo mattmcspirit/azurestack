@@ -194,7 +194,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     if (!$kbID) {
                         Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
                     }
-
+                    
                     #Hard code to January 2019 update:
                     #$kbID = "4480977"
 
