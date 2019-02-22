@@ -6,6 +6,9 @@ param (
     [Parameter(Mandatory = $true)]
     [String] $ISOPath,
 
+    [Parameter(Mandatory = $false)]
+    [String] $ISOPath2019,
+
     [Parameter(Mandatory = $true)]
     [String] $azsLocation,
 
@@ -31,7 +34,7 @@ param (
     [String] $tableName
 )
 
-$Global:VerbosePreference = "Continue"
+#$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -43,7 +46,12 @@ $logPath = "$ScriptLocation\Logs\$logDate\WindowsUpdates"
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\WindowsUpdates$runTime.txt"
-Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
+Start-Transcript -Path "$fullLogPath" -Append
+Write-Host "Creating log folder"
+Write-Host "Log folder has been created at $logPath"
+Write-Host "Log file stored at $fullLogPath"
+Write-Host "Starting logging"
+Write-Host "Log started at $runTime"
 
 $progressStage = "WindowsUpdates"
 $progressCheck = CheckProgress -progressStage $progressStage
@@ -54,92 +62,112 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             StageReset -progressStage $progressStage
         }
 
+        Write-Host "Clearing previous Azure/Azure Stack logins"
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
         Disable-AzureRMContextAutosave -Scope CurrentUser
 
-        Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
-        Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+        Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
+        Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
+        Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
         
         # Log into Azure Stack to check for existing images and push new ones if required ###
+        Write-Host "Logging into Azure Stack to check if images are required, and therefore if updates need downloading"
         $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        Write-Host "Checking to see if a Windows Server 2016 image is present in your Azure Stack Platform Image Repository"
-        # Pre-validate that the Windows Server 2016 Server Core VM Image is not already available
-        Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
-        $sku = "2016-Datacenter-Server-Core"
-        $platformImageCore = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
-        $serverCoreVMImageAlreadyAvailable = $false
-
-        if ($platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
-            Write-Host "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
-            $serverCoreVMImageAlreadyAvailable = $true
+        Write-Host "Determine if a Windows Server 2019 ISO has been provided"
+        if ($ISOPath2019) {
+            $versionArray = @("2016", "2019")
+        }
+        else {
+            $versionArray = @("2016")
         }
 
-        # Pre-validate that the Windows Server 2016 Full Image is not already available
-        Remove-Variable -Name platformImageFull -Force -ErrorAction SilentlyContinue
-        $sku = "2016-Datacenter"
-        $platformImageFull = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -Version "1.0.0" -ErrorAction SilentlyContinue
-        $serverFullVMImageAlreadyAvailable = $false
+        foreach ($v in $versionArray) {
+            # Pre-validate that the Windows Server Server Core VM Image is not already available
+            Write-Host "Checking to see if a Windows Server $v image is present in your Azure Stack Platform Image Repository"
+            Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
+            $sku = "$v-Datacenter-Server-Core"
+            $platformImageCore = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
+            $serverCoreVMImageAlreadyAvailable = $false
+            if ($platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
+                Write-Host "There appears to be at least 1 suitable Windows Server $v Datacenter Server Core image within your Platform Image Repository which we will use for the ASDK Configurator." 
+                $serverCoreVMImageAlreadyAvailable = $true
+            }
 
-        if ($platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
-            Write-Host "There appears to be at least 1 suitable Windows Server $sku image within your Platform Image Repository which we will use for the ASDK Configurator." 
-            $serverFullVMImageAlreadyAvailable = $true
-        }
+            # Pre-validate that the Windows Server Full Image is not already available
+            Remove-Variable -Name platformImageFull -Force -ErrorAction SilentlyContinue
+            $sku = "$v-Datacenter"
+            $platformImageFull = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
+            $serverFullVMImageAlreadyAvailable = $false
 
-        if ($serverCoreVMImageAlreadyAvailable -eq $false) {
-            $downloadCURequired = $true
-            Write-Host "You're missing the Windows Server 2016 Datacenter Server Core image in your Platform Image Repository."
-        }
+            if ($platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
+                Write-Host "There appears to be at least 1 suitable Windows Server $v Datacenter Server Full image within your Platform Image Repository which we will use for the ASDK Configurator." 
+                $serverFullVMImageAlreadyAvailable = $true
+            }
+            if ($serverCoreVMImageAlreadyAvailable -eq $false) {
+                $downloadCURequired = $true
+                Write-Host "You're missing the Windows Server $v Datacenter Server Core image in your Platform Image Repository."
+            }
+            if ($serverFullVMImageAlreadyAvailable -eq $false) {
+                $downloadCURequired = $true
+                Write-Host "You're missing the Windows Server $v Datacenter Full image in your Platform Image Repository."
+            }
+            if (($serverCoreVMImageAlreadyAvailable -eq $true) -and ($serverFullVMImageAlreadyAvailable -eq $true)) {
+                $downloadCURequired = $false
+                Write-Host "Windows Server $v Datacenter Full and Core Images already exist in your Platform Image Repository"
+            }        
 
-        if ($serverFullVMImageAlreadyAvailable -eq $false) {
-            $downloadCURequired = $true
-            Write-Host "You're missing the Windows Server 2016 Datacenter Full image in your Platform Image Repository."
-        }
-
-        if (($serverCoreVMImageAlreadyAvailable -eq $true) -and ($serverFullVMImageAlreadyAvailable -eq $true)) {
-            $downloadCURequired = $false
-            Write-Host "Windows Server 2016 Datacenter Full and Core Images already exist in your Platform Image Repository"
-        }
-
-        ### Download the latest Cumulative Update for Windows Server 2016 - Existing Azure Stack Tools module doesn't work ###
-
-        if ($downloadCURequired -eq $true) {
-            if ($deploymentMode -eq "Online") {
-
-                # Mount the ISO, check the image for the version, then dismount
-                Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
-                $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath -StorageType ISO -PassThru
-                $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
-                $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
-                $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
-                Dismount-DiskImage -ImagePath $ISOPath
-
-                Write-Host "You're missing at least one of the Windows Server 2016 Datacenter images, so we'll first download the latest Cumulative Update."
-                # Define parameters
-                $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
-                #$StartKB = 'https://support.microsoft.com/app/content/api/content/asset/en-us/4000816'
-                $SearchString = 'Cumulative.*Server.*x64'
-                
-                # Define the arrays that will be used later
-                $kbDownloads = @()
-                $Urls = @()
-
-                ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.    
-                if ($buildVersion -eq "14393") {
-                    $ssuArray = @("4132216", "4465659")
-                    $ssuSearchString = 'Windows Server 2016'
-
-                    #$servicingStackKB = (Invoke-WebRequest -Uri 'https://portal.msrc.microsoft.com/api/security-guidance/en-US/CVE/ADV990001' -UseBasicParsing).Content
-                    #$servicingStackKB = ((($servicingStackKB -split 'Windows 10 Version 1607/Server 2016</td>\\n<td>', 2)[1]).Split('<', 2)[0])
-                    #$servicingStackKB = "4465659"
+            ### Download the latest Cumulative Update for Windows Server - Existing Azure Stack Tools module doesn't work ###
+            if ($downloadCURequired -eq $true) {
+                if ($deploymentMode -eq "Online") {
+                    Write-Host "Updates are required. Checking the ISO for correct build version"
+                    # Mount the ISO, check the image for the version, then dismount
+                    Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
+                    if ($v -eq "2019") {
+                        $ISOPath = $ISOPath2019
+                    }
+                    $isoMountForVersion = Mount-DiskImage -ImagePath $ISOPath -StorageType ISO -PassThru
+                    $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
+                    $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
+                    $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
+                    Dismount-DiskImage -ImagePath $ISOPath
+                    Write-Host "You're missing at least one of the Windows Server $v Datacenter images, so we'll first download the latest Cumulative Update."
                     
+                    # Define parameters
+                    Write-Host "Defining StartKB"
+                    if ($v -eq "2019") {
+                        $StartKB = 'https://support.microsoft.com/en-us/help/4464619'
+                    }
+                    else {
+                        $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
+                    }
+                    $SearchString = 'Cumulative.*Server.*x64'
+                    Write-Host "StartKB is: $StartKB and Search String is: $SearchString"
+                    # Define the arrays that will be used later
+                    $kbDownloads = @()
+                    $Urls = @()
+
+                    ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
+                    Write-Host "Checking build number to determine Servicing Stack Upadtes"
+                    if ($buildVersion -eq "14393") {
+                        $ssuArray = @("4132216", "4465659", "4485447")
+                        #Fix for broken Feb 2019 update
+                        #$ssuArray = @("4132216", "4465659")
+                        $updateArray = @("4091664")
+                        $ssuSearchString = 'Windows Server 2016'
+                    }
+                    elseif ($buildVersion -eq "17763") {
+                        $ssuArray = @("4470788")
+                        $updateArray = @("4465065")
+                        $ssuSearchString = 'Windows Server 2019'
+                    }
                     foreach ($ssu in $ssuArray) {
                         Write-Host "Build is $buildVersion - Need to download: KB$($ssu) to update Servicing Stack before adding future Cumulative Updates"
                         $ssuKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$ssu" -UseBasicParsing
                         $ssuAvailable_kbIDs = $ssuKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-                        $ssuAvailable_kbIDs | Out-String | Write-Host
+                        #$ssuAvailable_kbIDs | Out-String | Write-Host
                         $ssuKbIDs = $ssuKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ssuSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $ssuAvailable_kbIDs }
 
                         # If innerHTML is empty or does not exist, use outerHTML instead
@@ -148,94 +176,117 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         }
                         $kbDownloads += "$ssuKbIDs"
                     }
-
-                    # Get latest Malicious Software Update and other relevant updates
-                    #$maliciousKb = (((Invoke-WebRequest -Uri "https://www.microsoft.com/en-us/download/malicious-software-removal-tool-details.aspx" -UseBasicParsing).links | Select-Object href | Where-Object {($_.href -like "http:*KB*")} | Sort-Object | Select-Object -First 1).href.ToString()).Split("/")[4].Trim()
-                    #$updateArray = @("$maliciousKb", "4091664")
-                    $updateArray = @("4091664")
+                    
                     foreach ($update in $updateArray) {
                         Write-Host "Build is $buildVersion - Need to download: KB$($update) to ensure image is fully updated at first run"
-                        $updateKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$update%20x64%202016" -UseBasicParsing
+                        $updateKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$update%20x64%20$v" -UseBasicParsing
                         $updateAvailable_kbIDs = $updateKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID | Select-Object -First 1
-                        $updateAvailable_kbIDs | Out-String | Write-Host
+                        #$updateAvailable_kbIDs | Out-String | Write-Host
                         $kbDownloads += "$updateAvailable_kbIDs"
                     }
-                }
+                    
+                    # Find the KB Article Number for the latest Windows Server Cumulative Update
+                    Write-Host "Accessing $StartKB to retrieve the list of updates."
+                    $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
+                    $kbID = ($kbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
+                    $kbID = ((($kbID -split "KB", 2)[1]) -split "\s", 2)[0]
 
-                <# Find the KB Article Number for the latest Windows Server 2016 (Build 14393) Cumulative Update
-                Write-Host "Accessing $StartKB to retrieve the list of updates."
-                #$kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).Content | ConvertFrom-Json | Select-Object -ExpandProperty Links | Where-Object level -eq 2 | Where-Object text -match $buildVersion | Select-Object -First 1
-                $kbID = (Invoke-WebRequest -Uri 'https://support.microsoft.com/en-us/help/4000825' -UseBasicParsing).RawContent -split "`n"
-                $kbID = ($kbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
-                $kbID = ((($kbID -split "KB", 2)[1]) -split "\s", 2)[0]
+                    if (!$kbID) {
+                        Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
+                    }
+                    
+                    #Hard code to January 2019 update:
+                    #$kbID = "4480977"
 
-                if (!$kbID) {
-                    Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
-                }
-                #>
+                    # Get Download Link for the corresponding Cumulative Update
+                    Write-Host "Found latest Cumulative Update: KB$kbID"
+                    $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$kbID" -UseBasicParsing
+                    $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+                    #$Available_kbIDs | Out-String | Write-Host
+                    $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
 
-                $kbID = "4480977"
+                    # If innerHTML is empty or does not exist, use outerHTML instead
+                    if (!$kbIDs) {
+                        $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+                    }
+                    # Defined a KB array to hold the kbIDs and if the build is 14393, add the corresponding KBID to it
+                    $kbDownloads += "$kbIDs"
 
-                # Get Download Link for the corresponding Cumulative Update
-                #Write-Host "Found ID: KB$($kbID.articleID)"
-                Write-Host "Found ID: KB$kbID)"
-                $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$kbID" -UseBasicParsing
-                $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-                $Available_kbIDs | Out-String | Write-Host
-                $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+                    if ($v -eq "2019") {
+                        # Bypass Internet Explorer Setup Popup
+                        $keyPath = 'Registry::HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Main'
+                        if (!(Test-Path $keyPath)) { New-Item $keyPath -Force }
+                        Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1
 
-                # If innerHTML is empty or does not exist, use outerHTML instead
-                if (!$kbIDs) {
-                    $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
-                }
-            
-                # Defined a KB array to hold the kbIDs and if the build is 14393, add the corresponding KBID to it
-                $kbDownloads += "$kbIDs"
+                        ## .NET CU Download ####
+                        # Find the KB Article Number for the latest .NET on Windows Server 2019 (Build 17763) Cumulative Update
+                        Write-Host "This is a Windows Server 2019 image, so we will download the latest .NET update for the image"
+                        $ie = New-Object -ComObject "InternetExplorer.Application"
+                        $ie.silent = $true
+                        $ie.Navigate("https://support.microsoft.com/en-us/help/4466961")
+                        while ($ie.ReadyState -ne 4) {start-sleep -m 100}
+                        $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object {$_.textContent -like "*KB*"}).innerHTML | Select-Object -First 1
+                        $NETkbID = ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
+                        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($ie)
+                        Remove-Variable ie -ErrorAction SilentlyContinue
 
-                foreach ( $kbID in $kbDownloads ) {
-                    Write-Host "KB ID: $kbID"
-                    $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
-                    $PostBody = @{ updateIDs = "[$Post]" } 
-                    $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
-                }
-
-                # Download the corresponding Windows Server 2016 Cumulative Update (and possibly, Servicing Stack Updates)
-                foreach ( $Url in $Urls ) {
-                    $filename = (($Url.Substring($Url.LastIndexOf("/") + 1)).Split("-", 2)[1])
-                    $filename = $filename -replace "_.*\.","."
-                    $target = "$((Get-Item $ASDKpath).FullName)\images\$filename"
-                    if (!(Test-Path -Path $target)) {
-                        foreach ($ssu in $ssuArray) {
-                            if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393_ssu_kb$($ssu).msu")) {
-                                Remove-Item -Path "$((Get-Item $ASDKpath).FullName)\images\14393_ssu_kb$($ssu).msu" -Force -Verbose -ErrorAction Stop
-                            }
+                        if (!$NETkbID) {
+                            Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will not have the latest .NET update"
                         }
-                        Write-Host "Update will be stored at $target"
-                        Write-Host "These can be larger than 1GB, so may take a few minutes."
-                        DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
-                    }
-                    else {
-                        Write-Host "File exists: $target. Skipping download."
-                    }
-                }
 
-                # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
-                if ($buildVersion -eq "14393") {
+                        # Get Download Link for the corresponding Cumulative Update
+                        Write-Host "Found latest .NET Framework update: KB$NETkbID"
+                        $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$NETkbID" -UseBasicParsing
+                        $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+                        #$Available_kbIDs | Out-String | Write-Host
+                        $NETkbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+                        # Defined a KB array to hold the NETkbIDs
+                        $kbDownloads += "$NETkbIDs"
+                    }
+                    
+                    foreach ( $kbID in $kbDownloads ) {
+                        Write-Host "Need to download the following update file with KB ID: $kbID"
+                        $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
+                        $PostBody = @{ updateIDs = "[$Post]" } 
+                        $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
+                    }
+
+                    # Download the corresponding Windows Server Cumulative Update (and possibly, Servicing Stack Updates)
+                    foreach ( $Url in $Urls ) {
+                        $filename = (($Url.Substring($Url.LastIndexOf("/") + 1)).Split("-", 2)[1])
+                        $filename = $filename -replace "_.*\.", "."
+                        $target = "$((Get-Item $ASDKpath).FullName)\images\$v\$filename"
+                        if (!(Test-Path -Path $target)) {
+                            foreach ($ssu in $ssuArray) {
+                                if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
+                                    Remove-Item -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu" -Force -Verbose -ErrorAction Stop
+                                }
+                            }
+                            Write-Host "Update will be stored at $target"
+                            Write-Host "These can be larger than 1GB, so may take a few minutes."
+                            DownloadWithRetry -downloadURI "$Url" -downloadLocation "$target" -retries 10
+                        }
+                        else {
+                            Write-Host "File exists: $target. Skipping download."
+                        }
+                    }
+
+                    # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
                     foreach ($ssu in $ssuArray) {
-                        if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\14393_ssu_kb$($ssu).msu")) {
-                            Write-Host "The 14393 Servicing Stack Update already exists within the target folder"
+                        if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
+                            Write-Host "The $buildVersion Servicing Stack Update already exists within the target folder"
                         }
                         else {
                             Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
-                            #Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Sort-Object Length | Select-Object -First 1 | Rename-Item -NewName "14393UpdateServicingStack.msu" -Force -ErrorAction Stop -Verbose
-                            Get-ChildItem -Path "$ASDKpath\images" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "14393_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
+                            Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
                         }
                     }
-                    $target = "$ASDKpath\images"
+                    # All updates should now be downloaded - time to distribute them into correct folders.
+                    New-Item -ItemType Directory -Path "$ASDKpath\images\$v\SSU" -Force | Out-Null
+                    New-Item -ItemType Directory -Path "$ASDKpath\images\$v\CU" -Force | Out-Null
+                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object {$_.FullName -like "*ssu*"} | Move-Item -Destination "$ASDKpath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
+                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object {$_.FullName -notlike "*ssu*"} | Move-Item -Destination "$ASDKpath\images\$v\CU" -Force -ErrorAction Stop -Verbose
                 }
-            }
-            elseif ($deploymentMode -ne "Online") {
-                $target = "$ASDKpath\images"
             }
         }
         # Update the ConfigASDK database with successful completion
@@ -253,4 +304,5 @@ elseif ($progressCheck -eq "Complete") {
     Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
+Write-Host "Logging stopped at $endTime"
 Stop-Transcript -ErrorAction SilentlyContinue

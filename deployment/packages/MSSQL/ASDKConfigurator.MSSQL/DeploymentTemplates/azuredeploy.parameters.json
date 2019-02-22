@@ -1,0 +1,60 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName": {
+      "value": "sqlvm"
+    },
+    "vmSize": {
+      "value": "Standard_DS1_v2"
+    },
+    "adminUsername": {
+      "value": "sqladmin"
+    },
+    "adminPassword": {
+      "value": ""
+    },
+    "mySQLPassword": {
+      "value": ""
+    },
+    "sshPublicKey": {
+      "value": ""
+    },
+    "authenticationType": {
+      "value": "password"
+    },
+    "virtualNetworkName": {
+      "value": "sql_vnet"
+    },
+    "virtualNetworkAddressPrefix": {
+      "value": "10.0.0.0/16"
+    },
+    "virtualNetworkNewOrExisting": {
+      "value": "new"
+    },
+    "virtualNetworkSubnetName": {
+      "value": "sql_subnet"
+    },
+    "virtualNetworkSubnetAddressPrefix": {
+      "value": "10.0.0.0/24"
+    },
+    "publicIPAddressName": {
+      "value": "sql_ip"
+    },
+    "publicIPAddressDomainNameLabel": {
+      "value": "sql"
+    },
+    "publicIPAddressNewOrExisting": {
+      "value": "new"
+    },
+    "managedDiskAccountType": {
+      "value": "Premium_LRS"
+    },
+    "resourceGroupName": {
+      "value": ""
+    },
+    "scriptBaseUrl": {
+      "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
+    }
+  }
+}

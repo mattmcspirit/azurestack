@@ -1,13 +1,13 @@
-Azure Stack Development Kit Configurator 1811.2
+Azure Stack Development Kit Configurator 1901
 ==============
 
 Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
-* ASDK build **1.1811.0.101 (1811)**
-* Azure Stack PowerShell Module **1.6.0**
+* ASDK build **1.1901.0.95 (1901)**
+* Azure Stack PowerShell Module **1.7.0**
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1811, Azure Stack PowerShell 1.6.0. and the new AzureRMProfile 2018-03-01-hybrid.  A version that supports the older ASDK builds (1803 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1901, Azure Stack PowerShell 1.7.0. and the new AzureRM PowerShell 2.4.0.  A version that supports the older ASDK builds (1811 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
@@ -24,6 +24,7 @@ This includes:
 * Tools installation (Azure Stack Tools)
 * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
 * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
+* Windows Server 2019 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository (Optional)
 * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
 * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
 * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
@@ -53,9 +54,9 @@ This includes:
 
 Additionally, if you encounter an issue, try re-running the script with the same command you used to run it previously. The script is written in such a way that it shouldn't try to rerun previously completed steps.
 
-New in 1809 and newer
+New in 1901
 -----------
-Through the use of parallel jobs, the 1809 version of the ConfigASDK brings significant under-the-hood improvements to make the running of the ConfigASDK script *much* faster. In addition, the management of the process now uses SqlLocalDB, which provides a better level of control and efficiency.
+Storage uploads of VHDs and other artifacts now use AzCopy for improved performance. In addition, there is now added support for the **automated creation of Windows Server 2019 images** that will be added to your platform image repository. See the instructions below.
 
 Important Considerations
 ------------
@@ -117,6 +118,7 @@ With the script downloaded successfully, you can move on to running the script. 
 * For the **-azureDirectoryTenantName**, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
 * For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your ASDK host, NOT a mapped drive - known issues exist with mapped drives at this time**
 * **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time**
+* **-ISOPath2019** is optional, and should point to the Windows Server 2019 Evaluation media that you can download from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images**
 * **-azureStackAdminPwd** is the password you used when deploying your ASDK.
 * **-VMpwd** is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
 * **-azureAdUsername** and **-azureAdPwd** are the *Service Administrator* credentials you used when you deployed your ASDK host (in Azure AD connected mode)
@@ -136,6 +138,9 @@ Usage Examples:
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
+
+**Please Note**
+* If you also want the script to create and upload Windows Server 2019 images, simply include **-ISOPath2019 "D:\WS2019EVALISO.iso"** and the script will take care of the rest.
 
 **Scenario 2** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use a **different** set of Azure AD credentials from the set you used when you deployed your ASDK:
 
@@ -191,7 +196,8 @@ Post-Script Actions
 This script can take many hours to finish, depending on your hardware and download speeds. There are no specific post-script actions to perform after the script has finished.
 
 ### Known Issues
-* Windows Server 2019 or any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809) are not validated for support with the database and App Service resource providers, so don't use those builds at this time. Use the Windows Server 2016 evaluation release.
+* A Windows Server 2016 ISO is required.  This should be build 1607 (The RTM release) and not any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809). These have not been validated for support with the database and App Service resource providers, so don't use those builds at this time. The script will block their usage.
+* If you wish to upload Windows Server 2019 images for testing, please use the 17763 build, which is the Windows Server 2019 RTM and can be downloaded from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019
 * Do not use a mapped drive for your -downloadPath on your ASDK host. There are known issues which are yet to be resolved. Please use a local drive.
 
 ### Troubleshooting & Improvements

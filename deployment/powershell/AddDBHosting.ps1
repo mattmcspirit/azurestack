@@ -41,7 +41,7 @@ param (
     [String] $tableName
 )
 
-$Global:VerbosePreference = "Continue"
+#$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -69,7 +69,12 @@ $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
-Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
+Start-Transcript -Path "$fullLogPath" -Append
+Write-Host "Creating log folder"
+Write-Host "Log folder has been created at $logPath"
+Write-Host "Log file stored at $fullLogPath"
+Write-Host "Starting logging"
+Write-Host "Log started at $runTime"
 
 $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
@@ -93,12 +98,14 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
 
+            Write-Host "Clearing previous Azure/Azure Stack logins"
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
-            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
-            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+            Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
+            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
+            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
 
             # Need to ensure this stage doesn't start before the database SKU has been added
             $dbSkuJobCheck = $progressCheck = CheckProgress -progressStage "$($dbHost)SKUQuota"
@@ -120,9 +127,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     throw "The $($dbHost)DBVM stage of the process has failed. This should fully complete before the $dbHost database host has been deployed. Check the $($dbHost)DBVM log, ensure that step is completed first, and rerun."
                 }
             }
+            Write-Host "Logging into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Write-Host "Setting up Database Variables"
             $dbrg = "azurestack-dbhosting"
             if ($dbHost -eq "MySQL") {
                 $hostingJobCheck = "MySQLDBVM"
@@ -182,4 +191,5 @@ elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
     StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
+Write-Host "Logging stopped at $endTime"
 Stop-Transcript -ErrorAction SilentlyContinue

@@ -32,7 +32,7 @@ param (
     [String] $tableName
 )
 
-$Global:VerbosePreference = "Continue"
+#$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -60,7 +60,12 @@ $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
-Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
+Start-Transcript -Path "$fullLogPath" -Append
+Write-Host "Creating log folder"
+Write-Host "Log folder has been created at $logPath"
+Write-Host "Log file stored at $fullLogPath"
+Write-Host "Starting logging"
+Write-Host "Log started at $runTime"
 
 $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
@@ -83,13 +88,14 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
-            
+            Write-Host "Clearing previous Azure/Azure Stack logins"
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
-            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
-            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+            Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
+            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
+            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
 
             # Need to ensure this stage doesn't start before the DBRP stage has finished
             $dbJobCheck = CheckProgress -progressStage "$($dbsku)RP"
@@ -103,6 +109,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             ### Login to Azure Stack ###
+            Write-Host "Logging into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
@@ -111,6 +118,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $subID = $azureContext.Subscription.Id
             $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
 
+            Write-Host "Setting variables for creating the SKU and Quota"
             # Set the variables and gather token for creating the SKU & Quota
             if ($dbsku -eq "MySQL") {
                 $skuFamily = "MySQL"
@@ -136,6 +144,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $quotaResourceSizeMB = "1024"
             }
 
+            Write-Host "Fetching tokens for login"
             # Fetch the tokens
             $dbToken = $null
             $dbTokens = $null
@@ -143,13 +152,16 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $dbToken = $dbTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $AzureContext.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
 
             # Build the header for authorization
+            Write-Host "Building the headers"
             $dbHeaders = @{ 'authorization' = "Bearer $($dbToken.AccessToken)"}
 
             # Build the URIs
+            Write-Host "Building the URIs"
             $skuUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/skus/{4}?api-version={5}' -f $dbArmEndpoint, $subID, $databaseAdapterNamespace, $azsLocation, $skuName, $apiVersion)
             $quotaUri = ('{0}/subscriptions/{1}/providers/{2}/locations/{3}/quotas/{4}?api-version={5}' -f $dbArmEndpoint, $subID, $databaseAdapterNamespace, $azsLocation, $quotaName, $apiVersion)
 
             # Create the request body for SKU
+            Write-Host "Creating the request body for the SKU: $skuName"
             $skuTenantNamespace = $databaseAdapterNamespace.TrimEnd(".Admin");
             $skuResourceType = '{0}/databases' -f $skuTenantNamespace
             $skuIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/skus/{3}' -f $subID, $databaseAdapterNamespace, $azsLocation, $skuName
@@ -185,6 +197,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $skuRequestBodyJson = $skuRequestBody | ConvertTo-Json
 
             # Create the request body for Quota
+            Write-Host "Creating the request body for the quota: $quotaName"
             $quotaIdForRequestBody = '/subscriptions/{0}/providers/{1}/locations/{2}/quotas/{3}' -f $subID, $databaseAdapterNamespace, $azsLocation, $quotaName
             $quotaRequestBody = @{
                 properties = @{
@@ -236,4 +249,5 @@ elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
     StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
+Write-Host "Logging stopped at $endTime"
 Stop-Transcript -ErrorAction SilentlyContinue

@@ -1,0 +1,273 @@
+{
+    "handler": "Microsoft.Compute.MultiVm",
+    "version": "0.1.2-preview",
+    "parameters": {
+        "basics": [
+            {
+                "name": "vmName",
+                "type": "Microsoft.Common.TextBox",
+                "label": "MySQL Server Virtual Machine Name",
+                "defaultValue": "mysql",
+                "constraints": {
+                    "required": true,
+                    "regex": "^[a-z0-9]{1,25}$",
+                    "validationMessage": "Only lowercase letters and numbers are allowed, and the value must be 1-25 characters long."
+                }
+            }
+        ],
+        "steps": [
+            {
+                "name": "settings",
+                "label": "Infrastructure Settings",
+                "subLabel": {
+                    "preValidation": "Configure infrastructure settings",
+                    "postValidation": "Done"
+                },
+                "bladeTitle": "Infrastructure Settings",
+                "elements": [
+                    {
+                        "name": "Compute",
+                        "type": "Microsoft.Common.Section",
+                        "label": "Compute",
+                        "elements": [
+                            {
+                                "name": "adminUsername",
+                                "type": "Microsoft.Compute.UserNameTextBox",
+                                "label": "Username",
+                                "defaultValue": "mysqladmin",
+                                "toolTip": "Admin username for the MySQL virtual machine",
+                                "osPlatform": "Linux",
+                                "constraints": {
+                                    "required": true
+                                }
+                            },
+                            {
+                                "name": "adminPassword",
+                                "type": "Microsoft.Compute.CredentialsCombo",
+                                "label": {
+                                    "authenticationType": "Authentication type",
+                                    "password": "Password",
+                                    "confirmPassword": "Confirm password",
+                                    "sshPublicKey": "SSH public key"
+                                },
+                                "toolTip": {
+                                    "authenticationType": "Authentication Type for the Virtual Machine",
+                                    "password": "Password for the Virtual Machine",
+                                    "sshPublicKey": "SSH Public Key for the Virtual Machine"
+                                },
+                                "constraints": {
+                                    "required": true
+                                },
+                                "options": {
+                                    "hideConfirmation": false,
+                                    "hidePassword": false
+                                },
+                                "osPlatform": "Linux",
+                                "visible": true
+                            },
+                            {
+                                "name": "vmSize",
+                                "type": "Microsoft.Compute.SizeSelector",
+                                "label": "Virtual Machine Size",
+                                "toolTip": "The size of virtual machine to provision.",
+                                "recommendedSizes": [
+                                    "Standard_DS1_v2",
+                                    "Standard_DS2_v2",
+                                    "Standard_DS3_v3"
+                                ],
+                                "constraints": {
+                                    "allowedSizes": [],
+                                    "excludedSizes": [
+                                        "Standard_A0",
+                                        "Standard_A1",
+                                        "Basic_A0",
+                                        "Basic_A1",
+                                        "Basic_A2",
+                                        "Basic_A3",
+                                        "Basic_A5"
+                                    ]
+                                },
+                                "osPlatform": "Linux",
+                                "visible": true
+                            }
+                        ],
+                        "visible": true
+                    },
+                    {
+                        "name": "Network",
+                        "type": "Microsoft.Common.Section",
+                        "label": "Network",
+                        "elements": [
+                            {
+                                "name": "ipAddress",
+                                "type": "Microsoft.Network.PublicIpAddressCombo",
+                                "label": {
+                                    "publicIpAddress": "Public IP address",
+                                    "domainNameLabel": "DNS label"
+                                },
+                                "toolTip": {
+                                    "publicIpAddress": "Public IP address for the MySQL virtual machine",
+                                    "domainNameLabel": "DNS label for the MySQL virtual machine"
+                                },
+                                "defaultValue": {
+                                    "publicIpAddressName": "mysql_ip",
+                                    "domainNameLabel": "mysqlvm"
+                                },
+                                "options": {
+                                    "hideNone": true,
+                                    "hideDomainNameLabel": false
+                                },
+                                "constraints": {
+                                    "required": {
+                                        "domainNameLabel": true
+                                    }
+                                }
+                            },
+                            {
+                                "name": "virtualNetwork",
+                                "type": "Microsoft.Network.VirtualNetworkCombo",
+                                "label": {
+                                    "virtualNetwork": "Virtual network",
+                                    "subnets": "Subnets"
+                                },
+                                "toolTip": {
+                                    "virtualNetwork": "Virtual Network Name",
+                                    "subnets": "Subnets requied for the MySQL virtual machine"
+                                },
+                                "defaultValue": {
+                                    "name": "mysql_vnet",
+                                    "addressPrefixSize": "/24"
+                                },
+                                "constraints": {
+                                    "minAddressPrefixSize": "/24"
+                                },
+                                "subnets": {
+                                    "subnet1": {
+                                        "label": "MySQL subnet",
+                                        "defaultValue": {
+                                            "name": "mysql_subnet",
+                                            "addressPrefixSize": "/24"
+                                        },
+                                        "constraints": {
+                                            "minAddressPrefixSize": "/24",
+                                            "minAddressCount": 12,
+                                            "requireContiguousAddresses": false
+                                        }
+                                    }
+                                }
+                            }
+                        ],
+                        "visible": true
+                    },
+                    {
+                        "name": "Storage",
+                        "type": "Microsoft.Common.Section",
+                        "label": "Storage",
+                        "elements": [
+                            {
+                                "name": "ManagedDisks",
+                                "type": "Microsoft.Common.DropDown",
+                                "label": "VM disk type",
+                                "toolTip": "Select Managed Disks account type. Ensure your chosen VM type supports your chosen storage type.",
+                                "defaultValue": "Standard_LRS",
+                                "constraints": {
+                                    "required": true,
+                                    "allowedValues": [
+                                        {
+                                            "label": "Premium SSD",
+                                            "value": "Premium_LRS"
+                                        },
+                                        {
+                                            "label": "Standard HDD",
+                                            "value": "Standard_LRS"
+                                        }
+                                    ]
+                                },
+                                "visible": true
+                            }
+                        ],
+                        "visible": true
+                    }
+                ]
+            },
+            {
+                "name": "mysqlsettings",
+                "label": "MySQL Settings",
+                "subLabel": {
+                    "preValidation": "Configure MySQL settings",
+                    "postValidation": "Done"
+                },
+                "bladeTitle": "MySQL Settings",
+                "elements": [
+                    {
+                        "name": "mySQLPassword",
+                        "type": "Microsoft.Common.PasswordBox",
+                        "label": {
+                            "password": "Password for MySQL Database Server",
+                            "confirmPassword": "Confirm password"
+                        },
+                        "toolTip": "Password for MySQL Database Server",
+                        "constraints": {
+                            "required": true
+                        },
+                        "options": {
+                            "hideConfirmation": false
+                        },
+                        "visible": true
+                    },
+                    {
+                        "name": "allowRemoteConnections",
+                        "type": "Microsoft.Common.OptionsGroup",
+                        "label": "Allow Remote Connections?",
+                        "defaultValue": "No",
+                        "toolTip": "Choose to allow remote connections to the MySQL database server for the root account",
+                        "constraints": {
+                            "allowedValues": [
+                                {
+                                    "label": "Yes",
+                                    "value": "Yes"
+                                },
+                                {
+                                    "label": "No",
+                                    "value": "No"
+                                }
+                            ]
+                        },
+                        "visible": true
+                    },
+                    {
+                        "name": "scriptBaseUrl",
+                        "type": "Microsoft.Common.TextBox",
+                        "label": "MySQL Install Script URL",
+                        "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
+                        "toolTip": "Choose the URL location of where the MySQL Custom Script can be found. If your ASDK host is connected to the internet, choose Online, but if this is disconnected, use Local, but ensure script files have been added to a local storage account first. The ASDK Configurator will have performed this step for you.",
+                        "constraints": {
+                            "required": true
+                        },
+                        "visible": true
+                    }
+                ]
+            }
+        ],
+        "outputs": {
+            "vmName": "[steps('basicsStep').vmName]",
+            "vmSize": "[steps('settings').Compute.vmSize]",
+            "adminUsername": "[steps('settings').Compute.adminUsername]",
+            "adminPassword": "[steps('settings').Compute.adminPassword.password]",
+            "sshPublicKey": "[steps('settings').Compute.adminPassword.sshPublicKey]",
+            "authenticationType": "[steps('settings').Compute.adminPassword.authenticationType]",
+            "publicIPAddressName": "[steps('settings').Network.ipAddress.name]",
+            "publicIPAddressDomainNameLabel": "[steps('settings').Network.ipAddress.domainNameLabel]",
+            "publicIPAddressNewOrExisting": "[steps('settings').Network.ipAddress.newOrExistingOrNone]",
+            "virtualNetworkAddressPrefix": "[steps('settings').Network.virtualNetwork.addressPrefix]",
+            "virtualNetworkName": "[steps('settings').Network.virtualNetwork.name]",
+            "virtualNetworkNewOrExisting": "[steps('settings').Network.virtualNetwork.newOrExisting]",
+            "virtualNetworkSubnetName": "[steps('settings').Network.virtualNetwork.subnets.subnet1.name]",
+            "virtualNetworkSubnetAddressPrefix": "[steps('settings').Network.virtualNetwork.subnets.subnet1.addressPrefix]",
+            "managedDiskAccountType": "[steps('settings').Storage.ManagedDisks]",
+            "mySQLPassword": "[steps('mysqlsettings').mySQLPassword]",
+            "scriptBaseUrl": "[steps('mysqlsettings').scriptBaseUrl]",
+            "allowRemoteConnections": "[steps('mysqlsettings').allowRemoteConnections]"
+        }
+    }
+}

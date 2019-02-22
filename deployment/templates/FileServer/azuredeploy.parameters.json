@@ -6,7 +6,7 @@
             "value": "fileserver"
         },
         "fileServerVirtualMachineSize": {
-            "value": "Standard_A2"
+            "value": "Standard_F2s"
         },
         "dnsNameForPublicIP": {
             "value": "appservicefileshare"
@@ -29,8 +29,8 @@
         "fileShareUserPassword": {
             "value": null
         },
-      "vmExtensionScriptLocation": {
-        "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/"
-      }
+        "vmExtensionScriptLocation": {
+            "value": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/"
+        }
     }
 }

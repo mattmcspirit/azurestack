@@ -47,7 +47,7 @@ param (
     [String] $serialMode
 )
 
-$Global:VerbosePreference = "Continue"
+#$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -79,7 +79,12 @@ $logPath = "$ScriptLocation\Logs\$logDate\$logFolder"
 ### START LOGGING ###
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\$($logName)$runTime.txt"
-Start-Transcript -Path "$fullLogPath" -Append -IncludeInvocationHeader
+Start-Transcript -Path "$fullLogPath" -Append
+Write-Host "Creating log folder"
+Write-Host "Log folder has been created at $logPath"
+Write-Host "Log file stored at $fullLogPath"
+Write-Host "Starting logging"
+Write-Host "Log started at $runTime"
 
 $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
@@ -103,25 +108,28 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
 
+            Write-Host "Clearing previous Azure/Azure Stack logins"
             Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
-            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
-            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+            Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
+            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
+            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
 
             # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
-            $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
-            while ($serverCoreJobCheck -ne "Complete") {
-                Write-Host "The ServerCoreImage stage of the process has not yet completed. Checking again in 20 seconds"
+            $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
+            while ($serverCore2016JobCheck -ne "Complete") {
+                Write-Host "The ServerCore2016Image stage of the process has not yet completed. Checking again in 20 seconds"
                 Start-Sleep -Seconds 20
-                $serverCoreJobCheck = CheckProgress -progressStage "ServerCoreImage"
-                if ($serverCoreJobCheck -eq "Failed") {
-                    throw "The ServerCoreImage stage of the process has failed. This should fully complete before the Windows Server full image is created. Check the UbuntuServerImage log, ensure that step is completed first, and rerun."
+                $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
+                if ($serverCore2016JobCheck -eq "Failed") {
+                    throw "The ServerCore2016Image stage of the process has failed. This should fully complete before the Windows Server core image is created. Check the Windows Server image log, ensure that step is completed first, and rerun."
                 }
             }
 
             ### Login to Azure Stack ###
+            Write-Host "Logging into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
@@ -130,14 +138,14 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $azsLocation = (Get-AzsLocation).Name
             # Need to 100% confirm that the ServerCoreImage is ready as it seems that starting the MySQL/SQL RP deployment immediately is causing an issue
             Write-Host "Need to confirm that the Windows Server 2016 Core image is available in the gallery and ready"
-            $azsPlatformImageExists = (Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'
-            $azureRmVmPlatformImageExists = (Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).StatusCode -eq 'OK'
+            $azsPlatformImageExists = (Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'
+            $azureRmVmPlatformImageExists = (Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK'
             Write-Host "Check #1 - Using Get-AzsPlatformImage to check for Windows Server 2016 Core image"
             if ($azsPlatformImageExists) {
                 Write-Host "Get-AzsPlatformImage, successfully located an appropriate image with the following details:"
                 Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
             }
-            While (!$(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+            While (!$(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                 Write-Host "Using Get-AzsPlatformImage, ServerCoreImage is not ready yet. Delaying by 20 seconds"
                 Start-Sleep -Seconds 20
             }
@@ -146,7 +154,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Using Get-AzureRmVMImage, successfully located an appropriate image with the following details:"
                 Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
             }
-            While (!$(Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -Version "1.0.0" -ErrorAction SilentlyContinue).StatusCode -eq 'OK') {
+            While (!$(Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK') {
                 Write-Host "Using Get-AzureRmVMImage to test, ServerCoreImage is not ready yet. Delaying by 20 seconds"
                 Start-Sleep -Seconds 20
             }
@@ -203,9 +211,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             if ($deploymentMode -eq "Online") {
                 # Cleanup old folder
+                Write-Host "Cleaning up old deployment"
                 Remove-Item "$asdkPath\databases\$dbrp" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 Remove-Item "$ASDKpath\databases\$($dbrp).zip" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 # Download and Expand the RP files
+                Write-Host "Downloading the database RP files"
                 $rpURI = "https://aka.ms/azurestack$($rp)rp11330"
                 $rpDownloadLocation = "$ASDKpath\databases\$($dbrp).zip"
                 DownloadWithRetry -downloadURI "$rpURI" -downloadLocation "$rpDownloadLocation" -retries 10
@@ -220,6 +230,25 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Set-Location "$ASDKpath\databases\$($dbrp)"
             Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\*" -Recurse | Unblock-File -Verbose
 
+            ############################################################################################################################################################################
+            # Temporary Workaround to installing DB RP with PS 1.7.0 and newer AzureRM 2.4.0
+            $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
+            $old = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -eq "3") -and ($azureRMModule.Version.Build -ge "0"))'
+            $new = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -ge "3") -and ($azureRMModule.Version.Build -ge "0"))'
+            $pattern1 = [RegEx]::Escape($old)
+            $pattern2 = [RegEx]::Escape($new)
+            if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
+                if ((Get-Content $getCommonModule) | Select-String $pattern1) {
+                    Write-Host "Known issue with AzureRM 2.4.0 and DB RPs - editing Common.psm1"
+                    Write-Host "Editing file"
+                    (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
+                    Write-Host "Editing completed."
+                }
+            }
+            # End of Temporary Workaround
+            ############################################################################################################################################################################
+
+            Write-Host "Starting deployment of $dbrp Resource Provider"
             if ($dbrp -eq "MySQL") {
                 if ($deploymentMode -eq "Online") {
                     .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
@@ -253,4 +282,5 @@ elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
     StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
+Write-Host "Logging stopped at $endTime"
 Stop-Transcript -ErrorAction SilentlyContinue
