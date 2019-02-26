@@ -110,7 +110,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
 
             ### Login to Azure Stack ###
             Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}

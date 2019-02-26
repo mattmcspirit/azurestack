@@ -7,6 +7,9 @@ param (
     [String]$downloadPath,
 
     [Parameter(Mandatory = $true)]
+    [String] $azsLocation,
+
+    [Parameter(Mandatory = $true)]
     [String] $deploymentMode,
 
     [Parameter(Mandatory = $true)]
@@ -132,7 +135,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             Write-Host "Logging into Azure Stack"
             # Login to Azure Stack to grab FQDNs and also Identity App ID locally
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Getting File Server and SQL App Server FQDN"
@@ -202,6 +205,9 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             # Edit the JSON from deployment
 
             Write-Host "Starting editing the JSON file"
+
+            $JsonConfig = $JsonConfig.Replace("<<azsLocation>>", $azsLocation)
+
             if ($authenticationType.ToString() -like "AzureAd") {
                 $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", $azureDirectoryTenantName)
             }
@@ -238,7 +244,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             # Check if there is a previous failure for the App Service deployment - easier to completely clean the RG and start fresh
             Write-Host "Logging back into Azure Stack"
             $azsLocation = (Get-AzsLocation).Name
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $appServiceFailCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
@@ -282,7 +288,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             Write-Host "Checking App Service resource group for successful deployment"
             # Ensure logged into Azure Stack
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)

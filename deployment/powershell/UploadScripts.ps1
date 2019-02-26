@@ -91,7 +91,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         $asdkOfflineStorageAccountName = "offlinestor"
         $asdkOfflineContainerName = "offlinecontainer"
         Write-Host "Logging into Azure Stack"
-        $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+        $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         if (-not (Get-AzureRmResourceGroup -Name $asdkOfflineRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {

@@ -210,7 +210,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
                         if ($mySQLProgressCheck -ne "Complete") {
                             ### Login to Azure Stack ###
-                            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+                            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
                             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             while (!$(Get-AzureRmVirtualNetwork -ResourceGroupName "azurestack-dbhosting" -Name "dbhosting_vnet" -ErrorAction SilentlyContinue | Get-AzureRmVirtualNetworkSubnetConfig).ProvisioningState -eq "Succeeded") {
@@ -265,7 +265,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
 
             ### Login to Azure Stack ###
             Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 

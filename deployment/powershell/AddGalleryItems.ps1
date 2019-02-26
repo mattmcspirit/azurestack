@@ -82,7 +82,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         Write-Host "Logging into Azure Stack"
-        $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+        $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Set Storage Variables

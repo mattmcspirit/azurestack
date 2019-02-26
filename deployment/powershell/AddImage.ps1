@@ -347,7 +347,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
 
             # Log into Azure Stack to check for existing images and push new ones if required ###
             Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
@@ -765,7 +765,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         Remove-AzureStorageBlob -Blob $blobName -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                     }
                 }
-                elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
+                elseif ($(Get-AzsPlatformImage -Location "$    [Parameter(Mandatory = $true)]
+                [String] $azsLocation," -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
                     throw "Adding VM image failed. Please check the logs and clean up the Azure Stack Platform Image Repository to remove the failed image, then retry."
                 }
                 elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Canceled') {

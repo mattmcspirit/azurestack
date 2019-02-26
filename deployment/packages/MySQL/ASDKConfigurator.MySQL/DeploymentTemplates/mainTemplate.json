@@ -343,7 +343,7 @@
                     ]
                 },
                 "protectedSettings": {
-                    "commandToExecute": "[concat('bash install_MySQL.sh ', parameters('mySQLPassword'), ' ', parameters('allowRemoteConnections'))]"
+                    "commandToExecute": "[concat('bash install_MySQL.sh ', parameters('mySQLPassword'), ' ', parameters('allowRemoteConnections'), ' ', resourceGroup().location)]"
                 }
             }
         }

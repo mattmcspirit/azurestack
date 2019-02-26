@@ -73,7 +73,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         
         # Log into Azure Stack to check for existing images and push new ones if required ###
         Write-Host "Logging into Azure Stack to check if images are required, and therefore if updates need downloading"
-        $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+        $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         Write-Host "Determine if a Windows Server 2019 ISO has been provided"
@@ -194,7 +194,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     if (!$kbID) {
                         Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
                     }
-                    
+
                     #Hard code to January 2019 update:
                     #$kbID = "4480977"
 
