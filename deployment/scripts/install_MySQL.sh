@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Validate input parameters
-if [[ ! ("$#" -eq 2) ]]; 
+if [[ ! ("$#" -eq 3) ]]; 
 then
     echo "Parameters missing for MySQL configuration." >&2
     exit 1

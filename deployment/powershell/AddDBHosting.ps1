@@ -7,7 +7,7 @@ param (
     [String] $deploymentMode,
     
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
+    [String] $customDomainSuffix,
 
     [Parameter(Mandatory = $true)]
     [ValidateSet("MySQL", "SQLServer")]
@@ -131,7 +131,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Setting up Database Variables"

@@ -29,7 +29,7 @@ param (
     [String] $ScriptLocation,
 
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
+    [String] $customDomainSuffix,
 
     [parameter(Mandatory = $false)]
     [String] $skipMySQL,
@@ -210,7 +210,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
                         if ($mySQLProgressCheck -ne "Complete") {
                             ### Login to Azure Stack ###
-                            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
+                            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
                             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             while (!$(Get-AzureRmVirtualNetwork -ResourceGroupName "azurestack-dbhosting" -Name "dbhosting_vnet" -ErrorAction SilentlyContinue | Get-AzureRmVirtualNetworkSubnetConfig).ProvisioningState -eq "Succeeded") {
@@ -265,9 +265,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
 
             ### Login to Azure Stack ###
             Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $azsLocation = (Get-AzsLocation).Name
 
             Write-Host "Creating a dedicated Resource Group for all database hosting assets"
             if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
@@ -283,7 +284,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 else {
                     Write-Host "Getting the URIs for all AZPKG files for deployment of resources"
                     $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object {$_.Name -like "ASDKConfigurator.$azpkg*"}).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object {$_ -like "*mainTemplate.json"}
-                    $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
+                    $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/"
                 }
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {

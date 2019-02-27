@@ -7,7 +7,7 @@ param (
     [String] $deploymentMode,
 
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
+    [String] $customDomainSuffix,
 
     [Parameter(Mandatory = $true)]
     [ValidateSet("MySQL", "SQLServer")]
@@ -133,7 +133,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
 
             ### Login to Azure Stack ###
             Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
@@ -141,14 +141,14 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $azsLocation = (Get-AzsLocation).Name
             # Need to 100% confirm that the ServerCoreImage is ready as it seems that starting the MySQL/SQL RP deployment immediately is causing an issue
             Write-Host "Need to confirm that the Windows Server 2016 Core image is available in the gallery and ready"
-            $azsPlatformImageExists = (Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'
-            $azureRmVmPlatformImageExists = (Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK'
+            $azsPlatformImageExists = (Get-AzsPlatformImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'
+            $azureRmVmPlatformImageExists = (Get-AzureRmVMImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK'
             Write-Host "Check #1 - Using Get-AzsPlatformImage to check for Windows Server 2016 Core image"
             if ($azsPlatformImageExists) {
                 Write-Host "Get-AzsPlatformImage, successfully located an appropriate image with the following details:"
                 Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
             }
-            While (!$(Get-AzsPlatformImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+            While (!$(Get-AzsPlatformImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                 Write-Host "Using Get-AzsPlatformImage, ServerCoreImage is not ready yet. Delaying by 20 seconds"
                 Start-Sleep -Seconds 20
             }
@@ -157,7 +157,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Using Get-AzureRmVMImage, successfully located an appropriate image with the following details:"
                 Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
             }
-            While (!$(Get-AzureRmVMImage -Location "$azsLocation" -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK') {
+            While (!$(Get-AzureRmVMImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK') {
                 Write-Host "Using Get-AzureRmVMImage to test, ServerCoreImage is not ready yet. Delaying by 20 seconds"
                 Start-Sleep -Seconds 20
             }

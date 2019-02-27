@@ -10,7 +10,7 @@ param (
     [String] $deploymentMode,
 
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
+    [String] $customDomainSuffix,
 
     [Parameter(Mandatory = $true)]
     [ValidateSet("AzureAd", "ADFS")]
@@ -125,7 +125,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
 
@@ -139,7 +139,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Set-Location "$AppServicePath"
             
             if (!$([System.IO.File]::Exists("$AppServicePath\CertsCreated.txt"))) {
-                .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName "$azsLocation.azurestack.external"
+                .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName $customDomainSuffix
                 .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $cloudAdminCreds
                 New-Item -Path "$AppServicePath\CertsCreated.txt" -ItemType file -Force
             }
@@ -161,8 +161,8 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
                     Set-Location "$AppServicePath" -Verbose
                     Write-Host "Generating the application ID for the App Service installation"
-                    $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$azsLocation.azurestack.external" -TenantArmEndpoint "management.$azsLocation.azurestack.external" `
-                        -CertificateFilePath "$AppServicePath\sso.appservice.$azsLocation.azurestack.external.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds -Verbose
+                    $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -TenantArmEndpoint "management.$customDomainSuffix" `
+                        -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds -Verbose
                     $identityApplicationID = $applicationId
                     Write-Host "Application ID is $identityApplicationID"
                     Write-Host "You don't need to sign into the Azure Portal to grant permissions, ASDK Configurator will automate this for you. Please wait."
@@ -200,13 +200,13 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
                 elseif ($authenticationType.ToString() -like "ADFS") {
                     Write-Host "Logging into Azure Stack"
-                    $ArmEndpoint = "https://adminmanagement.$azsLocation.azurestack.external"
+                    $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
                     Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     Set-Location "$AppServicePath" -Verbose
                     Write-Host "Generating the application ID for the App Service installation"
-                    $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.$azsLocation.azurestack.external" -PrivilegedEndpoint $ERCSip `
-                        -CertificateFilePath "$AppServicePath\sso.appservice.$azsLocation.azurestack.external.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds -Verbose
+                    $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -PrivilegedEndpoint $ERCSip `
+                        -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $asdkCreds -Verbose
                     Write-Host "Saving the application ID to a backup file."
                     $appIdPath = "$downloadPath\ApplicationIDBackup.txt"
                     $identityApplicationID = $appID
