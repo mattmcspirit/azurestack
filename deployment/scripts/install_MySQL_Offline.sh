@@ -29,7 +29,7 @@ echo "mysql-server-5.7 mysql-server/root_password_again password root" | sudo de
 export DEBIAN_FRONTEND=noninteractive
 
 # Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
-wget $STORAGE_URI/mysql-{libaio,libevent-core,libmecab,common,client-core,client,server-core,server}.deb
+wget ${STORAGE_URI}mysql-{libaio,libevent-core,libmecab,common,client-core,client,server-core,server}.deb
 
 # Install the files
 dpkg -i mysql-libaio.deb
