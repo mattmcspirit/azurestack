@@ -19,6 +19,9 @@ param (
     [parameter(Mandatory = $true)]
     [pscredential] $asdkCreds,
     
+    [Parameter(Mandatory = $true)]
+    [String] $customDomainSuffix,
+    
     [parameter(Mandatory = $true)]
     [String] $ScriptLocation,
 
@@ -112,7 +115,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     throw "The $($dbHost)DBVM stage of the process has failed. This should fully complete before the $dbHost database host has been deployed. Check the $($dbHost)DBVM log, ensure that step is completed first, and rerun."
                 }
             }
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $dbrg = "azurestack-dbhosting"

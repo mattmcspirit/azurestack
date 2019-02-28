@@ -4,7 +4,7 @@ param (
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
+    [String] $customDomainSuffix,
 
     [Parameter(Mandatory = $false)]
     [String] $registerASDK,
@@ -347,9 +347,10 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
 
             # Log into Azure Stack to check for existing images and push new ones if required ###
             Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $azsLocation = (Get-AzsLocation).Name
             if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
                 if ($image -notlike "*2019") {
                     # Logout to clean up
@@ -461,18 +462,18 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Checking to see if the image is present in your Azure Stack Platform Image Repository"
             Write-Host "We first want to check if there is a failed or canceled upload from a previous attempt"
-            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"}) {
+            if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"}) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a failed state"
                 Write-Host "Cleaning up the image from the PIR"
-                (Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                (Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
             }
-            elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled"}) {
+            elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled"}) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a canceled state"
                 Write-Host "Cleaning up the image from the PIR"
-                (Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                (Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
             }
             Write-Host "There are no failed or canceled images in the PIR, so moving on to checking for a valid, successful image"
-            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Succeeded"}) {
+            if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Succeeded"}) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
                 Write-Host ('VM Image with publisher " {0}", offer " {1}", sku " {2}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku) -ErrorAction SilentlyContinue
             }
@@ -748,7 +749,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 # Add the Platform Image
                 Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$imageURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
                 #Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$($serverVHD.FullName)" -Force -Confirm: $false -Verbose -ErrorAction Stop
-                if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+                if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                     Write-Host ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                     if ($image -eq "UbuntuServer") {
                         Write-Host "Cleaning up local hard drive space - deleting VHD file and ZIP from Cluster Shared Volume"
@@ -765,10 +766,10 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         Remove-AzureStorageBlob -Blob $blobName -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                     }
                 }
-                elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
+                elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
                     throw "Adding VM image failed. Please check the logs and clean up the Azure Stack Platform Image Repository to remove the failed image, then retry."
                 }
-                elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Canceled') {
+                elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Canceled') {
                     throw "Adding VM image was canceled. Confirm the image doesn't show in the Azure Stack Platform Image Repository and if it does, remove it, then retry."
                 }
             }

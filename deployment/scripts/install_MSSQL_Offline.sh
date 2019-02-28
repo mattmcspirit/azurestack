@@ -3,13 +3,14 @@
 # Use the following variables to control your install:
 
 # Validate input parameters
-if [[ !("$#" -eq 1) ]]; 
+if [[ !("$#" -eq 2) ]]; 
     then echo "Parameters missing for SQL Server 2017 configuration." >&2
     exit 1
 fi
 
 # Password for the SA user (required)
 MSSQL_SA_PASSWORD=$1
+STORAGE_URI=$2
 
 # Set hostname in etc/hosts
 sudo echo "127.0.0.1  $HOSTNAME" | sudo tee -a /etc/hosts
@@ -37,7 +38,7 @@ echo Downloading SQL Server dependencies...
 export DEBIAN_FRONTEND=noninteractive
 
 # Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
-wget http://offlinestor.blob.local.azurestack.external/offlinecontainer/mssql-{libjemalloc,libc,libcabi,gdb,libsss,libbabeltrace1,libbabeltrace-ctf1,libcurl3,libsasl2,server}.deb
+wget ${STORAGE_URI}mssql-{libjemalloc,libc,libcabi,gdb,libsss,libbabeltrace1,libbabeltrace-ctf1,libcurl3,libsasl2,server}.deb
 
 echo Installing SQL Server dependencies...
 dpkg -i mssql-libjemalloc.deb

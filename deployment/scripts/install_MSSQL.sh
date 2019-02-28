@@ -3,7 +3,7 @@
 # Use the following variables to control your install:
 
 # Validate input parameters
-if [[ !("$#" -eq 1) ]]; 
+if [[ !("$#" -eq 2) ]]; 
     then echo "Parameters missing for SQL Server 2017 configuration." >&2
     exit 1
 fi

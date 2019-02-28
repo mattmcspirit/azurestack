@@ -4,7 +4,7 @@ param (
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
+    [String] $customDomainSuffix,
 
     [Parameter(Mandatory = $true)]
     [String] $deploymentMode,
@@ -82,7 +82,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         Write-Host "Logging into Azure Stack"
-        $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+        $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Set Storage Variables
@@ -90,6 +90,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $asdkImagesRGName = "azurestack-images"
         $asdkImagesStorageAccountName = "asdkimagesstor"
         $asdkImagesContainerName = "asdkimagescontainer"
+        $azsLocation = (Get-AzsLocation).Name
         Write-Host "Resource Group = $asdkImagesRGName, Storage Account = $asdkImagesStorageAccountName and Container = $asdkImagesContainerName"
         Write-Host "Setting AZPKG Package Name"
         if ($azpkg -eq "MySQL") {
