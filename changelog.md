@@ -5,6 +5,11 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1901.1?
+* New -customDomainSuffix for environments where the ASDK default region and domain suffix have been modified during initial ASDK deployment.
+* Support for App Service 1.5
+* Bug fixes and cleanup
+
 ### What's new in version 1901?
 * Updated to support ASDK 1.1901.0.95
 * Updated to support Azure Stack PowerShell 1.7.0 and AzureRM 2.4.0

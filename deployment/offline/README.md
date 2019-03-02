@@ -1,4 +1,4 @@
-ASDK Configurator 1901 | Offline Mode
+ASDK Configurator 1901.1 | Offline Mode
 ==============
 
 Who is this for?
@@ -11,11 +11,17 @@ If you answered **Yes** to either of those questions, read on....
 Version Compatibility
 -----------
 The current version of the ConfigASDKdependencies.ps1 script has been **tested with the following versions**:
-* ASDK Configurator (ConfigASDK.ps1) **1901**
+* ASDK Configurator (ConfigASDK.ps1) **1901.1**
 
 Description
 -----------
 The ASDK Configurator script automates the installation of a variety of post-deployment tools, images, resource providers and more. However, the script relies on your ASDK host having an internet connection to download the necessary files. By using the ConfigASDKdependencies.ps1 script, you can automate the download of all of the necessary components required by the ASDK Configurator, and zips them up into a convenient single package, ready to be imported, extracted and used by the main ASDK Configurator script.
+
+New in 1901.1
+-----------
+Storage uploads of VHDs and other artifacts now use AzCopy for improved performance. In addition, there is now added support for the **automated creation of Windows Server 2019 images** that will be added to your platform image repository. See the instructions below.
+
+In addition, should you choose to customize your ASDK deployment by using a custom domain suffix, such as west.contoso.lab, instead of local.azurestack.external, the ASDK Configurator now supports this. **NOTE, the if you didn't deploy your ASDK with a different custom domain suffix, you can ignore the -customDomainSuffix parameter**
 
 Important Considerations
 ------------
@@ -100,7 +106,7 @@ If your ASDK host cannot reach the internet, **and** the -configAsdkOfflineZipPa
 
 There are certain combinations that cannot work, for instance, choosing Azure AD as your authentication mode, or choosing to register your ASDK to Azure but failing the internet connection tests. The ASDK Configurator will test for these scenarios and error gracefully if it encounters them.
 
-**NOTE** - when providing the zip file path, you **do not** have to provide the Windows Server 2016 ISO path. The script assumes the ISO file is contained within your zip file and will be located automatically.
+**NOTE** - when providing the zip file path, you **do not** have to provide the Windows Server 2016 ISO (and optionally, the 2019 ISO) path. The script assumes the ISO file is contained within your zip file and will be located automatically.
 
 **NOTE** - If you have run the ASDK Configurator successfully on this host before, you may have artifacts left over in your -downloadPath that can affect the next deployment, so please remove any existing files and folders from within your -downloadPath before running the ConfigASDK.ps1 script.
 
@@ -110,6 +116,7 @@ Usage Examples:
 -------------
 **General Guidance**
 * For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files.
+* If you chose to customize the initial deployment of your ASDK by changing the region (default = "local") or the domain suffix (default = "azurestack.external"), you can use the flag **-customDomainSuffix** along with a correctly formed region and domain suffix, such as "west.contoto.com"
 
 ### PartialOnline Scenarios
 

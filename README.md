@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1901
+Azure Stack Development Kit Configurator 1901.1
 ==============
 
 Version Compatibility
@@ -51,12 +51,15 @@ This includes:
 * Stores script output in a ConfigASDKOutput.txt, for future reference
 * Supports usage in offline/disconnected environments
 * New -serialMode which excecutes VM deployments in serial, rather than parallel - better for older hardware
+* Now supports ASDKs that have been depoyed with a custom domain suffix, e.g. https://portal.west.contoso.lab
 
 Additionally, if you encounter an issue, try re-running the script with the same command you used to run it previously. The script is written in such a way that it shouldn't try to rerun previously completed steps.
 
-New in 1901
+New in 1901.1
 -----------
 Storage uploads of VHDs and other artifacts now use AzCopy for improved performance. In addition, there is now added support for the **automated creation of Windows Server 2019 images** that will be added to your platform image repository. See the instructions below.
+
+In addition, should you choose to customize your ASDK deployment by using a custom domain suffix, such as west.contoso.lab, instead of local.azurestack.external, the ASDK Configurator now supports this. **NOTE, the if you didn't deploy your ASDK with a different custom domain suffix, you can ignore the -customDomainSuffix parameter**
 
 Important Considerations
 ------------
@@ -126,6 +129,7 @@ With the script downloaded successfully, you can move on to running the script. 
 * Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK.
 * If you specify -registerASDK but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials.
 * If you are using older hardware, or lower performance hardware with no SSD storage, and are experiencing VM deployment errors, use **-serialMode** to set the script to deploy VMs one at a time, rather than in parallel. This can help with reliability on older, lower performance hardware.
+* If you chose to customize the initial deployment of your ASDK by changing the region (default = "local") or the domain suffix (default = "azurestack.external"), you can use the flag **-customDomainSuffix** along with a correctly formed region and domain suffix, such as "west.contoto.com"
 
 Usage Examples:
 -------------
