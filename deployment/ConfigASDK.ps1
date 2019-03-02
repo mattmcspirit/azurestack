@@ -284,13 +284,13 @@ function AddOfflineAZPKG {
                 $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
                 $azpkgDirectory = "$ASDKpath\packages"
                 $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkImagesRGName -Name $asdkImagesStorageAccountName).Value[0]
-                $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}"" /Z:""{6}""", $azCopyPath, $azpkgDirectory, $containerDestination, $storageAccountKey, $azpkgFileName, $azCopyLogPath,$journalPath)
+                $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}"" /Z:""{6}""", $azCopyPath, $azpkgDirectory, $containerDestination, $storageAccountKey, $azpkgFileName, $azCopyLogPath, $journalPath)
                 Write-Host "Executing the following command:`n'n$azCopyCmd"
                 $result = cmd /c $azCopyCmd
                 foreach ($s in $result) {
                     Write-Host $s 
                 }
-                if ($LASTEXITCODE -ne 0){
+                if ($LASTEXITCODE -ne 0) {
                     Throw "Upload file failed: $itemName. Check logs at $azCopyLogPath";
                     break;
                 }
@@ -511,6 +511,10 @@ $regex = @"
 
 $emailRegex = @"
 (?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])
+"@
+
+$domainRegex = @"
+(?=^.{1,254}$)(^(?:(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$)
 "@
 
 ### SET LOG LOCATION ###
@@ -1009,7 +1013,6 @@ if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
     }
         
     ### Validate Azure AD Registration Password ADFS-based Azure Stack ###
-
     Write-CustomVerbose -Message "Checking for an Azure AD password - this account will be used to register the ADFS-based ASDK to Azure..."
         
     if ([string]::IsNullOrEmpty($azureRegPwd)) {
@@ -1053,6 +1056,29 @@ if ($registerASDK) {
         Write-CustomVerbose -Message "No valid Azure subscription ID was entered again. Exiting process..." -ErrorAction Stop
         Set-Location $ScriptLocation
         return    
+    }
+}
+
+### Validate Custom Domain Suffix ###
+Write-CustomVerbose -Message "The domain suffix that you're using for this ASDK deployment is $customDomainSuffix"
+if ($customDomainSuffix -eq "local.azurestack.external") {
+    Write-CustomVerbose -Message "Domain suffix is the default local.azurestack.external - no need for further validation"
+}
+else {
+    Write-CustomVerbose -Message "Validating domain suffix"
+    if ($customDomainSuffix -cmatch $domainRegex -eq $true) {
+        Write-CustomVerbose -Message "Domain suffix $customDomainSuffix is valid" 
+    }
+    else {
+        $azureRegUsername = Read-Host "Domain suffix $customDomainSuffix is not a valid domain suffix. Enter custom domain suffix again"
+        if ($customDomainSuffix -cmatch $domainRegex -eq $true) {
+            Write-CustomVerbose -Message "Domain suffix $customDomainSuffix is valid"
+        }
+        else {
+            Write-CustomVerbose -Message "No valid custom domain suffix was entered again. Exiting process..." -ErrorAction Stop
+            Set-Location $ScriptLocation
+            return
+        }
     }
 }
 
