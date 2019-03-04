@@ -70,6 +70,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             # Update the ConfigASDK database back to incomplete status if previously failed
             StageReset -progressStage $progressStage
             $progressCheck = CheckProgress -progressStage $progressStage
+            Write-Host "Cleaning up any partial failed attempts to upload the gallery item"
+            Get-AzsGalleryItem | Where-Object {$_.Name -like "*ASDK*"} | Remove-AzsGalleryItem -Force
         }
         Write-Host "Clearing previous Azure/Azure Stack logins"
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
@@ -152,15 +154,18 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 try {
                     Write-Host "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
                     Write-Host "Uploading $azpkgPackageName from $azpkgPackageURL"
-                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
+                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
                 }
                 catch {
                     Write-Host "Upload wasn't successful. Waiting 5 seconds before retrying."
                     Write-Host "$_.Exception.Message"
+                    if ("$_.Exception.Message" -like "*NoContent*") {
+                        Write-Host "The error suggests that you cannot reach the AZPKG URL: $azpkgPackageURL - please confirm you can reach this URL otherwise this step will fail."
+                    }
                     Start-Sleep -Seconds 5
                 }
             }
-            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
+            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries -ge 20)) {
                 throw "Uploading gallery item failed after $Retries attempts. Exiting process."
                 Set-Location $ScriptLocation
                 return
