@@ -160,10 +160,13 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 catch {
                     Write-Host "Upload wasn't successful. Waiting 5 seconds before retrying."
                     Write-Host "$_.Exception.Message"
+                    if ("$_.Exception.Message" -like "*NoContent*") {
+                        Write-Host "The error suggests that you cannot reach the AZPKG URL: $azpkgPackageURL - please confirm you can reach this URL otherwise this step will fail."
+                    }
                     Start-Sleep -Seconds 5
                 }
             }
-            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -ge 20)) {
+            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries -ge 20)) {
                 throw "Uploading gallery item failed after $Retries attempts. Exiting process."
                 Set-Location $ScriptLocation
                 return
