@@ -35,7 +35,7 @@ param (
     [String] $tableName
 )
 
-#$Global:VerbosePreference = "Continue"
+$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -70,6 +70,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             # Update the ConfigASDK database back to incomplete status if previously failed
             StageReset -progressStage $progressStage
             $progressCheck = CheckProgress -progressStage $progressStage
+            Write-Host "Clearing up any failed attempts to deploy the gallery items"
+            Get-AzsGalleryItem | Where-Object {$_.Name -like "*ASDK*"} | Remove-AzsGalleryItem -Force -ErrorAction SilentlyContinue
         }
         Write-Host "Clearing previous Azure/Azure Stack logins"
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
@@ -153,7 +155,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 try {
                     Write-Host "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
                     Write-Host "Uploading $azpkgPackageName from $azpkgPackageURL"
-                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Ignore
+                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
                 }
                 catch {
                     Write-Host "Upload wasn't successful. Waiting 5 seconds before retrying."
