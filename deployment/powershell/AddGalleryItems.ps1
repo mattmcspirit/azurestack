@@ -155,7 +155,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 try {
                     Write-Host "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
                     Write-Host "Uploading $azpkgPackageName from $azpkgPackageURL"
-                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction SilentlyContinue
+                    Add-AzsGalleryItem -GalleryItemUri $azpkgPackageURL -Force -Confirm:$false -ErrorAction Stop
                 }
                 catch {
                     Write-Host "Upload wasn't successful. Waiting 5 seconds before retrying."
