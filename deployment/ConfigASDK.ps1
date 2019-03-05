@@ -230,7 +230,7 @@ try {
             try {
                 Write-Host "Downloading: $downloadURI"
                 $download = Measure-Command {(New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)}
-                "Download took $($download.Minutes)m $($download.Seconds)s at an average speed of {0:N2} Mbit/sec" `
+                "Download took $($download.Minutes) minutes $($download.Seconds) seconds at an average speed of {0:N2} Mbit/sec" `
                     -f ((10 / (Measure-Command {(New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)}).TotalSeconds) * 8)
                 break
             }
