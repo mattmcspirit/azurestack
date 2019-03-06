@@ -428,7 +428,9 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     if ($image -eq "UbuntuServer") {
                         # Get download information for Ubuntu Server 16.04 LTS VHD file
                         $azpkg.vhdPath = $downloadDetails.properties.osDiskImage.sourceBlobSasUri
-                        $azpkg.vhdVersion = $downloadDetails.properties.version
+                        # Temporarily hard coding
+                        #$azpkg.vhdVersion = $downloadDetails.properties.version
+                        $azpkg.vhdVersion = "20180831"
                     }
                 }
                 elseif ($image -like "*2019") {
