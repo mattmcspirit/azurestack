@@ -431,7 +431,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         $azpkg.vhdPath = $downloadDetails.properties.osDiskImage.sourceBlobSasUri
                         # Temporarily hard coding
                         #$azpkg.vhdVersion = $downloadDetails.properties.version
-                        $azpkg.vhdVersion = "20180831"
+                        $azpkg.vhdVersion = "16.04.20180831"
                     }
                 }
                 elseif ($image -like "*2019") {
