@@ -58,7 +58,7 @@
             "metadata": {
                 "description": "VM Size"
             }
-        },
+        }
     },
     "variables": {
         "location": "[resourceGroup().location]",
