@@ -58,7 +58,7 @@
             "metadata": {
                 "description": "VM Size"
             }
-        }
+        },
     },
     "variables": {
         "location": "[resourceGroup().location]",
@@ -66,6 +66,8 @@
         "nicName": "[tolower(concat('nic',uniquestring(resourceGroup().id)))]",
         "addressPrefix": "10.0.0.0/24",
         "subnetName": "[tolower(concat('subnet',uniquestring(resourceGroup().id)))]",
+        "publicIPAddressName": "[tolower(concat('pip',uniquestring(resourceGroup().id)))]",
+        "publicIPAddressDomainNameLabel": "[tolower(concat(parameters('vmName'),uniquestring(resourceGroup().id)))]",
         "subnetPrefix": "10.0.0.0/24",
         "storageAccountName": "[concat('sa', uniquestring(resourceGroup().id))]",
         "storageAccountType": "Standard_LRS",
@@ -82,6 +84,17 @@
             "location": "[variables('location')]",
             "properties": {
                 "accountType": "[variables('storageAccountType')]"
+            }
+        },
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[variables('publicIpAddressName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[variables('publicIPAddressDomainNameLabel')]"
+                }
             }
         },
         {
