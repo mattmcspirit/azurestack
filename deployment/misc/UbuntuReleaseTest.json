@@ -67,7 +67,7 @@
         "addressPrefix": "10.0.0.0/24",
         "subnetName": "[tolower(concat('subnet',uniquestring(resourceGroup().id)))]",
         "publicIPAddressName": "[tolower(concat('pip',uniquestring(resourceGroup().id)))]",
-        "publicIPAddressDomainNameLabel": "[tolower(concat(parameters('vmName'),uniquestring(resourceGroup().id)))]",
+        "publicIPAddressDomainNameLabel": "[tolower(concat('ubuntu',uniquestring(resourceGroup().id)))]",
         "subnetPrefix": "10.0.0.0/24",
         "storageAccountName": "[concat('sa', uniquestring(resourceGroup().id))]",
         "storageAccountType": "Standard_LRS",
