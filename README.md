@@ -59,7 +59,7 @@ New in 1902
 -----------
 Storage uploads of VHDs and other artifacts now use AzCopy for improved performance. In addition, there is now added support for the **automated creation of Windows Server 2019 images** that will be added to your platform image repository. See the instructions below.
 
-In addition, should you choose to customize your ASDK deployment by using a custom domain suffix, such as west.contoso.lab, instead of local.azurestack.external, the ASDK Configurator now supports this. **NOTE, the if you didn't deploy your ASDK with a different custom domain suffix, you can ignore the -customDomainSuffix parameter**
+In addition, should you choose to customize your ASDK deployment by using a custom domain suffix, such as west.contoso.lab, instead of local.azurestack.external, the ASDK Configurator now supports this. **NOTE, if you didn't deploy your ASDK with a different custom domain suffix, you can ignore the -customDomainSuffix parameter**
 
 Important Considerations
 ------------
