@@ -86,6 +86,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Cleaning up old App Service if it exists"
                 Remove-Item "$asdkPath\appservice\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 Write-Host "Downloading App Service files"
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                 #$appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
                 $appServiceHelperURI = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/appservice/appservicehelper1.4.zip"
                 $appServiceHelperDownloadLocation = "$ASDKpath\appservice\appservicehelper.zip"
