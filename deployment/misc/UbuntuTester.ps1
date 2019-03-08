@@ -140,7 +140,12 @@ else {
                 Write-Host "Ubuntu Server ZIP located at $UbuntuServerZIP"
                 Write-Host "Expanding ZIP found at $UbuntuServerZIP"
                 Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$imagePath\" -Force -ErrorAction Stop
-                $serverVHD = Get-ChildItem -Path "$imagePath\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                if ($ubuntuSku -eq "18.04") {
+                    $serverVHD = Get-ChildItem -Path "$imagePath\" -Filter "bionic*.vhd" | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                }
+                else {
+                    $serverVHD = Get-ChildItem -Path "$imagePath\" -Filter "*disk1.vhd" | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                }
             }
             else {
                 # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
