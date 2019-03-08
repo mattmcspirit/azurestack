@@ -147,14 +147,24 @@ else {
                 # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
                 Write-Host "Cannot find a previously extracted Ubuntu Server download or ZIP file"
                 Write-Host "Begin download of correct Ubuntu Server ZIP to $imagePath"
-                $ubuntuURI = "https://cloud-images.ubuntu.com/releases/$ubuntuSku/release-$ubuntuBuild/ubuntu-$ubuntuSku-server-cloudimg-amd64-disk1.vhd.zip"
+                if ($ubuntuSku -eq "18.04") {
+                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/$ubuntuSku/release-$ubuntuBuild/ubuntu-$ubuntuSku-server-cloudimg-amd64.vhd.zip"
+                }
+                else {
+                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/$ubuntuSku/release-$ubuntuBuild/ubuntu-$ubuntuSku-server-cloudimg-amd64-disk1.vhd.zip"
+                }
                 $ubuntuDownloadLocation = "$imagePath\$($offer)$($vhdVersion).zip"
                 DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
                 $UbuntuServerZIP = Get-ChildItem -Path "$imagePath\$($offer)$($vhdVersion).zip"
                 Write-Host "Expanding ZIP found at $UbuntuServerZIP"
                 Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$imagePath\" -Force -ErrorAction Stop
                 Write-Host "Renaming VHD to $blobname"
-                $serverVHD = Get-ChildItem -Path "$imagePath\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                if ($ubuntuSku -eq "18.04") {
+                    $serverVHD = Get-ChildItem -Path "$imagePath\" -Filter "bionic*.vhd" | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                }
+                else {
+                    $serverVHD = Get-ChildItem -Path "$imagePath\" -Filter "*disk1.vhd" | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                }
             }
         }
         # At this point, there is a local image (either existing or new, that needs uploading, first to a Storage Account
