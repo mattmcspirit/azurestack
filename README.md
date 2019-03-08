@@ -203,6 +203,7 @@ This script can take many hours to finish, depending on your hardware and downlo
 * A Windows Server 2016 ISO is required.  This should be build 1607 (The RTM release) and not any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809). These have not been validated for support with the database and App Service resource providers, so don't use those builds at this time. The script will block their usage.
 * If you wish to upload Windows Server 2019 images for testing, please use the 17763 build, which is the Windows Server 2019 RTM and can be downloaded from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019
 * Do not use a mapped drive for your -downloadPath on your ASDK host. There are known issues which are yet to be resolved. Please use a local drive.
+* There is a known issue with the silent installation of App Service 1.5. The ASDK Configurator relies on the silent installation method to automate the App Service installation. Until this issue is fixed, the ASDK Configurator will deploy App Service 1.4, and you can manually upgrade the App Server to 1.5 post-deployment. Follow the steps here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-update
 
 ### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
