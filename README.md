@@ -1,13 +1,13 @@
-Azure Stack Development Kit Configurator 1901.1
+Azure Stack Development Kit Configurator 1902
 ==============
 
 Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
-* ASDK build **1.1901.0.95 (1901)**
+* ASDK build **1.1902.0.69 (1902)**
 * Azure Stack PowerShell Module **1.7.0**
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1901, Azure Stack PowerShell 1.7.0. and the new AzureRM PowerShell 2.4.0.  A version that supports the older ASDK builds (1811 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1902, Azure Stack PowerShell 1.7.0. and the new AzureRM PowerShell 2.4.0.  A version that supports the older ASDK builds (1811 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
@@ -55,7 +55,7 @@ This includes:
 
 Additionally, if you encounter an issue, try re-running the script with the same command you used to run it previously. The script is written in such a way that it shouldn't try to rerun previously completed steps.
 
-New in 1901.1
+New in 1902
 -----------
 Storage uploads of VHDs and other artifacts now use AzCopy for improved performance. In addition, there is now added support for the **automated creation of Windows Server 2019 images** that will be added to your platform image repository. See the instructions below.
 

@@ -1,4 +1,4 @@
-ASDK Configurator 1901.1 | Offline Mode
+ASDK Configurator 1902 | Offline Mode
 ==============
 
 Who is this for?
@@ -11,13 +11,13 @@ If you answered **Yes** to either of those questions, read on....
 Version Compatibility
 -----------
 The current version of the ConfigASDKdependencies.ps1 script has been **tested with the following versions**:
-* ASDK Configurator (ConfigASDK.ps1) **1901.1**
+* ASDK Configurator (ConfigASDK.ps1) **1902**
 
 Description
 -----------
 The ASDK Configurator script automates the installation of a variety of post-deployment tools, images, resource providers and more. However, the script relies on your ASDK host having an internet connection to download the necessary files. By using the ConfigASDKdependencies.ps1 script, you can automate the download of all of the necessary components required by the ASDK Configurator, and zips them up into a convenient single package, ready to be imported, extracted and used by the main ASDK Configurator script.
 
-New in 1901.1
+New in 1902
 -----------
 Storage uploads of VHDs and other artifacts now use AzCopy for improved performance. In addition, there is now added support for the **automated creation of Windows Server 2019 images** that will be added to your platform image repository. See the instructions below.
 
