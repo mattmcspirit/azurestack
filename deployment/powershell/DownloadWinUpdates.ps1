@@ -10,7 +10,7 @@ param (
     [String] $ISOPath2019,
 
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
+    [String] $customDomainSuffix,
 
     [Parameter(Mandatory = $true)]
     [String] $deploymentMode,
@@ -34,7 +34,7 @@ param (
     [String] $tableName
 )
 
-#$Global:VerbosePreference = "Continue"
+$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -73,9 +73,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         
         # Log into Azure Stack to check for existing images and push new ones if required ###
         Write-Host "Logging into Azure Stack to check if images are required, and therefore if updates need downloading"
-        $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+        $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        $azsLocation = (Get-AzsLocation).Name
         Write-Host "Determine if a Windows Server 2019 ISO has been provided"
         if ($ISOPath2019) {
             $versionArray = @("2016", "2019")
@@ -89,7 +90,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Write-Host "Checking to see if a Windows Server $v image is present in your Azure Stack Platform Image Repository"
             Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
             $sku = "$v-Datacenter-Server-Core"
-            $platformImageCore = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
+            $platformImageCore = Get-AzsPlatformImage -Location $azsLocation -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
             $serverCoreVMImageAlreadyAvailable = $false
             if ($platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
                 Write-Host "There appears to be at least 1 suitable Windows Server $v Datacenter Server Core image within your Platform Image Repository which we will use for the ASDK Configurator." 
@@ -99,7 +100,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             # Pre-validate that the Windows Server Full Image is not already available
             Remove-Variable -Name platformImageFull -Force -ErrorAction SilentlyContinue
             $sku = "$v-Datacenter"
-            $platformImageFull = Get-AzsPlatformImage -Location "$azsLocation" -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
+            $platformImageFull = Get-AzsPlatformImage -Location $azsLocation -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
             $serverFullVMImageAlreadyAvailable = $false
 
             if ($platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
@@ -150,7 +151,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     $Urls = @()
 
                     ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
-                    Write-Host "Checking build number to determine Servicing Stack Upadtes"
+                    Write-Host "Checking build number to determine Servicing Stack Updates"
                     if ($buildVersion -eq "14393") {
                         $ssuArray = @("4132216", "4465659", "4485447")
                         #Fix for broken Feb 2019 update
@@ -194,7 +195,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     if (!$kbID) {
                         Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
                     }
-                    
+
                     #Hard code to January 2019 update:
                     #$kbID = "4480977"
 

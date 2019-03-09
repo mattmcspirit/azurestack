@@ -6,7 +6,7 @@
 
 .VERSION
 
-    1901  Latest version, to align with current ASDK Configurator version.
+    1902  Latest version, to align with current ASDK Configurator version.
 
 .AUTHOR
 
@@ -386,7 +386,8 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         # Ubuntu Server 16.04 ZIP
         #$row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
         #hard coding to a known working VHD
-        $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/16.04/release-20180831/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
+        #$row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/16.04/release-20180831/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
+        $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/16.04/release-20181223/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
         $row.filename = "UbuntuServer1.0.0.zip"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS zip file"; $Table.Rows.Add($row)
         # Ubuntu Server AZPKG
         $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"

@@ -13,7 +13,7 @@ param (
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
+    [String] $customDomainSuffix,
     
     [parameter(Mandatory = $true)]
     [String] $ScriptLocation,
@@ -28,7 +28,7 @@ param (
     [String] $tableName
 )
 
-#$Global:VerbosePreference = "Continue"
+$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -91,9 +91,10 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         $asdkOfflineStorageAccountName = "offlinestor"
         $asdkOfflineContainerName = "offlinecontainer"
         Write-Host "Logging into Azure Stack"
-        $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+        $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        $azsLocation = (Get-AzsLocation).Name
         if (-not (Get-AzureRmResourceGroup -Name $asdkOfflineRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
             Write-Host "Creating resource group for storing scripts"
             New-AzureRmResourceGroup -Name $asdkOfflineRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop

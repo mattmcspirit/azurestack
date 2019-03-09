@@ -11,7 +11,7 @@ param (
     [pscredential] $asdkCreds,
 
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
+    [String] $customDomainSuffix,
     
     [parameter(Mandatory = $true)]
     [String] $ScriptLocation,
@@ -32,7 +32,7 @@ param (
     [String] $tableName
 )
 
-#$Global:VerbosePreference = "Continue"
+$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -110,9 +110,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
 
             ### Login to Azure Stack ###
             Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $azsLocation = (Get-AzsLocation).Name
             $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
             $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             $subID = $azureContext.Subscription.Id

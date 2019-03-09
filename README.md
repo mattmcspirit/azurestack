@@ -1,13 +1,13 @@
-Azure Stack Development Kit Configurator 1901
+Azure Stack Development Kit Configurator 1902
 ==============
 
 Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
-* ASDK build **1.1901.0.95 (1901)**
+* ASDK build **1.1902.0.69 (1902)**
 * Azure Stack PowerShell Module **1.7.0**
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1901, Azure Stack PowerShell 1.7.0. and the new AzureRM PowerShell 2.4.0.  A version that supports the older ASDK builds (1811 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1902, Azure Stack PowerShell 1.7.0. and the new AzureRM PowerShell 2.4.0.  A version that supports the older ASDK builds (1811 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
@@ -51,12 +51,15 @@ This includes:
 * Stores script output in a ConfigASDKOutput.txt, for future reference
 * Supports usage in offline/disconnected environments
 * New -serialMode which excecutes VM deployments in serial, rather than parallel - better for older hardware
+* Now supports ASDKs that have been depoyed with a custom domain suffix, e.g. https://portal.west.contoso.lab
 
 Additionally, if you encounter an issue, try re-running the script with the same command you used to run it previously. The script is written in such a way that it shouldn't try to rerun previously completed steps.
 
-New in 1901
+New in 1902
 -----------
 Storage uploads of VHDs and other artifacts now use AzCopy for improved performance. In addition, there is now added support for the **automated creation of Windows Server 2019 images** that will be added to your platform image repository. See the instructions below.
+
+In addition, should you choose to customize your ASDK deployment by using a custom domain suffix, such as west.contoso.lab, instead of local.azurestack.external, the ASDK Configurator now supports this. **NOTE, if you didn't deploy your ASDK with a different custom domain suffix, you can ignore the -customDomainSuffix parameter**
 
 Important Considerations
 ------------
@@ -126,6 +129,7 @@ With the script downloaded successfully, you can move on to running the script. 
 * Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK.
 * If you specify -registerASDK but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials.
 * If you are using older hardware, or lower performance hardware with no SSD storage, and are experiencing VM deployment errors, use **-serialMode** to set the script to deploy VMs one at a time, rather than in parallel. This can help with reliability on older, lower performance hardware.
+* If you chose to customize the initial deployment of your ASDK by changing the region (default = "local") or the domain suffix (default = "azurestack.external"), you can use the flag **-customDomainSuffix** along with a correctly formed region and domain suffix, such as "west.contoto.com"
 
 Usage Examples:
 -------------
@@ -199,6 +203,7 @@ This script can take many hours to finish, depending on your hardware and downlo
 * A Windows Server 2016 ISO is required.  This should be build 1607 (The RTM release) and not any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809). These have not been validated for support with the database and App Service resource providers, so don't use those builds at this time. The script will block their usage.
 * If you wish to upload Windows Server 2019 images for testing, please use the 17763 build, which is the Windows Server 2019 RTM and can be downloaded from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019
 * Do not use a mapped drive for your -downloadPath on your ASDK host. There are known issues which are yet to be resolved. Please use a local drive.
+* There is a known issue with the silent installation of App Service 1.5. The ASDK Configurator relies on the silent installation method to automate the App Service installation. Until this issue is fixed, the ASDK Configurator will deploy App Service 1.4, and you can manually upgrade the App Server to 1.5 post-deployment. Follow the steps here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-app-service-update. The ASDK Configurator will automatically put the upgrade file on your desktop, so please run it at your convenience.
 
 ### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.

@@ -4,7 +4,7 @@ param (
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
+    [String] $customDomainSuffix,
 
     [Parameter(Mandatory = $false)]
     [String] $registerASDK,
@@ -60,7 +60,7 @@ param (
     [String] $tableName
 )
 
-#$Global:VerbosePreference = "Continue"
+$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -336,7 +336,9 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 $offer = "UbuntuServer"
                 if (($registerASDK -eq $false) -or (($registerASDK -eq $true) -and ($deploymentMode -ne "Online"))) {
                     $date = Get-Date -Format FileDate
-                    $vhdVersion = "16.04.$date"
+                    # Temporarily hard coding to newest known working version
+                    #$vhdVersion = "16.04.$date"
+                    $vhdVersion = "16.04.20181223"
                 }
                 else {
                     $vhdVersion = ""
@@ -347,9 +349,10 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
 
             # Log into Azure Stack to check for existing images and push new ones if required ###
             Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $azsLocation = (Get-AzsLocation).Name
             if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
                 if ($image -notlike "*2019") {
                     # Logout to clean up
@@ -428,9 +431,9 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     if ($image -eq "UbuntuServer") {
                         # Get download information for Ubuntu Server 16.04 LTS VHD file
                         $azpkg.vhdPath = $downloadDetails.properties.osDiskImage.sourceBlobSasUri
-                        # Temporarily hard coding
+                        # Temporarily hard coding to newest known working Ubuntu image
                         #$azpkg.vhdVersion = $downloadDetails.properties.version
-                        $azpkg.vhdVersion = "16.04.20180831"
+                        $azpkg.vhdVersion = "16.04.20181223"
                     }
                 }
                 elseif ($image -like "*2019") {
@@ -463,18 +466,18 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Checking to see if the image is present in your Azure Stack Platform Image Repository"
             Write-Host "We first want to check if there is a failed or canceled upload from a previous attempt"
-            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"}) {
+            if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"}) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a failed state"
                 Write-Host "Cleaning up the image from the PIR"
-                (Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                (Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
             }
-            elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled"}) {
+            elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled"}) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a canceled state"
                 Write-Host "Cleaning up the image from the PIR"
-                (Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                (Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
             }
             Write-Host "There are no failed or canceled images in the PIR, so moving on to checking for a valid, successful image"
-            if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Succeeded"}) {
+            if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Succeeded"}) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
                 Write-Host ('VM Image with publisher " {0}", offer " {1}", sku " {2}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku) -ErrorAction SilentlyContinue
             }
@@ -544,10 +547,18 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                 Write-Host "Cannot find a previously extracted Ubuntu Server download or ZIP file"
                                 Write-Host "Begin download of correct Ubuntu Server ZIP to $ASDKpath"
 
-                                if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
+                                $ubuntuBuild = $azpkg.vhdVersion
+                                if (($ubuntuBuild).Length -gt 14) {
+                                    $ubuntuBuild = $ubuntuBuild.substring(0, 14)
+                                }
+                                $ubuntuBuild = $ubuntuBuild.split('.')[2]
+                                $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
+                                
+                                <# Temp removal to unify Ubuntu image
+                                    if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
                                     $ubuntuBuild = $azpkg.vhdVersion
                                     if (($ubuntuBuild).Length -gt 14) {
-                                        $ubuntuBuild = $ubuntuBuild.Substring(0, $ubuntuBuild.Length - 1)
+                                        $ubuntuBuild = $ubuntuBuild.substring(0, 14)
                                     }
                                     $ubuntuBuild = $ubuntuBuild.split('.')[2]
                                     $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
@@ -555,8 +566,14 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                 elseif (($registerASDK -eq $false) -and ($deploymentMode -eq "Online")) {
                                     #$ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
                                     #Hard coding to a known working Azure Stack image.
-                                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-20180831/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-                                }
+                                    $ubuntuBuild = $azpkg.vhdVersion
+                                    if (($ubuntuBuild).Length -gt 14) {
+                                        $ubuntuBuild = $ubuntuBuild.substring(0, 14)
+                                    }
+                                    $ubuntuBuild = $ubuntuBuild.split('.')[2]
+                                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
+                                } 
+                                    #>
                                 $ubuntuDownloadLocation = "$ASDKpath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                                 DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
                                 if (!([System.IO.File]::Exists("$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"))) {
@@ -634,13 +651,13 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                         New-Item -ItemType Directory -Path "$mountPath" -Force | Out-Null
                                         Write-Host "Mounting the VHD"
                                         Mount-WindowsImage -ImagePath "$csvImagePath\Images\$image\$blobName" -Index 1 `
-                                        -Path "$mountPath" -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
+                                            -Path "$mountPath" -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
                                         Write-Host "Adding the Update packages"
                                         Add-WindowsPackage -Path "$mountPath" -PackagePath "$csvImagePath\Images\$image\CU" `
-                                        -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
+                                            -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
                                         Write-Host "Saving the image"
                                         Dismount-WindowsImage -Path "$mountPath" -Save `
-                                        -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
+                                            -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
                                         $imageCreationSuccess = $true
                                     }
                                 }
@@ -701,56 +718,12 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             $uploadSuccess = $false
                         }
                     }
-                    <#Commenting out for AzCopy Testing
-                    # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
-                    # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
-                    while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$uploadSuccess) -and ($uploadVhdAttempt -le 3)) {
-                        Try {
-                            # Log back into Azure Stack to ensure login hasn't timed out
-                            Write-Host "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
-                            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            #Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                            $azCopyUpload = AzCopy /Source:"$($serverVHD.FullName)" /Dest:$asdkImagesContainerName /Pattern:"$($serverVHD.Name)" /Y /V:$azCopyLogPath
-                            $uploadSuccess = $true
-                        }
-                        catch {
-                            Write-Host "Upload failed."
-                            Write-Host "$_.Exception.Message"
-                            $uploadVhdAttempt++
-                            $uploadSuccess = $false
-                        }
-                    }
-                    # This is one final catch-all for the upload process
-                    # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
-                    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
-                        Try {
-                            # Log back into Azure Stack to ensure login hasn't timed out
-                            Write-Host "No existing image found. Upload Attempt: $uploadVhdAttempt"
-                            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                            #Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-                            $azCopyUpload = AzCopy /Source:"$($serverVHD.FullName)" /Dest:$asdkImagesContainerName /Pattern:"$($serverVHD.Name)" /Y /V:$azCopyLogPath
-                            $uploadSuccess = $true
-                        }
-                        catch {
-                            Write-Host "Upload failed."
-                            Write-Host "$_.Exception.Message"
-                            $uploadVhdAttempt++
-                            $uploadSuccess = $false
-                        }
-                    }
-                    if ($uploadVhdAttempt -gt 3) {
-                        $uploadSuccess = $false
-                        throw "Uploading VHD to Azure Stack storage failed after 3 upload attempts. Review the logs, then rerun the ConfigASDK.ps1 script to retry."
-                        Set-Location $ScriptLocation
-                        return
-                    }
-                    End of AzCopy Testing #>
                 }
                 # To reach this stage, there is now a valid image in the Storage Account, ready to be uploaded into the PIR
                 # Add the Platform Image
                 Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$imageURI" -Force -Confirm: $false -Verbose -ErrorAction Stop
                 #Add-AzsPlatformImage -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -OsType $azpkg.osVersion -OsUri "$($serverVHD.FullName)" -Force -Confirm: $false -Verbose -ErrorAction Stop
-                if ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+                if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                     Write-Host ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                     if ($image -eq "UbuntuServer") {
                         Write-Host "Cleaning up local hard drive space - deleting VHD file and ZIP from Cluster Shared Volume"
@@ -767,10 +740,10 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         Remove-AzureStorageBlob -Blob $blobName -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
                     }
                 }
-                elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
+                elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
                     throw "Adding VM image failed. Please check the logs and clean up the Azure Stack Platform Image Repository to remove the failed image, then retry."
                 }
-                elseif ($(Get-AzsPlatformImage -Location "$azsLocation" -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Canceled') {
+                elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Canceled') {
                     throw "Adding VM image was canceled. Confirm the image doesn't show in the Azure Stack Platform Image Repository and if it does, remove it, then retry."
                 }
             }

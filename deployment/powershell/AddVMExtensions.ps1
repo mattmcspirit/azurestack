@@ -3,6 +3,9 @@ param (
     [Parameter(Mandatory = $true)]
     [String] $deploymentMode,
 
+    [Parameter(Mandatory = $true)]
+    [String] $customDomainSuffix,
+
     [parameter(Mandatory = $true)]
     [String] $tenantID,
 
@@ -25,7 +28,7 @@ param (
     [String] $tableName
 )
 
-#$Global:VerbosePreference = "Continue"
+$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -92,7 +95,7 @@ if (($registerASDK -eq $true) -and ($deploymentMode -ne "Offline")) {
                 }
             }
             Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRmEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $activationName = "default"

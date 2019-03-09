@@ -4,7 +4,7 @@ param (
     [String] $ASDKpath,
 
     [Parameter(Mandatory = $true)]
-    [String] $azsLocation,
+    [String] $customDomainSuffix,
 
     [Parameter(Mandatory = $true)]
     [String] $deploymentMode,
@@ -35,7 +35,7 @@ param (
     [String] $tableName
 )
 
-#$Global:VerbosePreference = "Continue"
+$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -70,8 +70,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             # Update the ConfigASDK database back to incomplete status if previously failed
             StageReset -progressStage $progressStage
             $progressCheck = CheckProgress -progressStage $progressStage
-            Write-Host "Cleaning up any partial failed attempts to upload the gallery item"
-            Get-AzsGalleryItem | Where-Object {$_.Name -like "*ASDK*"} | Remove-AzsGalleryItem -Force
+            Write-Host "Clearing up any failed attempts to deploy the gallery items"
+            Get-AzsGalleryItem | Where-Object {$_.Name -like "*ASDK*"} | Remove-AzsGalleryItem -Force -ErrorAction SilentlyContinue
         }
         Write-Host "Clearing previous Azure/Azure Stack logins"
         Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
@@ -84,7 +84,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         Write-Host "Logging into Azure Stack"
-        $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
+        $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Set Storage Variables
@@ -92,6 +92,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $asdkImagesRGName = "azurestack-images"
         $asdkImagesStorageAccountName = "asdkimagesstor"
         $asdkImagesContainerName = "asdkimagescontainer"
+        $azsLocation = (Get-AzsLocation).Name
         Write-Host "Resource Group = $asdkImagesRGName, Storage Account = $asdkImagesStorageAccountName and Container = $asdkImagesContainerName"
         Write-Host "Setting AZPKG Package Name"
         if ($azpkg -eq "MySQL") {

@@ -22,7 +22,7 @@ param (
     [String] $tableName
 )
 
-#$Global:VerbosePreference = "Continue"
+$Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
@@ -86,6 +86,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Cleaning up old App Service if it exists"
                 Remove-Item "$asdkPath\appservice\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
                 Write-Host "Downloading App Service files"
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                 #$appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
                 $appServiceHelperURI = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/appservice/appservicehelper1.4.zip"
                 $appServiceHelperDownloadLocation = "$ASDKpath\appservice\appservicehelper.zip"
@@ -94,6 +95,12 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $appServiceExeURI = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/appservice/appservice1.4.exe"
                 $appServiceExeDownloadLocation = "$ASDKpath\appservice\appservice.exe"
                 DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
+                # Temporary download of 1.5 until silent deployment is fixed
+                Write-Host "Downloading App Service Upgrade file"
+                $appService15ExeURI = "https://aka.ms/appsvconmasinstaller"
+                $DesktopPath = [Environment]::GetFolderPath("Desktop")
+                $appService15ExeDownloadLocation = "$DesktopPath\UpgradeAppService.exe"
+                DownloadWithRetry -downloadURI "$appService15ExeURI" -downloadLocation "$appService15ExeDownloadLocation" -retries 10
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 if (-not [System.IO.File]::Exists("$ASDKpath\appservice\appservicehelper.zip")) {

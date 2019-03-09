@@ -332,7 +332,7 @@
                     ]
                 },
                 "protectedSettings": {
-                    "commandToExecute": "[concat('bash install_MSSQL.sh ', parameters('msSQLPassword'))]"
+                    "commandToExecute": "[concat('bash install_MSSQL.sh ', parameters('msSQLPassword'), ' ', parameters('scriptBaseUrl'))]"
                 }
             }
         }
