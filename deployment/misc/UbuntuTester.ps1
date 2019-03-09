@@ -226,12 +226,36 @@ Foreach ($Entry in $CSVData) {
         }
         # To reach this stage, there is now a valid image in the Storage Account, ready to be uploaded into the PIR
         # Add the Platform Image
-        Write-Host "`nAdding $blobName to the Platform Image Repository"
-        Write-Host "Clearing previous Azure/Azure Stack logins"
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
-        Clear-AzureRmContext -Scope CurrentUser -Force | Out-Null
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        Add-AzsPlatformImage -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -OsType $osVersion -OsUri "$imageURI" -Force -Confirm: $false -ErrorAction Stop
+        $uploadToPIRAttempt = 1
+        while ((!$(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') -and (!$uploadPIRSuccess) -and ($uploadToPIRAttempt -le 3) ) {
+            Try {
+                # Log back into Azure Stack to ensure login hasn't timed out
+                Write-Host "`nAdding $blobName to the Platform Image Repository"
+                Write-Host "Clearing previous Azure/Azure Stack logins"
+                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+                Clear-AzureRmContext -Scope CurrentUser -Force | Out-Null
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Add-AzsPlatformImage -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -OsType $osVersion -OsUri "$imageURI" -Force -Confirm: $false -ErrorAction Stop
+                $uploadPIRSuccess = $true
+            }
+            catch {
+                Write-Host "Upload to the PIR failed."
+                Write-Host "$_.Exception.Message"
+                $uploadToPIRAttempt++
+                $uploadPIRSuccess = $false
+                if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Failed"}) {
+                    Write-Host "There appears to be at least 1 suitable $($sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a failed state"
+                    Write-Host "Cleaning up the image from the PIR"
+                    (Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Failed"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                }
+                elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Canceled"}) {
+                    Write-Host "There appears to be at least 1 suitable $($sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a canceled state"
+                    Write-Host "Cleaning up the image from the PIR"
+                    (Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Canceled"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                }
+            }
+        }
+        
         if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
             Write-Host ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $publisher, $offer, $sku, $vhdVersion) -ErrorAction SilentlyContinue
             Write-Host "Cleaning up local hard drive space within $imagePath"
@@ -241,10 +265,10 @@ Foreach ($Entry in $CSVData) {
             Remove-AzureStorageBlob -Blob $blobName -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
         }
         elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Failed') {
-            throw "Adding VM image failed. Please check the logs and clean up the Azure Stack Platform Image Repository to remove the failed image, then retry."
+            throw "Adding VM image failed. Please check the logs and rerun to clean up the Azure Stack Platform Image Repository to remove the failed image, then retry."
         }
         elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Canceled') {
-            throw "Adding VM image was canceled. Confirm the image doesn't show in the Azure Stack Platform Image Repository and if it does, remove it, then retry."
+            throw "Adding VM image was canceled. Please check the logs and rerun."
         }
     }
 
