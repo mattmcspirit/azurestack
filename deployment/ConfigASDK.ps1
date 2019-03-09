@@ -40,8 +40,8 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
-    1901.1  Added -customDomainSuffix for environments where the ASDK default region and domain suffix have been modified during initial ASDK deployment.
-            Support for App Service 1.5
+    1902    Updated to support ASDK 1.1902.0.69
+            Added -customDomainSuffix for environments where the ASDK default region and domain suffix have been modified during initial ASDK deployment.
     1901    Updated to support ASDK 1.1901.0.95
             Updated to support Azure Stack PowerShell 1.7.0 and AzureRM 2.4.0
             Added support for creating and uploading Windows Server 2019 (Build 17763) into the PIR
