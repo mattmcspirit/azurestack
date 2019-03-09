@@ -83,7 +83,7 @@ Foreach ($Entry in $CSVData) {
     $asdkImagesStorageAccountName = "asdkimagesstor"
     $asdkImagesContainerName = "asdkimagescontainer"
 
-    Write-Host "Importing storage modules"
+    Write-Host "`nImporting storage modules"
     Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
     Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
 
