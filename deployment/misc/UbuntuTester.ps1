@@ -90,11 +90,11 @@ Foreach ($Entry in $CSVData) {
     Write-Host "Clearing previous Azure/Azure Stack logins"
     Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
     Clear-AzureRmContext -Scope CurrentUser -Force | Out-Null
-    Disable-AzureRMContextAutosave -Scope CurrentUser
+    Disable-AzureRMContextAutosave -Scope CurrentUser | Out-Null
 
     Write-Host "Logging into Azure Stack"
     $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
-    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop | Out-Null
     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $asdkCreds -ErrorAction Stop | Out-Null
     $azsLocation = (Get-AzsLocation).Name
 
