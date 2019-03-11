@@ -1085,6 +1085,21 @@ try {
         }
     }
 
+    ### Test connectivity to portals ###
+    Write-CustomVerbose -Message "Testing connectivity to adminportal.$customDomainSuffix and portal.$customDomainSuffix"
+    $adminPortalNetTest = Test-NetConnection "adminportal.$customDomainSuffix" -CommonTCPPort HTTP -InformationLevel Quiet
+    $portalNetTest = Test-NetConnection "portal.$customDomainSuffix" -CommonTCPPort HTTP -InformationLevel Quiet
+    Write-CustomVerbose -Message "Connection to Admin portal at adminportal.$($customDomainSuffix): $adminPortalNetTest"
+    Write-CustomVerbose -Message "Connection to portal at portal.$($customDomainSuffix): $portalNetTest"
+    if ($adminPortalNetTest -and $portalNetTest) {
+        Write-CustomVerbose -Message "All portal tests passed"
+    }
+    else {
+        Write-CustomVerbose -Message "One or more portal tests failed"
+        $exception = "One or more portal tests failed. Please validate you can connect to adminportal.$customDomainSuffix and portal.$customDomainSuffix, then rerun the script."
+        throw $exception 
+    }
+
     ### EXTRACT ZIP (OPTIONAL) ##################################################################################################################################
     #############################################################################################################################################################
 
