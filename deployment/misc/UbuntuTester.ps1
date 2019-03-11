@@ -192,6 +192,7 @@ Foreach ($Entry in $CSVData) {
             # Upload VHD to Storage Account
             # Check that a) there's no VHD uploaded and b) the previous attempt(s) didn't complete successfully and c) you've attempted an upload no more than 3 times
             $uploadVhdAttempt = 1
+            $uploadSuccess = $false
             while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$uploadSuccess) -and ($uploadVhdAttempt -le 3)) {
                 Try {
                     # Log back into Azure Stack to ensure login hasn't timed out
@@ -224,17 +225,21 @@ Foreach ($Entry in $CSVData) {
                 }
             }
         }
+
+        BREAK
+
         # To reach this stage, there is now a valid image in the Storage Account, ready to be uploaded into the PIR
         # Add the Platform Image
         $uploadToPIRAttempt = 1
+        $uploadPIRSuccess = $false
         while ((!$(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') -and (!$uploadPIRSuccess) -and ($uploadToPIRAttempt -le 3) ) {
             Try {
                 # Log back into Azure Stack to ensure login hasn't timed out
-                Write-Host "`nAdding $blobName to the Platform Image Repository"
                 Write-Host "Clearing previous Azure/Azure Stack logins"
                 Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force | Out-Null
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Write-Host "`nAdding $blobName to the Platform Image Repository. Attempt $uploadToPIRAttempt"
                 Add-AzsPlatformImage -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -OsType $osVersion -OsUri "$imageURI" -Force -Confirm: $false -ErrorAction Stop
                 $uploadPIRSuccess = $true
             }
