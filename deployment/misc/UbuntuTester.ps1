@@ -90,11 +90,11 @@ Foreach ($Entry in $CSVData) {
     Write-Host "Clearing previous Azure/Azure Stack logins"
     Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
     Clear-AzureRmContext -Scope CurrentUser -Force | Out-Null
-    Disable-AzureRMContextAutosave -Scope CurrentUser | Out-Null
+    Disable-AzureRMContextAutosave -Scope CurrentUser
 
     Write-Host "Logging into Azure Stack"
     $ArmEndpoint = "https://adminmanagement.local.azurestack.external"
-    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop | Out-Null
+    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $asdkCreds -ErrorAction Stop | Out-Null
     $azsLocation = (Get-AzsLocation).Name
 
@@ -226,8 +226,6 @@ Foreach ($Entry in $CSVData) {
             }
         }
 
-        BREAK
-
         # To reach this stage, there is now a valid image in the Storage Account, ready to be uploaded into the PIR
         # Add the Platform Image
         $uploadToPIRAttempt = 1
@@ -239,8 +237,17 @@ Foreach ($Entry in $CSVData) {
                 Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force | Out-Null
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                Write-Host "`nAdding $blobName to the Platform Image Repository. Attempt $uploadToPIRAttempt"
+                $startTime = Get-Date -Format g
+                $sw = [Diagnostics.Stopwatch]::StartNew()
+                Write-Host "`nAdding $blobName to the Platform Image Repository. Attempt $uploadToPIRAttempt started at $startTime"
                 Add-AzsPlatformImage -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -OsType $osVersion -OsUri "$imageURI" -Force -Confirm: $false -ErrorAction Stop
+                $endTime = Get-Date -Format g
+                $sw.Stop()
+                $Hrs = $sw.Elapsed.Hours
+                $Mins = $sw.Elapsed.Minutes
+                $Secs = $sw.Elapsed.Seconds
+                $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
+                Write-Host "`nAdding $blobName to the Platform Image Repository completed successfully. Upload completed at $endTime and took $difference"
                 $uploadPIRSuccess = $true
             }
             catch {
