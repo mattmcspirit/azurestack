@@ -295,9 +295,14 @@ Foreach ($Entry in $CSVData) {
     if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
         New-AzureRmResourceGroup -Name $rg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
     }
-
-    New-AzureRmResourceGroupDeployment -Name "$deploymentName" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
-        -vmName "UbuntuBuild$ubuntuBuild" -adminUsername "localadmin" -adminPassword $secureVMpwd -imageSku $sku -imageVersion $shortVhdVersion -Verbose -ErrorAction Continue
+    try {
+        New-AzureRmResourceGroupDeployment -Name "$deploymentName" -ResourceGroupName $rg -TemplateUri $mainTemplateURI `
+            -vmName "UbuntuBuild$ubuntuBuild" -adminUsername "localadmin" -adminPassword $secureVMpwd -imageSku $sku -imageVersion $shortVhdVersion -Verbose -ErrorAction Stop
+    }
+    catch {
+        $message = $_.Exception.message
+        Write-Host "VM deployment failed."
+    }
 
     ### SET LOCATION ###
     $ScriptLocation = Get-Location
@@ -312,8 +317,10 @@ Foreach ($Entry in $CSVData) {
 
     }
     elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "$deploymentName" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Failed"}) {
-        Write-Host "The Ubuntu Server $vhdVersion image is NOT valid for use on Azure Stack - Deployment failed" -ForegroundColor Red
-        Write-Output "The Ubuntu Server $vhdVersion image is NOT valid for use on Azure Stack - Deployment failed" >> $txtPath
+        if ($message.Contains("*VmProvisioningTimeout*")) {
+            Write-Host "The Ubuntu Server $vhdVersion image is NOT valid for use on Azure Stack - Deployment failed" -ForegroundColor Red
+            Write-Output "The Ubuntu Server $vhdVersion image is NOT valid for use on Azure Stack - Deployment failed" >> $txtPath
+        }
     }
 
     $output = Get-Content -Path $txtPath
