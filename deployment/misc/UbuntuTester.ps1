@@ -1,4 +1,36 @@
-﻿[CmdletBinding()]
+﻿<#
+
+.SYNOPSIS
+Test a variety of Ubuntu Server 14.04/16.04/18.04 images for use on Azure Stack.
+
+.DESCRIPTION
+The script will automate the testing of Ubuntu Server images by iterating through the images listed in the CSV file. The CSV should be
+populated with a SKU: 14.04, 16.04 or 18.04 and a corresponding build, for example 20190308
+(from here: https://cloud-images.ubuntu.com/releases/)
+
+See the current example CSV file here: https://github.com/mattmcspirit/azurestack/blob/master/deployment/misc/UbuntuTests.csv 
+
+.NOTES
+File Name : UbuntuTester.ps1
+Author    : Matt McSpirit
+Version   : 1.0
+Date      : 03-March-2019
+Update    : 03-March-2019
+Requires  : PowerShell Version 5.0 or above
+Module    : Tested with AzureRM 2.4.0 and Azure Stack 1.7.0 already installed
+Product   : Requires AzCopy for Azure Stack installed (https://docs.microsoft.com/en-us/azure/azure-stack/user/azure-stack-storage-transfer#azcopy)
+
+.EXAMPLE
+.\UbuntuTester.ps1 -FilePath "C:\users\AzureStackAdmin\Desktop\UbuntuTests.csv" -imagePath "C:\ClusterStorage\Volume1\Images\UbuntuServer"
+
+Ensure that the -imagePath exists before running the deployment.
+
+This example will import all listed server images from a CSV File, download the images from Ubuntu's Cloud Images repo, unzip, push into
+the PIR, and then attempt to deploy a VM from that image. Should it succeed, the image will be recommened for use. Should it fail, it will
+not be recommended. A txt document will list the images that have been tested.
+#>
+
+[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
     [String] $imagePath,
