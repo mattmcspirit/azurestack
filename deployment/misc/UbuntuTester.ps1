@@ -115,7 +115,7 @@ Foreach ($Entry in $CSVData) {
     Write-Host "There are no failed or canceled images in the PIR, so moving on to checking for a valid, successful image"
     if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Succeeded"}) {
         Write-Host "There appears to be at least 1 suitable $($sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
-        Write-Host ('VM Image with publisher " {0}", offer " {1}", sku " {2}", version " {3}".' -f $publisher, $offer, $sku, $vhdVersion) -ErrorAction SilentlyContinue
+        Write-Host ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}".' -f $publisher, $offer, $sku, $vhdVersion) -ErrorAction SilentlyContinue
     }
     else {
         Write-Host "No existing suitable $($sku) VM image exists." 
@@ -301,31 +301,36 @@ Foreach ($Entry in $CSVData) {
     }
     catch {
         $message = $_.Exception.message
-        Write-Host "VM deployment failed."
+        Write-Host "`nVM deployment failed. Waiting 20 seconds for process to finish." -ForegroundColor Red
+        Start-Sleep -Seconds 20
     }
-
-    ### SET LOCATION ###
-    $ScriptLocation = Get-Location
-    $txtPath = "$scriptLocation\UbuntuImageTesting.txt"
-    if (!$([System.IO.File]::Exists("$txtPath"))) {
-        New-Item "$txtPath" -ItemType file -Force
-    }
-
-    if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "$deploymentName" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Succeeded"}) {
-        Write-Host "The Ubuntu Server $vhdVersion image is valid for use on Azure Stack - Deployment completed successfully" -ForegroundColor Green
-        Write-Output "The Ubuntu Server $vhdVersion image is valid for use on Azure Stack - Deployment completed successfully" >> $txtPath
-
-    }
-    elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "$deploymentName" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Failed"}) {
-        if ($message.Contains("*VmProvisioningTimeout*")) {
-            Write-Host "The Ubuntu Server $vhdVersion image is NOT valid for use on Azure Stack - Deployment failed" -ForegroundColor Red
-            Write-Output "The Ubuntu Server $vhdVersion image is NOT valid for use on Azure Stack - Deployment failed" >> $txtPath
+    finally {
+        ### SET LOCATION ###
+        $ScriptLocation = Get-Location
+        $txtPath = "$scriptLocation\UbuntuImageTesting.txt"
+        if (!$([System.IO.File]::Exists("$txtPath"))) {
+            New-Item "$txtPath" -ItemType file -Force
         }
-    }
+        if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "$deploymentName" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Succeeded"}) {
+            Write-Host "The Ubuntu Server $vhdVersion image is valid for use on Azure Stack - Deployment completed successfully" -ForegroundColor Green
+            Write-Output "The Ubuntu Server $vhdVersion image is valid for use on Azure Stack - Deployment completed successfully" >> $txtPath
 
-    $output = Get-Content -Path $txtPath
-    Write-Host "`nSo far, you've tested the following images:"
-    foreach ($o in $output) {
-        Write-Host "$o"
+        }
+        elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "$deploymentName" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Failed"}) {
+            if ($message -like "*VmProvisioningTimeout*") {
+                Write-Host "`nThe Ubuntu Server $vhdVersion image is NOT valid for use on Azure Stack - Deployment failed, most likely due to VM agent mismatch." -ForegroundColor Red
+                Write-Output "The Ubuntu Server $vhdVersion image is NOT valid for use on Azure Stack - Deployment failed" >> $txtPath
+            }
+            else {
+                Write-Host "`nVM deployment failed, but the error does not appear to be caused by a VM agent mismatch. Full error details:`n" -ForegroundColor Red
+                Write-Host "$message" -ForegroundColor Red
+                Write-Host "Please review the VM deployment logs in the portal." -ForegroundColor Red
+            }
+        }
+        $output = Get-Content -Path $txtPath
+        Write-Host "`nSo far, you've tested the following images:"
+        foreach ($o in $output) {
+            Write-Host "$o"
+        }
     }
 }
