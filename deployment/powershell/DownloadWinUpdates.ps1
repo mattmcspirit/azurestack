@@ -222,14 +222,25 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         ## .NET CU Download ####
                         # Find the KB Article Number for the latest .NET on Windows Server 2019 (Build 17763) Cumulative Update
                         Write-Host "This is a Windows Server 2019 image, so we will download the latest .NET update for the image"
-                        $ie = New-Object -ComObject "InternetExplorer.Application"
+                        Write-Host "Creating COM Object"
+                        $ie = New-Object -ComObject "InternetExplorer.Application" -Verbose -ErrorAction Stop
+                        Write-Host "Setting IE to silent"
                         $ie.silent = $true
+                        Write-Host "Navigating to https://support.microsoft.com/en-us/help/4466961"
                         $ie.Navigate("https://support.microsoft.com/en-us/help/4466961")
+                        Write-Host "Waiting for IE to be ready..."
                         while ($ie.ReadyState -ne 4) {start-sleep -m 100}
+                        Write-Host "Getting KB ID"
                         $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object {$_.textContent -like "*KB*"}).innerHTML | Select-Object -First 1
+                        Write-Host "Splitting KB ID"
                         $NETkbID = ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
-                        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($ie)
-                        Remove-Variable ie -ErrorAction SilentlyContinue
+                        Write-Host "KB ID for the latest .NET update for the image is KB$NETkbID"
+                        while (!$null -eq $ie) {
+                            Write-Host "Releasing ComObject"
+                            [System.Runtime.Interopservices.Marshal]::FinalReleaseComObject($ie)
+                            Write-Host "Removing IE Variable"
+                            Remove-Variable ie -ErrorAction Stop
+                        }
 
                         if (!$NETkbID) {
                             Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will not have the latest .NET update"
