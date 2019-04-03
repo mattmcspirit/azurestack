@@ -40,6 +40,7 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1902.1  Updated to support Azure Stack PowerShell 1.7.1
     1902    Updated to support ASDK 1.1902.0.69
             Added -customDomainSuffix for environments where the ASDK default region and domain suffix have been modified during initial ASDK deployment.
     1901    Updated to support ASDK 1.1901.0.95
@@ -1633,7 +1634,7 @@ try {
                 Get-PSRepository -Name "PSGallery"
                 Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
                 Get-PSRepository -Name "PSGallery"
-                Install-Module -Name AzureStack -RequiredVersion 1.7.0 -Force -ErrorAction Stop
+                Install-Module -Name AzureStack -RequiredVersion 1.7.1 -Force -ErrorAction Stop
                 Install-Module AzureRM -RequiredVersion 2.4.0 -Force -ErrorAction Stop
                 # Install the Azure.Storage module version 4.5.0
                 Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose

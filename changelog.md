@@ -5,6 +5,9 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1902.1?
+* Support for Azure Stack PowerShell 1.7.1
+
 ### What's new in version 1902?
 * Updated to support ASDK 1.1902.0.69
 * New -customDomainSuffix for environments where the ASDK default region and domain suffix have been modified during initial ASDK deployment.
