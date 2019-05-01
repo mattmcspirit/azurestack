@@ -40,7 +40,8 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
-    1902.1  Updated to support Azure Stack PowerShell 1.7.1
+    1904    Updated to support Azure Stack PowerShell 1.7.1
+            Updated to support ASDK 1.1904.0.36
     1902    Updated to support ASDK 1.1902.0.69
             Added -customDomainSuffix for environments where the ASDK default region and domain suffix have been modified during initial ASDK deployment.
     1901    Updated to support ASDK 1.1901.0.95
