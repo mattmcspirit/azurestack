@@ -8,8 +8,9 @@ Before you run the scripts, you will need the following:
 
 * A **Windows Server 2019 Evaluation ISO** - this can be downloaded from https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019.
 * A machine with access to your Azure Stack environment. If this is an ASDK, you can run these scripts on the ASDK host. If this is an integrated system, you will want to use a machine that can access the integrated system over a fast network, as the upload process from your machine to the integrated system involves a **large transfer of data**.
-* The machine you use for running the scripts, and uploading the images, needs to have **the latest Azure Stack PowerShell modules** installed. If you configured your ASDK with my ASDK Configurator, you will already have the appropriate PowerShell modules installed. If you did not use my ASDK Configurator, follow guidance here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install.
+* The machine you use for running the scripts, and uploading the images, needs to have **the latest Azure Stack PowerShell modules** installed. If you configured your ASDK with my ASDK Configurator, you will already have the appropriate PowerShell modules installed. If you did not use my ASDK Configurator, follow guidance here: https://docs.microsoft.com/en-us/azure/azure-stack/azure-stack-powershell-install. You should also install the **additional storage features** here: https://docs.microsoft.com/en-us/azure-stack/operator/azure-stack-powershell-install#enable-additional-storage-features.
 * The machine you use for running the script **must have enough storage space**, locally, to create a VHD from the ISO. This means, if you choose to create a 50GB Windows Server 2019 VHD, you will need around ~55-60GB (which includes the space for the ISO file, and any overhead).
+* You should **install AzCopy** - the script uses this to upload images faster, into the Azure Stack storage accounts. It can be downloaded from here: https://aka.ms/azcopyforazurestack20171109
 
 Step by Step guidance
 -----------

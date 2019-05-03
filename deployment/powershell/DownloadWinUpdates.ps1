@@ -160,7 +160,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $ssuSearchString = 'Windows Server 2016'
                     }
                     elseif ($buildVersion -eq "17763") {
-                        $ssuArray = @("4470788")
+                        $ssuArray = @("4470788", "4493510")
                         $updateArray = @("4465065")
                         $ssuSearchString = 'Windows Server 2019'
                     }
