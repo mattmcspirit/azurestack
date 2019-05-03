@@ -705,7 +705,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                 Write-Host $s
                             }
                             if ($LASTEXITCODE -ne 0) {
-                                Throw "Upload file failed: $itemName. Check logs at $azCopyLogPath";
+                                Throw "Upload file failed: $blobName. Check logs at $azCopyLogPath";
                                 break;
                             }
                             ################## AzCopy Testing ##############################################
