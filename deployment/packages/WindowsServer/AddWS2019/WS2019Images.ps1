@@ -184,51 +184,27 @@ else {
             elseif ($authenticationType.ToString() -like "ADFS") {
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $uploadCreds -ErrorAction Stop
             }
-            Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-            $uploadSuccess = $true
-        }
-        catch {
-            Write-Host "Upload failed."
-            Write-Host "$_.Exception.Message"
-            $uploadVhdAttempt++
-            $uploadSuccess = $false
-        }
-    }
-    # Sometimes Add-AzureRmVHD has an error about "The pipeline was not run because a pipeline is already running. Pipelines cannot be run concurrently". Rerunning the upload typically helps.
-    # Check that a) there's a VHD uploaded but b) the attempt didn't complete successfully (VHD in unreliable state) and c) you've attempted an upload no more than 3 times
-    while ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and (!$uploadSuccess) -and ($uploadVhdAttempt -le 3)) {
-        Try {
-            # Log back into Azure Stack to ensure login hasn't timed out
-            Write-Host "There was a previously failed upload. Upload Attempt: $uploadVhdAttempt"
-            if ($authenticationType.ToString() -like "AzureAd") {
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $uploadCreds -ErrorAction Stop | Out-Null
+            #Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+            ################## AzCopy Testing ##############################################
+            $serverVHDDirectory = ($serverVHD).DirectoryName
+            $containerDestination = '{0}{1}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkImagesContainerName
+            $logDate = Get-Date -Format FileDate
+            $azCopyLogPath = "$ImagePath\AzCopy-$image-$logDate.log"
+            $journalPath = "$ImagePath\$($image)Journal"
+            New-Item -ItemType Directory -Path "$journalPath" -Force | Out-Null
+            $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
+            $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkImagesRGName -Name $asdkImagesStorageAccountName).Value[0]
+            $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /BlobType:""page"" /Pattern:""{4}"" /Y /V:""{5}"" /Z:""{6}""", $azCopyPath, $serverVHDDirectory, $containerDestination, $storageAccountKey, $blobName, $azCopyLogPath, $journalPath)
+            Write-Host "Executing the following command:`n$azCopyCmd"
+            $result = cmd /c $azCopyCmd
+            foreach ($s in $result) {
+                Write-Host $s
             }
-            elseif ($authenticationType.ToString() -like "ADFS") {
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $uploadCreds -ErrorAction Stop
+            if ($LASTEXITCODE -ne 0) {
+                Throw "Upload file failed: $blobname. Check logs at $azCopyLogPath";
+                break;
             }
-            Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
-            $uploadSuccess = $true
-        }
-        catch {
-            Write-Host "Upload failed."
-            Write-Host "$_.Exception.Message"
-            $uploadVhdAttempt++
-            $uploadSuccess = $false
-        }
-    }
-    # This is one final catch-all for the upload process
-    # Check that a) there's no VHD uploaded and b) you've attempted an upload no more than 3 times
-    while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $serverVHD.Name -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadVhdAttempt -le 3)) {
-        Try {
-            # Log back into Azure Stack to ensure login hasn't timed out
-            Write-Host "No existing image found. Upload Attempt: $uploadVhdAttempt"
-            if ($authenticationType.ToString() -like "AzureAd") {
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $uploadCreds -ErrorAction Stop | Out-Null
-            }
-            elseif ($authenticationType.ToString() -like "ADFS") {
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $uploadCreds -ErrorAction Stop
-            }
-            Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $asdkImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
+            ################## AzCopy Testing ##############################################
             $uploadSuccess = $true
         }
         catch {
