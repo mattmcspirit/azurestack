@@ -57,8 +57,8 @@ $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
 #$modulePath = "C:\AzureStack-Tools-master"
-#Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
-#Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
+Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
+Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
 
 ### SET IMAGE PROPERTIES ####################################################################################################################################
 #############################################################################################################################################################
