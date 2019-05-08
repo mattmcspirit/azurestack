@@ -67,14 +67,14 @@ Once you've downloaded the script, you can run it using the following guidance. 
 
 ```powershell
 # Initiate the downloader.
-.\ConfigASDKdependencies.ps1 -downloadPath "C:\ASDKdependencies" -ISOPath "C:\WS2016EVAL.iso"
+.\ConfigASDKdependencies.ps1 -downloadPath "C:\ConfigASDKfiles" -ISOPath "C:\WS2016EVAL.iso"
 ```
 
 Alternatively, if you would like to include Windows Server 2019:
 
 ```powershell
 # Initiate the downloader.
-.\ConfigASDKdependencies.ps1 -downloadPath "C:\ASDKdependencies" -ISOPath "C:\WS2016EVAL.iso" -ISOPath2019 "C:\WS2019EVAL.iso"
+.\ConfigASDKdependencies.ps1 -downloadPath "C:\ConfigASDKfiles" -ISOPath "C:\WS2016EVAL.iso" -ISOPath2019 "C:\WS2019EVAL.iso"
 ```
 
 **General Guidance**
