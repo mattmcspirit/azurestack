@@ -158,11 +158,13 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         #$ssuArray = @("4132216", "4465659")
                         $updateArray = @("4091664")
                         $ssuSearchString = 'Windows Server 2016'
+                        $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2016 for x64-based Systems'
                     }
                     elseif ($buildVersion -eq "17763") {
                         $ssuArray = @("4470788", "4493510, 4499728")
                         $updateArray = @("4465065")
                         $ssuSearchString = 'Windows Server 2019'
+                        $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2019 for x64-based Systems'
                     }
                     foreach ($ssu in $ssuArray) {
                         Write-Host "Build is $buildVersion - Need to download: KB$($ssu) to update Servicing Stack before adding future Cumulative Updates"
@@ -185,6 +187,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         #$updateAvailable_kbIDs | Out-String | Write-Host
                         $kbDownloads += "$updateAvailable_kbIDs"
                     }
+
+                    # Find the KB Article for the latest Adobe Flash Security Update
+                    Write-Host "Getting info for latest Adobe Flash Security Update"
+                    $flashKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=$flashSearchString" -UseBasicParsing
+                    $Available_flashKbIDs = $flashKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+                    $flashKbIDs = $flashKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $flashSearchString | Select-Object -First 1 | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_flashKbIDs }
+                    # Defined a KB array to hold the NETkbIDs
+                    $kbDownloads += "$flashKbIDs"
                     
                     # Find the KB Article Number for the latest Windows Server Cumulative Update
                     Write-Host "Accessing $StartKB to retrieve the list of updates."
