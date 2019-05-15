@@ -153,7 +153,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
                     Write-Host "Checking build number to determine Servicing Stack Updates"
                     if ($buildVersion -eq "14393") {
-                        $ssuArray = @("4132216", "4465659", "4485447")
+                        $ssuArray = @("4132216", "4465659", "4485447, 4498947")
                         #Fix for broken Feb 2019 update
                         #$ssuArray = @("4132216", "4465659")
                         $updateArray = @("4091664")
