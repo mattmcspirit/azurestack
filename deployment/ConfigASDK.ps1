@@ -269,9 +269,9 @@ try {
 
         )
         #### Need to upload to blob storage first from extracted ZIP ####
-        $azpkgFullPath = $null
+        #$azpkgFullPath = $null
         $azpkgFileName = $null
-        $azpkgFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.FullName }
+        #$azpkgFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.FullName }
         $azpkgFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.Name }
                                 
         # Check there's not a gallery item already uploaded to storage
@@ -1107,7 +1107,7 @@ try {
 
     $zipExtractedRunFlag = "$ScriptLocation\ZipExtractedRunFlag.txt"
     $zipExtracted = [System.IO.File]::Exists($zipExtractedRunFlag)
-    if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
+    if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid -eq $true)) {
         if (!$zipExtracted) {
             try {
                 Write-CustomVerbose -Message "ASDK Configurator dependency files located at: $configAsdkOfflineZipPath"
