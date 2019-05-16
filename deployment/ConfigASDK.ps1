@@ -522,6 +522,10 @@ try {
 (?=^.{1,254}$)(^(?:(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$)
 "@
 
+    $liveIdRegex = @"
+@(live\.|hotmail\.|outlook\.)
+"@
+
     ### SET LOG LOCATION ###
     $logDate = Get-Date -Format FileDate
     New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\" -Force | Out-Null
@@ -866,6 +870,22 @@ try {
             }
         }
 
+        Write-CustomVerbose -Message "Checking to see if Azure AD Service Administrator (Used for ASDK Deployment) is a Microsoft Account"
+        Write-CustomVerbose -Message "Microsoft Accounts (Live, Hotmail, Outlook) do not work for non-interactive login to Azure AD via PowerShell..."
+
+        if ($azureAdUsername.ToLower() -cmatch $liveIdRegex -eq $true) {
+            Write-CustomVerbose -Message "You seem to be using a Microsoft Account (Live/Hotmail/Outlook) for authentication"
+            Write-CustomVerbose -Message "Unfortunately, a Microsoft Account cannot be used to login to Azure/Azure Stack non-interactively via PowerShell"
+            Write-CustomVerbose -Message "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net"
+            Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials."
+            Set-Location $ScriptLocation
+            return
+        }
+        else {
+            Write-CustomVerbose -Message "Azure AD Service Administrator Username (Used for ASDK Deployment) is not a Microsoft Account and is therefore valid." 
+            Write-CustomVerbose -Message "$azureAdUsername will be used to connect to Azure." 
+        }
+
         ### Validate Azure AD Service Administrator (Used for ASDK Deployment) Password ###
 
         if ([string]::IsNullOrEmpty($azureAdPwd)) {
@@ -916,7 +936,6 @@ try {
                 Write-CustomVerbose -Message "Azure AD username is correctly formatted." 
                 Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure."
             }
-    
             elseif ($azureRegUsername.ToLower() -cmatch $emailRegex -eq $false) {
                 Write-CustomVerbose -Message "Azure AD username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
                 # Obtain new username
@@ -930,6 +949,22 @@ try {
                     Set-Location $ScriptLocation
                     return
                 }
+            }
+
+            Write-CustomVerbose -Message "Checking to see if chosen registration account is a Microsoft Account"
+            Write-CustomVerbose -Message "Microsoft Accounts (Live, Hotmail, Outlook) do not work for non-interactive login to Azure AD via PowerShell..."
+    
+            if ($azureRegUsername.ToLower() -cmatch $liveIdRegex -eq $true) {
+                Write-CustomVerbose -Message "You seem to be using a Microsoft Account (Live/Hotmail/Outlook) for authentication"
+                Write-CustomVerbose -Message "Unfortunately, a Microsoft Account cannot be used to login to Azure/Azure Stack non-interactively via PowerShell"
+                Write-CustomVerbose -Message "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net"
+                Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials."
+                Set-Location $ScriptLocation
+                return
+            }
+            else {
+                Write-CustomVerbose -Message "Azure AD registration username is not a Microsoft Account and is therefore valid." 
+                Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure." 
             }
     
             ### Validate Azure AD Registration Password ###
@@ -1015,6 +1050,22 @@ try {
                 Set-Location $ScriptLocation
                 return
             }
+        }
+
+        Write-CustomVerbose -Message "Checking to see if chosen registration account is a Microsoft Account"
+        Write-CustomVerbose -Message "Microsoft Accounts (Live, Hotmail, Outlook) do not work for non-interactive login to Azure AD via PowerShell..."
+    
+        if ($azureRegUsername.ToLower() -cmatch $liveIdRegex -eq $true) {
+            Write-CustomVerbose -Message "You seem to be using a Microsoft Account (Live/Hotmail/Outlook) for authentication"
+            Write-CustomVerbose -Message "Unfortunately, a Microsoft Account cannot be used to login to Azure/Azure Stack non-interactively via PowerShell"
+            Write-CustomVerbose -Message "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net"
+            Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials."
+            Set-Location $ScriptLocation
+            return
+        }
+        else {
+            Write-CustomVerbose -Message "Azure AD registration username is not a Microsoft Account and is therefore valid." 
+            Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure." 
         }
         
         ### Validate Azure AD Registration Password ADFS-based Azure Stack ###
