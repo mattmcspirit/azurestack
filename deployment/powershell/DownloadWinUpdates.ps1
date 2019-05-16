@@ -63,7 +63,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         }
 
         Write-Host "Clearing previous Azure/Azure Stack logins"
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+        Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
         Disable-AzureRMContextAutosave -Scope CurrentUser
 
@@ -239,9 +239,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         Write-Host "Navigating to https://support.microsoft.com/en-us/help/4466961"
                         $ie.Navigate("https://support.microsoft.com/en-us/help/4466961")
                         Write-Host "Waiting for IE to be ready..."
-                        while ($ie.ReadyState -ne 4) {start-sleep -m 100}
+                        while ($ie.ReadyState -ne 4) { start-sleep -m 100 }
                         Write-Host "Getting KB ID"
-                        $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object {$_.textContent -like "*KB*"}).innerHTML | Select-Object -First 1
+                        $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object { $_.textContent -like "*KB*" }).innerHTML | Select-Object -First 1
                         Write-Host "Splitting KB ID"
                         $NETkbID = ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
                         Write-Host "KB ID for the latest .NET update for the image is KB$NETkbID"
@@ -300,14 +300,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         }
                         else {
                             Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
-                            Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
+                            Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object { $_.FullName -like "*$($ssu)*" } | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
                         }
                     }
                     # All updates should now be downloaded - time to distribute them into correct folders.
                     New-Item -ItemType Directory -Path "$ASDKpath\images\$v\SSU" -Force | Out-Null
                     New-Item -ItemType Directory -Path "$ASDKpath\images\$v\CU" -Force | Out-Null
-                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object {$_.FullName -like "*ssu*"} | Move-Item -Destination "$ASDKpath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
-                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object {$_.FullName -notlike "*ssu*"} | Move-Item -Destination "$ASDKpath\images\$v\CU" -Force -ErrorAction Stop -Verbose
+                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*ssu*" } | Move-Item -Destination "$ASDKpath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
+                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notlike "*ssu*" } | Move-Item -Destination "$ASDKpath\images\$v\CU" -Force -ErrorAction Stop -Verbose
                 }
             }
         }
