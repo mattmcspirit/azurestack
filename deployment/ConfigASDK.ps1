@@ -1758,9 +1758,19 @@ try {
             Start-Sleep -Seconds 5
         }
         catch {
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
+            if ($_.Exception.Message -like "*Sequence contains no elements*") {
+                Write-Host "Error Message: $_.Exception.Message" -ForegroundColor Red
+                Write-Host "Based on this error message, it appears you are using a Microsoft Account for login (Live/Hotmail/Outlook). This is not supported for non-interactive login to Azure AD via PowerShell" -ForegroundColor Red
+                Write-Host "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net, or a Service Principal." -ForegroundColor Red
+                Write-Host "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials." -ForegroundColor Red
+                Set-Location $ScriptLocation
+                return
+            }
+            else {
+                Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+                Set-Location $ScriptLocation
+                return
+            }
         }
     }
     elseif ($authenticationType.ToString() -like "ADFS") {
@@ -1787,19 +1797,30 @@ try {
         try {
             ### OPTIONAL - TEST AZURE REGISTRATION CREDS
             Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory"
-            $testAzureRegSub = Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
-            $testAzureRegSubString = $testAzureRegSub | Out-String
+            Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
+            $testAzureRegSubName = (Get-AzureRmSubscription).Name
+            $testAzureRegSubID = (Get-AzureRmSubscription).Id
+            $azureRegTenantID = (Get-AzureRmSubscription).TenantId
             Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:"
-            Write-Output $testAzureRegSubString
+            Write-Output "Name: $testAzureRegSubName, ID: $testAzureRegSubID"
             Write-CustomVerbose -Message "TenantID for this registration subscription is:"
-            $azureRegTenantID = $testAzureRegSub.Context.Tenant.Id
             Write-Output $azureRegTenantID
             Start-Sleep -Seconds 5
         }
         catch {
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
+            if ($_.Exception.Message -like "*Sequence contains no elements*") {
+                Write-Host "Error Message: $_.Exception.Message" -ForegroundColor Red
+                Write-Host "Based on this error message, it appears you are using a Microsoft Account for login (Live/Hotmail/Outlook). This is not supported for non-interactive login to Azure AD via PowerShell" -ForegroundColor Red
+                Write-Host "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net, or a Service Principal." -ForegroundColor Red
+                Write-Host "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials." -ForegroundColor Red
+                Set-Location $ScriptLocation
+                return
+            }
+            else {
+                Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+                Set-Location $ScriptLocation
+                return
+            }
         }
     }
     elseif (!$registerASDK) {
