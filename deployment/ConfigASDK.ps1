@@ -1739,20 +1739,22 @@ try {
             ### TEST AZURE LOGIN - Login to Azure Cloud
             Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r`n"
             $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-            $testAzureSub = Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
-            $testAzureSub = $testAzureSub | Out-String
+            Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
+            $testAzureSubName = (Get-AzureRmSubscription).Name
+            $testAzureSubID = (Get-AzureRmSubscription).Id
             Write-CustomVerbose -Message "Selected Azure Subscription is:"
-            Write-Output $testAzureSub
+            Write-Output "Name: $testAzureSubName, ID: $testAzureSubID"
             Start-Sleep -Seconds 5
 
             ### TEST AZURE STACK LOGIN - Login to Azure Stack
             Write-CustomVerbose -Message "Testing Azure Stack login with Azure Active Directory"
             Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            $testAzureSub = Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-            $testAzureSub = $testAzureSub | Out-String
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
+            $testAzureStackSubName = (Get-AzsSubscription).DisplayName
+            $testAzureStackSubID = (Get-AzsSubscription).SubscriptionId
             Write-CustomVerbose -Message "Selected Azure Stack Subscription is:"
-            Write-Output $testAzureSub
+            Write-Output "Name: $testAzureStackSubName, ID: $testAzureStackSubID"
             Start-Sleep -Seconds 5
         }
         catch {
@@ -1769,10 +1771,11 @@ try {
             $tenantId = (invoke-restmethod "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
             Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            $testAzureSub = Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-            $testAzureSub = $testAzureSub | Out-String
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
+            $testAzureStackSubName = (Get-AzsSubscription).DisplayName
+            $testAzureStackSubID = (Get-AzsSubscription).SubscriptionId
             Write-CustomVerbose -Message "Selected Azure Stack Subscription is:"
-            Write-Output $testAzureSub
+            Write-Output "Name: $testAzureStackSubName, ID: $testAzureStackSubID"
         }
         catch {
             Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
