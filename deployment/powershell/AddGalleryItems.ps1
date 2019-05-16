@@ -71,10 +71,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             StageReset -progressStage $progressStage
             $progressCheck = CheckProgress -progressStage $progressStage
             Write-Host "Clearing up any failed attempts to deploy the gallery items"
-            Get-AzsGalleryItem | Where-Object {$_.Name -like "*ASDK*"} | Remove-AzsGalleryItem -Force -ErrorAction SilentlyContinue
+            Get-AzsGalleryItem | Where-Object { $_.Name -like "*ASDK*" } | Remove-AzsGalleryItem -Force -ErrorAction SilentlyContinue
         }
         Write-Host "Clearing previous Azure/Azure Stack logins"
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+        Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
         Disable-AzureRMContextAutosave -Scope CurrentUser
 
@@ -128,7 +128,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         }
         
         Write-Host "Checking for the $azpkg gallery item"
-        if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
+        if (Get-AzsGalleryItem | Where-Object { $_.Name -like "*$azpkgPackageName*" }) {
             Write-Host "Found a suitable $azpkg Gallery Item in your Azure Stack Marketplace. No need to upload a new one"
         }
         else {
@@ -151,7 +151,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             }
             $Retries = 0
             # Sometimes the gallery item doesn't get added, so perform checks and reupload if necessary
-            while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
+            while (!$(Get-AzsGalleryItem | Where-Object { $_.name -like "*$azpkgPackageName*" }) -and ($Retries++ -lt 20)) {
                 try {
                     Write-Host "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
                     Write-Host "Uploading $azpkgPackageName from $azpkgPackageURL"
@@ -166,7 +166,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     Start-Sleep -Seconds 5
                 }
             }
-            if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries -ge 20)) {
+            if (!$(Get-AzsGalleryItem | Where-Object { $_.name -like "*$azpkgPackageName*" }) -and ($Retries -ge 20)) {
                 throw "Uploading gallery item failed after $Retries attempts. Exiting process."
                 Set-Location $ScriptLocation
                 return

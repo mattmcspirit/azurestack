@@ -68,7 +68,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             Write-Host "Clearing previous Azure/Azure Stack logins"
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
