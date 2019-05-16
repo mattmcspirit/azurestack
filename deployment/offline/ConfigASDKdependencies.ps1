@@ -62,7 +62,7 @@ $VerbosePreference = "Continue"
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $scriptStep = ""
-try {Stop-Transcript | Out-Null} catch {}
+try { Stop-Transcript | Out-Null } catch { }
 
 ### CUSTOM VERBOSE FUNCTION #################################################################################################################################
 #############################################################################################################################################################
@@ -73,13 +73,13 @@ function Write-CustomVerbose {
         [parameter(Mandatory = $true)]
         [string]$Message = ''
     )
-    begin {}
+    begin { }
     process {
         $verboseTime = (Get-Date).ToShortTimeString()
         # Function for displaying formatted log messages.  Also displays time in minutes since the script was started
         Write-Verbose -Message "[$verboseTime]::[$scriptStep]:: $Message"
     }
-    end {}
+    end { }
 }
 
 ### DOWNLOADER FUNCTION #####################################################################################################################################
@@ -123,7 +123,7 @@ try {
     }
     $urlToTest = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/README.md"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $statusCode = Invoke-WebRequest "$urlToTest" -UseBasicParsing -ErrorAction SilentlyContinue | ForEach-Object {$_.StatusCode} -ErrorAction SilentlyContinue
+    $statusCode = Invoke-WebRequest "$urlToTest" -UseBasicParsing -ErrorAction SilentlyContinue | ForEach-Object { $_.StatusCode } -ErrorAction SilentlyContinue
     if ($statusCode -eq 200) {
         Write-Host "Accessing $urlToTest - Status Code is 200 - URL is valid" -ForegroundColor Green
     }
@@ -437,52 +437,52 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
 
         # MySQL Offline Dependency #1
         $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libaio*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") -and ($_.href -notlike "*dbg*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "libaio*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") -and ($_.href -notlike "*dbg*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql-libaio.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libaio dependency"; $Table.Rows.Add($row)
 
         # MySQL Offline Dependency #2
         $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libevent-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "libevent-core*16*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql-libevent-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libevent dependency"; $Table.Rows.Add($row)
 
         # MySQL Offline Dependency #3
         $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "libmecab*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "libmecab*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql-libmecab.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libmecab dependency"; $Table.Rows.Add($row)
 
         # MySQL Offline Dependency #4
         $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-client*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-client*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql-client.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client dependency"; $Table.Rows.Add($row)
 
         # MySQL Offline Dependency #5
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-client-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-client-core*16*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql-client-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client core dependency"; $Table.Rows.Add($row)
 
         # MySQL Offline Dependency #6
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-common*.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-common*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql-common.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL common dependency"; $Table.Rows.Add($row)
 
         # MySQL Offline Dependency #7
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-server-core*16*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-server-core*16*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql-server-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server Core dependency"; $Table.Rows.Add($row)
 
         # MySQL Offline Dependency #8
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mysql-server*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-server*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server dependency"; $Table.Rows.Add($row)
@@ -497,62 +497,62 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
 
         # SQL Server 2017 Main Binary
         $WebResponse = Invoke-WebRequest "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "mssql-server*amd64.deb")} | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mssql-server*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-server.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 binary"; $Table.Rows.Add($row)
 
         # SQL Server 2017 Offline Dependency #1
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libjemalloc1/download" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libjemalloc1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libjemalloc1*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libjemalloc.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libjemalloc dependency"; $Table.Rows.Add($row)
 
         # SQL Server 2017 Offline Dependency #2
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libc++1/download" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libc++1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libc++1*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libc.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libc dependency"; $Table.Rows.Add($row)
 
         # SQL Server 2017 Offline Dependency #3
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libc++abi1/download" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libc++abi1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libc++abi1*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libcabi.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcabi dependency"; $Table.Rows.Add($row)
 
         # SQL Server 2017 Offline Dependency #4
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/gdb/download" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*gdb_7*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*gdb_7*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-gdb.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 gdb dependency"; $Table.Rows.Add($row)
 
         # SQL Server 2017 Offline Dependency #5
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libsss-nss-idmap0/download" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libsss-nss-idmap0*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libsss-nss-idmap0*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libsss.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsss dependency"; $Table.Rows.Add($row)
 
         # SQL Server 2017 Offline Dependency #6
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libbabeltrace1/download" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libbabeltrace1_1.3*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libbabeltrace1_1.3*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libbabeltrace1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace1 dependency"; $Table.Rows.Add($row)
 
         # SQL Server 2017 Offline Dependency #7
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libbabeltrace-ctf1/download" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libbabeltrace-ctf1*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libbabeltrace-ctf1*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libbabeltrace-ctf1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace-ctf1 dependency"; $Table.Rows.Add($row)
 
         # SQL Server 2017 Offline Dependency #8
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libcurl3/download" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libcurl3_7.4*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libcurl3_7.4*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libcurl3.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcurl3 dependency"; $Table.Rows.Add($row)
 
         # SQL Server 2017 Offline Dependency #9
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libsasl2-modules-gssapi-mit/download" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*libsasl2-modules-gssapi-mit*amd64.deb")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libsasl2-modules-gssapi-mit*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libsasl2.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsasl2 dependency"; $Table.Rows.Add($row)
 
@@ -595,7 +595,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row.filename = "putty.msi"; $row.path = "$hostAppsPath"; $row.productName = "Putty MSI"; $Table.Rows.Add($row)
         # WinSCP Package
         $WebResponse = Invoke-WebRequest "https://chocolatey.org/packages/winscp.install" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*chocolatey.org/api/v2/package/winscp.install/*")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*chocolatey.org/api/v2/package/winscp.install/*") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "WinSCP.zip"; $row.path = "$hostAppsPath"; $row.productName = "WinSCP Zip"; $Table.Rows.Add($row)
         # Chrome Package
@@ -609,18 +609,18 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row.filename = "azurecli.msi"; $row.path = "$hostAppsPath"; $row.productName = "Azure CLI MSI"; $Table.Rows.Add($row)
         # Python Exe Installer
         $WebResponse = Invoke-WebRequest "https://www.python.org/downloads/windows/" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "https://www.python.org/ftp/python/*amd64.exe")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "https://www.python.org/ftp/python/*amd64.exe") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "python3.exe"; $row.path = "$hostAppsPath"; $row.productName = "Python 3 Exe Installer"; $Table.Rows.Add($row)
         # PIP package
         $WebResponse = Invoke-WebRequest "https://pypi.org/project/pip/#files" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*pip-*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*pip-*.whl") } | Sort-Object | Select-Object -First 1).href.ToString()
         $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "PIP Wheel"; $Table.Rows.Add($row)
         # Certifi package
         $WebResponse = Invoke-WebRequest "https://pypi.org/project/certifi/#files" -UseBasicParsing
-        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object {($_.href -like "*certifi*.whl")} | Sort-Object | Select-Object -First 1).href.ToString()
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*certifi*.whl") } | Sort-Object | Select-Object -First 1).href.ToString()
         $downloadFileName = $downloadFileURL.Substring($downloadFileURL.LastIndexOf("/") + 1)
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "$downloadFileName"; $row.path = "$hostAppsPath"; $row.productName = "Certifi Wheel"; $Table.Rows.Add($row)
@@ -836,15 +836,18 @@ try {
     
         ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
         if ($buildVersion -eq "14393") {
-            $ssuArray = @("4132216", "4465659", "4485447")
+            $ssuArray = @("4132216", "4465659", "4485447, 4498947")
             $updateArray = @("4091664")
             $ssuSearchString = 'Windows Server 2016'
+            $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2016 for x64-based Systems'
         }
         elseif ($buildVersion -eq "17763") {
-            $ssuArray = @("4470788")
+            $ssuArray = @("4470788", "4493510, 4499728")
             $updateArray = @("4465065")
             $ssuSearchString = 'Windows Server 2019'
+            $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2019 for x64-based Systems'
         }
+
         foreach ($ssu in $ssuArray) {
             Write-Host "Build is $buildVersion - Need to download: KB$($ssu) to update Servicing Stack before adding future Cumulative Updates"
             $ssuKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$ssu" -UseBasicParsing
@@ -866,6 +869,14 @@ try {
             #$updateAvailable_kbIDs | Out-String | Write-Host
             $kbDownloads += "$updateAvailable_kbIDs"
         }
+
+        # Find the KB Article for the latest Adobe Flash Security Update
+        Write-Host "Getting info for latest Adobe Flash Security Update"
+        $flashKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=$flashSearchString" -UseBasicParsing
+        $Available_flashKbIDs = $flashKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+        $flashKbIDs = $flashKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $flashSearchString | Select-Object -First 1 | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_flashKbIDs }
+        # Defined a KB array to hold the NETkbIDs
+        $kbDownloads += "$flashKbIDs"
                         
         # Find the KB Article Number for the latest Windows Server Cumulative Update
         Write-Host "Accessing $StartKB to retrieve the list of updates."
@@ -897,8 +908,8 @@ try {
             $ie = New-Object -ComObject "InternetExplorer.Application"
             $ie.silent = $true
             $ie.Navigate("https://support.microsoft.com/en-us/help/4466961")
-            while ($ie.ReadyState -ne 4) {start-sleep -m 100}
-            $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object {$_.textContent -like "*KB*"}).innerHTML | Select-Object -First 1
+            while ($ie.ReadyState -ne 4) { start-sleep -m 100 }
+            $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object { $_.textContent -like "*KB*" }).innerHTML | Select-Object -First 1
             $NETkbID = ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
             [System.Runtime.Interopservices.Marshal]::ReleaseComObject($ie)
             Remove-Variable ie -ErrorAction SilentlyContinue
@@ -951,14 +962,14 @@ try {
             }
             else {
                 Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
-                Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
+                Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object { $_.FullName -like "*$($ssu)*" } | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
             }
         }
         # All updates should now be downloaded - time to distribute them into correct folders.
         New-Item -ItemType Directory -Path "$ASDKpath\images\$v\SSU" -Force | Out-Null
         New-Item -ItemType Directory -Path "$ASDKpath\images\$v\CU" -Force | Out-Null
-        Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object {$_.FullName -like "*ssu*"} | Move-Item -Destination "$ASDKpath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
-        Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object {$_.FullName -notlike "*ssu*"} | Move-Item -Destination "$ASDKpath\images\$v\CU" -Force -ErrorAction Stop -Verbose
+        Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*ssu*" } | Move-Item -Destination "$ASDKpath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
+        Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notlike "*ssu*" } | Move-Item -Destination "$ASDKpath\images\$v\CU" -Force -ErrorAction Stop -Verbose
     }
 }
 catch {
