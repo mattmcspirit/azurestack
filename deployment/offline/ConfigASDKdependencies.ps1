@@ -836,13 +836,13 @@ try {
     
         ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
         if ($buildVersion -eq "14393") {
-            $ssuArray = @("4132216", "4465659", "4485447, 4498947")
+            $ssuArray = @("4132216", "4465659", "4485447", "4498947")
             $updateArray = @("4091664")
             $ssuSearchString = 'Windows Server 2016'
             $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2016 for x64-based Systems'
         }
         elseif ($buildVersion -eq "17763") {
-            $ssuArray = @("4470788", "4493510, 4499728")
+            $ssuArray = @("4470788", "4493510", "4499728")
             $updateArray = @("4465065")
             $ssuSearchString = 'Windows Server 2019'
             $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2019 for x64-based Systems'
