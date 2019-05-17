@@ -1,4 +1,4 @@
-ASDK Configurator 1904 | Offline Mode
+ASDK Configurator 1904.1 | Offline Mode
 ==============
 
 Who is this for?

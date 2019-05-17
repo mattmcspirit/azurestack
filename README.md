@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1904
+Azure Stack Development Kit Configurator 1904.1
 ==============
 
 Version Compatibility

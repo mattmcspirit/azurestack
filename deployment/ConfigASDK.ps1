@@ -40,6 +40,11 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1904.1  Support for App Service 1.6
+            Updated to support newer Ubuntu Server 16.04 image
+            Updated with latest Windiws Updates and Adobe Flash Security Update downloads
+            Check for Azure Stack Admin Login with correct privilege
+            Check for hotmail/outlook/live accounts as these fail with non-interactive login
     1904    Updated to support Azure Stack PowerShell 1.7.1
             Updated to support ASDK 1.1904.0.36
     1902    Updated to support ASDK 1.1902.0.69
