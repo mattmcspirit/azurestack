@@ -1209,7 +1209,7 @@ try {
                 $i++
             }
         }
-        New-Item $ConfigAsdkRunFlag -ItemType file -Force
+        New-Item $ConfigAsdkRunFlag -ItemType file -Force | Out-Null
     }
     elseif ($ASDKpath -eq $false) {
         # Create the ASDK folder.
@@ -1800,8 +1800,7 @@ try {
             $azureRegTenantID = (Get-AzureRmSubscription -SubscriptionId $azureRegSubId -Verbose:$false).TenantId
             Write-CustomVerbose -Message "Selected Azure Subscription used for registration info:"
             Get-AzureRmContext | Format-Table -AutoSize
-            Write-CustomVerbose -Message "TenantID for this registration subscription is:"
-            Write-Output $azureRegTenantID
+            Write-CustomVerbose -Message "TenantID for this registration subscription is: $azureRegTenantID"
             Start-Sleep -Seconds 5
         }
         catch {
