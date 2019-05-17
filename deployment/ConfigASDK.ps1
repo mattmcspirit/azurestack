@@ -40,8 +40,8 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
-    1904.1  Support for App Service 1.6
-            Updated to support newer Ubuntu Server 16.04 image
+    1904.2  Support for App Service 1.6
+    1904.1  Updated to support newer Ubuntu Server 16.04 image
             Updated with latest Windiws Updates and Adobe Flash Security Update downloads
             Check for Azure Stack Admin Login with correct privilege
             Check for hotmail/outlook/live accounts as these fail with non-interactive login
