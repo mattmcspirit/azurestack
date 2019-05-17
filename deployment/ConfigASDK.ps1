@@ -1736,30 +1736,26 @@ try {
     # Register an AzureRM environment that targets your administrative Azure Stack instance
     Write-CustomVerbose -Message "ASDK Configurator will now test all logins"
     $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
     $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
 
     if ($authenticationType.ToString() -like "AzureAd") {
         try {
             ### TEST AZURE LOGIN - Login to Azure Cloud
-            Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r`n"
-            $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-            Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
-            $testAzureSubName = (Get-AzureRmSubscription).Name
-            $testAzureSubID = (Get-AzureRmSubscription).Id
-            Write-CustomVerbose -Message "Selected Azure Subscription is:"
-            Write-Output "Name: $testAzureSubName, ID: $testAzureSubID"
+            Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r"
+            $tenantId = (Invoke-RestMethod -Verbose:$false "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+            Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Write-CustomVerbose -Message "Current Azure Subscription information:"
+            Get-AzureRmContext | Format-Table -AutoSize
             Start-Sleep -Seconds 5
 
             ### TEST AZURE STACK LOGIN - Login to Azure Stack
             Write-CustomVerbose -Message "Testing Azure Stack login with Azure Active Directory"
             Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-            $testAzureStackSubName = (Get-AzsSubscription).DisplayName
-            $testAzureStackSubID = (Get-AzsSubscription).SubscriptionId
-            Write-CustomVerbose -Message "Selected Azure Stack Subscription is:"
-            Write-Output "Name: $testAzureStackSubName, ID: $testAzureStackSubID"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Write-CustomVerbose -Message "Current Azure Stack Subscription information:"
+            Get-AzureRmContext | Format-Table -AutoSize
             Start-Sleep -Seconds 5
         }
         catch {
@@ -1783,14 +1779,12 @@ try {
             ### TEST AZURE STACK LOGIN with ADFS - Login to Azure Stack
             Write-CustomVerbose -Message "Testing Azure Stack login with ADFS"
             Write-CustomVerbose -Message "Getting Tenant ID for Login to Azure Stack"
-            $tenantId = (invoke-restmethod "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+            $tenantId = (invoke-restmethod -Verbose:$false "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
             Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-            $testAzureStackSubName = (Get-AzsSubscription).DisplayName
-            $testAzureStackSubID = (Get-AzsSubscription).SubscriptionId
-            Write-CustomVerbose -Message "Selected Azure Stack Subscription is:"
-            Write-Output "Name: $testAzureStackSubName, ID: $testAzureStackSubID"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Write-CustomVerbose -Message "Current Azure Stack Subscription information:"
+            Get-AzureRmContext | Format-Table -AutoSize
         }
         catch {
             Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -1802,12 +1796,10 @@ try {
         try {
             ### OPTIONAL - TEST AZURE REGISTRATION CREDS
             Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory"
-            Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
-            $testAzureRegSubName = (Get-AzureRmSubscription).Name
-            $testAzureRegSubID = (Get-AzureRmSubscription).Id
-            $azureRegTenantID = (Get-AzureRmSubscription).TenantId
-            Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:"
-            Write-Output "Name: $testAzureRegSubName, ID: $testAzureRegSubID"
+            Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            $azureRegTenantID = (Get-AzureRmSubscription -SubscriptionId $azureRegSubId -Verbose:$false).TenantId
+            Write-CustomVerbose -Message "Selected Azure Subscription used for registration info:"
+            Get-AzureRmContext | Format-Table -AutoSize
             Write-CustomVerbose -Message "TenantID for this registration subscription is:"
             Write-Output $azureRegTenantID
             Start-Sleep -Seconds 5
