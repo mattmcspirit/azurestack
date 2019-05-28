@@ -26,7 +26,7 @@ While ($jobsStillExecuting -eq $true) {
         else {
             $jobRuntime = "$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
-        $jobRunningDisplay += New-Object psobject -Property @{Name = $($runningJob.Name); StartTime = $($runningJob.PSBeginTime); Duration = $jobRuntime}
+        $jobRunningDisplay += New-Object psobject -Property @{Name = $($runningJob.Name); StartTime = $($runningJob.PSBeginTime); Duration = $jobRuntime }
     }
     $jobRunningDisplay | Sort-Object StartTime | Format-Table Name, StartTime, Duration
 
@@ -44,7 +44,7 @@ While ($jobsStillExecuting -eq $true) {
         else {
             $jobRuntime = "$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
-        $jobCompleteDisplay += New-Object psobject -Property @{Name = $($completeJob.Name); StartTime = $($completeJob.PSBeginTime); EndTime = $($completeJob.PSEndTime); Duration = $jobRuntime}
+        $jobCompleteDisplay += New-Object psobject -Property @{Name = $($completeJob.Name); StartTime = $($completeJob.PSBeginTime); EndTime = $($completeJob.PSEndTime); Duration = $jobRuntime }
     }
     $jobCompleteDisplayTable = $jobCompleteDisplay | Sort-Object StartTime | Format-Table Name, StartTime, EndTime, Duration | Out-String
     Write-Host $jobCompleteDisplayTable -ForegroundColor Green -NoNewline
@@ -65,7 +65,7 @@ While ($jobsStillExecuting -eq $true) {
         else {
             $jobRuntime = "$($jobDuration.Minutes)m:$($jobDuration.Seconds)s"
         }
-        $jobFailedDisplay += New-Object psobject -Property @{Name = $($failedJob.Name); StartTime = $($failedJob.PSBeginTime); EndTime = $($failedJob.PSEndTime); Duration = $jobRuntime}
+        $jobFailedDisplay += New-Object psobject -Property @{Name = $($failedJob.Name); StartTime = $($failedJob.PSBeginTime); EndTime = $($failedJob.PSEndTime); Duration = $jobRuntime }
     }
     $jobFailedDisplayTable = $jobFailedDisplay | Sort-Object StartTime | Format-Table Name, StartTime, EndTime, Duration | Out-String
     Write-Host $jobFailedDisplayTable -ForegroundColor Red -NoNewline

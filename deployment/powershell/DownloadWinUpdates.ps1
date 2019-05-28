@@ -63,7 +63,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         }
 
         Write-Host "Clearing previous Azure/Azure Stack logins"
-        Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+        Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
         Disable-AzureRMContextAutosave -Scope CurrentUser
 
@@ -153,16 +153,18 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
                     Write-Host "Checking build number to determine Servicing Stack Updates"
                     if ($buildVersion -eq "14393") {
-                        $ssuArray = @("4132216", "4465659", "4485447")
+                        $ssuArray = @("4132216", "4465659", "4485447", "4498947")
                         #Fix for broken Feb 2019 update
                         #$ssuArray = @("4132216", "4465659")
                         $updateArray = @("4091664")
                         $ssuSearchString = 'Windows Server 2016'
+                        $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2016 for x64-based Systems'
                     }
                     elseif ($buildVersion -eq "17763") {
-                        $ssuArray = @("4470788", "4493510")
+                        $ssuArray = @("4470788", "4493510", "4499728")
                         $updateArray = @("4465065")
                         $ssuSearchString = 'Windows Server 2019'
+                        $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2019 for x64-based Systems'
                     }
                     foreach ($ssu in $ssuArray) {
                         Write-Host "Build is $buildVersion - Need to download: KB$($ssu) to update Servicing Stack before adding future Cumulative Updates"
@@ -185,6 +187,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         #$updateAvailable_kbIDs | Out-String | Write-Host
                         $kbDownloads += "$updateAvailable_kbIDs"
                     }
+
+                    # Find the KB Article for the latest Adobe Flash Security Update
+                    Write-Host "Getting info for latest Adobe Flash Security Update"
+                    $flashKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=$flashSearchString" -UseBasicParsing
+                    $Available_flashKbIDs = $flashKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
+                    $flashKbIDs = $flashKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $flashSearchString | Select-Object -First 1 | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_flashKbIDs }
+                    # Defined a KB array to hold the NETkbIDs
+                    $kbDownloads += "$flashKbIDs"
                     
                     # Find the KB Article Number for the latest Windows Server Cumulative Update
                     Write-Host "Accessing $StartKB to retrieve the list of updates."
@@ -229,9 +239,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         Write-Host "Navigating to https://support.microsoft.com/en-us/help/4466961"
                         $ie.Navigate("https://support.microsoft.com/en-us/help/4466961")
                         Write-Host "Waiting for IE to be ready..."
-                        while ($ie.ReadyState -ne 4) {start-sleep -m 100}
+                        while ($ie.ReadyState -ne 4) { start-sleep -m 100 }
                         Write-Host "Getting KB ID"
-                        $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object {$_.textContent -like "*KB*"}).innerHTML | Select-Object -First 1
+                        $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object { $_.textContent -like "*KB*" }).innerHTML | Select-Object -First 1
                         Write-Host "Splitting KB ID"
                         $NETkbID = ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
                         Write-Host "KB ID for the latest .NET update for the image is KB$NETkbID"
@@ -290,14 +300,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         }
                         else {
                             Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
-                            Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object {$_.FullName -like "*$($ssu)*"} | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
+                            Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object { $_.FullName -like "*$($ssu)*" } | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
                         }
                     }
                     # All updates should now be downloaded - time to distribute them into correct folders.
                     New-Item -ItemType Directory -Path "$ASDKpath\images\$v\SSU" -Force | Out-Null
                     New-Item -ItemType Directory -Path "$ASDKpath\images\$v\CU" -Force | Out-Null
-                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object {$_.FullName -like "*ssu*"} | Move-Item -Destination "$ASDKpath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
-                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object {$_.FullName -notlike "*ssu*"} | Move-Item -Destination "$ASDKpath\images\$v\CU" -Force -ErrorAction Stop -Verbose
+                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*ssu*" } | Move-Item -Destination "$ASDKpath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
+                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notlike "*ssu*" } | Move-Item -Destination "$ASDKpath\images\$v\CU" -Force -ErrorAction Stop -Verbose
                 }
             }
         }

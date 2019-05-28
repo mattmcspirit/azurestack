@@ -40,6 +40,11 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1904.2  Support for App Service 1.6 (Coming soon)
+    1904.1  Updated to support newer Ubuntu Server 16.04 image
+            Updated with latest Windiws Updates and Adobe Flash Security Update downloads
+            Check for Azure Stack Admin Login with correct privilege
+            Check for hotmail/outlook/live accounts as these fail with non-interactive login
     1904    Updated to support Azure Stack PowerShell 1.7.1
             Updated to support ASDK 1.1904.0.36
     1902    Updated to support ASDK 1.1902.0.69
@@ -222,7 +227,7 @@ try {
     $Global:VerbosePreference = "Continue"
     $Global:ErrorActionPreference = 'Stop'
     $Global:ProgressPreference = 'SilentlyContinue'
-    try {Stop-Transcript | Out-Null} catch {}
+    try { Stop-Transcript | Out-Null } catch { }
     $scriptStep = ""
 
     ### DOWNLOADER FUNCTION #####################################################################################################################################
@@ -231,9 +236,9 @@ try {
         while ($true) {
             try {
                 Write-Host "Downloading: $downloadURI"
-                $download = Measure-Command {(New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)}
+                $download = Measure-Command { (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation) }
                 "Download took $($download.Minutes) minutes $($download.Seconds) seconds at an average speed of {0:N2} Mbit/sec" `
-                    -f ((10 / (Measure-Command {(New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation)}).TotalSeconds) * 8)
+                    -f ((10 / (Measure-Command { (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation) }).TotalSeconds) * 8)
                 break
             }
             catch {
@@ -269,9 +274,9 @@ try {
 
         )
         #### Need to upload to blob storage first from extracted ZIP ####
-        $azpkgFullPath = $null
+        #$azpkgFullPath = $null
         $azpkgFileName = $null
-        $azpkgFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.FullName }
+        #$azpkgFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.FullName }
         $azpkgFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.Name }
                                 
         # Check there's not a gallery item already uploaded to storage
@@ -522,6 +527,10 @@ try {
 (?=^.{1,254}$)(^(?:(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$)
 "@
 
+    $liveIdRegex = @"
+@(live\.|hotmail\.|outlook\.)
+"@
+
     ### SET LOG LOCATION ###
     $logDate = Get-Date -Format FileDate
     New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\" -Force | Out-Null
@@ -582,7 +591,7 @@ try {
 
     Write-CustomVerbose -Message "Validating ASDK host memory to ensure you can deploy the additional resource providers on this system"
     Write-CustomVerbose -Message "Calculating ASDK host memory"
-    [INT]$totalPhysicalMemory = Get-CimInstance win32_ComputerSystem -Verbose:$false | ForEach-Object {[math]::round($_.TotalPhysicalMemory / 1GB)}
+    [INT]$totalPhysicalMemory = Get-CimInstance win32_ComputerSystem -Verbose:$false | ForEach-Object { [math]::round($_.TotalPhysicalMemory / 1GB) }
     Write-CustomVerbose -Message "Total physical memory in the ASDK host = $([INT]$totalPhysicalMemory)GB"
     [INT]$totalRPMemoryRequired = "0"
     if (!$skipMySQL) {
@@ -600,8 +609,8 @@ try {
     if ([INT]$totalRPMemoryRequired -gt 0) {
         Write-CustomVerbose -Message "Based on your resource provider selections, you need a total of $([INT]$totalRPMemoryRequired)GB to install the Resource Providers"
         Write-CustomVerbose -Message "Calculating total current Azure Stack VM memory usage"
-        $azureStackVMs = Get-VM | Where-Object {$_.VMName -like "*Azs*"}
-        $azureStackVMs | Format-Table Name, State, @{n = "Memory"; e = {$_.memoryassigned / 1MB}} -AutoSize
+        $azureStackVMs = Get-VM | Where-Object { $_.VMName -like "*Azs*" }
+        $azureStackVMs | Format-Table Name, State, @{n = "Memory"; e = { $_.memoryassigned / 1MB } } -AutoSize
         Remove-Variable -Name totalVmMemory -Force -ErrorAction SilentlyContinue
         $totalVmMemory = $azureStackVMs | Measure-Object memoryassigned –sum
         $totalVmMemory = [math]::round($totalVmMemory.sum / 1GB)
@@ -613,7 +622,7 @@ try {
         if ([INT]$memoryAvailable -gt [INT]$totalRPMemoryRequired) {
             Write-CustomVerbose -Message "You have $([INT]$memoryAvailable)GB memory available on your host, which is enough to run your chosen resource providers"
             Remove-Variable -Name totalFreeMemory -Force -ErrorAction SilentlyContinue
-            [INT]$totalFreeMemory = Get-CimInstance Win32_OperatingSystem -Verbose:$false | ForEach-Object {[math]::round($_.FreePhysicalMemory / 1MB)}
+            [INT]$totalFreeMemory = Get-CimInstance Win32_OperatingSystem -Verbose:$false | ForEach-Object { [math]::round($_.FreePhysicalMemory / 1MB) }
             Write-CustomVerbose -Message "However, the ASDK host OS is reporting a total of $([INT]$totalFreeMemory)GB free physical memory"
             [INT]$memoryDifference = ([INT]$totalPhysicalMemory - [INT]$totalFreeMemory) - [INT]$totalVmMemory
             Write-CustomVerbose -Message "This is a difference of $([INT]$memoryDifference)GB on top of the Azure Stack VM usage, and is most likely consumed by system processes and overheads."
@@ -721,7 +730,7 @@ try {
         try {
             $urlToTest = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/README.md"
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            $statusCode = Invoke-WebRequest "$urlToTest" -UseBasicParsing -ErrorAction SilentlyContinue | ForEach-Object {$_.StatusCode} -ErrorAction SilentlyContinue
+            $statusCode = Invoke-WebRequest "$urlToTest" -UseBasicParsing -ErrorAction SilentlyContinue | ForEach-Object { $_.StatusCode } -ErrorAction SilentlyContinue
             if ($statusCode -eq 200) {
                 Write-Host "Accessing $urlToTest - Status Code is 200 - URL is valid" -ForegroundColor Green
             }
@@ -866,6 +875,22 @@ try {
             }
         }
 
+        Write-CustomVerbose -Message "Checking to see if Azure AD Service Administrator (Used for ASDK Deployment) is a Microsoft Account"
+        Write-CustomVerbose -Message "Microsoft Accounts (Live, Hotmail, Outlook) do not work for non-interactive login to Azure AD via PowerShell..."
+
+        if ($azureAdUsername.ToLower() -cmatch $liveIdRegex -eq $true) {
+            Write-CustomVerbose -Message "You seem to be using a Microsoft Account (Live/Hotmail/Outlook) for authentication"
+            Write-CustomVerbose -Message "Unfortunately, a Microsoft Account cannot be used to login to Azure/Azure Stack non-interactively via PowerShell"
+            Write-CustomVerbose -Message "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net"
+            Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials."
+            Set-Location $ScriptLocation
+            return
+        }
+        else {
+            Write-CustomVerbose -Message "Azure AD Service Administrator Username (Used for ASDK Deployment) is not a Microsoft Account and is therefore valid." 
+            Write-CustomVerbose -Message "$azureAdUsername will be used to connect to Azure." 
+        }
+
         ### Validate Azure AD Service Administrator (Used for ASDK Deployment) Password ###
 
         if ([string]::IsNullOrEmpty($azureAdPwd)) {
@@ -916,7 +941,6 @@ try {
                 Write-CustomVerbose -Message "Azure AD username is correctly formatted." 
                 Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure."
             }
-    
             elseif ($azureRegUsername.ToLower() -cmatch $emailRegex -eq $false) {
                 Write-CustomVerbose -Message "Azure AD username isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
                 # Obtain new username
@@ -930,6 +954,22 @@ try {
                     Set-Location $ScriptLocation
                     return
                 }
+            }
+
+            Write-CustomVerbose -Message "Checking to see if chosen registration account is a Microsoft Account"
+            Write-CustomVerbose -Message "Microsoft Accounts (Live, Hotmail, Outlook) do not work for non-interactive login to Azure AD via PowerShell..."
+    
+            if ($azureRegUsername.ToLower() -cmatch $liveIdRegex -eq $true) {
+                Write-CustomVerbose -Message "You seem to be using a Microsoft Account (Live/Hotmail/Outlook) for authentication"
+                Write-CustomVerbose -Message "Unfortunately, a Microsoft Account cannot be used to login to Azure/Azure Stack non-interactively via PowerShell"
+                Write-CustomVerbose -Message "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net"
+                Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials."
+                Set-Location $ScriptLocation
+                return
+            }
+            else {
+                Write-CustomVerbose -Message "Azure AD registration username is not a Microsoft Account and is therefore valid." 
+                Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure." 
             }
     
             ### Validate Azure AD Registration Password ###
@@ -1015,6 +1055,22 @@ try {
                 Set-Location $ScriptLocation
                 return
             }
+        }
+
+        Write-CustomVerbose -Message "Checking to see if chosen registration account is a Microsoft Account"
+        Write-CustomVerbose -Message "Microsoft Accounts (Live, Hotmail, Outlook) do not work for non-interactive login to Azure AD via PowerShell..."
+    
+        if ($azureRegUsername.ToLower() -cmatch $liveIdRegex -eq $true) {
+            Write-CustomVerbose -Message "You seem to be using a Microsoft Account (Live/Hotmail/Outlook) for authentication"
+            Write-CustomVerbose -Message "Unfortunately, a Microsoft Account cannot be used to login to Azure/Azure Stack non-interactively via PowerShell"
+            Write-CustomVerbose -Message "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net"
+            Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials."
+            Set-Location $ScriptLocation
+            return
+        }
+        else {
+            Write-CustomVerbose -Message "Azure AD registration username is not a Microsoft Account and is therefore valid." 
+            Write-CustomVerbose -Message "$azureRegUsername will be used to connect to Azure." 
         }
         
         ### Validate Azure AD Registration Password ADFS-based Azure Stack ###
@@ -1107,7 +1163,7 @@ try {
 
     $zipExtractedRunFlag = "$ScriptLocation\ZipExtractedRunFlag.txt"
     $zipExtracted = [System.IO.File]::Exists($zipExtractedRunFlag)
-    if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
+    if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid -eq $true)) {
         if (!$zipExtracted) {
             try {
                 Write-CustomVerbose -Message "ASDK Configurator dependency files located at: $configAsdkOfflineZipPath"
@@ -1153,7 +1209,7 @@ try {
                 $i++
             }
         }
-        New-Item $ConfigAsdkRunFlag -ItemType file -Force
+        New-Item $ConfigAsdkRunFlag -ItemType file -Force | Out-Null
     }
     elseif ($ASDKpath -eq $false) {
         # Create the ASDK folder.
@@ -1346,12 +1402,12 @@ try {
 
         # Convert the hash tables to PSCustomObjects before storing the information in the database
         # Data seems more natural in the database and the results of a simple database query are cleaner
-        $progressHashTable.ForEach( {$_.ForEach( {[PSCustomObject]$_})}) | Format-Table
-        $progressHashTable.ForEach( {$_.ForEach( {[PSCustomObject]$_})}) | Get-Member
+        $progressHashTable.ForEach( { $_.ForEach( { [PSCustomObject]$_ }) }) | Format-Table
+        $progressHashTable.ForEach( { $_.ForEach( { [PSCustomObject]$_ }) }) | Get-Member
 
         # The SQL Server database already exists, but not the table. The Force parameter creates the table automatically:
-        $progressHashTable.ForEach( {$_.ForEach( {[PSCustomObject]$_}) | Write-SqlTableData -ServerInstance $sqlServerInstance `
-                    -DatabaseName $databaseName -SchemaName dbo -TableName $tableName -Force -ErrorAction Stop -Verbose})
+        $progressHashTable.ForEach( { $_.ForEach( { [PSCustomObject]$_ }) | Write-SqlTableData -ServerInstance $sqlServerInstance `
+                    -DatabaseName $databaseName -SchemaName dbo -TableName $tableName -Force -ErrorAction Stop -Verbose })
 
         $configAsdkSqlTable = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction SilentlyContinue | Out-String
         $configAsdkSqlTable
@@ -1551,7 +1607,7 @@ try {
             $cleanupRequired = $true
         }#>
             try {
-                $psRmProfle = Get-AzureRmProfile -ErrorAction Ignore | Where-Object {($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile")}
+                $psRmProfle = Get-AzureRmProfile -ErrorAction Ignore | Where-Object { ($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile") }
             }
             catch [System.Management.Automation.CommandNotFoundException] {
                 $error.Clear()
@@ -1569,13 +1625,13 @@ try {
                 Write-CustomVerbose -Message "A previous installation of PowerShell has been detected. To ensure full compatibility with the ConfigASDK, this will be cleaned up"
                 Write-CustomVerbose -Message "Cleaning...."
                 try {
-                    if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "2018-03-01-hybrid")})) {
+                    if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2018-03-01-hybrid") })) {
                         Uninstall-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
                     }
-                    if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "2017-03-09-profile")})) {
+                    if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2017-03-09-profile") })) {
                         Uninstall-AzureRmProfile -Profile '2017-03-09-profile' -Force -ErrorAction SilentlyContinue | Out-Null
                     }
-                    if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object {($_.ProfileName -eq "latest")})) {
+                    if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "latest") })) {
                         Uninstall-AzureRmProfile -Profile 'latest' -Force -ErrorAction SilentlyContinue | Out-Null
                     }
                 }
@@ -1584,8 +1640,8 @@ try {
                 }
                 Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
                 Get-Module -Name Azure* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
-                if (!(Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")})) {
-                    Get-PSRepository | Where-Object {($_.Name -ne "$psRepositoryName") -and ($_.InstallationPolicy -ne "$psRepositoryInstallPolicy") -and ($_.SourceLocation -ne "$psRepositorySourceLocation")} | Unregister-PSRepository -ErrorAction SilentlyContinue
+                if (!(Get-PSRepository -ErrorAction SilentlyContinue | Where-Object { ($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation") })) {
+                    Get-PSRepository | Where-Object { ($_.Name -ne "$psRepositoryName") -and ($_.InstallationPolicy -ne "$psRepositoryInstallPolicy") -and ($_.SourceLocation -ne "$psRepositorySourceLocation") } | Unregister-PSRepository -ErrorAction SilentlyContinue
                 }
                 Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azure* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
                 Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azs* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -1680,34 +1736,42 @@ try {
     # Register an AzureRM environment that targets your administrative Azure Stack instance
     Write-CustomVerbose -Message "ASDK Configurator will now test all logins"
     $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
     $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
 
     if ($authenticationType.ToString() -like "AzureAd") {
         try {
             ### TEST AZURE LOGIN - Login to Azure Cloud
-            Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r`n"
-            $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-            $testAzureSub = Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
-            $testAzureSub = $testAzureSub | Out-String
-            Write-CustomVerbose -Message "Selected Azure Subscription is:"
-            Write-Output $testAzureSub
+            Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r"
+            $tenantId = (Invoke-RestMethod -Verbose:$false "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+            Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Write-CustomVerbose -Message "Current Azure Subscription information:"
+            Get-AzureRmContext | Format-Table -AutoSize
             Start-Sleep -Seconds 5
 
             ### TEST AZURE STACK LOGIN - Login to Azure Stack
             Write-CustomVerbose -Message "Testing Azure Stack login with Azure Active Directory"
             Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            $testAzureSub = Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-            $testAzureSub = $testAzureSub | Out-String
-            Write-CustomVerbose -Message "Selected Azure Stack Subscription is:"
-            Write-Output $testAzureSub
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Write-CustomVerbose -Message "Current Azure Stack Subscription information:"
+            Get-AzureRmContext | Format-Table -AutoSize
             Start-Sleep -Seconds 5
         }
         catch {
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
+            if ($_.Exception.Message -like "*Sequence contains no elements*") {
+                Write-Host "Error Message: $_.Exception.Message" -ForegroundColor Red
+                Write-Host "Based on this error message, it appears you are using a Microsoft Account for login (Live/Hotmail/Outlook). This is not supported for non-interactive login to Azure AD via PowerShell" -ForegroundColor Red
+                Write-Host "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net, or a Service Principal." -ForegroundColor Red
+                Write-Host "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials." -ForegroundColor Red
+                Set-Location $ScriptLocation
+                return
+            }
+            else {
+                Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+                Set-Location $ScriptLocation
+                return
+            }
         }
     }
     elseif ($authenticationType.ToString() -like "ADFS") {
@@ -1715,13 +1779,12 @@ try {
             ### TEST AZURE STACK LOGIN with ADFS - Login to Azure Stack
             Write-CustomVerbose -Message "Testing Azure Stack login with ADFS"
             Write-CustomVerbose -Message "Getting Tenant ID for Login to Azure Stack"
-            $tenantId = (invoke-restmethod "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+            $tenantId = (invoke-restmethod -Verbose:$false "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
             Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            $testAzureSub = Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
-            $testAzureSub = $testAzureSub | Out-String
-            Write-CustomVerbose -Message "Selected Azure Stack Subscription is:"
-            Write-Output $testAzureSub
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Write-CustomVerbose -Message "Current Azure Stack Subscription information:"
+            Get-AzureRmContext | Format-Table -AutoSize
         }
         catch {
             Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -1733,19 +1796,27 @@ try {
         try {
             ### OPTIONAL - TEST AZURE REGISTRATION CREDS
             Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory"
-            $testAzureRegSub = Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop
-            $testAzureRegSubString = $testAzureRegSub | Out-String
-            Write-CustomVerbose -Message "Selected Azure Subscription used for registration is:"
-            Write-Output $testAzureRegSubString
-            Write-CustomVerbose -Message "TenantID for this registration subscription is:"
-            $azureRegTenantID = $testAzureRegSub.Context.Tenant.Id
-            Write-Output $azureRegTenantID
+            Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            $azureRegTenantID = (Get-AzureRmSubscription -SubscriptionId $azureRegSubId -Verbose:$false).TenantId
+            Write-CustomVerbose -Message "Selected Azure Subscription used for registration info:"
+            Get-AzureRmContext | Format-Table -AutoSize
+            Write-CustomVerbose -Message "TenantID for this registration subscription is: $azureRegTenantID"
             Start-Sleep -Seconds 5
         }
         catch {
-            Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
-            Set-Location $ScriptLocation
-            return
+            if ($_.Exception.Message -like "*Sequence contains no elements*") {
+                Write-Host "Error Message: $_.Exception.Message" -ForegroundColor Red
+                Write-Host "Based on this error message, it appears you are using a Microsoft Account for login (Live/Hotmail/Outlook). This is not supported for non-interactive login to Azure AD via PowerShell" -ForegroundColor Red
+                Write-Host "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net, or a Service Principal." -ForegroundColor Red
+                Write-Host "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials." -ForegroundColor Red
+                Set-Location $ScriptLocation
+                return
+            }
+            else {
+                Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+                Set-Location $ScriptLocation
+                return
+            }
         }
     }
     elseif (!$registerASDK) {
@@ -1759,7 +1830,7 @@ try {
     ### CLEAN LOGINS #######################################################################################################################################
     ########################################################################################################################################################
 
-    Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
     Clear-AzureRmContext -Scope CurrentUser -Force
     Disable-AzureRMContextAutosave -Scope CurrentUser
 
@@ -1769,7 +1840,7 @@ try {
     # Once logins have been successfully tested, increment run counter to track usage
     # This is used to understand how many times the ConfigASDK.ps1 script has been run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    try {Invoke-WebRequest "http://bit.ly/asdkcounter" -UseBasicParsing -DisableKeepAlive | Out-Null } catch {$_.Exception.Response.StatusCode.Value__}
+    try { Invoke-WebRequest "http://bit.ly/asdkcounter" -UseBasicParsing -DisableKeepAlive | Out-Null } catch { $_.Exception.Response.StatusCode.Value__ }
 
     ### DOWNLOAD TOOLS #####################################################################################################################################
     ########################################################################################################################################################
@@ -2396,12 +2467,12 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             # Configure a simple base plan and offer for IaaS
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object {$_.Name -eq "Default Provider Subscription"}
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
             $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             $subID = $azureContext.Subscription.Id
 
@@ -2502,7 +2573,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName "ASDK Subscription"
 
             # Log the user out of the "AzureStackAdmin" environment
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
 
             # Log the user into the "AzureStackUser" environment
@@ -2890,8 +2961,8 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
                 Remove-Item -Path "$csvPath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Item "$csvPath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
             }
-            if ($(Get-ChildItem -Directory -Path "$downloadPath\*" | Where-Object {$_.Name -like "20*iso"} -ErrorAction SilentlyContinue)) {
-                Get-ChildItem -Directory -Path "$downloadPath\*" | Where-Object {$_.Name -like "20*iso"} -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            if ($(Get-ChildItem -Directory -Path "$downloadPath\*" | Where-Object { $_.Name -like "20*iso" } -ErrorAction SilentlyContinue)) {
+                Get-ChildItem -Directory -Path "$downloadPath\*" | Where-Object { $_.Name -like "20*iso" } -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
             }
             $i++
         }
@@ -2923,7 +2994,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     
         # Increment run counter to track successful run
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        try {Invoke-WebRequest "http://bit.ly/asdksuccessrun" -UseBasicParsing -DisableKeepAlive | Out-Null } catch {$_.Exception.Response.StatusCode.Value__}
+        try { Invoke-WebRequest "http://bit.ly/asdksuccessrun" -UseBasicParsing -DisableKeepAlive | Out-Null } catch { $_.Exception.Response.StatusCode.Value__ }
 
         # Final Cleanup
         while (Get-ChildItem -Path "$downloadPath\*" -Include "*.txt", "*.ps1" -ErrorAction SilentlyContinue -Verbose) {
@@ -2963,5 +3034,5 @@ catch {
     return
 }
 finally {
-    try {Stop-Transcript | Out-Null} catch {}
+    try { Stop-Transcript | Out-Null } catch { }
 }

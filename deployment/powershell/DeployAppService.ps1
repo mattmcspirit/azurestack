@@ -95,7 +95,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             Write-Host "Clearing previous Azure/Azure Stack logins"
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
@@ -228,14 +228,14 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Write-Host " Checking for existing App Service database and logins.  Will clean up if this is a rerun."
             $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
             $dbCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $SQLServerUser, $secureVMpwd -ErrorAction Stop
-            $appServiceDBCheck = Get-SqlInstance -ServerInstance $sqlAppServerFqdn -Credential $dbCreds | Get-SqlDatabase | Where-Object {$_.Name -like "*appservice*"}
+            $appServiceDBCheck = Get-SqlInstance -ServerInstance $sqlAppServerFqdn -Credential $dbCreds | Get-SqlDatabase | Where-Object { $_.Name -like "*appservice*" }
             foreach ($appServiceDB in $appServiceDBCheck) {
                 Write-Host "$($appServiceDB.Name) database found. Cleaning up to ensure a successful rerun of the AppService deployment"
                 $cleanupQuery = "ALTER DATABASE $($appServiceDB.Name) SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE $($appServiceDB.Name)"
                 Invoke-Sqlcmd -Server $sqlAppServerFqdn -Credential $dbCreds -Query "$cleanupQuery" -Verbose 
             }
 
-            $appServiceLoginCheck = Get-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -Verbose: $false | Where-Object {$_.Name -like "*appservice*"}
+            $appServiceLoginCheck = Get-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -Verbose: $false | Where-Object { $_.Name -like "*appservice*" }
             foreach ($appServiceLogin in $appServiceLoginCheck) {
                 Write-Host "$($appServiceLogin.Name) login found. Cleaning up"
                 Remove-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -LoginName $appServiceLogin.Name -Force -Verbose

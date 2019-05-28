@@ -5,6 +5,15 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1904.2?
+* Support for App Service 1.6 (Coming soon)
+
+### What's new in version 1904.1?
+* Updated to support newer Ubuntu Server 16.04 image
+* Updated with latest Windows Updates and Adobe Flash Security Update downloads
+* Check for Azure Stack Admin Login with correct privilege
+* Check for hotmail/outlook/live accounts as these fail with non-interactive login
+
 ### What's new in version 1904?
 * Support for Azure Stack PowerShell 1.7.1
 * Updated to support ASDK 1.1904.0.36

@@ -62,7 +62,7 @@ if (($registerASDK -eq $true) -and ($deploymentMode -ne "Offline")) {
             }
 
             Write-Host "Clearing previous Azure/Azure Stack logins"
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
@@ -103,7 +103,7 @@ if (($registerASDK -eq $true) -and ($deploymentMode -ne "Offline")) {
             Write-Host "Checking if Azure Stack is activated and successfully registered"
             if ($(Get-AzsAzureBridgeActivation -Name $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
                 Write-Host "Adding Microsoft VM Extensions from the from the Azure Stack Marketplace"
-                $getExtensions = ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")}).Name) -replace "default/", ""
+                $getExtensions = ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*") }).Name) -replace "default/", ""
                 foreach ($extension in $getExtensions) {
                     while (!$(Get-AzsAzureBridgeDownloadedProduct -Name $extension -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
                         Write-Host "Didn't find $extension in your gallery. Downloading from the Azure Stack Marketplace"
@@ -111,7 +111,7 @@ if (($registerASDK -eq $true) -and ($deploymentMode -ne "Offline")) {
                         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     }
                 }
-                $getDownloads = (Get-AzsAzureBridgeDownloadedProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object {($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*")})
+                $getDownloads = (Get-AzsAzureBridgeDownloadedProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*") })
                 Write-Host "Your Azure Stack gallery now has the following Microsoft VM Extensions for enhancing your deployments:`r`n"
                 foreach ($download in $getDownloads) {
                     Write-Host "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"

@@ -110,7 +110,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
 
             # Cleanup PS Context
             Write-Host "Clearing previous Azure logins for this session"
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
@@ -152,7 +152,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 if (($authenticationType.ToString() -like "AzureAd") -and ($deploymentMode -ne "Offline")) {
                     # Logout to clean up
                     Write-Host "Clearing previous Azure logins for this session"
-                    Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+                    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
                     Clear-AzureRmContext -Scope CurrentUser -Force
                     Write-Host "Obtaining tenant ID"
                     $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
@@ -229,7 +229,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 if (!$([System.IO.File]::Exists("$AppServicePath\AzureAdPermissions.txt"))) {
                     # Logout to clean up
                     Write-Host "Clearing previous Azure logins for this session"
-                    Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+                    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
                     Clear-AzureRmContext -Scope CurrentUser -Force
                     # Grant permissions to Azure AD Service Principal
                     try {
@@ -239,7 +239,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         Write-Host "Logging into Azure Cloud"
                         Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop
                         Write-Host "Obtaining tokens"
-                        $refreshToken = @([Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems() | Where-Object {$_.tenantId -eq $tenantId -and $_.ExpiresOn -gt (Get-Date)})[0].RefreshToken
+                        $refreshToken = @([Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems() | Where-Object { $_.tenantId -eq $tenantId -and $_.ExpiresOn -gt (Get-Date) })[0].RefreshToken
                         $refreshtoken = $refreshtoken.Split("`n")[0]
                         Write-Host "Generting body and header information"
                         $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
@@ -305,7 +305,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
 
             Write-Host "Logging into Azure Stack for further checks on the AddVMExtension stage"
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            if ((Get-AzsVMExtension -Publisher Microsoft.Compute -Verbose:$false) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}) {
+            if ((Get-AzsVMExtension -Publisher Microsoft.Compute -Verbose:$false) | Where-Object { ($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded") }) {
                 Write-Verbose -Message "You already have a valid Custom Script Extension (1.9.x) within your Azure Stack environment. App Service deployment can continue."
             }
             else {
@@ -401,7 +401,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         }
                     }
                     if ($item.Extension -eq ".zip") {
-                        while ($null -eq ((Get-AzsVMExtension -Publisher Microsoft.Compute -Verbose:$false) | Where-Object {($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded")}) -and ($sideloadCSEZipAttempt -le 3)) {
+                        while ($null -eq ((Get-AzsVMExtension -Publisher Microsoft.Compute -Verbose:$false) | Where-Object { ($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded") }) -and ($sideloadCSEZipAttempt -le 3)) {
                             try {
                                 # Log back into Azure Stack to ensure login hasn't timed out
                                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null

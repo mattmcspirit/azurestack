@@ -120,7 +120,7 @@ Foreach ($Entry in $CSVData) {
     Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
 
     Write-Host "Clearing previous Azure/Azure Stack logins"
-    Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
     Clear-AzureRmContext -Scope CurrentUser -Force | Out-Null
     Disable-AzureRMContextAutosave -Scope CurrentUser | Out-Null
 
@@ -134,18 +134,18 @@ Foreach ($Entry in $CSVData) {
     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $asdkCreds -ErrorAction Stop | Out-Null
     Write-Host "Checking to see if the image is present in your Azure Stack Platform Image Repository"
     Write-Host "We first want to check if there is a failed or canceled upload from a previous attempt"
-    if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Failed"}) {
+    if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Failed" }) {
         Write-Host "There appears to be at least 1 suitable $($sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a failed state"
         Write-Host "Cleaning up the image from the PIR"
-        (Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Failed"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+        (Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Failed" } | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
     }
-    elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Canceled"}) {
+    elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Canceled" }) {
         Write-Host "There appears to be at least 1 suitable $($sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a canceled state"
         Write-Host "Cleaning up the image from the PIR"
-        (Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Canceled"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+        (Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Canceled" } | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
     }
     Write-Host "There are no failed or canceled images in the PIR, so moving on to checking for a valid, successful image"
-    if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Succeeded"}) {
+    if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Succeeded" }) {
         Write-Host "There appears to be at least 1 suitable $($sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
         Write-Host ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}".' -f $publisher, $offer, $sku, $vhdVersion) -ErrorAction SilentlyContinue
     }
@@ -229,7 +229,7 @@ Foreach ($Entry in $CSVData) {
                 Try {
                     # Log back into Azure Stack to ensure login hasn't timed out
                     Write-Host "Clearing previous Azure/Azure Stack logins"
-                    Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+                    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
                     Clear-AzureRmContext -Scope CurrentUser -Force | Out-Null
                     Write-Host "Upload Attempt: $uploadVhdAttempt"
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $asdkCreds -ErrorAction Stop | Out-Null
@@ -266,7 +266,7 @@ Foreach ($Entry in $CSVData) {
             Try {
                 # Log back into Azure Stack to ensure login hasn't timed out
                 Write-Host "Clearing previous Azure/Azure Stack logins"
-                Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+                Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force | Out-Null
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -Credential $asdkCreds -ErrorAction Stop | Out-Null
                 $startTime = Get-Date -Format g
@@ -287,15 +287,15 @@ Foreach ($Entry in $CSVData) {
                 Write-Host "$_.Exception.Message"
                 $uploadToPIRAttempt++
                 $uploadPIRSuccess = $false
-                if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Failed"}) {
+                if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Failed" }) {
                     Write-Host "There appears to be at least 1 suitable $($sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a failed state"
                     Write-Host "Cleaning up the image from the PIR"
-                    (Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Failed"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                    (Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Failed" } | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
                 }
-                elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Canceled"}) {
+                elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Canceled" }) {
                     Write-Host "There appears to be at least 1 suitable $($sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a canceled state"
                     Write-Host "Cleaning up the image from the PIR"
-                    (Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Canceled"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                    (Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($sku)/*") -and $_.ProvisioningState -eq "Canceled" } | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
                 }
             }
         }
@@ -343,12 +343,12 @@ Foreach ($Entry in $CSVData) {
         if (!$([System.IO.File]::Exists("$txtPath"))) {
             New-Item "$txtPath" -ItemType file -Force
         }
-        if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "$deploymentName" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Succeeded"}) {
+        if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "$deploymentName" -ErrorAction SilentlyContinue | Where-Object { $_.ProvisioningState -eq "Succeeded" }) {
             Write-Host "The Ubuntu Server $vhdVersion image is valid for use on Azure Stack - Deployment completed successfully" -ForegroundColor Green
             Write-Output "The Ubuntu Server $vhdVersion image is valid for use on Azure Stack - Deployment completed successfully" >> $txtPath
 
         }
-        elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "$deploymentName" -ErrorAction SilentlyContinue | Where-Object {$_.ProvisioningState -eq "Failed"}) {
+        elseif (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "$deploymentName" -ErrorAction SilentlyContinue | Where-Object { $_.ProvisioningState -eq "Failed" }) {
             if ($message -like "*VmProvisioningTimeout*") {
                 Write-Host "`nThe Ubuntu Server $vhdVersion image is NOT valid for use on Azure Stack - Deployment failed, most likely due to VM agent mismatch." -ForegroundColor Red
                 Write-Output "The Ubuntu Server $vhdVersion image is NOT valid for use on Azure Stack - Deployment failed" >> $txtPath

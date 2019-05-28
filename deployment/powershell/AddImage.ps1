@@ -141,7 +141,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             }
 
             Write-Host "Cleaning up old stale logins for this session"
-            Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
@@ -357,7 +357,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 if ($image -notlike "*2019") {
                     # Logout to clean up
                     Write-Host "Logging out to clear up stale logins"
-                    Get-AzureRmContext -ListAvailable | Where-Object {$_.Environment -like "Azure*"} | Remove-AzureRmAccount | Out-Null
+                    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
                     Clear-AzureRmContext -Scope CurrentUser -Force
                     ### Login to Azure to get all the details about the syndicated marketplace offering ###
                     Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
@@ -366,7 +366,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
                     $asdkHostName = ($env:computername).ToLower()
                     $Registration = (Get-AzureRmResource | Where-Object { ($_.ResourceType -eq "Microsoft.AzureStack/registrations") `
-                                -and (($_.Name -like "asdkreg-$asdkHostName*") -or ($_.Name -like "AzureStack*"))} | Select-Object -First 1 -ErrorAction SilentlyContinue).Name
+                                -and (($_.Name -like "asdkreg-$asdkHostName*") -or ($_.Name -like "AzureStack*")) } | Select-Object -First 1 -ErrorAction SilentlyContinue).Name
                     if (!$Registration) {
                         throw "No registration records found in your chosen Azure subscription. Please validate the success of your ASDK registration and ensure records have been created successfully."
                         Set-Location $ScriptLocation
@@ -395,14 +395,14 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
 
                     ### Get the package information ###
                     $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
-                    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
-                    $productList = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object -Property @{Expression = {$_.properties.offerVersion}; Ascending = $false} -ErrorAction Stop
+                    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)" } 
+                    $productList = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object { $_.name -like "$package" } | Sort-Object -Property @{Expression = { $_.properties.offerVersion }; Ascending = $false } -ErrorAction Stop
                     foreach ($product in $productList) {
                         if (($product.properties.productProperties.version).Length -gt 14) {
                             $product.properties.productProperties.version = ($product.properties.productProperties.version) -replace ".$"
                         }
                     }
-                    $product = $productList | Sort-Object -Property @{Expression = {$_.properties.productProperties.version}; Ascending = $true} | Select-Object -Last 1 -ErrorAction Stop
+                    $product = $productList | Sort-Object -Property @{Expression = { $_.properties.productProperties.version }; Ascending = $true } | Select-Object -Last 1 -ErrorAction Stop
                     #$product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object -Property @{Expression = {$_.properties.offerVersion}; Ascending = $true} | Select-Object -Last 1 -ErrorAction Stop
 
                     $azpkg.id = $product.name.Split('/')[-1]
@@ -413,7 +413,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
 
                     # Get product info
                     $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
-                    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)"} 
+                    $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)" } 
                     $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
                     $azpkg.name = $productDetails.properties.galleryItemIdentity
 
@@ -433,7 +433,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         $azpkg.vhdPath = $downloadDetails.properties.osDiskImage.sourceBlobSasUri
                         # Temporarily hard coding to newest known working Ubuntu image
                         #$azpkg.vhdVersion = $downloadDetails.properties.version
-                        $azpkg.vhdVersion = "16.04.20181223"
+                        $azpkg.vhdVersion = "16.04.20190514"
                     }
                 }
                 elseif ($image -like "*2019") {
@@ -466,18 +466,18 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Checking to see if the image is present in your Azure Stack Platform Image Repository"
             Write-Host "We first want to check if there is a failed or canceled upload from a previous attempt"
-            if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"}) {
+            if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed" }) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a failed state"
                 Write-Host "Cleaning up the image from the PIR"
-                (Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                (Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed" } | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
             }
-            elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled"}) {
+            elseif ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled" }) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator, however, it's in a canceled state"
                 Write-Host "Cleaning up the image from the PIR"
-                (Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled"} | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                (Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled" } | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
             }
             Write-Host "There are no failed or canceled images in the PIR, so moving on to checking for a valid, successful image"
-            if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object {($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Succeeded"}) {
+            if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Succeeded" }) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the ASDK Configurator. Here are the details:"
                 Write-Host ('VM Image with publisher " {0}", offer " {1}", sku " {2}".' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku) -ErrorAction SilentlyContinue
             }
@@ -754,7 +754,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
 
             $azpkgPackageName = "$($azpkg.name)"
             Write-Host "Checking for the following package: $azpkgPackageName"
-            if (Get-AzsGalleryItem | Where-Object {$_.Name -like "*$azpkgPackageName*"}) {
+            if (Get-AzsGalleryItem | Where-Object { $_.Name -like "*$azpkgPackageName*" }) {
                 Write-Host "Found the following existing package in your Gallery: $azpkgPackageName. No need to upload a new one"
             }
             else {
@@ -787,7 +787,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 }
                 $Retries = 0
                 # Sometimes the gallery item doesn't get added successfully, so perform checks and attempt multiple uploads if necessary
-                while (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries++ -lt 20)) {
+                while (!$(Get-AzsGalleryItem | Where-Object { $_.name -like "*$azpkgPackageName*" }) -and ($Retries++ -lt 20)) {
                     try {
                         Write-Host "$azpkgPackageName doesn't exist in the gallery. Upload Attempt #$Retries"
                         Write-Host "Uploading $azpkgPackageName from $azpkgPackageURL"
@@ -799,7 +799,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         Start-Sleep -Seconds 5
                     }
                 }
-                if (!$(Get-AzsGalleryItem | Where-Object {$_.name -like "*$azpkgPackageName*"}) -and ($Retries -ge 20)) {
+                if (!$(Get-AzsGalleryItem | Where-Object { $_.name -like "*$azpkgPackageName*" }) -and ($Retries -ge 20)) {
                     throw "Uploading gallery item failed after $Retries attempts. Exiting process."
                     Set-Location $ScriptLocation
                     return
