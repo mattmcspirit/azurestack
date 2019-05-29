@@ -572,12 +572,12 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/templates/FileServer/scripts/fileserver.cr.zip"
         $row.filename = "fileserver.cr.zip"; $row.path = "$scriptPath"; $row.productName = "File Server DSC zip for deployment"; $Table.Rows.Add($row)
         # App Service Helper Scripts
-        #$row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
-        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/appservice/appservicehelper1.4.zip"
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
+        #$row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/appservice/appservicehelper1.4.zip"
         $row.filename = "appservicehelper.zip"; $row.path = "$appServicePath"; $row.productName = "App Service Resource Provider Helper files"; $Table.Rows.Add($row)
         # App Service Installer
-        #$row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmasinstaller"
-        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/appservice/appservice1.4.exe"
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmasinstaller"
+        #$row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/appservice/appservice1.4.exe"
         $row.filename = "appservice.exe"; $row.path = "$appServicePath"; $row.productName = "App Service installer"; $Table.Rows.Add($row)
         # App Service PreDeployment JSON
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"
@@ -591,7 +591,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/win32-x64-user-stable"
         $row.filename = "vscode.exe"; $row.path = "$hostAppsPath"; $row.productName = "VScode Exe"; $Table.Rows.Add($row)
         # Putty Package
-        $row = $table.NewRow(); $row.Uri = "https://the.earth.li/~sgtatham/putty/0.70/w64/putty-64bit-0.70-installer.msi"
+        $row = $table.NewRow(); $row.Uri = "https://the.earth.li/~sgtatham/putty/latest/w64/putty-64bit-0.71-installer.msi"
         $row.filename = "putty.msi"; $row.path = "$hostAppsPath"; $row.productName = "Putty MSI"; $Table.Rows.Add($row)
         # WinSCP Package
         $WebResponse = Invoke-WebRequest "https://chocolatey.org/packages/winscp.install" -UseBasicParsing
