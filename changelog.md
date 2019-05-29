@@ -7,6 +7,7 @@ Here you'll find information on key changes, bug fixes and improvements made by 
 
 ### What's new in version 1904.2?
 * Support for App Service 1.6
+* Updated to support Azure Stack PowerShell 1.7.2 and AzureRM 2.5.0
 
 ### What's new in version 1904.1?
 * Updated to support newer Ubuntu Server 16.04 image
