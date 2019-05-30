@@ -5,9 +5,9 @@ Version Compatibility
 -----------
 The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
 * ASDK build **1.1904.0.36 (1904)**
-* Azure Stack PowerShell Module **1.7.1**
+* Azure Stack PowerShell Module **1.7.2**
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1904, Azure Stack PowerShell 1.7.1. and the new AzureRM PowerShell 2.4.0.  A version that supports the older ASDK builds (1811 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1904, Azure Stack PowerShell 1.7.2. and the new AzureRM PowerShell 2.5.0.  A version that supports the older ASDK builds (1811 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
