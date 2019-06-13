@@ -104,29 +104,30 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
         $progressCheck = CheckProgress -progressStage $progressStage
     }
     $rpAttempt = 0
+    $rpSuccess = $false
     while ((($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) -and ($rpAttempt -lt 3)) {
         $rpAttempt++ # Increment the attempt
+        $dbrpPath = "$($dbrp)$rpAttempt"
         Write-Host "This is deployment attempt $rpAttempt for the deployment of the $dbrp Resource Provider."
         # Try the deployment of the RP a maximum of 3 times
         if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             try {
-                if ($progressCheck -eq "Failed") {
-                    # Update the ConfigASDK database back to incomplete status if previously failed
-                    StageReset -progressStage $progressStage
-                    $progressCheck = CheckProgress -progressStage $progressStage
-                    Write-Host "Logging into Azure Stack"
-                    $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-                    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-                    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    # Get Azure Stack location
-                    $azsLocation = (Get-AzsLocation).Name
-                    # Perform a cleanup of the failed deployment - RG, Files
-                    Write-Host "Cleaning up failed deployment"
-                    $rgName = "system.local.$($rp)adapter"
-                    if (Get-AzureRmResourceGroup -Name "$rgName" -Location $azsLocation -ErrorAction SilentlyContinue) {
-                        Remove-AzureRmResourceGroup -Name $rgName -Force -ErrorAction Stop -Verbose
-                    }
+                # Update the ConfigASDK database back to incomplete status if previously failed
+                StageReset -progressStage $progressStage
+                $progressCheck = CheckProgress -progressStage $progressStage
+                Write-Host "Logging into Azure Stack"
+                $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+                Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                # Get Azure Stack location
+                $azsLocation = (Get-AzsLocation).Name
+                # Perform a cleanup of the failed deployment - RG, Files
+                Write-Host "Checking for a previously failed deployemnt and cleaning up."
+                $rgName = "system.local.$($rp)adapter"
+                if (Get-AzureRmResourceGroup -Name "$rgName" -Location $azsLocation -ErrorAction SilentlyContinue) {
+                    Remove-AzureRmResourceGroup -Name $rgName -Force -ErrorAction Stop -Verbose
                 }
+
                 Write-Host "Clearing previous Azure/Azure Stack logins"
                 Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force
@@ -231,8 +232,12 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 if ($deploymentMode -eq "Online") {
                     # Cleanup old folder
                     Write-Host "Cleaning up old deployment"
-                    Remove-Item "$asdkPath\databases\$dbrp" -Recurse -Force -Confirm:$false -ErrorAction Stop
-                    Remove-Item "$ASDKpath\databases\$($dbrp).zip" -Recurse -Force -Confirm:$false -ErrorAction Stop
+                    if ($([System.IO.Directory]::Exists("$ASDKpath\databases\$dbrpPath"))) {
+                        Remove-Item "$asdkPath\databases\$dbrpPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+                    }
+                    if ($([System.IO.File]::Exists("$ASDKpath\databases\$($dbrp).zip"))) {
+                        Remove-Item "$ASDKpath\databases\$($dbrp).zip" -Recurse -Force -Confirm:$false -ErrorAction Stop
+                    }
                     # Download and Expand the RP files
                     Write-Host "Downloading the database RP files"
                     $rpURI = "https://aka.ms/azurestack$($rp)rp11330"
@@ -245,13 +250,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                 }
                 Set-Location "$ASDKpath\databases"
-                Expand-Archive "$ASDKpath\databases\$($dbrp).zip" -DestinationPath .\$dbrp -Force -ErrorAction Stop
-                Set-Location "$ASDKpath\databases\$($dbrp)"
-                Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\*" -Recurse | Unblock-File -Verbose
+                Expand-Archive "$ASDKpath\databases\$($dbrp).zip" -DestinationPath ".\$dbrpPath" -Force -ErrorAction Stop
+                Set-Location "$ASDKpath\databases\$dbrpPath"
+                Get-ChildItem -Path "$ASDKpath\databases\$dbrpPath\*" -Recurse | Unblock-File -Verbose
 
                 ############################################################################################################################################################################
                 # Temporary Workaround to installing DB RP with PS 1.7.0 and newer AzureRM 2.4.0
-                $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
+                $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$dbrpPath\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
                 $old = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -eq "3") -and ($azureRMModule.Version.Build -ge "0"))'
                 $new = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -ge "3") -and ($azureRMModule.Version.Build -ge "0"))'
                 $pattern1 = [RegEx]::Escape($old)
@@ -283,28 +288,25 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     .\DeploySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd
                 }
                 # Update the ConfigASDK database with successful completion
-                $progressStage = $progressName
+                $progressCheck = CheckProgress -progressStage $progressStage
                 StageComplete -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
+                $rpSuccess = $true
             }
             catch {
-                $progressStage = $progressName
-                StageFailed -progressStage $progressStage
-                $progressCheck = CheckProgress -progressStage $progressStage
+                Write-Host "Attempt #$rpAttempt failed with the following error: $_.Exception.Message"
+                Write-Host "This will be retried a maximum of 3 times"
                 Set-Location $ScriptLocation
-                Write-Host "Attempt #$rpAttempt failed with the following error:$_.Exception.Message"
-                Write-Host "Retrying a maximum of 3 times"
-                return
             }
         }
     }
-    if (($progressCheck -eq "Failed") -and ($rpAttempt -ge 3)) {
+    if (($rpSuccess -eq $false) -and ($rpAttempt -ge 3)) {
+        Write-Host "Deploying the $dbrp Resource Provider failed after 3 attempts. Cleanup manually and rerun the script"
         $progressStage = $progressName
         StageFailed -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
         Set-Location $ScriptLocation
         throw $_.Exception.Message
-        return
     }
 }
 elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
@@ -314,5 +316,6 @@ elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
     StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
+$endTime = $(Get-Date).ToString("MMdd-HHmmss")
 Write-Host "Logging stopped at $endTime"
 Stop-Transcript -ErrorAction SilentlyContinue
