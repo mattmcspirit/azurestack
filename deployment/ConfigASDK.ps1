@@ -40,6 +40,7 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1905    Updated to support ASDK 1.1905.0.40
     1904.2  Support for App Service 1.6
             Updated to support Azure Stack PowerShell 1.7.2 and AzureRM 2.5.0
     1904.1  Updated to support newer Ubuntu Server 16.04 image
@@ -1626,6 +1627,9 @@ try {
                 Write-CustomVerbose -Message "A previous installation of PowerShell has been detected. To ensure full compatibility with the ConfigASDK, this will be cleaned up"
                 Write-CustomVerbose -Message "Cleaning...."
                 try {
+                    if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2019-03-01-hybrid") })) {
+                        Uninstall-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
+                    }
                     if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2018-03-01-hybrid") })) {
                         Uninstall-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
                     }
@@ -1692,8 +1696,11 @@ try {
                 Get-PSRepository -Name "PSGallery"
                 Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
                 Get-PSRepository -Name "PSGallery"
+                # For 1904 and later
+                Install-Module -Name AzureRM.BootStrapper
+                Use-AzureRmProfile -Profile 2019-03-01-hybrid -Force
                 Install-Module -Name AzureStack -RequiredVersion 1.7.2 -Force -ErrorAction Stop
-                Install-Module AzureRM -RequiredVersion 2.5.0 -Force -ErrorAction Stop
+                #Install-Module AzureRM -RequiredVersion 2.5.0 -Force -ErrorAction Stop 
                 # Install the Azure.Storage module version 4.5.0
                 Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
                 # Install the AzureRm.Storage module version 5.0.4

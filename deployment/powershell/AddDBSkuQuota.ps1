@@ -104,7 +104,12 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Start-Sleep -Seconds 20
                 $dbJobCheck = CheckProgress -progressStage "$($dbsku)RP"
                 if ($dbJobCheck -eq "Failed") {
-                    throw "The $($dbsku)RP stage of the process has failed. This should fully complete before the SKU and Quota are created. Check the $($dbsku)RP log, ensure that step is completed first, and rerun."
+                    Write-Host "The $($dbsku)RP stage of the process looks like it's failed. Checking again in 60 seconds to confirm"
+                    Start-Sleep -Seconds 60
+                    $dbJobCheck = CheckProgress -progressStage "$($dbsku)RP"
+                    if ($dbJobCheck -eq "Failed") {
+                        throw "The $($dbsku)RP stage of the process has failed. This should fully complete before the SKU and Quota are created. Check the $($dbsku)RP log, ensure that step is completed first, and rerun."
+                    }
                 }
             }
 
@@ -250,5 +255,6 @@ elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
     StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
+$endTime = $(Get-Date).ToString("MMdd-HHmmss")
 Write-Host "Logging stopped at $endTime"
 Stop-Transcript -ErrorAction SilentlyContinue

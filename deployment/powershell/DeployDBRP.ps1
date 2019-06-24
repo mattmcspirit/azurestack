@@ -103,179 +103,210 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
     }
-    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
-        try {
-            if ($progressCheck -eq "Failed") {
+    $rpAttempt = 0
+    $rpSuccess = $false
+    while ((($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) -and ($rpAttempt -lt 3)) {
+        $rpAttempt++ # Increment the attempt
+        $dbrpPath = "$($dbrp)$rpAttempt"
+        Write-Host "This is deployment attempt $rpAttempt for the deployment of the $dbrp Resource Provider."
+        # Try the deployment of the RP a maximum of 3 times
+        if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
+            try {
                 # Update the ConfigASDK database back to incomplete status if previously failed
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
-            }
-
-            Write-Host "Clearing previous Azure/Azure Stack logins"
-            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
-            Disable-AzureRMContextAutosave -Scope CurrentUser
-
-            Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
-            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
-            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
-
-            # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
-            $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
-            while ($serverCore2016JobCheck -ne "Complete") {
-                Write-Host "The ServerCore2016Image stage of the process has not yet completed. Checking again in 20 seconds"
-                Start-Sleep -Seconds 20
-                $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
-                if ($serverCore2016JobCheck -eq "Failed") {
-                    throw "The ServerCore2016Image stage of the process has failed. This should fully complete before the Windows Server core image is created. Check the Windows Server image log, ensure that step is completed first, and rerun."
+                Write-Host "Logging into Azure Stack"
+                $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+                Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                # Get Azure Stack location
+                $azsLocation = (Get-AzsLocation).Name
+                # Perform a cleanup of the failed deployment - RG, Files
+                Write-Host "Checking for a previously failed deployemnt and cleaning up."
+                $rgName = "system.local.$($rp)adapter"
+                if (Get-AzureRmResourceGroup -Name "$rgName" -Location $azsLocation -ErrorAction SilentlyContinue) {
+                    Remove-AzureRmResourceGroup -Name $rgName -Force -ErrorAction Stop -Verbose
                 }
-            }
 
-            ### Login to Azure Stack ###
-            Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Write-Host "Clearing previous Azure/Azure Stack logins"
+                Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
+                Clear-AzureRmContext -Scope CurrentUser -Force
+                Disable-AzureRMContextAutosave -Scope CurrentUser
 
-            # Get Azure Stack location
-            $azsLocation = (Get-AzsLocation).Name
-            # Need to 100% confirm that the ServerCoreImage is ready as it seems that starting the MySQL/SQL RP deployment immediately is causing an issue
-            Write-Host "Need to confirm that the Windows Server 2016 Core image is available in the gallery and ready"
-            $azsPlatformImageExists = (Get-AzsPlatformImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'
-            $azureRmVmPlatformImageExists = (Get-AzureRmVMImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK'
-            Write-Host "Check #1 - Using Get-AzsPlatformImage to check for Windows Server 2016 Core image"
-            if ($azsPlatformImageExists) {
-                Write-Host "Get-AzsPlatformImage, successfully located an appropriate image with the following details:"
-                Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
-            }
-            While (!$(Get-AzsPlatformImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
-                Write-Host "Using Get-AzsPlatformImage, ServerCoreImage is not ready yet. Delaying by 20 seconds"
-                Start-Sleep -Seconds 20
-            }
-            Write-Host "Check #2 - Using Get-AzureRmVMImage to check for Windows Server 2016 Core image"
-            if ($azureRmVmPlatformImageExists) {
-                Write-Host "Using Get-AzureRmVMImage, successfully located an appropriate image with the following details:"
-                Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
-            }
-            While (!$(Get-AzureRmVMImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK') {
-                Write-Host "Using Get-AzureRmVMImage to test, ServerCoreImage is not ready yet. Delaying by 20 seconds"
-                Start-Sleep -Seconds 20
-            }
+                Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
+                Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
+                Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
 
-            # For an extra safety net, add an extra delay to ensure the image is fully ready in the PIR, otherwise it seems to cause a failure.
-            Write-Host "Delaying for a further 4 minutes to account for random failure with MySQL/SQL RP to detect platform image immediately after upload"
-            Start-Sleep -Seconds 240
+                # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
+                $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
+                while ($serverCore2016JobCheck -ne "Complete") {
+                    Write-Host "The ServerCore2016Image stage of the process has not yet completed. Checking again in 20 seconds"
+                    Start-Sleep -Seconds 20
+                    $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
+                    if ($serverCore2016JobCheck -eq "Failed") {
+                        throw "The ServerCore2016Image stage of the process has failed. This should fully complete before the Windows Server core image is created. Check the Windows Server image log, ensure that step is completed first, and rerun."
+                    }
+                }
 
-            # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
-            if ($serialMode -eq $true) {
-                if ($dbrp -eq "SQLServer") {
-                    if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
-                        $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
-                        while ($mySQLProgressCheck -eq "Incomplete") {
-                            Write-Host "The MySQLRP stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
-                            Start-Sleep -Seconds 60
+                ### Login to Azure Stack ###
+                Write-Host "Logging into Azure Stack"
+                $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+                Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
+                # Get Azure Stack location
+                $azsLocation = (Get-AzsLocation).Name
+                # Need to 100% confirm that the ServerCoreImage is ready as it seems that starting the MySQL/SQL RP deployment immediately is causing an issue
+                Write-Host "Need to confirm that the Windows Server 2016 Core image is available in the gallery and ready"
+                $azsPlatformImageExists = (Get-AzsPlatformImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'
+                $azureRmVmPlatformImageExists = (Get-AzureRmVMImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK'
+                Write-Host "Check #1 - Using Get-AzsPlatformImage to check for Windows Server 2016 Core image"
+                if ($azsPlatformImageExists) {
+                    Write-Host "Get-AzsPlatformImage, successfully located an appropriate image with the following details:"
+                    Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
+                }
+                While (!$(Get-AzsPlatformImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
+                    Write-Host "Using Get-AzsPlatformImage, ServerCoreImage is not ready yet. Delaying by 20 seconds"
+                    Start-Sleep -Seconds 20
+                }
+                Write-Host "Check #2 - Using Get-AzureRmVMImage to check for Windows Server 2016 Core image"
+                if ($azureRmVmPlatformImageExists) {
+                    Write-Host "Using Get-AzureRmVMImage, successfully located an appropriate image with the following details:"
+                    Write-Host "Publisher: MicrosoftWindowsServer | Offer: WindowsServer | Sku: 2016-Datacenter-Server-Core"
+                }
+                While (!$(Get-AzureRmVMImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).StatusCode -eq 'OK') {
+                    Write-Host "Using Get-AzureRmVMImage to test, ServerCoreImage is not ready yet. Delaying by 20 seconds"
+                    Start-Sleep -Seconds 20
+                }
+
+                # For an extra safety net, add an extra delay to ensure the image is fully ready in the PIR, otherwise it seems to cause a failure.
+                Write-Host "Delaying for a further 4 minutes to account for random failure with MySQL/SQL RP to detect platform image immediately after upload"
+                Start-Sleep -Seconds 240
+
+                # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
+                if ($serialMode -eq $true) {
+                    if ($dbrp -eq "SQLServer") {
+                        if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
                             $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
-                            if ($mySQLProgressCheck -eq "Failed") {
-                                Write-Host "MySQLRP deployment seems to have failed, but this doesn't affect the SQL Server RP Deployment. Process can continue."
+                            while ($mySQLProgressCheck -eq "Incomplete") {
+                                Write-Host "The MySQLRP stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                                Start-Sleep -Seconds 60
+                                $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
+                                if ($mySQLProgressCheck -eq "Failed") {
+                                    Write-Host "MySQLRP deployment seems to have failed, but this doesn't affect the SQL Server RP Deployment. Process can continue."
+                                    BREAK
+                                }
+                            }
+                        }
+                    }
+                    elseif ($dbrp -eq "MySQL") {
+                        $appDBProgressCheck = CheckProgress -progressStage "AppServiceSQLServer"
+                        while ($appDBProgressCheck -eq "Incomplete") {
+                            Write-Host "The AppServiceSQLServer stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
+                            Start-Sleep -Seconds 60
+                            $appDBProgressCheck = CheckProgress -progressStage "AppServiceSQLServer"
+                            if ($appDBProgressCheck -eq "Failed") {
+                                Write-Host "AppServiceSQLServer deployment seems to have failed, but this doesn't affect the Database RP Deployment. Process can continue."
                                 BREAK
                             }
                         }
                     }
                 }
-                elseif ($dbrp -eq "MySQL") {
-                    $appDBProgressCheck = CheckProgress -progressStage "AppServiceSQLServer"
-                    while ($appDBProgressCheck -eq "Incomplete") {
-                        Write-Host "The AppServiceSQLServer stage of the process has not yet completed. This should complete first in a serialMode deployment. Checking again in 60 seconds"
-                        Start-Sleep -Seconds 60
-                        $appDBProgressCheck = CheckProgress -progressStage "AppServiceSQLServer"
-                        if ($appDBProgressCheck -eq "Failed") {
-                            Write-Host "AppServiceSQLServer deployment seems to have failed, but this doesn't affect the Database RP Deployment. Process can continue."
-                            BREAK
+                elseif ($serialMode -eq $false) {
+                    if ($dbrp -eq "SQLServer") {
+                        if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
+                            $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
+                            if ($mySQLProgressCheck -eq "Incomplete") {
+                                Write-Host "To avoid deployment conflicts with the MySQL RP, delaying the SQL Server RP deployment by 2 minutes"
+                                Start-Sleep -Seconds 120
+                            }
                         }
                     }
                 }
-            }
-            elseif ($serialMode -eq $false) {
-                if ($dbrp -eq "SQLServer") {
-                    if (($skipMySQL -eq $false) -and ($skipMSSQL -eq $false)) {
-                        $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
-                        if ($mySQLProgressCheck -eq "Incomplete") {
-                            Write-Host "To avoid deployment conflicts with the MySQL RP, delaying the SQL Server RP deployment by 2 minutes"
-                            Start-Sleep -Seconds 120
-                        }
-                    }
-                }
-            }
 
-            # Login to Azure Stack
-            Write-Host "Downloading and installing $dbrp Resource Provider"
-            if (!$([System.IO.Directory]::Exists("$ASDKpath\databases"))) {
-                New-Item -Path "$ASDKpath\databases" -ItemType Directory -Force | Out-Null
-            }
-            if ($deploymentMode -eq "Online") {
-                # Cleanup old folder
-                Write-Host "Cleaning up old deployment"
-                Remove-Item "$asdkPath\databases\$dbrp" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-                Remove-Item "$ASDKpath\databases\$($dbrp).zip" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-                # Download and Expand the RP files
-                Write-Host "Downloading the database RP files"
-                $rpURI = "https://aka.ms/azurestack$($rp)rp11330"
-                $rpDownloadLocation = "$ASDKpath\databases\$($dbrp).zip"
-                DownloadWithRetry -downloadURI "$rpURI" -downloadLocation "$rpDownloadLocation" -retries 10
-            }
-            elseif ($deploymentMode -ne "Online") {
-                if (-not [System.IO.File]::Exists("$ASDKpath\databases\$($dbrp).zip")) {
-                    throw "Missing Zip file in extracted dependencies folder. Please ensure this exists at $ASDKpath\databases\$($dbrp).zip - Exiting process"
+                # Login to Azure Stack
+                Write-Host "Downloading and installing $dbrp Resource Provider"
+                if (!$([System.IO.Directory]::Exists("$ASDKpath\databases"))) {
+                    New-Item -Path "$ASDKpath\databases" -ItemType Directory -Force | Out-Null
                 }
-            }
-            Set-Location "$ASDKpath\databases"
-            Expand-Archive "$ASDKpath\databases\$($dbrp).zip" -DestinationPath .\$dbrp -Force -ErrorAction Stop
-            Set-Location "$ASDKpath\databases\$($dbrp)"
-            Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\*" -Recurse | Unblock-File -Verbose
-
-            ############################################################################################################################################################################
-            # Temporary Workaround to installing DB RP with PS 1.7.0 and newer AzureRM 2.4.0
-            $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$($dbrp)\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
-            $old = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -eq "3") -and ($azureRMModule.Version.Build -ge "0"))'
-            $new = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -ge "3") -and ($azureRMModule.Version.Build -ge "0"))'
-            $pattern1 = [RegEx]::Escape($old)
-            $pattern2 = [RegEx]::Escape($new)
-            if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
-                if ((Get-Content $getCommonModule) | Select-String $pattern1) {
-                    Write-Host "Known issue with AzureRM 2.4.0 and DB RPs - editing Common.psm1"
-                    Write-Host "Editing file"
-                    (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
-                    Write-Host "Editing completed."
-                }
-            }
-            # End of Temporary Workaround
-            ############################################################################################################################################################################
-
-            Write-Host "Starting deployment of $dbrp Resource Provider"
-            if ($dbrp -eq "MySQL") {
                 if ($deploymentMode -eq "Online") {
-                    .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
+                    # Cleanup old folder
+                    Write-Host "Cleaning up old deployment"
+                    if ($([System.IO.Directory]::Exists("$ASDKpath\databases\$dbrpPath"))) {
+                        Remove-Item "$asdkPath\databases\$dbrpPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+                    }
+                    if ($([System.IO.File]::Exists("$ASDKpath\databases\$($dbrp).zip"))) {
+                        Remove-Item "$ASDKpath\databases\$($dbrp).zip" -Recurse -Force -Confirm:$false -ErrorAction Stop
+                    }
+                    # Download and Expand the RP files
+                    Write-Host "Downloading the database RP files"
+                    $rpURI = "https://aka.ms/azurestack$($rp)rp11330"
+                    $rpDownloadLocation = "$ASDKpath\databases\$($dbrp).zip"
+                    DownloadWithRetry -downloadURI "$rpURI" -downloadLocation "$rpDownloadLocation" -retries 10
                 }
-                elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                    $dependencyFilePath = New-Item -ItemType Directory -Path "$ASDKpath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
-                    $MySQLMSI = Get-ChildItem -Path "$ASDKpath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
-                    Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
-                    .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -DependencyFilesLocalPath $dependencyFilePath -AcceptLicense
+                elseif ($deploymentMode -ne "Online") {
+                    if (-not [System.IO.File]::Exists("$ASDKpath\databases\$($dbrp).zip")) {
+                        throw "Missing Zip file in extracted dependencies folder. Please ensure this exists at $ASDKpath\databases\$($dbrp).zip - Exiting process"
+                    }
                 }
+                Set-Location "$ASDKpath\databases"
+                Expand-Archive "$ASDKpath\databases\$($dbrp).zip" -DestinationPath ".\$dbrpPath" -Force -ErrorAction Stop
+                Set-Location "$ASDKpath\databases\$dbrpPath"
+                Get-ChildItem -Path "$ASDKpath\databases\$dbrpPath\*" -Recurse | Unblock-File -Verbose
+
+                ############################################################################################################################################################################
+                # Temporary Workaround to installing DB RP with PS 1.7.0 and newer AzureRM 2.4.0
+                $getCommonModule = (Get-ChildItem -Path "$ASDKpath\databases\$dbrpPath\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
+                $old = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -eq "3") -and ($azureRMModule.Version.Build -ge "0"))'
+                $new = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -ge "3") -and ($azureRMModule.Version.Build -ge "0"))'
+                $pattern1 = [RegEx]::Escape($old)
+                $pattern2 = [RegEx]::Escape($new)
+                if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
+                    if ((Get-Content $getCommonModule) | Select-String $pattern1) {
+                        Write-Host "Known issue with AzureRM 2.4.0 and DB RPs - editing Common.psm1"
+                        Write-Host "Editing file"
+                        (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
+                        Write-Host "Editing completed."
+                    }
+                }
+                # End of Temporary Workaround
+                ############################################################################################################################################################################
+
+                Write-Host "Starting deployment of $dbrp Resource Provider"
+                if ($dbrp -eq "MySQL") {
+                    if ($deploymentMode -eq "Online") {
+                        .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
+                    }
+                    elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+                        $dependencyFilePath = New-Item -ItemType Directory -Path "$ASDKpath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
+                        $MySQLMSI = Get-ChildItem -Path "$ASDKpath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
+                        Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
+                        .\DeployMySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -DependencyFilesLocalPath $dependencyFilePath -AcceptLicense
+                    }
+                }
+                elseif ($dbrp -eq "SQLServer") {
+                    .\DeploySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd
+                }
+                # Update the ConfigASDK database with successful completion
+                $progressCheck = CheckProgress -progressStage $progressStage
+                StageComplete -progressStage $progressStage
+                $progressCheck = CheckProgress -progressStage $progressStage
+                $rpSuccess = $true
             }
-            elseif ($dbrp -eq "SQLServer") {
-                .\DeploySQLProvider.ps1 -AzCredential $asdkCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $cloudAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd
+            catch {
+                Write-Host "Attempt #$rpAttempt failed with the following error: $_.Exception.Message"
+                Write-Host "This will be retried a maximum of 3 times"
+                Set-Location $ScriptLocation
             }
-            # Update the ConfigASDK database with successful completion
-            $progressStage = $progressName
-            StageComplete -progressStage $progressStage 
         }
-        catch {
-            StageFailed -progressStage $progressStage
-            Set-Location $ScriptLocation
-            throw $_.Exception.Message
-            return
-        }
+    }
+    if (($rpSuccess -eq $false) -and ($rpAttempt -ge 3)) {
+        Write-Host "Deploying the $dbrp Resource Provider failed after 3 attempts. Cleanup manually and rerun the script"
+        $progressStage = $progressName
+        StageFailed -progressStage $progressStage
+        $progressCheck = CheckProgress -progressStage $progressStage
+        Set-Location $ScriptLocation
+        throw $_.Exception.Message
     }
 }
 elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
@@ -285,5 +316,6 @@ elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
     StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
+$endTime = $(Get-Date).ToString("MMdd-HHmmss")
 Write-Host "Logging stopped at $endTime"
 Stop-Transcript -ErrorAction SilentlyContinue

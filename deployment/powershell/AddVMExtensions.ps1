@@ -147,5 +147,6 @@ elseif ($registerASDK -eq $false) {
     StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation
+$endTime = $(Get-Date).ToString("MMdd-HHmmss")
 Write-Host "Logging stopped at $endTime"
 Stop-Transcript -ErrorAction SilentlyContinue
