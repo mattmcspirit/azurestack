@@ -40,6 +40,9 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1905.1  Minor bug fixes and cleanup
+            Updated to support newer Ubuntu Server 16.04 image for registered and non-registered deployments
+            Updated Azure CLI Profile
     1905    Updated to support ASDK 1.1905.0.40
     1904.2  Support for App Service 1.6
             Updated to support Azure Stack PowerShell 1.7.2 and AzureRM 2.5.0
