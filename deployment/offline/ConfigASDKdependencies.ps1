@@ -580,7 +580,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row.filename = "appservice.exe"; $row.path = "$appServicePath"; $row.productName = "App Service installer"; $Table.Rows.Add($row)
         # App Service PreDeployment JSON
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"
-        $row.filename = "AppServicePreDeploymentSettings.json"; $row.path = "$appServicePath"; $row.productName = "App Service Pre-Deployment JSON Configuration"; $Table.Rows.Add($row)
+        $row.filename = "AppSvcPre.json"; $row.path = "$appServicePath"; $row.productName = "App Service Pre-Deployment JSON Configuration"; $Table.Rows.Add($row)
         # App Service Custom Script Extension
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/extension/CSE.zip"
         $row.filename = "CSE.zip"; $row.path = "$extensionPath"; $row.productName = "App Service Custom Script Extension"; $Table.Rows.Add($row)
