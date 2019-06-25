@@ -2792,7 +2792,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
                         az cloud set -n AzureStackAdmin
                         Write-CustomVerbose -Message "Updating profile for Azure CLI"
                         # Update the profile
-                        az cloud update --profile 2018-03-01-hybrid
+                        az cloud update --profile 2019-03-01-hybrid
                     }
                     catch {
                         Write-CustomVerbose -Message "Something went wrong configuring Azure CLI and Python. Please follow the Azure Stack docs to configure for your ASDK"
