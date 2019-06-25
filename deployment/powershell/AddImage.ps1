@@ -338,7 +338,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     $date = Get-Date -Format FileDate
                     # Temporarily hard coding to newest known working version
                     #$vhdVersion = "16.04.$date"
-                    $vhdVersion = "16.04.20181223"
+                    $vhdVersion = "16.04.20190514"
                 }
                 else {
                     $vhdVersion = ""
