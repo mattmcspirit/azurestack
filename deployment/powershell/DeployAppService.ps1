@@ -89,6 +89,16 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             if ($progressCheck -eq "Failed") {
+                # Clean up previous attempt - RG
+                $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+                Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                $azsLocation = (Get-AzsLocation).Name
+                $appServiceRGCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
+                if ($appServiceRGCheck) {
+                    Write-Output "There is evidence of a previous attempted App Service deployment in the App Service Resource Group. Starting cleanup..."
+                    Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
+                }
                 # Update the ConfigASDK database back to incomplete status if previously failed
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
@@ -190,18 +200,18 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             if ($deploymentMode -eq "Online") {
                 Write-Host "Downloading the AppServiceDeploymentSettings.json file from GitHub"
                 $appServiceJsonURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"
-                $appServiceJsonDownloadLocation = "$AppServicePath\AppServicePreDeploymentSettings.json"
+                $appServiceJsonDownloadLocation = "$AppServicePath\AppSvcPre.json"
                 DownloadWithRetry -downloadURI "$appServiceJsonURI" -downloadLocation "$appServiceJsonDownloadLocation" -retries 10
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                if ([System.IO.File]::Exists("$ASDKpath\appservice\AppServicePreDeploymentSettings.json")) {
-                    Write-Host "Located AppServicePreDeploymentSettings.json file"
+                if ([System.IO.File]::Exists("$ASDKpath\appservice\AppSvcPre.json")) {
+                    Write-Host "Located AppSvcPre.json file"
                 }
-                if (-not [System.IO.File]::Exists("$ASDKpath\appservice\AppServicePreDeploymentSettings.json")) {
-                    throw "Missing AppServicePreDeploymentSettings.json file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\ - Exiting process"
+                if (-not [System.IO.File]::Exists("$ASDKpath\appservice\AppSvcPre.json")) {
+                    throw "Missing AppSvcPre.json file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\ - Exiting process"
                 }
             }
-            $JsonConfig = Get-Content -Path "$AppServicePath\AppServicePreDeploymentSettings.json"
+            $JsonConfig = Get-Content -Path "$AppServicePath\AppSvcPre.json"
             # Edit the JSON from deployment
 
             Write-Host "Starting editing the JSON file"
@@ -222,7 +232,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $SQLServerUser = "sa"
             $JsonConfig = $JsonConfig.Replace("<<SQLServerUser>>", $SQLServerUser)
             $JsonConfig = $JsonConfig.Replace("<<IdentityApplicationId>>", $identityApplicationID)
-            Out-File -FilePath "$AppServicePath\AppServiceDeploymentSettings.json" -InputObject $JsonConfig
+            Out-File -FilePath "$AppServicePath\AppSvcPost.json" -InputObject $JsonConfig
 
             # Check App Service Database is clean - could exist from a previously failed run
             Write-Host " Checking for existing App Service database and logins.  Will clean up if this is a rerun."
@@ -243,10 +253,10 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
 
             # Check if there is a previous failure for the App Service deployment - easier to completely clean the RG and start fresh
             Write-Host "Logging back into Azure Stack"
-            $azsLocation = (Get-AzsLocation).Name
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $azsLocation = (Get-AzsLocation).Name
             $appServiceFailCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
             if ($appServiceFailCheck.ProvisioningState -eq 'Failed') {
                 Write-Output "There is evidence of a previously failed App Service deployment in the App Service Resource Group. Starting cleanup..."
@@ -262,10 +272,10 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Write-Host "Starting deployment of the App Service"
 
             if ($deploymentMode -eq "Online") {
-                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
+                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppSvcPost.json" -PassThru
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy OfflineInstallationPackageFile=$AppServicePath\appserviceoffline.zip UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppServiceDeploymentSettings.json" -PassThru
+                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy OfflineInstallationPackageFile=$AppServicePath\appserviceoffline.zip UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppSvcPost.json" -PassThru
             }
 
             while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
@@ -281,6 +291,17 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             if ($(Select-String -Path $appServiceLogPath -Pattern "$appServiceErrorCode" -SimpleMatch -Quiet) -eq "True") {
                 Write-Host "App Service install failed with $appServiceErrorCode"
                 Write-Host "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
+                # Need to check if the process failed, but the Resource Group shows success
+                Write-Host "Logging back into Azure Stack to confirm the Resource Group shows as Succeeded or Failed"
+                $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+                Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                $appServiceFailCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
+                if ($appServiceFailCheck.ProvisioningState -eq 'Succeeded') {
+                    Write-Output "There is evidence of a failed App Service deployment in the log file, but the App Service Resource Group shows success. Starting cleanup..."
+                    Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
+                    throw "$($appServiceFailCheck.DeploymentName) has $($appServiceFailCheck.ProvisioningState), however the logs show a failure. Please check the App Service logs at $appServiceLogPath for full details. You should be able to rerun the script and it complete successfully."
+                }
                 throw "App Service install failed with $appServiceErrorCode. Please check the App Service logs at $appServiceLogPath"
             }
             else {

@@ -40,6 +40,9 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1905.1  Minor bug fixes and cleanup
+            Updated to support newer Ubuntu Server 16.04 image for registered and non-registered deployments
+            Updated Azure CLI Profile
     1905    Updated to support ASDK 1.1905.0.40
     1904.2  Support for App Service 1.6
             Updated to support Azure Stack PowerShell 1.7.2 and AzureRM 2.5.0
@@ -1609,7 +1612,7 @@ try {
             $cleanupRequired = $true
         }#>
             try {
-                $psRmProfle = Get-AzureRmProfile -ErrorAction Ignore | Where-Object { ($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile") }
+                $psRmProfle = Get-AzureRmProfile -ErrorAction Ignore | Where-Object { ($_.ProfileName -eq "2019-03-01-hybrid") -or ($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile") }
             }
             catch [System.Management.Automation.CommandNotFoundException] {
                 $error.Clear()
@@ -1628,7 +1631,7 @@ try {
                 Write-CustomVerbose -Message "Cleaning...."
                 try {
                     if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2019-03-01-hybrid") })) {
-                        Uninstall-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
+                        Uninstall-AzureRmProfile -Profile '2019-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
                     }
                     if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2018-03-01-hybrid") })) {
                         Uninstall-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
@@ -2792,7 +2795,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
                         az cloud set -n AzureStackAdmin
                         Write-CustomVerbose -Message "Updating profile for Azure CLI"
                         # Update the profile
-                        az cloud update --profile 2018-03-01-hybrid
+                        az cloud update --profile 2019-03-01-hybrid
                     }
                     catch {
                         Write-CustomVerbose -Message "Something went wrong configuring Azure CLI and Python. Please follow the Azure Stack docs to configure for your ASDK"

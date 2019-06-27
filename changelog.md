@@ -5,6 +5,11 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1905.1?
+* Minor bug fixes and cleanup
+* Updated to support newer Ubuntu Server 16.04 image for registered and non-registered deployments
+* Updated Azure CLI Profile
+
 ### What's new in version 1905?
 * Updated to support ASDK 1.1905.0.40
 

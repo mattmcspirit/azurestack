@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1905
+Azure Stack Development Kit Configurator 1905.1
 ==============
 
 Version Compatibility
