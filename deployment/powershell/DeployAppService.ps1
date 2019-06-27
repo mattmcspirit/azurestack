@@ -267,15 +267,15 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
             $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
             $appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
-            $appServiceLogPath = "$AppServicePath\AppServiceLog$appServiceLogTime.txt"
+            $appServiceLogPath = "$AppServicePath\AppSvcLog$appServiceLogTime.txt"
             Set-Location "$AppServicePath"
             Write-Host "Starting deployment of the App Service"
 
             if ($deploymentMode -eq "Online") {
-                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppSvcPost.json" -PassThru
+                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log `"$appServiceLogPath`" Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=`"$AppServicePath\AppSvcPost.json`"" -PassThru
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log $appServiceLogPath Deploy OfflineInstallationPackageFile=$AppServicePath\appserviceoffline.zip UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=$AppServicePath\AppSvcPost.json" -PassThru
+                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log `"$appServiceLogPath`" Deploy OfflineInstallationPackageFile=`"$AppServicePath\appserviceoffline.zip`" UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=`"$AppServicePath\AppSvcPost.json`"" -PassThru
             }
 
             while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
