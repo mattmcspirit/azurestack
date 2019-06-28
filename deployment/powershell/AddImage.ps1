@@ -279,7 +279,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             if ($image -eq "ServerCore2016") {
                 $sku = "2016-Datacenter-Server-Core"
                 $edition = 'Windows Server 2016 SERVERDATACENTERCORE'
-                $onlinePackage = "*Microsoft.WindowsServer2016DatacenterServerCore-ARM*"
+                $onlinePackage = "*Microsoft.WindowsServer2016DatacenterServerCore-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
                 $vhdVersion = "2016.40.$date"
@@ -292,7 +292,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             elseif ($image -eq "ServerFull2016") {
                 $sku = "2016-Datacenter"
                 $edition = 'Windows Server 2016 SERVERDATACENTER'
-                $onlinePackage = "*Microsoft.WindowsServer2016Datacenter-ARM*"
+                $onlinePackage = "*Microsoft.WindowsServer2016Datacenter-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
                 $vhdVersion = "2016.40.$date"
@@ -305,7 +305,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             if ($image -eq "ServerCore2019") {
                 $sku = "2019-Datacenter-Server-Core"
                 $edition = 'Windows Server 2019 SERVERDATACENTERCORE'
-                $onlinePackage = "*Microsoft.WindowsServer2019DatacenterServerCore-ARM*"
+                $onlinePackage = "*Microsoft.WindowsServer2019DatacenterServerCore-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
                 $vhdVersion = "2019.40.$date"
@@ -318,7 +318,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             elseif ($image -eq "ServerFull2019") {
                 $sku = "2019-Datacenter"
                 $edition = 'Windows Server 2019 SERVERDATACENTER'
-                $onlinePackage = "*Microsoft.WindowsServer2019Datacenter-ARM*"
+                $onlinePackage = "*Microsoft.WindowsServer2019Datacenter-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019Datacenter-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
                 $vhdVersion = "2019.40.$date"
@@ -354,7 +354,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $azsLocation = (Get-AzsLocation).Name
             if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
-                if ($image -notlike "*2019") {
+                #if ($image -notlike "*2019") {
+                if ($image) {
                     # Logout to clean up
                     Write-Host "Logging out to clear up stale logins"
                     Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
@@ -436,6 +437,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         $azpkg.vhdVersion = "16.04.20190617"
                     }
                 }
+                <#
                 elseif ($image -like "*2019") {
                     $package = "$offlinePackage"
                     $azpkg = $null
@@ -447,7 +449,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         osVersion  = "$osVersion"
                         name       = "$offlinePackage"
                     }
-                }
+                } #>
             }
             elseif (($registerASDK -eq $false) -or (($registerASDK -eq $true) -and ($deploymentMode -ne "Online"))) {
                 $package = "$offlinePackage"
