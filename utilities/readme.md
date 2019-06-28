@@ -9,8 +9,9 @@ It will scan your current downloads and if it locates a newer version (based on 
 and optionally, delete the old version(s).
 
 ```powershell
-.\MarketplaceUpdater.ps1 -armEndpoint "https://adminmanagement.local.azurestack.external" -tenant "contoso.onmicrosoft.com" `
--authType "AzureAd" -activationRG "azurestack-activation" -deleteOldVersions
+.\MarketplaceUpdater.ps1 -armEndpoint "https://adminmanagement.local.azurestack.external" `
+-tenant "contoso.onmicrosoft.com" -authType "AzureAd" `
+-activationRG "azurestack-activation" -deleteOldVersions
 ```
 
 This example will attempt to connect to the endpoint https://adminmanagement.local.azurestack.external,
@@ -28,7 +29,8 @@ populated with a SKU: 14.04, 16.04 or 18.04 and a corresponding build, for examp
 See the current example CSV file here: https://github.com/mattmcspirit/azurestack/blob/master/deployment/misc/UbuntuTests.csv 
 
 ```powershell
-.\UbuntuTester.ps1 -FilePath "C:\users\AzureStackAdmin\Desktop\UbuntuTests.csv" -imagePath "C:\ClusterStorage\Volume1\Images\UbuntuServer"
+.\UbuntuTester.ps1 -FilePath "C:\users\AzureStackAdmin\Desktop\UbuntuTests.csv" `
+-imagePath "C:\ClusterStorage\Volume1\Images\UbuntuServer"
 ```
 
 Ensure that the -imagePath exists before running the deployment.
