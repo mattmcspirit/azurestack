@@ -2,7 +2,7 @@
 In these subfolders, you'll find a number of useful PowerShell-based utilities that can streamline certain tasks on Azure Stack systems.
 
 ## Marketplace Updater
-Main Use: Allows an automated updating of existing Azure Stack Marketplace Items.
+**Main Use:** Allows an automated updating of existing Azure Stack Marketplace Items.
 
 The script will automate the updating of Marketplace items (today, extensions only) that currently exist within your Azure Stack environment.
 It will scan your current downloads and if it locates a newer version (based on the display name), it will download the newer version
@@ -20,7 +20,7 @@ update process. In this example, the script will also clean up old versions of e
 resource group in the administration portal within your registered Azure Stack system. The -deleteOldVersions switch is optional.
 
 ## Ubuntu Tester
-Main Use: Test a variety of Ubuntu Server 14.04/16.04/18.04 images for use on Azure Stack.
+**Main Use:** Test a variety of Ubuntu Server 14.04/16.04/18.04 images for use on Azure Stack.
 
 The script will automate the testing of Ubuntu Server images by iterating through the images listed in a CSV file. The CSV should be
 populated with a SKU: 14.04, 16.04 or 18.04 and a corresponding build, for example 20190308
