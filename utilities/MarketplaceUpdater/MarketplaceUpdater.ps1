@@ -12,8 +12,8 @@ and optionally, delete the old version(s)
 File Name : MarketplaceUpdater.ps1
 Author    : Matt McSpirit
 Version   : 1.0
-Date      : 06-June-2019
-Update    : 06-June-2019
+Date      : 28-June-2019
+Update    : 28-June-2019
 Requires  : PowerShell Version 5.0 or above
 Module    : Tested with AzureRM 2.5.0 and Azure Stack 1.7.2 already installed
 
@@ -57,10 +57,10 @@ Write-Host "Obtaining tenant name"
 $AuthEndpoint = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
 
 if ($authType.ToString() -like "AzureAd") {
-    $tenantId = (Invoke-Restmethod "$($AuthEndpoint)/$($tenant)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+    $tenantId = (Invoke-Restmethod -Verbose:$false "$($AuthEndpoint)/$($tenant)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
 }
 elseif ($authType.ToString() -like "ADFS") {
-    $tenantId = (invoke-restmethod -Verbose:$false "$($AuthEndpoint)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+    $tenantId = (Invoke-Restmethod -Verbose:$false "$($AuthEndpoint)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
 }
 
 # After signing in to your environment, Azure Stack cmdlets
