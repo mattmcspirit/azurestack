@@ -303,7 +303,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 $delay = 45
             }
             if ($image -eq "ServerCore2019") {
-                $sku = "2019-Datacenter-Server-Core"
+                $sku = "2019-Datacenter-Core"
                 $edition = 'Windows Server 2019 SERVERDATACENTERCORE'
                 $onlinePackage = "*Microsoft.WindowsServer2019DatacenterServerCore-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0"
@@ -764,14 +764,18 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Will need to side load it in to the gallery"
 
                 if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
+                    <#
                     if ($image -like "*2019") {
                         $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/$package.azpkg"
                     }
                     else {
                         $azpkgPackageURL = $($azpkg.azpkgPath)
                     }
+                    #>
+                    $azpkgPackageURL = $($azpkg.azpkgPath)
                     Write-Host "Uploading $azpkgPackageName with the ID: $($azpkg.id) from $($azpkg.azpkgPath)"
                 }
+
                 elseif (($registerASDK -eq $false) -and ($deploymentMode -eq "Online")) {
                     if ($image -eq "UbuntuServer") {
                         $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
