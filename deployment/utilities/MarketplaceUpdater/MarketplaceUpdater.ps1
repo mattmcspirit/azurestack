@@ -4,39 +4,43 @@
 Allows an automated updating of existing Azure Stack Marketplace Items.
 
 .DESCRIPTION
-The script will automate the testing of Ubuntu Server images by iterating through the images listed in the CSV file. The CSV should be
-populated with a SKU: 14.04, 16.04 or 18.04 and a corresponding build, for example 20190308
-(from here: https://cloud-images.ubuntu.com/releases/)
-
-See the current example CSV file here: https://github.com/mattmcspirit/azurestack/blob/master/deployment/misc/UbuntuTests.csv 
+The script will automate the updating of Marketplace items that currently exist within your Azure Stack environment.
+It will scan your current downloads and if it locates a newer version (based on the display name), it will download the newer version
+and optionally, delete the old version(s)
 
 .NOTES
-File Name : UbuntuTester.ps1
+File Name : MarketplaceUpdater.ps1
 Author    : Matt McSpirit
 Version   : 1.0
-Date      : 03-March-2019
-Update    : 03-March-2019
+Date      : 06-June-2019
+Update    : 06-June-2019
 Requires  : PowerShell Version 5.0 or above
-Module    : Tested with AzureRM 2.4.0 and Azure Stack 1.7.0 already installed
-Product   : Requires AzCopy for Azure Stack installed (https://docs.microsoft.com/en-us/azure/azure-stack/user/azure-stack-storage-transfer#azcopy)
+Module    : Tested with AzureRM 2.5.0 and Azure Stack 1.7.2 already installed
 
 .EXAMPLE
-.\UbuntuTester.ps1 -FilePath "C:\users\AzureStackAdmin\Desktop\UbuntuTests.csv" -imagePath "C:\ClusterStorage\Volume1\Images\UbuntuServer"
+.\MarketplaceUpdater.ps1 -armEndpoint "https://adminmanagement.local.azurestack.external" -tenant "contoso.onmicrosoft.com" `
+-authType "AzureAd" -activationRG "azurestack-activation" -deleteOldVersions
 
-Ensure that the -imagePath exists before running the deployment.
-
-This example will import all listed server images from a CSV File, download the images from Ubuntu's Cloud Images repo, unzip, push into
-the PIR, and then attempt to deploy a VM from that image. Should it succeed, the image will be recommened for use. Should it fail, it will
-not be recommended. A txt document will list the images that have been tested.
+This example will attempt to connect to the endpoint https://adminmanagement.local.azurestack.external,
+authenticate you (prompts for login credentials) via your chosen auth method (AzureAd or ADFS) and if successful, will begin the
+update process. In this example, the script will also clean up old versions of extensions. You can locate the activation
+resource group in the administration portal within your registered Azure Stack system. The -deleteOldVersions switch is optional. 
 #>
 
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $armEndpoint,
+    [ValidateSet("AzureAd", "ADFS")]
+    [String] $authType,
 
     [Parameter(Mandatory = $true)]
     [String] $tenant,
+
+    [Parameter(Mandatory = $true)]
+    [String] $armEndpoint,
+
+    [Parameter(Mandatory = $true)]
+    [String] $activationRG = "azurestack-activation",
 
     [switch] $deleteOldVersions
 )
@@ -45,19 +49,28 @@ $Global:VerbosePreference = "SilentlyContinue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
 
-# Register an Azure Resource Manager environment that targets your Azure Stack instance. Get your Azure Resource Manager endpoint value from your service provider.
+Write-Host "Beginning login process into your Azure Stack system"
+Write-Host "Selected Active Directory authentication type is $authType"
 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$armEndpoint"
-# Set your tenant name
+Write-Host "Using the following Azure Stack ARM Endpoint: $armEndpoint"
+Write-Host "Obtaining tenant name"
 $AuthEndpoint = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
-$TenantId = (Invoke-Restmethod "$($AuthEndpoint)/$($tenant)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+
+if ($authType.ToString() -like "AzureAd") {
+    $tenantId = (Invoke-Restmethod "$($AuthEndpoint)/$($tenant)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+}
+elseif ($authType.ToString() -like "ADFS") {
+    $tenantId = (invoke-restmethod -Verbose:$false "$($AuthEndpoint)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+}
 
 # After signing in to your environment, Azure Stack cmdlets
 # can be easily targeted at your Azure Stack instance.
-Write-Host "Logging into Azure Stack"
-Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantId
+Write-Host "Logging into Azure Stack. Triggering credential pop-up."
+Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantId
 
-$activationName = "default"
-$activationRG = "azurestack-activation"
+Write-Host "Getting the current Azure Stack activation info"
+$activationName = (Get-AzsAzureBridgeActivation -ResourceGroupName $activationRG).Name
+Write-Host "Getting current Azure Stack Marketplace downloads"
 $currentDownloads = Get-AzsAzureBridgeDownloadedProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue | Where-Object { $_.ProductKind -eq "virtualMachineExtension" }
 
 foreach ($download in $currentDownloads) {
