@@ -235,7 +235,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Out-File -FilePath "$AppServicePath\AppSvcPost.json" -InputObject $JsonConfig
 
             # Check App Service Database is clean - could exist from a previously failed run
-            Write-Host " Checking for existing App Service database and logins.  Will clean up if this is a rerun."
+            Write-Host "Checking for existing App Service database and logins.  Will clean up if this is a rerun."
             $secureVMpwd = ConvertTo-SecureString -AsPlainText $VMpwd -Force
             $dbCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $SQLServerUser, $secureVMpwd -ErrorAction Stop
             $appServiceDBCheck = Get-SqlInstance -ServerInstance $sqlAppServerFqdn -Credential $dbCreds | Get-SqlDatabase | Where-Object { $_.Name -like "*appservice*" }
