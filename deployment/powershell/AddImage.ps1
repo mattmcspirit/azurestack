@@ -657,6 +657,28 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                         Write-Host "Adding the Update packages"
                                         Add-WindowsPackage -Path "$mountPath" -PackagePath "$csvImagePath\Images\$image\CU" `
                                             -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
+
+                                        <##>
+                                        #if ($multiNodePOC) {
+                                            Write-Host "Updating the Windows Server Edition and AVMA product key. This may take a while."
+                                            Write-Host "Getting current Windows Server edition from the image"
+                                            $edition = (Get-WindowsEdition -Path $mountPath).Edition
+                                            if ($edition -eq "ServerDatacenterEval") {
+                                                Write-Host "Your image currently has the $edition Edition. We need to update this to ServerDatacenter"
+                                                Write-Host "This image will also be updated with the Automatic VM Activation Key"
+                                                if ($image -like "*2016") {
+                                                    Write-Host "This is a $image image, and will now be updated to the correct edition and key. Please be patient."
+                                                    dism /image:$mountPath /set-edition:ServerDatacenter /ProductKey:TMJ3Y-NTRTM-FJYXT-T22BY-CWG3J /AcceptEula /LogPath:"$csvImagePath\Images\$image\$($image)Dism.log"
+    
+                                                }
+                                                elseif ($image -like "*2019") {
+                                                    Write-Host "This is a $image image, and will now be updated to the correct edition and key. Please be patient."
+                                                    dism /image:$mountPath /set-edition:ServerDatacenter /ProductKey:H3RNG-8C32Q-Q8FRX-6TDXV-WMBMW /AcceptEula /LogPath:"$csvImagePath\Images\$image\$($image)Dism.log"
+                                                }
+                                            }
+                                        #}
+                                        <##>
+
                                         Write-Host "Saving the image"
                                         Dismount-WindowsImage -Path "$mountPath" -Save `
                                             -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
