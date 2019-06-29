@@ -163,7 +163,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Host "Generating the application ID for the App Service installation"
                     $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -TenantArmEndpoint "management.$customDomainSuffix" `
                         -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds -Verbose
-                    $identityApplicationID = $applicationId
+                    $identityApplicationID = $appId
                     Write-Host "Application ID is $identityApplicationID"
                     Write-Host "You don't need to sign into the Azure Portal to grant permissions, ASDK Configurator will automate this for you. Please wait."
                     Write-Host "Waiting for 20 seconds to allow processes to finish."
@@ -233,7 +233,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Clear-AzureRmContext -Scope CurrentUser -Force
                     # Grant permissions to Azure AD Service Principal
                     try {
-                        Write-Host "Attempting to grant persmissions to the AAD application, for the App Service."
+                        Write-Host "Attempting to grant permissions to the AAD application, for the App Service."
                         $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
                         Write-Host "Tenant ID is $tenantId"
                         Write-Host "Logging into Azure Cloud"
