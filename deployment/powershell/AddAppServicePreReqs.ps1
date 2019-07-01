@@ -407,7 +407,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                                 Write-Host -Message "Adding Custom Script Extension (ZIP) to your environment. Attempt: $sideloadCSEZipAttempt"
                                 $URI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkExtensionContainerName, $itemName
-                                $version = "1.9.1"
+                                $version = "1.9.3"
                                 Add-AzsVMExtension -Publisher "Microsoft.Compute" -Type "CustomScriptExtension" -Version "$version" -ComputeRole "IaaS" -SourceBlob "$URI" -VmOsType "Windows" -ErrorAction Stop -Verbose -Force
                                 Start-Sleep -Seconds 5
                             }
