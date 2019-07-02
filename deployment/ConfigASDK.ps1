@@ -2422,7 +2422,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddAppServicePreReqs -Verbose
-<#
+
     $jobName = "DeployAppService"
     $DeployAppService = {
         Start-Job -Name DeployAppService -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $downloadPath, $deploymentMode, $authenticationType, `
@@ -2434,7 +2434,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $DeployAppService -Verbose
-#>
+
     ### JOB LAUNCHER & TRACKER ###################################################################################################################################
     ##############################################################################################################################################################
 
@@ -2442,8 +2442,6 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     Set-Location $ScriptLocation
     Clear-Host
     .\Scripts\GetJobStatus.ps1
-
-    BREAK
 
     #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
     ##############################################################################################################################################################
