@@ -163,7 +163,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Host "Generating the application ID for the App Service installation"
                     $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -TenantArmEndpoint "management.$customDomainSuffix" `
                         -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $asdkCreds -Verbose
-                    $identityApplicationID = $appId
+                    $identityApplicationID = $applicationId
                     Write-Host "Application ID is $identityApplicationID"
                     Write-Host "You don't need to sign into the Azure Portal to grant permissions, ASDK Configurator will automate this for you. Please wait."
                     Write-Host "Waiting for 20 seconds to allow processes to finish."
