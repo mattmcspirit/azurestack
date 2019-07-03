@@ -1377,6 +1377,7 @@ try {
             DownloadTools        = "Incomplete";
             HostConfiguration    = "Incomplete";
             Registration         = "Incomplete";
+            AdminPlanOffer       = "Incomplete";
             UbuntuServerImage    = "Incomplete";
             WindowsUpdates       = "Incomplete";
             ServerCore2016Image  = "Incomplete";
@@ -1401,7 +1402,7 @@ try {
             AddAppServicePreReqs = "Incomplete";
             DeployAppService     = "Incomplete";
             RegisterNewRPs       = "Incomplete";
-            CreatePlansOffers    = "Incomplete";
+            UserPlanOffer        = "Incomplete";
             InstallHostApps      = "Incomplete";
             CreateOutput         = "Incomplete";
         }
@@ -2085,6 +2086,134 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         return
     }
 
+    #### CREATE ADMIN PLAN AND OFFER IN TENANT SPACE #############################################################################################################
+    ##############################################################################################################################################################
+
+    $progressStage = "AdminPlanOffer"
+    $progressCheck = CheckProgress -progressStage $progressStage
+    $scriptStep = $progressStage.ToUpper()
+    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
+        try {
+            # Configure a simple base plan and offer for IaaS for specific use by the admin for storing RP related resources
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
+            Clear-AzureRmContext -Scope CurrentUser -Force
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+
+            # Default quotas, plan, and offer
+            $PlanName = "admin-rp-plan"
+            $OfferName = "admin-rp-offer"
+            $RGName = "azurestack-adminplanoffer"
+            # Get Azure Stack location
+            $azsLocation = (Get-AzsLocation).Name
+
+            $computeParams = $null
+            $computeParams = @{
+                Name                 = "compute_default"
+                CoresCount           = 200
+                AvailabilitySetCount = 20
+                VirtualMachineCount  = 100
+                VmScaleSetCount      = 20
+                Location             = $azsLocation
+            }
+
+            $netParams = $null
+            $netParams = @{
+                Name                                               = "network_default"
+                MaxPublicIpsPerSubscription                        = 500
+                MaxVNetsPerSubscription                            = 500
+                MaxVirtualNetworkGatewaysPerSubscription           = 10
+                MaxVirtualNetworkGatewayConnectionsPerSubscription = 20
+                MaxLoadBalancersPerSubscription                    = 500
+                MaxNicsPerSubscription                             = 1000
+                MaxSecurityGroupsPerSubscription                   = 500
+                Location                                           = $azsLocation
+            }
+
+            $storageParams = $null
+            $storageParams = @{
+                Name                    = "storage_default"
+                NumberOfStorageAccounts = 200
+                CapacityInGB            = 2048
+                Location                = $azsLocation
+            }
+
+            $kvParams = $null
+            $kvParams = @{
+                Location = $azsLocation
+            }
+
+            $quotaIDs = $null
+            $quotaIDs = @()
+            while (!$(Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
+                New-AzsNetworkQuota @netParams
+            }
+            if ($(Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
+                $quotaIDs += (Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation).ID
+            }
+            while (!$(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
+                New-AzsComputeQuota @computeParams -ErrorAction Stop -Verbose
+            }
+            if ($(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
+                $quotaIDs += (Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation).ID
+            }
+            while (!$(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
+                New-AzsStorageQuota @storageParams -ErrorAction Stop -Verbose
+            }
+            if ($(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
+                $quotaIDs += (Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation).ID
+            }
+            $quotaIDs += (Get-AzsKeyVaultQuota @kvParams -ErrorAction Stop -Verbose).ID
+
+            # Create the Plan and Private Offer
+            New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
+            $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
+            New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
+
+            # Create a new subscription for that offer, for the currently logged in user
+            # 1 subscription will be for the DB hosts and one will be for the App Service
+            if ((!$skipMySQL) -or (!$skipMSSQL)) {
+                $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
+                $subUserName = (Get-AzureRmContext).Account.Id
+                New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN DB HOSTS'
+            }
+
+            if (!$skipAppService) {
+                $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
+                $subUserName = (Get-AzureRmContext).Account.Id
+                New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN APPSVC BACKEND'
+            }
+
+            # Log the user out of the "AzureStackAdmin" environment
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
+            Clear-AzureRmContext -Scope CurrentUser -Force
+
+            # Log the user into the "AzureStackUser" environment
+            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "https://management.$customDomainSuffix"
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
+            # Register all the RPs for that user
+            foreach ($s in (Get-AzureRmSubscription)) {
+                Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
+                Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
+                Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
+            }
+            StageComplete -progressStage $progressStage
+        }
+        catch {
+            StageFailed -progressStage $progressStage
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progressCheck -eq "Complete") {
+        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+    }
+
     ### ADD VM IMAGES - JOB SETUP ################################################################################################################################
     ##############################################################################################################################################################
 
@@ -2472,7 +2601,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
     ##############################################################################################################################################################
 
-    $progressStage = "CreatePlansOffers"
+    $progressStage = "UserPlanOffer"
     $progressCheck = CheckProgress -progressStage $progressStage
     $scriptStep = $progressStage.ToUpper()
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
