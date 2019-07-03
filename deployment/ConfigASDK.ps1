@@ -3115,7 +3115,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $asdkImagesRGName = "azurestack-images"
+        $asdkImagesRGName = "azurestack-adminimages"
         Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
 
         # Create desktop icons

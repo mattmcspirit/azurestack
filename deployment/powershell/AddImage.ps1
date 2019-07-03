@@ -93,7 +93,7 @@ $progressStage = "$($image)Image"
 $progressCheck = CheckProgress -progressStage $progressStage
 
 # Set Storage Variables
-$asdkImagesRGName = "azurestack-images"
+$asdkImagesRGName = "azurestack-adminimages"
 $asdkImagesStorageAccountName = "asdkimagesstor"
 $asdkImagesContainerName = "asdkimagescontainer"
 $csvImagePath = "C:\ClusterStorage\Volume1"

@@ -89,7 +89,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
         # Set Storage Variables
         Write-Host "Setting storage variables for resource group, storage account and container"
-        $asdkImagesRGName = "azurestack-images"
+        $asdkImagesRGName = "azurestack-adminimages"
         $asdkImagesStorageAccountName = "asdkimagesstor"
         $asdkImagesContainerName = "asdkimagescontainer"
         $azsLocation = (Get-AzureRmLocation).DisplayName

@@ -173,6 +173,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $azsLocation = (Get-AzureRmLocation).DisplayName
+            $adminDbRg = "azurestack-admindbhosting"
+
+            # Create the RG to hold the assets in the admin space
+            if (-not (Get-AzureRmResourceGroup -Name $adminDbRg -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                New-AzureRmResourceGroup -Name $adminDbRg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+            }
 
             # Add host server to MySQL RP
             Write-Host "Attaching $dbHost hosting server to $dbHost resource provider"
