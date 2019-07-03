@@ -143,11 +143,13 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     throw "The AppServiceSQLServer stage of the process has failed. This should fully complete before the App Service deployment can be started. Check the AppServiceSQLServer log, ensure that step is completed first, and rerun."
                 }
             }
-            Write-Host "Logging into Azure Stack"
+            Write-Host "Logging into Azure Stack into the user space to retrieve relevant info"
             # Login to Azure Stack to grab FQDNs and also Identity App ID locally
-            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $ArmEndpoint = "https://management.$customDomainSuffix"
+            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Write-Host "Selecting the *ADMIN APPSVC BACKEND subscription"
+            Get-AzureRmSubscription -SubscriptionName '*ADMIN APPSVC BACKEND' -ErrorAction Stop | Select-AzureRmSubscription -Force -ErrorAction Stop
             Write-Host "Getting File Server and SQL App Server FQDN"
             $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
