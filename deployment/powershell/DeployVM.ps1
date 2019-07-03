@@ -307,11 +307,17 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             
             if (($vmType -eq "SQLServer") -or ($vmType -eq "MySQL")) {
                 Write-Host "Selecting the *ADMIN DB HOSTS subscription"
-                Get-AzureRmSubscription -SubscriptionName '*ADMIN DB HOSTS' -ErrorAction Stop | Select-AzureRmSubscription -Force -ErrorAction Stop
+                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                $subID = $azureContext.Subscription.Id
+                Write-Host "Current subscription ID is: $subID"
             }
             elseif (($vmType -eq "AppServiceDB") -or ($vmType -eq "AppServiceFS")) {
                 Write-Host "Selecting the *ADMIN APPSVC BACKEND subscription"
-                Get-AzureRmSubscription -SubscriptionName '*ADMIN APPSVC BACKEND' -ErrorAction Stop | Select-AzureRmSubscription -Force -ErrorAction Stop
+                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN APPSVC BACKEND' }
+                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                $subID = $azureContext.Subscription.Id
+                Write-Host "Current subscription ID is: $subID"
             }
                         
             Write-Host "Creating a dedicated Resource Group for all $vmType hosting assets"

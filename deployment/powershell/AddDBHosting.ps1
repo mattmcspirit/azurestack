@@ -135,8 +135,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Selecting the *ADMIN DB HOSTS subscription"
-            Get-AzureRmSubscription -SubscriptionName '*ADMIN DB HOSTS' -ErrorAction Stop | Select-AzureRmSubscription -Force -ErrorAction Stop
-
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+            Write-Host "Current subscription ID is: $subID"
+            
             Write-Host "Setting up Database Variables"
             $dbrg = "azurestack-dbhosting"
             if ($dbHost -eq "MySQL") {
