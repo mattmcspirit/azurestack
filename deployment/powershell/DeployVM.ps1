@@ -264,16 +264,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             ### Login to Azure Stack ###
-            Write-Host "Logging into Azure Stack"
+            Write-Host "Logging into Azure Stack into the admin space, to grab information"
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $azsLocation = (Get-AzsLocation).Name
-
-            Write-Host "Creating a dedicated Resource Group for all database hosting assets"
-            if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
-                New-AzureRmResourceGroup -Name $rg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
-            }
 
             # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
             if ($deploymentMode -eq "Online") {
@@ -302,6 +297,26 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "ASDKConfigurator.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
                 }
                 $scriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob, $asdkOfflineContainerName) -replace "https", "http"
+            }
+            ### Login to Azure Stack ###
+            Write-Host "Logging into Azure Stack into the user space, to create the backend resources"
+            $ArmEndpoint = "https://management.$customDomainSuffix"
+            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $azsLocation = (Get-AzsLocation).Name
+            
+            if (($vmType -eq "SQLServer") -or ($vmType -eq "MySQL")) {
+                Write-Host "Selecting the *ADMIN DB HOSTS subscription"
+                Get-AzureRmSubscription -SubscriptionName '*ADMIN DB HOSTS' -ErrorAction Stop | Select-AzureRmSubscription -Force -ErrorAction Stop
+            }
+            elseif (($vmType -eq "AppServiceDB") -or ($vmType -eq "AppServiceFS")) {
+                Write-Host "Selecting the *ADMIN APPSVC BACKEND subscription"
+                Get-AzureRmSubscription -SubscriptionName '*ADMIN APPSVC BACKEND' -ErrorAction Stop | Select-AzureRmSubscription -Force -ErrorAction Stop
+            }
+                        
+            Write-Host "Creating a dedicated Resource Group for all $vmType hosting assets"
+            if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                New-AzureRmResourceGroup -Name $rg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
             }
 
             if ($vmType -eq "MySQL") {
