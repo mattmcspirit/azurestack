@@ -2950,6 +2950,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     elseif ($skipCustomizeHost -and ($progressCheck -ne "Complete")) {
         StageSkipped -progressStage $progressStage
     }
+    
+    Write-Host "Clearing previous Azure/Azure Stack logins"
+    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
+    Clear-AzureRmContext -Scope CurrentUser -Force
 
     #### GENERATE OUTPUT #########################################################################################################################################
     ##############################################################################################################################################################
@@ -2987,20 +2991,42 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         Write-Output "`r`nThe Azure Stack PowerShell tools have been downloaded to: $modulePath" >> $txtPath
         Write-Output "All other downloads have been stored here: $ASDKpath" >> $txtPath
         Write-Output "`r`nSQL & MySQL Resource Provider Information:" >> $txtPath
+
+        $ArmEndpoint = "https://management.$customDomainSuffix"
+        Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+        Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
         if (!$skipMySQL) {
+            Write-Host "Selecting the *ADMIN DB HOSTS subscription"
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+            Write-Host "Current subscription ID is: $subID"
             Write-Output "MySQL Resource Provider VM Credentials = mysqlrpadmin | $VMpwd" >> $txtPath
+            $dbrg = "azurestack-dbhosting"
+            $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
             Write-Output "MySQL Database Hosting VM FQDN: $mySqlFqdn" >> $txtPath
             Write-Output "MySQL Database Hosting VM Credentials = mysqladmin | $VMpwd" >> $txtPath
         }
         if (!$skipMSSQL) {
+            Write-Host "Selecting the *ADMIN DB HOSTS subscription"
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+            Write-Host "Current subscription ID is: $subID"
             Write-Output "SQL Server Resource Provider VM Credentials = sqlrpadmin | $VMpwd" >> $txtPath
+            $dbrg = "azurestack-dbhosting"
+            $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
             Write-Output "SQL Server Database Hosting VM FQDN: $sqlFqdn" >> $txtPath
             Write-Output "SQL Server Database Hosting VM Credentials = sqladmin | $VMpwd" >> $txtPath
         }
         if (!$skipAppService) {
-            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Write-Host "Selecting the *ADMIN APPSVC BACKEND subscription"
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN APPSVC BACKEND' }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+            Write-Host "Current subscription ID is: $subID"
+            Write-Host "Getting File Server and SQL App Server FQDN"
             $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
             $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
