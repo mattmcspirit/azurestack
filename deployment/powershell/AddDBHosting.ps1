@@ -190,12 +190,12 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$hostingTemplate" | ForEach-Object { $_.FullName }
             }
             if ($dbHost -eq "MySQL") {
-                New-AzureRmResourceGroupDeployment -Name AddMySQLHostingServer -ResourceGroupName $dbrg -TemplateUri $templateURI `
+                New-AzureRmResourceGroupDeployment -Name AddMySQLHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `
                     -username "root" -password $secureVMpwd -hostingServerName $dbFqdn -totalSpaceMB 20480 `
                     -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
             }
             elseif ($dbHost -eq "SQLServer") {
-                New-AzureRmResourceGroupDeployment -Name AddSQLServerHostingServer -ResourceGroupName $dbrg -TemplateUri $templateURI `
+                New-AzureRmResourceGroupDeployment -Name AddSQLServerHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `
                     -hostingServerName $dbFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 20480 `
                     -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
             }
