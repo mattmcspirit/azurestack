@@ -287,7 +287,16 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $asdkOfflineRGName = "azurestack-offline"
+                Write-Host "Logging into Azure Stack into the user space, to grab the location of the scripts and packages"
+                $ArmEndpoint = "https://management.$customDomainSuffix"
+                Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+                Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Write-Host "Selecting the *ADMIN OFFLINE SCRIPTS subscription"
+                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN OFFLINE SCRIPTS' }
+                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                $subID = $azureContext.Subscription.Id
+                Write-Host "Current subscription ID is: $subID"
+                $asdkOfflineRGName = "azurestack-offlinescripts"
                 $asdkOfflineStorageAccountName = "offlinestor"
                 $asdkOfflineContainerName = "offlinecontainer"
                 $asdkOfflineStorageAccount = Get-AzureRmStorageAccount -Name $asdkOfflineStorageAccountName -ResourceGroupName $asdkOfflineRGName -ErrorAction SilentlyContinue
