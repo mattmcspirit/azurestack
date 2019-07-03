@@ -352,7 +352,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $azsLocation = (Get-AzsLocation).Name
+            $azsLocation = (Get-AzureRmLocation).DisplayName
             if (($registerASDK -eq $true) -and ($deploymentMode -eq "Online")) {
                 #if ($image -notlike "*2019") {
                 if ($image) {

@@ -2050,7 +2050,7 @@ try {
     }
 
     # Get Azure Stack location
-    $azsLocation = (Get-AzsLocation).Name
+    $azsLocation = (Get-AzureRmLocation).DisplayName
 
     ### SCRIPT CHECK #############################################################################################################################################
     ##############################################################################################################################################################
@@ -2109,7 +2109,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             $OfferName = "admin-rp-offer"
             $RGName = "azurestack-adminplanoffer"
             # Get Azure Stack location
-            $azsLocation = (Get-AzsLocation).Name
+            $azsLocation = (Get-AzureRmLocation).DisplayName
 
             $computeParams = $null
             $computeParams = @{

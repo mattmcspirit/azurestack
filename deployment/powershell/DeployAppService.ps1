@@ -93,7 +93,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
                 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                $azsLocation = (Get-AzsLocation).Name
+                $azsLocation = (Get-AzureRmLocation).DisplayName
                 $appServiceRGCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
                 if ($appServiceRGCheck) {
                     Write-Output "There is evidence of a previous attempted App Service deployment in the App Service Resource Group. Starting cleanup..."
@@ -261,7 +261,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $azsLocation = (Get-AzsLocation).Name
+            $azsLocation = (Get-AzureRmLocation).DisplayName
             $appServiceFailCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
             if ($appServiceFailCheck.ProvisioningState -eq 'Failed') {
                 Write-Output "There is evidence of a previously failed App Service deployment in the App Service Resource Group. Starting cleanup..."

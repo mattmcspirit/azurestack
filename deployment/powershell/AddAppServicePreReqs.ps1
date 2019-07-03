@@ -339,7 +339,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $asdkExtensionRGName = "azurestack-extension"
                 $asdkExtensionStorageAccountName = "asdkextensionstor"
                 $asdkExtensionContainerName = "asdkextensioncontainer"
-                $azsLocation = (Get-AzsLocation).Name
+                $azsLocation = (Get-AzureRmLocation).DisplayName
                 Write-Host "Resource Group = $asdkExtensionRGName, Storage Account = $asdkExtensionStorageAccountName and Container = $asdkExtensionContainerName"
                 # Test/Create RG
                 if (-not (Get-AzureRmResourceGroup -Name $asdkExtensionRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {

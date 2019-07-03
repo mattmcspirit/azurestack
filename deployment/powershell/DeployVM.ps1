@@ -268,7 +268,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $azsLocation = (Get-AzsLocation).Name
+            $azsLocation = (Get-AzureRmLocation).DisplayName
 
             # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
             if ($deploymentMode -eq "Online") {
@@ -303,7 +303,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $ArmEndpoint = "https://management.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $azsLocation = (Get-AzsLocation).Name
+            $azsLocation = (Get-AzureRmLocation).DisplayName
             
             if (($vmType -eq "SQLServer") -or ($vmType -eq "MySQL")) {
                 Write-Host "Selecting the *ADMIN DB HOSTS subscription"

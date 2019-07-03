@@ -92,7 +92,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $asdkImagesRGName = "azurestack-images"
         $asdkImagesStorageAccountName = "asdkimagesstor"
         $asdkImagesContainerName = "asdkimagescontainer"
-        $azsLocation = (Get-AzsLocation).Name
+        $azsLocation = (Get-AzureRmLocation).DisplayName
         Write-Host "Resource Group = $asdkImagesRGName, Storage Account = $asdkImagesStorageAccountName and Container = $asdkImagesContainerName"
         Write-Host "Setting AZPKG Package Name"
         if ($azpkg -eq "MySQL") {
