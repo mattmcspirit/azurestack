@@ -130,10 +130,16 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     throw "The $($dbHost)DBVM stage of the process has failed. This should fully complete before the $dbHost database host has been deployed. Check the $($dbHost)DBVM log, ensure that step is completed first, and rerun."
                 }
             }
-            Write-Host "Logging into Azure Stack"
-            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Write-Host "Logging into Azure Stack into the user space to get the FQDN of the Hosting Server"
+            $ArmEndpoint = "https://management.$customDomainSuffix"
+            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Write-Host "Selecting the *ADMIN DB HOSTS subscription"
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+            Write-Host "Current subscription ID is: $subID"
+            
             Write-Host "Setting up Database Variables"
             $dbrg = "azurestack-dbhosting"
             if ($dbHost -eq "MySQL") {
@@ -158,6 +164,23 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     throw "The $hostingJobCheck stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the $hostingJobCheck log, ensure that step is completed first, and rerun."
                 }
             }
+
+            Write-Host "Clearing previous Azure/Azure Stack logins"
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
+            Clear-AzureRmContext -Scope CurrentUser -Force
+
+            Write-Host "Logging into Azure Stack into the admin space to complete the process"
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $azsLocation = (Get-AzureRmLocation).DisplayName
+            $adminDbRg = "azurestack-admindbhosting"
+
+            # Create the RG to hold the assets in the admin space
+            if (-not (Get-AzureRmResourceGroup -Name $adminDbRg -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                New-AzureRmResourceGroup -Name $adminDbRg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+            }
+
             # Add host server to MySQL RP
             Write-Host "Attaching $dbHost hosting server to $dbHost resource provider"
             if ($deploymentMode -eq "Online") {
@@ -167,12 +190,12 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $templateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$hostingTemplate" | ForEach-Object { $_.FullName }
             }
             if ($dbHost -eq "MySQL") {
-                New-AzureRmResourceGroupDeployment -Name AddMySQLHostingServer -ResourceGroupName $dbrg -TemplateUri $templateURI `
+                New-AzureRmResourceGroupDeployment -Name AddMySQLHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `
                     -username "root" -password $secureVMpwd -hostingServerName $dbFqdn -totalSpaceMB 20480 `
                     -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
             }
             elseif ($dbHost -eq "SQLServer") {
-                New-AzureRmResourceGroupDeployment -Name AddSQLServerHostingServer -ResourceGroupName $dbrg -TemplateUri $templateURI `
+                New-AzureRmResourceGroupDeployment -Name AddSQLServerHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `
                     -hostingServerName $dbFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 20480 `
                     -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
             }

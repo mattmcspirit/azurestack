@@ -120,7 +120,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                 # Get Azure Stack location
-                $azsLocation = (Get-AzsLocation).Name
+                $azsLocation = (Get-AzureRmLocation).DisplayName
                 # Perform a cleanup of the failed deployment - RG, Files
                 Write-Host "Checking for a previously failed deployemnt and cleaning up."
                 $rgName = "system.local.$($rp)adapter"
@@ -155,7 +155,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
                 # Get Azure Stack location
-                $azsLocation = (Get-AzsLocation).Name
+                $azsLocation = (Get-AzureRmLocation).DisplayName
                 # Need to 100% confirm that the ServerCoreImage is ready as it seems that starting the MySQL/SQL RP deployment immediately is causing an issue
                 Write-Host "Need to confirm that the Windows Server 2016 Core image is available in the gallery and ready"
                 $azsPlatformImageExists = (Get-AzsPlatformImage -Location $azsLocation -Publisher "MicrosoftWindowsServer" -Offer "WindowsServer" -Sku "2016-Datacenter-Server-Core" -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded'

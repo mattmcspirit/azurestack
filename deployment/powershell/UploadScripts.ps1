@@ -87,14 +87,34 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         # Firstly create the appropriate RG, storage account and container
         # Scan the $asdkPath\scripts folder and retrieve both files, add to an array, then upload to the storage account
         # Save URI of the container to a variable to use later
-        $asdkOfflineRGName = "azurestack-offline"
+        $asdkOfflineRGName = "azurestack-offlinescripts"
         $asdkOfflineStorageAccountName = "offlinestor"
         $asdkOfflineContainerName = "offlinecontainer"
         Write-Host "Logging into Azure Stack"
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $azsLocation = (Get-AzsLocation).Name
+        $azsLocation = (Get-AzureRmLocation).DisplayName
+
+        $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
+        $subUserName = (Get-AzureRmContext).Account.Id
+        New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN OFFLINE SCRIPTS'
+
+        # Log the user out of the "AzureStackAdmin" environment
+        Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
+        Clear-AzureRmContext -Scope CurrentUser -Force
+        
+        # Log the user into the "AzureStackUser" environment
+        Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "https://management.$customDomainSuffix"
+        Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
+        # Register all the RPs for that user subscription
+        foreach ($s in (Get-AzureRmSubscription | Where-Object Where-Object { $_.Name -eq '*ADMIN OFFLINE SCRIPTS' } )) {
+            Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
+            Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
+            Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
+        }
+
         if (-not (Get-AzureRmResourceGroup -Name $asdkOfflineRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
             Write-Host "Creating resource group for storing scripts"
             New-AzureRmResourceGroup -Name $asdkOfflineRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop

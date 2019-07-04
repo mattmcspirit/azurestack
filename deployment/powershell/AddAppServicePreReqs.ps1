@@ -233,7 +233,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Clear-AzureRmContext -Scope CurrentUser -Force
                     # Grant permissions to Azure AD Service Principal
                     try {
-                        Write-Host "Attempting to grant persmissions to the AAD application, for the App Service."
+                        Write-Host "Attempting to grant permissions to the AAD application, for the App Service."
                         $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
                         Write-Host "Tenant ID is $tenantId"
                         Write-Host "Logging into Azure Cloud"
@@ -339,7 +339,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $asdkExtensionRGName = "azurestack-extension"
                 $asdkExtensionStorageAccountName = "asdkextensionstor"
                 $asdkExtensionContainerName = "asdkextensioncontainer"
-                $azsLocation = (Get-AzsLocation).Name
+                $azsLocation = (Get-AzureRmLocation).DisplayName
                 Write-Host "Resource Group = $asdkExtensionRGName, Storage Account = $asdkExtensionStorageAccountName and Container = $asdkExtensionContainerName"
                 # Test/Create RG
                 if (-not (Get-AzureRmResourceGroup -Name $asdkExtensionRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
@@ -407,7 +407,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                                 Write-Host -Message "Adding Custom Script Extension (ZIP) to your environment. Attempt: $sideloadCSEZipAttempt"
                                 $URI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkExtensionContainerName, $itemName
-                                $version = "1.9.1"
+                                $version = "1.9.3"
                                 Add-AzsVMExtension -Publisher "Microsoft.Compute" -Type "CustomScriptExtension" -Version "$version" -ComputeRole "IaaS" -SourceBlob "$URI" -VmOsType "Windows" -ErrorAction Stop -Verbose -Force
                                 Start-Sleep -Seconds 5
                             }

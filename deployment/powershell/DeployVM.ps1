@@ -210,15 +210,19 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
                         if ($mySQLProgressCheck -ne "Complete") {
                             ### Login to Azure Stack ###
-                            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-                            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-                            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                            $ArmEndpoint = "https://management.$customDomainSuffix"
+                            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+                            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+                            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                            $subID = $azureContext.Subscription.Id
+                            Write-Host "Current subscription ID is: $subID"
                             while (!$(Get-AzureRmVirtualNetwork -ResourceGroupName "azurestack-dbhosting" -Name "dbhosting_vnet" -ErrorAction SilentlyContinue | Get-AzureRmVirtualNetworkSubnetConfig).ProvisioningState -eq "Succeeded") {
                                 Write-Host "Waiting for deployment of database virtual network and subnet before continuing with deployment of SQL Server for DB hosting. Checking again in 10 seconds."
                                 Start-Sleep 10
                             }
-                            #Write-Host "To avoid deployment conflicts, delaying the SQL Server VM deployment by 2 minutes to allow initial resources to be created"
-                            #Start-Sleep -Seconds 120
+                            Write-Host "To avoid deployment conflicts, delaying the SQL Server VM deployment by 2 minutes to allow initial resources to be created"
+                            Start-Sleep -Seconds 120
                         }
                     }
                 }
@@ -264,16 +268,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             ### Login to Azure Stack ###
-            Write-Host "Logging into Azure Stack"
+            Write-Host "Logging into Azure Stack into the admin space, to grab information"
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $azsLocation = (Get-AzsLocation).Name
-
-            Write-Host "Creating a dedicated Resource Group for all database hosting assets"
-            if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
-                New-AzureRmResourceGroup -Name $rg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
-            }
+            $azsLocation = (Get-AzureRmLocation).DisplayName
 
             # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
             if ($deploymentMode -eq "Online") {
@@ -288,7 +287,16 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $asdkOfflineRGName = "azurestack-offline"
+                Write-Host "Logging into Azure Stack into the user space, to grab the location of the scripts and packages"
+                $ArmEndpoint = "https://management.$customDomainSuffix"
+                Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+                Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Write-Host "Selecting the *ADMIN OFFLINE SCRIPTS subscription"
+                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN OFFLINE SCRIPTS' }
+                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                $subID = $azureContext.Subscription.Id
+                Write-Host "Current subscription ID is: $subID"
+                $asdkOfflineRGName = "azurestack-offlinescripts"
                 $asdkOfflineStorageAccountName = "offlinestor"
                 $asdkOfflineContainerName = "offlinecontainer"
                 $asdkOfflineStorageAccount = Get-AzureRmStorageAccount -Name $asdkOfflineStorageAccountName -ResourceGroupName $asdkOfflineRGName -ErrorAction SilentlyContinue
@@ -302,6 +310,32 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "ASDKConfigurator.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
                 }
                 $scriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob, $asdkOfflineContainerName) -replace "https", "http"
+            }
+            ### Login to Azure Stack ###
+            Write-Host "Logging into Azure Stack into the user space, to create the backend resources"
+            $ArmEndpoint = "https://management.$customDomainSuffix"
+            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $azsLocation = (Get-AzureRmLocation).DisplayName
+            
+            if (($vmType -eq "SQLServer") -or ($vmType -eq "MySQL")) {
+                Write-Host "Selecting the *ADMIN DB HOSTS subscription"
+                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                $subID = $azureContext.Subscription.Id
+                Write-Host "Current subscription ID is: $subID"
+            }
+            elseif (($vmType -eq "AppServiceDB") -or ($vmType -eq "AppServiceFS")) {
+                Write-Host "Selecting the *ADMIN APPSVC BACKEND subscription"
+                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN APPSVC BACKEND' }
+                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                $subID = $azureContext.Subscription.Id
+                Write-Host "Current subscription ID is: $subID"
+            }
+                        
+            Write-Host "Creating a dedicated Resource Group for all $vmType hosting assets"
+            if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                New-AzureRmResourceGroup -Name $rg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
             }
 
             if ($vmType -eq "MySQL") {

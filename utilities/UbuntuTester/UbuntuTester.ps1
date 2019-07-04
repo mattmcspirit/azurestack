@@ -26,7 +26,7 @@ Product   : Requires AzCopy for Azure Stack installed (https://docs.microsoft.co
 Ensure that the -imagePath exists before running the deployment.
 
 This example will import all listed server images from a CSV File, download the images from Ubuntu's Cloud Images repo, unzip, push into
-the PIR, and then attempt to deploy a VM from that image. Should it succeed, the image will be recommened for use. Should it fail, it will
+the PIR, and then attempt to deploy a VM from that image. Should it succeed, the image will be recommended for use. Should it fail, it will
 not be recommended. A txt document will list the images that have been tested.
 #>
 

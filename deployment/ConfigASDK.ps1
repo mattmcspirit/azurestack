@@ -40,6 +40,9 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1906    Updated to support ASDK 1.1906.0.30
+            Moved backend RP resources to Tenant Space
+            Minor bug fixes and cleanup
     1905.1  Minor bug fixes and cleanup
             Updated to support newer Ubuntu Server 16.04 image for registered and non-registered deployments
             Updated Azure CLI Profile
@@ -1376,6 +1379,7 @@ try {
             DownloadTools        = "Incomplete";
             HostConfiguration    = "Incomplete";
             Registration         = "Incomplete";
+            AdminPlanOffer       = "Incomplete";
             UbuntuServerImage    = "Incomplete";
             WindowsUpdates       = "Incomplete";
             ServerCore2016Image  = "Incomplete";
@@ -1400,7 +1404,7 @@ try {
             AddAppServicePreReqs = "Incomplete";
             DeployAppService     = "Incomplete";
             RegisterNewRPs       = "Incomplete";
-            CreatePlansOffers    = "Incomplete";
+            UserPlanOffer        = "Incomplete";
             InstallHostApps      = "Incomplete";
             CreateOutput         = "Incomplete";
         }
@@ -2048,7 +2052,7 @@ try {
     }
 
     # Get Azure Stack location
-    $azsLocation = (Get-AzsLocation).Name
+    $azsLocation = (Get-AzureRmLocation).DisplayName
 
     ### SCRIPT CHECK #############################################################################################################################################
     ##############################################################################################################################################################
@@ -2084,6 +2088,134 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         return
     }
 
+    #### CREATE ADMIN PLAN AND OFFER IN TENANT SPACE #############################################################################################################
+    ##############################################################################################################################################################
+
+    $progressStage = "AdminPlanOffer"
+    $progressCheck = CheckProgress -progressStage $progressStage
+    $scriptStep = $progressStage.ToUpper()
+    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
+        try {
+            Write-Host "Creating a plan and private offer in the tenant space, for deploying RP resources such as database hosts and App Service resources."
+            # Configure a simple base plan and offer for IaaS for specific use by the admin for storing RP related resources
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
+            Clear-AzureRmContext -Scope CurrentUser -Force
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+
+            # Default quotas, plan, and offer
+            $PlanName = "admin-rp-plan"
+            $OfferName = "admin-rp-offer"
+            $RGName = "azurestack-adminplanoffer"
+            # Get Azure Stack location
+            $azsLocation = (Get-AzureRmLocation).DisplayName
+
+            $computeParams = $null
+            $computeParams = @{
+                Name                 = "compute_default"
+                CoresCount           = 200
+                AvailabilitySetCount = 20
+                VirtualMachineCount  = 100
+                VmScaleSetCount      = 20
+                Location             = $azsLocation
+            }
+
+            $netParams = $null
+            $netParams = @{
+                Name                                               = "network_default"
+                MaxPublicIpsPerSubscription                        = 500
+                MaxVNetsPerSubscription                            = 500
+                MaxVirtualNetworkGatewaysPerSubscription           = 10
+                MaxVirtualNetworkGatewayConnectionsPerSubscription = 20
+                MaxLoadBalancersPerSubscription                    = 500
+                MaxNicsPerSubscription                             = 1000
+                MaxSecurityGroupsPerSubscription                   = 500
+                Location                                           = $azsLocation
+            }
+
+            $storageParams = $null
+            $storageParams = @{
+                Name                    = "storage_default"
+                NumberOfStorageAccounts = 200
+                CapacityInGB            = 2048
+                Location                = $azsLocation
+            }
+
+            $kvParams = $null
+            $kvParams = @{
+                Location = $azsLocation
+            }
+
+            $quotaIDs = $null
+            $quotaIDs = @()
+            while (!$(Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
+                New-AzsNetworkQuota @netParams
+            }
+            if ($(Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
+                $quotaIDs += (Get-AzsNetworkQuota -Name ($netParams.Name) -Location $azsLocation).ID
+            }
+            while (!$(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
+                New-AzsComputeQuota @computeParams -ErrorAction Stop -Verbose
+            }
+            if ($(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
+                $quotaIDs += (Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation).ID
+            }
+            while (!$(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
+                New-AzsStorageQuota @storageParams -ErrorAction Stop -Verbose
+            }
+            if ($(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
+                $quotaIDs += (Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation).ID
+            }
+            $quotaIDs += (Get-AzsKeyVaultQuota @kvParams -ErrorAction Stop -Verbose).ID
+
+            # Create the Plan and Private Offer
+            New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
+            $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
+            New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
+
+            # Create a new subscription for that offer, for the currently logged in user
+            # 1 subscription will be for the DB hosts and one will be for the App Service
+            if ((!$skipMySQL) -or (!$skipMSSQL)) {
+                $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
+                $subUserName = (Get-AzureRmContext).Account.Id
+                New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN DB HOSTS'
+            }
+
+            if (!$skipAppService) {
+                $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
+                $subUserName = (Get-AzureRmContext).Account.Id
+                New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN APPSVC BACKEND'
+            }
+
+            # Log the user out of the "AzureStackAdmin" environment
+            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
+            Clear-AzureRmContext -Scope CurrentUser -Force
+
+            # Log the user into the "AzureStackUser" environment
+            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "https://management.$customDomainSuffix"
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
+            # Register all the RPs for that user
+            foreach ($s in (Get-AzureRmSubscription)) {
+                Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
+                Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
+                Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
+            }
+            StageComplete -progressStage $progressStage
+        }
+        catch {
+            StageFailed -progressStage $progressStage
+            Set-Location $ScriptLocation
+            return
+        }
+    }
+    elseif ($progressCheck -eq "Complete") {
+        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+    }
+
     ### ADD VM IMAGES - JOB SETUP ################################################################################################################################
     ##############################################################################################################################################################
 
@@ -2099,16 +2231,15 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     Start-Sleep 3
 
     if ($null -eq $ISOPath2019) {
-        $sm = "45"
-        $med = "82"
-        $lg = "115"
-        $xlg = "115"
+        $sm = 45
+        $med = 85
+        $lg = 115
+
     }
     else {
-        $sm = "45"
-        $med = "82"
-        $lg = "115"
-        $xlg = "200"
+        $sm = 45
+        $med = 85
+        $lg = 200
     }
 
     if ($freeCSVSpace -lt $sm) {
@@ -2127,8 +2258,8 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after both prior jobs have finished 3. (+ WS 2019 Core, + WS 2019 Full Optionally)
         $runMode = "partialParallel"
     }
-    elseif ($freeCSVSpace -ge $xlg) {
-        Write-CustomVerbose -Message "Free space is more than $($xlg)GB - you have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
+    elseif ($freeCSVSpace -ge $lg) {
+        Write-CustomVerbose -Message "Free space is more than $($lg)GB - you have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
         Write-CustomVerbose -Message "This is the fastest way to populate the Azure Stack Platform Image Repository."
         # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel (+ WS 2019 Core, + WS 2019 Full Optionally) after Windows Update job is finished.
         $runMode = "parallel"
@@ -2138,7 +2269,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     $jobName = "AddUbuntuImage"
     $AddUbuntuImage = {
         Start-Job -Name AddUbuntuImage -InitializationScript $export_functions -ArgumentList $ISOpath, $ISOPath2019, $ASDKpath, $customDomainSuffix, $registerASDK, $deploymentMode, $modulePath, `
-            $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $branch, $sqlServerInstance, $databaseName, $tableName, $runMode -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
                 -customDomainSuffix $Using:customDomainSuffix -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
                 -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
@@ -2446,6 +2577,11 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
     ##############################################################################################################################################################
 
+    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
+    Clear-AzureRmContext -Scope CurrentUser -Force
+    $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
     $progressStage = "RegisterNewRPs"
     $progressCheck = CheckProgress -progressStage $progressStage
     $scriptStep = $progressStage.ToUpper()
@@ -2472,7 +2608,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
     ##############################################################################################################################################################
 
-    $progressStage = "CreatePlansOffers"
+    $progressStage = "UserPlanOffer"
     $progressCheck = CheckProgress -progressStage $progressStage
     $scriptStep = $progressStage.ToUpper()
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
@@ -2816,6 +2952,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     elseif ($skipCustomizeHost -and ($progressCheck -ne "Complete")) {
         StageSkipped -progressStage $progressStage
     }
+    
+    Write-Host "Clearing previous Azure/Azure Stack logins"
+    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
+    Clear-AzureRmContext -Scope CurrentUser -Force
 
     #### GENERATE OUTPUT #########################################################################################################################################
     ##############################################################################################################################################################
@@ -2853,20 +2993,42 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         Write-Output "`r`nThe Azure Stack PowerShell tools have been downloaded to: $modulePath" >> $txtPath
         Write-Output "All other downloads have been stored here: $ASDKpath" >> $txtPath
         Write-Output "`r`nSQL & MySQL Resource Provider Information:" >> $txtPath
+
+        $ArmEndpoint = "https://management.$customDomainSuffix"
+        Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+        Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+
         if (!$skipMySQL) {
+            Write-Host "Selecting the *ADMIN DB HOSTS subscription"
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+            Write-Host "Current subscription ID is: $subID"
             Write-Output "MySQL Resource Provider VM Credentials = mysqlrpadmin | $VMpwd" >> $txtPath
+            $dbrg = "azurestack-dbhosting"
+            $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
             Write-Output "MySQL Database Hosting VM FQDN: $mySqlFqdn" >> $txtPath
             Write-Output "MySQL Database Hosting VM Credentials = mysqladmin | $VMpwd" >> $txtPath
         }
         if (!$skipMSSQL) {
+            Write-Host "Selecting the *ADMIN DB HOSTS subscription"
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+            Write-Host "Current subscription ID is: $subID"
             Write-Output "SQL Server Resource Provider VM Credentials = sqlrpadmin | $VMpwd" >> $txtPath
+            $dbrg = "azurestack-dbhosting"
+            $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
             Write-Output "SQL Server Database Hosting VM FQDN: $sqlFqdn" >> $txtPath
             Write-Output "SQL Server Database Hosting VM Credentials = sqladmin | $VMpwd" >> $txtPath
         }
         if (!$skipAppService) {
-            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Write-Host "Selecting the *ADMIN APPSVC BACKEND subscription"
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN APPSVC BACKEND' }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $subID = $azureContext.Subscription.Id
+            Write-Host "Current subscription ID is: $subID"
+            Write-Host "Getting File Server and SQL App Server FQDN"
             $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
             $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
@@ -2981,7 +3143,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $asdkImagesRGName = "azurestack-images"
+        $asdkImagesRGName = "azurestack-adminimages"
         Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
 
         # Create desktop icons
