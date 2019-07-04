@@ -40,7 +40,9 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
-    1905    Updated to support ASDK 1.1906.0.30
+    1906    Updated to support ASDK 1.1906.0.30
+            Moved backend RP resources to Tenant Space
+            Minor bug fixes and cleanup
     1905.1  Minor bug fixes and cleanup
             Updated to support newer Ubuntu Server 16.04 image for registered and non-registered deployments
             Updated Azure CLI Profile
