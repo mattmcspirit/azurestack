@@ -36,11 +36,17 @@ function DownloadFile($uri) {
 }
 
 function Expand-ZIPFile($file, $destination) {
-    $shell = new-object -com shell.application
-    $zip = $shell.NameSpace($file)
-    foreach ($item in $zip.items()) {
-        # 16 - Respond with "Yes to All" for any dialog box that is displayed.
-        $shell.Namespace($destination).copyhere($item, 16)
+    if (Get-Command Expand-Archive -ErrorAction SilentlyContinue) {
+        Expand-Archive -Path $file -DestinationPath $destination
+    }
+    else {
+        # Fall back to COM to expand the zip 
+        $shell = new-object -com shell.application
+        $zip = $shell.NameSpace($file)
+        foreach ($item in $zip.items()) {
+            # 16 - Respond with "Yes to All" for any dialog box that is displayed.
+            $shell.Namespace($destination).copyhere($item, 16)
+        }
     }
 }
 
@@ -57,6 +63,13 @@ function Decode-Parameter($parameter) {
     }
 
     return $parameter
+}
+
+function Quote-String($str) {
+    # Put single quote around the string
+    # Escape single quote
+    # Also escape double quote else it will be trimmed by ArgumentList
+    return "'" + $str.Replace("'", "''").Replace('"', '\"') + "'"
 }
 
 try {
@@ -84,21 +97,41 @@ try {
             }
 
             if (Test-Path $zipFile) {
-                Expand-ZIPFile –File $zipFile –Destination "$pwd"                
+                Expand-ZIPFile -file $zipFile -destination "$pwd"
                 Move-Item -Path $zipFile -Destination "$zipFile.expanded" -Force
             }
         }   
     }
 
+    Log "Configure admin user"
+    # Disable built-in admin if it is not our admin
+    $adminGroup = Get-LocalGroup -SID 'S-1-5-32-544'
+    $buildinAdmin = Get-LocalGroupMember $adminGroup | where { $_.SID.Value.EndsWith("-500") }
+
+    if ($buildinAdmin.Name -ne "${env:COMPUTERNAME}\$fileServerAdminUserName") {
+        Disable-LocalUser -SID $buildinAdmin.SID
+    }
+
+    # Create or update the actual admin
+    $securePassword = ConvertTo-SecureString $fileServerAdminPassword -Force -AsPlainText
+    if (Get-LocalUser -Name $fileServerAdminUserName -ErrorAction SilentlyContinue) {
+        Set-LocalUser -Name $fileServerAdminUserName -Password $securePassword -AccountNeverExpires -PasswordNeverExpires $true
+        Enable-LocalUser -Name $fileServerAdminUserName
+    }
+    else {
+        New-LocalUser -Name $fileServerAdminUserName -Password $securePassword -AccountNeverExpires -PasswordNeverExpires
+        Add-LocalGroupMember -Group $adminGroup -Member $fileServerAdminUserName
+    }
+
     Log "Start App Service file server configuration."
 
     $cmd = ".\FileServer\single.ps1 " +
-    "-fileServerAdminUserName '$fileServerAdminUserName' " +
-    "-fileServerAdminPassword '$fileServerAdminPassword' " +
-    "-fileShareOwnerUserName '$fileShareOwnerUserName' " +
-    "-fileShareOwnerPassword '$fileShareOwnerPassword' " +
-    "-fileShareUserUserName '$fileShareUserUserName' " +
-    "-fileShareUserPassword '$fileShareUserPassword' "
+    "-fileServerAdminUserName $(Quote-String $fileServerAdminUserName) " +
+    "-fileServerAdminPassword $(Quote-String $fileServerAdminPassword) " +
+    "-fileShareOwnerUserName $(Quote-String $fileShareOwnerUserName) " +
+    "-fileShareOwnerPassword $(Quote-String $fileShareOwnerPassword) " +
+    "-fileShareUserUserName $(Quote-String $fileShareUserUserName) " +
+    "-fileShareUserPassword $(Quote-String $fileShareUserPassword)"
 
     $process = Start-Process -FilePath Powershell.exe -ArgumentList $cmd -Wait -NoNewWindow -PassThru
     if ($process.ExitCode -ne 0) {
