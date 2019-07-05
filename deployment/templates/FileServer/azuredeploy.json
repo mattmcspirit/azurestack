@@ -219,7 +219,7 @@
       }
     },
     {
-      "apiVersion": "2017-03-30",
+      "apiVersion": "2017-12-01",
       "type": "Microsoft.Compute/virtualMachines",
       "name": "[parameters('vmName')]",
       "location": "[resourceGroup().location]",
@@ -273,7 +273,7 @@
     {
       "type": "Microsoft.Compute/virtualMachines/extensions",
       "name": "[concat(parameters('vmName'),'/configurefileserver')]",
-      "apiVersion": "2017-03-30",
+      "apiVersion": "2017-12-01",
       "location": "[resourceGroup().location]",
       "dependsOn": [
         "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'))]"
@@ -281,7 +281,7 @@
       "properties": {
         "publisher": "Microsoft.Compute",
         "type": "CustomScriptExtension",
-        "typeHandlerVersion": "1.8",
+        "typeHandlerVersion": "1.9",
         "autoUpgradeMinorVersion": true,
         "settings": {
           "fileUris": [
