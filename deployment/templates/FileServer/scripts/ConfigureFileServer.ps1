@@ -6,10 +6,23 @@ param (
     [string] $fileShareUserPassword
 )
 
+### FUNCTIONS ######################################################################
+
 function Log($out) {
     $out = [System.DateTime]::Now.ToString("yyyy.MM.dd hh:mm:ss") + " ---- " + $out;
     Write-Output $out;
 }
+
+function DecodeParam($parameter) {
+    if ($parameter.StartsWith("base64:")) {
+        $encodedParameter = $parameter.Split(':', 2)[1]
+        $decodedArray = [System.Convert]::FromBase64String($encodedParameter);
+        $parameter = [System.Text.Encoding]::UTF8.GetString($decodedArray); 
+    }
+    return $parameter
+}
+
+###################################################################################
 
 # Force use of TLS 1.2
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -40,6 +53,13 @@ Log "Log started at $runTime"
 ### CONFIG POWER OPTIONS ###
 Log "Configure Power Options to High performance mode."
 POWERCFG.EXE /S SCHEME_MIN
+
+### DECODING PARAMETERS
+Log "Decoding secure parameters passed from ARM template"
+$fileShareOwnerUserName = DecodeParam $fileShareOwnerUserName
+$fileShareOwnerPassword = DecodeParam $fileShareOwnerPassword
+$fileShareUserUserName = DecodeParam $fileShareUserUserName
+$fileShareUserPassword = DecodeParam $fileShareUserPassword
 
 ### CREATE STRONG PASSWORDS ###
 Log "Configuring strong passwords for the user accounts"

@@ -83,6 +83,10 @@
   },
   "variables": {
     "storageAccountResourceGroup": "[resourceGroup().name]",
+    "powershell_fileShareOwner": "[concat('base64:', base64(parameters('fileShareOwner')))]",
+    "powershell_fileShareOwnerPassword": "[concat('base64:', base64(parameters('fileShareOwnerPassword')))]",
+    "powershell_fileShareUser": "[concat('base64:', base64(parameters('fileShareUser')))]",
+    "powershell_fileShareUserPassword": "[concat('base64:', base64(parameters('fileShareUserPassword')))]",
     "publicIPAddressName": "[concat(parameters('vmName'),'_ip')]",
     "publicIPAddressType": "Static",
     "virtualNetworkName": "[concat(parameters('vmName'),'_vnet')]",
@@ -101,7 +105,7 @@
     "diagStorageAccountName": "[concat(parameters('vmName'),'diag', variables('randomGUID'))]",
     "nicName": "[concat(parameters('vmName'),'_nic')]",
     "nsgName": "[concat(parameters('vmName'),'_nsg')]",
-    "scriptParameters": "[concat('-fileShareOwnerUserName ',parameters('fileShareOwner'),' -fileShareOwnerPassword \"',parameters('fileShareOwnerPassword'),'\"',' -fileShareUserUserName ',parameters('fileShareUser'),' -fileShareUserPassword \"',parameters('fileShareUserPassword'),'\"')]"
+    "scriptParameters": "[concat('-fileShareOwnerUserName ',variables('powershell_fileShareOwner'),' -fileShareOwnerPassword \"',variables('powershell_fileShareOwnerPassword'),'\"',' -fileShareUserUserName ',variables('powershell_fileShareUser'),' -fileShareUserPassword \"',variables('powershell_fileShareUserPassword'),'\"')]"
   },
   "resources": [
     {
