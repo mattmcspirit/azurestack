@@ -35,7 +35,7 @@ $ScriptLocation = Get-Location
 $logPath = "$($env:SystemDrive)\ConfigureFileServer"
 
 if (![System.IO.Directory]::Exists("$logPath")) {
-    New-Item -Path $logFolder -ItemType Directory -Force -ErrorAction Stop
+    New-Item -Path $logPath -ItemType Directory -Force -ErrorAction Stop
 }
 
 ### START LOGGING ###
