@@ -75,7 +75,7 @@
     },
     "vmExtensionScriptLocation": {
       "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/1906.1/deployment/templates/FileServer/scripts/",
+      "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/scripts/",
       "metadata": {
         "description": "File Server extension script Url"
       }
