@@ -1,4 +1,4 @@
-ASDK Configurator 1906 | Offline Mode
+ASDK Configurator 1906.1 | Offline Mode
 ==============
 
 Who is this for?
@@ -11,7 +11,7 @@ If you answered **Yes** to either of those questions, read on....
 Version Compatibility
 -----------
 The current version of the ConfigASDKdependencies.ps1 script has been **tested with the following versions**:
-* ASDK Configurator (ConfigASDK.ps1) **1906**
+* ASDK Configurator (ConfigASDK.ps1) **1906.1**
 
 Description
 -----------
