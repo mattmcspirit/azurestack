@@ -565,11 +565,8 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/azuredeploy.json"
         $row.filename = "FileServerTemplate.json"; $row.path = "$templatePath"; $row.productName = "File Server template for deployment"; $Table.Rows.Add($row)
         # File Server PowerShell Script
-        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/scripts/OnStartAzureVirtualMachineFileServer.ps1"
-        $row.filename = "OnStartAzureVirtualMachineFileServer.ps1"; $row.path = "$scriptPath"; $row.productName = "File Server script for deployment"; $Table.Rows.Add($row)
-        # File Server DSC zip Script
-        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/templates/FileServer/scripts/fileserver.cr.zip"
-        $row.filename = "fileserver.cr.zip"; $row.path = "$scriptPath"; $row.productName = "File Server DSC zip for deployment"; $Table.Rows.Add($row)
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/scripts/ConfigureFileServer.ps1"
+        $row.filename = "ConfigureFileServer.ps1"; $row.path = "$scriptPath"; $row.productName = "File Server script for deployment"; $Table.Rows.Add($row)
         # App Service Helper Scripts
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
         #$row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/appservice/appservicehelper1.4.zip"
@@ -835,13 +832,13 @@ try {
     
         ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
         if ($buildVersion -eq "14393") {
-            $ssuArray = @("4132216", "4465659", "4485447", "4498947")
+            $ssuArray = @("4132216", "4465659", "4485447", "4498947", "4503537")
             $updateArray = @("4091664")
             $ssuSearchString = 'Windows Server 2016'
             $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2016 for x64-based Systems'
         }
         elseif ($buildVersion -eq "17763") {
-            $ssuArray = @("4470788", "4493510", "4499728")
+            $ssuArray = @("4470788", "4493510", "4499728", "4504369")
             $updateArray = @("4465065")
             $ssuSearchString = 'Windows Server 2019'
             $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2019 for x64-based Systems'
