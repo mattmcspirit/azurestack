@@ -8,6 +8,11 @@ param (
     [string] $fileShareUserPassword
 )
 
+function Log($out) {
+    $out = [System.DateTime]::Now.ToString("yyyy.MM.dd hh:mm:ss") + " ---- " + $out;
+    Write-Output $out;
+}
+
 # Force use of TLS 1.2
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -28,55 +33,56 @@ if (![System.IO.Directory]::Exists("$logPath")) {
 $runTime = $(Get-Date).ToString("MMdd-HHmmss")
 $fullLogPath = "$logPath\ConfigFS$runTime.txt"
 Start-Transcript -Path "$fullLogPath" -Append
-Write-Host "Creating log folder"
-Write-Host "Log folder has been created at $logPath"
-Write-Host "Log file stored at $fullLogPath"
-Write-Host "Starting logging"
-Write-Host "Log started at $runTime"
+Log "Creating log folder"
+Log "Log folder has been created at $logPath"
+Log "Log file stored at $fullLogPath"
+Log "Starting logging"
+Log "Log started at $runTime"
 
 ### CONFIG POWER OPTIONS ###
-Write-Host "Configure Power Options to High performance mode."
+Log "Configure Power Options to High performance mode."
 POWERCFG.EXE /S SCHEME_MIN
 
 ### CREATE STRONG PASSWORDS ###
-$strFileShareAdminPassword = ConvertTo-SecureString $fileShareAdminPassword -Force -AsPlainText
-$strFileShareOwnerPassword = ConvertTo-SecureString $fileShareOwnerPassword -Force -AsPlainText
-$strFileShareUserPassword = ConvertTo-SecureString $fileShareUserPassword -Force -AsPlainText
+Log "Configuring strong passwords for the user accounts"
+$strFileShareAdminPassword = ConvertTo-SecureString $fileShareAdminPassword -Force -AsPlainText -Verbose
+$strFileShareOwnerPassword = ConvertTo-SecureString $fileShareOwnerPassword -Force -AsPlainText -Verbose
+$strFileShareUserPassword = ConvertTo-SecureString $fileShareUserPassword -Force -AsPlainText -Verbose
 
 ### CONFIG ACCOUNTS ###
 try {
     # Get the built in Admin group
-    Write-Host "Getting local administrator group"
+    Log "Getting local administrator group"
     $adminGroup = Get-LocalGroup -SID 'S-1-5-32-544'
 
     # Create or update with the new File Server Owner
-    Write-Host "Checking to see if $fileShareOwnerUserName currently exists"
+    Log "Checking to see if $fileShareOwnerUserName currently exists"
     if (Get-LocalUser -Name $fileShareOwnerUserName -ErrorAction SilentlyContinue) {
-        Write-Host "$fileShareOwnerUserName has been located. Updating settings."
+        Log "$fileShareOwnerUserName has been located. Updating settings."
         Set-LocalUser -Name $fileShareOwnerUserName -Password $strFileShareOwnerPassword -AccountNeverExpires -PasswordNeverExpires $true -Verbose -ErrorAction Stop
         Enable-LocalUser -Name $fileShareOwnerUserName -Verbose -ErrorAction Stop
     }
     else {
-        Write-Host "$fileShareOwnerUserName does not exist.  Create new account with correct settings."
+        Log "$fileShareOwnerUserName does not exist.  Create new account with correct settings."
         New-LocalUser -Name $fileShareOwnerUserName -Password $strFileShareOwnerPassword -AccountNeverExpires -PasswordNeverExpires -Verbose -ErrorAction Stop
-        Write-Host "Adding $fileShareOwnerUserName to the local admins group."
+        Log "Adding $fileShareOwnerUserName to the local admins group."
         Add-LocalGroupMember -Group $adminGroup -Member $fileShareOwnerUserName -Verbose -ErrorAction Stop
     }
 
     # Create or update with the new File Server User
-    Write-Host "Checking to see if $fileShareUserUserName currently exists"
+    Log "Checking to see if $fileShareUserUserName currently exists"
     if (Get-LocalUser -Name $fileShareUserUserName -ErrorAction SilentlyContinue) {
-        Write-Host "$fileShareUserUserName has been located. Updating settings."
+        Log "$fileShareUserUserName has been located. Updating settings."
         Set-LocalUser -Name $fileShareUserUserName -Password $strFileShareUserPassword -AccountNeverExpires -PasswordNeverExpires $true -Verbose -ErrorAction Stop
         Enable-LocalUser -Name $fileShareUserUserName -Verbose -ErrorAction Stop
     }
     else {
-        Write-Host "$fileShareUserUserName does not exist.  Create new account with correct settings."
+        Log "$fileShareUserUserName does not exist.  Create new account with correct settings."
         New-LocalUser -Name $fileShareUserUserName -Password $strFileShareUserPassword -AccountNeverExpires -PasswordNeverExpires
     }
 }
 catch {
-    Write-Host "Something went wrong with the configuration of the accounts. Please review the log file at $fullLogPath and rerun."
+    Log "Something went wrong with the configuration of the accounts. Please review the log file at $fullLogPath and rerun."
     Set-Location $ScriptLocation
     throw $_.Exception.Message
     return
@@ -84,19 +90,19 @@ catch {
 
 try {
     ### CREATE WEBSITES FOLDER ###
-    Write-Host "Checking to see if the websites folder exists."
+    Log "Checking to see if the websites folder exists."
     $websitesFolder = "$($env:SystemDrive)\websites"
     if (![System.IO.Directory]::Exists("$websitesFolder")) {
-        Write-Host "Websites folder does not exist, creating it."
+        Log "Websites folder does not exist, creating it."
         New-Item -Path $websitesFolder -ItemType Directory -Force -ErrorAction Stop -Verbose
     }
-    Write-Host "Checking to see if websites SMB share exists."
-    if (!(Get-SmbShare -Name websites)) {
-        Write-Host "Websites SMB share does not exist, creating it."
+    Log "Checking to see if websites SMB share exists."
+    if (!(Get-SmbShare -Name websites -ErrorAction SilentlyContinue -Verbose)) {
+        Log "Websites SMB share does not exist, creating it."
         New-SmbShare -Name websites -Path $websitesFolder -CachingMode None -FullAccess Everyone -Verbose -ErrorAction Stop
     }
     ### SET WEBSITES FOLDER PERMISSIONS ###
-    Write-Host "Setting ACLs for access to the websites folder."
+    Log "Setting ACLs for access to the websites folder."
     CMD.EXE /C "icacls $websitesFolder /reset"
     CMD.EXE /C "icacls $websitesFolder /grant Administrators:(OI)(CI)(F)"
     CMD.EXE /C "icacls $websitesFolder /grant $($fileShareOwnerUserName):(OI)(CI)(M)"
@@ -105,7 +111,7 @@ try {
     CMD.EXE /C "icacls $websitesFolder /grant *S-1-1-0:(OI)(CI)(IO)(RA,REA,RD)"
 }
 catch {
-    Write-Host "Something went wrong with the configuration of the websites content folder. Please review the log file at $fullLogPath and rerun."
+    Log "Something went wrong with the configuration of the websites content folder. Please review the log file at $fullLogPath and rerun."
     Set-Location $ScriptLocation
     throw $_.Exception.Message
     return
@@ -113,16 +119,16 @@ catch {
 
 ### UPDATE FIREWALL ###
 try {
-    Write-Host "Updating firewall rule to allow file sharing."
+    Log "Updating firewall rule to allow file sharing."
     Get-NetFirewallRule -DisplayGroup 'File and Printer Sharing' | Set-NetFirewallRule -Profile 'Any' -Enabled True -Verbose -Confirm:$false
 }
 catch {
-    Write-Host "Something went wrong with the configuration of the firewall. Please review the log file at $fullLogPath and rerun."
+    Log "Something went wrong with the configuration of the firewall. Please review the log file at $fullLogPath and rerun."
     Set-Location $ScriptLocation
     throw $_.Exception.Message
     return
 }
 
 $endTime = $(Get-Date).ToString("MMdd-HHmmss")
-Write-Host "Logging stopped at $endTime"
+Log "Logging stopped at $endTime"
 Stop-Transcript -ErrorAction SilentlyContinue
