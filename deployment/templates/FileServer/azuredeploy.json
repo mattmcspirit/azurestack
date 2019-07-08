@@ -101,7 +101,7 @@
     "diagStorageAccountName": "[concat(parameters('vmName'),'diag', variables('randomGUID'))]",
     "nicName": "[concat(parameters('vmName'),'_nic')]",
     "nsgName": "[concat(parameters('vmName'),'_nsg')]",
-    "scriptParameters": "[concat('-fileShareAdminUserName ',parameters('adminUsername'), ' -fileShareAdminPassword \"', parameters('adminPassword'), '\"', ' -fileShareOwnerUserName ',parameters('fileShareOwner'), ' -fileShareOwnerPassword \"',parameters('fileShareOwnerPassword'),'\"', ' -fileShareUserUserName ',parameters('fileShareUser'), ' -fileShareUserPassword \"',parameters('fileShareUserPassword'),'\"')]"
+    "scriptParameters": "[concat('-fileShareAdminUserName ',parameters('adminUsername'), ' -fileShareAdminPassword ', '\u0027', parameters('adminPassword'),'\u0027', ' -fileShareOwnerUserName ',parameters('fileShareOwner'), ' -fileShareOwnerPassword ', '\u0027', parameters('fileShareOwnerPassword'),'\u0027', ' -fileShareUserUserName ',parameters('fileShareUser'), ' -fileShareUserPassword \"', '\u0027', parameters('fileShareUserPassword'),'\u0027')]"
   },
   "resources": [
     {
