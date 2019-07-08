@@ -454,10 +454,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
                 elseif (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name "DeployAppServiceFileServer" -ErrorAction SilentlyContinue)) {
                     Write-Host "No previous deployment found - starting deployment of File Server"
-                    Write-Host "Creating a dedicated Resource Group for all assets"
+                    Write-Host "Creating a dedicated Resource Group for all File Server assets"
                     if (-not (Get-AzureRmResourceGroup -Name $rg -Location $azsLocation -ErrorAction SilentlyContinue)) {
                         New-AzureRmResourceGroup -Name $rg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
                     }
+                    Write-Host "Starting deployment of the File Server for App Service"
                     New-AzureRmResourceGroupDeployment -Name "DeployAppServiceFileServer" -ResourceGroupName $rg -vmName "fileserver" -TemplateUri $mainTemplateURI `
                         -adminPassword $secureVMpwd -fileShareOwnerPassword $secureVMpwd -fileShareUserPassword $secureVMpwd `
                         -vmExtensionScriptLocation $scriptBaseURI -Mode Incremental -Verbose -ErrorAction Stop
