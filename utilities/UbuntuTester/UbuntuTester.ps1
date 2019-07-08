@@ -85,7 +85,7 @@ $asdkCreds = Get-Credential -Message "Please enter your Azure Stack Service Admi
 Foreach ($Entry in $CSVData) {
 
     ### SET LOG LOCATION ###
-    $logFolder = "$($Entry.UbuntuRelease)"
+    $logFolder = "$($Entry.UbuntuSku).$($Entry.UbuntuRelease)"
     $logDate = Get-Date -Format FileDate
     New-Item -ItemType Directory -Path "$imagePath\Logs\$logDate\$logFolder" -Force | Out-Null
     $logPath = "$imagePath\Logs\$logDate\$logFolder"
@@ -318,7 +318,7 @@ Foreach ($Entry in $CSVData) {
 
     # Deploy a VM to test image
     Write-Host "Starting deployment of Ubuntu Server $vhdVersion"
-    $mainTemplateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/misc/UbuntuReleaseTest.json"
+    $mainTemplateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/utilities/UbuntuTester/UbuntuReleaseTest.json"
     $guid = ((New-Guid).ToString()).Substring(0, 6)
     $deploymentName = "DeployUbuntuTest$($vhdVersion)_$guid"
     $rg = "UbuntuServer$($ubuntuBuild)_$guid"
