@@ -97,7 +97,7 @@
     "subnetPrefix": "10.100.0.0/24",
     "publisher": "MicrosoftWindowsServer",
     "offer": "WindowsServer",
-    "sku": "2016-Datacenter",
+    "sku": "2016-Datacenter-Server-Core",
     "version": "latest",
     "managedDiskAccountType": "Premium_LRS",
     "osDiskName": "[toLower(concat(parameters('vmName'), '_osdisk'))]",
