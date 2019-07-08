@@ -5,6 +5,11 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1906.1?
+* Minor bug fixes and cleanup
+* App Service File Server deployment improvements
+* App Service File Server now uses Server Core 2016 image
+
 ### What's new in version 1906?
 * Updated to support ASDK 1.1906.0.30
 * Minor bug fixes
