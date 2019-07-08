@@ -36,7 +36,7 @@
     },
     "adminUsername": {
       "type": "string",
-      "defaultValue": "fileserveradmin",
+      "defaultValue": "fileshareadmin",
       "metadata": {
         "description": "File server Admin user"
       }
@@ -101,8 +101,7 @@
     "diagStorageAccountName": "[concat(parameters('vmName'),'diag', variables('randomGUID'))]",
     "nicName": "[concat(parameters('vmName'),'_nic')]",
     "nsgName": "[concat(parameters('vmName'),'_nsg')]",
-    "scriptParameters": "[concat('-fileServerAdminUserName ', parameters('adminUsername'), ' -fileServerAdminPassword ', parameters('adminPassword'), ' -fileServerOwnerUserName ', parameters('fileShareOwner'), ' -fileServerOwnerPassword ', parameters('fileShareOwnerPassword'), ' -fileServerUserUserName ', parameters('fileShareUser'), ' -fileServerUserPassword ', parameters('fileShareUserPassword'))]"
-
+    "scriptParameters": "[concat('-fileShareAdminUserName ',parameters('adminUsername'), ' -fileShareAdminPassword \"', parameters('adminPassword'), '\"', ' -fileShareOwnerUserName ',parameters('fileShareOwner'), ' -fileShareOwnerPassword \"',parameters('fileShareOwnerPassword'),'\"', ' -fileShareUserUserName ',parameters('fileShareUser'), ' -fileShareUserPassword \"',parameters('fileShareUserPassword'),'\"')]"
   },
   "resources": [
     {
@@ -287,7 +286,7 @@
           ]
         },
         "protectedSettings": {
-          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -File ','ConfigureFileServer.ps1',' ',variables('scriptParameters'))]"
+          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -File ConfigureFileServer.ps1',' ',variables('scriptParameters'))]"
         }
       }
     }

@@ -1,29 +1,15 @@
 [CmdletBinding()]
 param (
-    [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
-    [string] $fileServerAdminUserName,
-
-    [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
-    [SecureString] $fileServerAdminPassword,
-
-    [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
+    [string] $fileShareAdminUserName,
+    [string] $fileShareAdminPassword,
     [string] $fileShareOwnerUserName,
-
-    [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
-    [SecureString] $fileShareOwnerPassword,
-
-    [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
+    [string] $fileShareOwnerPassword,
     [string] $fileShareUserUserName,
-
-    [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
-    [SecureString] $fileShareUserPassword
+    [string] $fileShareUserPassword
 )
+
+# Force use of TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
@@ -52,6 +38,11 @@ Write-Host "Log started at $runTime"
 Write-Host "Configure Power Options to High performance mode."
 POWERCFG.EXE /S SCHEME_MIN
 
+### CREATE STRONG PASSWORDS ###
+$strFileShareAdminPassword = ConvertTo-SecureString $fileShareAdminPassword -Force -AsPlainText
+$strFileShareOwnerPassword = ConvertTo-SecureString $fileShareOwnerPassword -Force -AsPlainText
+$strFileShareUserPassword = ConvertTo-SecureString $fileShareUserPassword -Force -AsPlainText
+
 ### CONFIG ACCOUNTS ###
 try {
     # Get the built in Admin group
@@ -59,29 +50,29 @@ try {
     $adminGroup = Get-LocalGroup -SID 'S-1-5-32-544'
 
     # Create or update with the new File Server Owner
-    Write-Host "Checking to see if $fileServerOwnerUserName currently exists"
-    if (Get-LocalUser -Name $fileServerOwnerUserName -ErrorAction SilentlyContinue) {
-        Write-Host "$fileServerOwnerUserName has been located. Updating settings."
-        Set-LocalUser -Name $fileServerOwnerUserName -Password $fileShareOwnerPassword -AccountNeverExpires -PasswordNeverExpires $true -Verbose -ErrorAction Stop
-        Enable-LocalUser -Name $fileServerOwnerUserName -Verbose -ErrorAction Stop
+    Write-Host "Checking to see if $fileShareOwnerUserName currently exists"
+    if (Get-LocalUser -Name $fileShareOwnerUserName -ErrorAction SilentlyContinue) {
+        Write-Host "$fileShareOwnerUserName has been located. Updating settings."
+        Set-LocalUser -Name $fileShareOwnerUserName -Password $strFileShareOwnerPassword -AccountNeverExpires -PasswordNeverExpires $true -Verbose -ErrorAction Stop
+        Enable-LocalUser -Name $fileShareOwnerUserName -Verbose -ErrorAction Stop
     }
     else {
-        Write-Host "$fileServerOwnerUserName does not exist.  Create new account with correct settings."
-        New-LocalUser -Name $fileServerOwnerUserName -Password $fileShareOwnerPassword -AccountNeverExpires -PasswordNeverExpires -Verbose -ErrorAction Stop
-        Write-Host "Adding $fileServerOwnerUserName to the local admins group."
-        Add-LocalGroupMember -Group $adminGroup -Member $fileServerOwnerUserName -Verbose -ErrorAction Stop
+        Write-Host "$fileShareOwnerUserName does not exist.  Create new account with correct settings."
+        New-LocalUser -Name $fileShareOwnerUserName -Password $strFileShareOwnerPassword -AccountNeverExpires -PasswordNeverExpires -Verbose -ErrorAction Stop
+        Write-Host "Adding $fileShareOwnerUserName to the local admins group."
+        Add-LocalGroupMember -Group $adminGroup -Member $fileShareOwnerUserName -Verbose -ErrorAction Stop
     }
 
     # Create or update with the new File Server User
-    Write-Host "Checking to see if $fileServerUserUserName currently exists"
+    Write-Host "Checking to see if $fileShareUserUserName currently exists"
     if (Get-LocalUser -Name $fileShareUserUserName -ErrorAction SilentlyContinue) {
-        Write-Host "$fileServerUserUserName has been located. Updating settings."
-        Set-LocalUser -Name $fileShareUserUserName -Password $fileShareUserPassword -AccountNeverExpires -PasswordNeverExpires $true -Verbose -ErrorAction Stop
+        Write-Host "$fileShareUserUserName has been located. Updating settings."
+        Set-LocalUser -Name $fileShareUserUserName -Password $strFileShareUserPassword -AccountNeverExpires -PasswordNeverExpires $true -Verbose -ErrorAction Stop
         Enable-LocalUser -Name $fileShareUserUserName -Verbose -ErrorAction Stop
     }
     else {
-        Write-Host "$fileServerUserUserName does not exist.  Create new account with correct settings."
-        New-LocalUser -Name $fileShareUserUserName -Password $fileShareUserPassword -AccountNeverExpires -PasswordNeverExpires
+        Write-Host "$fileShareUserUserName does not exist.  Create new account with correct settings."
+        New-LocalUser -Name $fileShareUserUserName -Password $strFileShareUserPassword -AccountNeverExpires -PasswordNeverExpires
     }
 }
 catch {
