@@ -100,7 +100,9 @@
     "randomGUID": "[substring(uniqueString(subscription().subscriptionId, resourceGroup().id, parameters('vmName'),parameters('adminUsername')),0,4)]",
     "diagStorageAccountName": "[concat(parameters('vmName'),'diag', variables('randomGUID'))]",
     "nicName": "[concat(parameters('vmName'),'_nic')]",
-    "nsgName": "[concat(parameters('vmName'),'_nsg')]"
+    "nsgName": "[concat(parameters('vmName'),'_nsg')]",
+    "scriptParameters": "[concat('-fileServerAdminUserName ', parameters('adminUsername'), ' -fileServerAdminPassword ', parameters('adminPassword'), ' -fileServerOwnerUserName ', parameters('fileShareOwner'), ' -fileServerOwnerPassword ', parameters('fileShareOwnerPassword'), ' -fileServerUserUserName ', parameters('fileShareUser'), ' -fileServerUserPassword ', parameters('fileShareUserPassword'))]"
+
   },
   "resources": [
     {
@@ -285,7 +287,7 @@
           ]
         },
         "protectedSettings": {
-          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -Command .\\ConfigureFileServer.ps1 -fileServerAdminUserName \"', parameters('adminUsername'), '\" -fileServerAdminPassword \"', parameters('adminPassword'), '\" -fileShareOwnerUserName \"', parameters('fileShareOwner'), '\" -fileShareOwnerPassword \"', parameters('fileShareOwnerPassword'), '\" -fileShareUserUserName \"', parameters('fileShareUser'), '\" -fileShareUserPassword \"', parameters('fileShareUserPassword'))]"
+          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -File ','ConfigureFileServer.ps1',' ',variables('scriptParameters'))]"
         }
       }
     }
