@@ -1,7 +1,5 @@
 [CmdletBinding()]
 param (
-    [string] $fileShareAdminUserName,
-    [string] $fileShareAdminPassword,
     [string] $fileShareOwnerUserName,
     [string] $fileShareOwnerPassword,
     [string] $fileShareUserUserName,
@@ -45,7 +43,6 @@ POWERCFG.EXE /S SCHEME_MIN
 
 ### CREATE STRONG PASSWORDS ###
 Log "Configuring strong passwords for the user accounts"
-$strFileShareAdminPassword = ConvertTo-SecureString $fileShareAdminPassword -Force -AsPlainText -Verbose
 $strFileShareOwnerPassword = ConvertTo-SecureString $fileShareOwnerPassword -Force -AsPlainText -Verbose
 $strFileShareUserPassword = ConvertTo-SecureString $fileShareUserPassword -Force -AsPlainText -Verbose
 
@@ -53,7 +50,7 @@ $strFileShareUserPassword = ConvertTo-SecureString $fileShareUserPassword -Force
 try {
     # Get the built in Admin group
     Log "Getting local administrator group"
-    $adminGroup = Get-LocalGroup -SID 'S-1-5-32-544'
+    $adminGroup = Get-LocalGroup -Name "Administrators"
 
     # Create or update with the new File Server Owner
     Log "Checking to see if $fileShareOwnerUserName currently exists"
