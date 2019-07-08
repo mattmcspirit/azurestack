@@ -75,7 +75,7 @@
     },
     "vmExtensionScriptLocation": {
       "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/templates/FileServer/scripts/",
+      "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/1906.1/deployment/templates/FileServer/scripts/",
       "metadata": {
         "description": "File Server extension script Url"
       }
@@ -101,7 +101,7 @@
     "diagStorageAccountName": "[concat(parameters('vmName'),'diag', variables('randomGUID'))]",
     "nicName": "[concat(parameters('vmName'),'_nic')]",
     "nsgName": "[concat(parameters('vmName'),'_nsg')]",
-    "scriptParameters": "[concat('-fileShareAdminUserName ',parameters('adminUsername'), ' -fileShareAdminPassword ', '\u0027', parameters('adminPassword'),'\u0027', ' -fileShareOwnerUserName ',parameters('fileShareOwner'), ' -fileShareOwnerPassword ', '\u0027', parameters('fileShareOwnerPassword'),'\u0027', ' -fileShareUserUserName ',parameters('fileShareUser'), ' -fileShareUserPassword \"', '\u0027', parameters('fileShareUserPassword'),'\u0027')]"
+    "scriptParameters": "[concat('-fileShareAdminUserName ',parameters('adminUsername'),' -fileShareAdminPassword \"',parameters('adminPassword'),'\"',' -fileShareOwnerUserName ',parameters('fileShareOwner'),' -fileShareOwnerPassword \"',parameters('fileShareOwnerPassword'),'\"',' -fileShareUserUserName ',parameters('fileShareUser'),' -fileShareUserPassword \"',parameters('fileShareUserPassword'),'\"')]"
   },
   "resources": [
     {
@@ -286,7 +286,7 @@
           ]
         },
         "protectedSettings": {
-          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -File ConfigureFileServer.ps1',' ',variables('scriptParameters'))]"
+          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -File ConfigureFileServer.ps1 ',variables('scriptParameters'))]"
         }
       }
     }
