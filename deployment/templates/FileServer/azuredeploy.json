@@ -36,7 +36,7 @@
     },
     "adminUsername": {
       "type": "string",
-      "defaultValue": "fileshareowner",
+      "defaultValue": "fileshareadmin",
       "metadata": {
         "description": "File server Admin user"
       }
@@ -97,14 +97,15 @@
     "subnetPrefix": "10.100.0.0/24",
     "publisher": "MicrosoftWindowsServer",
     "offer": "WindowsServer",
-    "sku": "2016-Datacenter",
+    "sku": "2016-Datacenter-Server-Core",
     "version": "latest",
     "managedDiskAccountType": "Premium_LRS",
     "osDiskName": "[toLower(concat(parameters('vmName'), '_osdisk'))]",
     "randomGUID": "[substring(uniqueString(subscription().subscriptionId, resourceGroup().id, parameters('vmName'),parameters('adminUsername')),0,4)]",
     "diagStorageAccountName": "[concat(parameters('vmName'),'diag', variables('randomGUID'))]",
     "nicName": "[concat(parameters('vmName'),'_nic')]",
-    "nsgName": "[concat(parameters('vmName'),'_nsg')]"
+    "nsgName": "[concat(parameters('vmName'),'_nsg')]",
+    "scriptParameters": "[concat('-fileShareOwnerUserName ',variables('powershell_fileShareOwner'),' -fileShareOwnerPassword \"',variables('powershell_fileShareOwnerPassword'),'\"',' -fileShareUserUserName ',variables('powershell_fileShareUser'),' -fileShareUserPassword \"',variables('powershell_fileShareUserPassword'),'\"')]"
   },
   "resources": [
     {
@@ -285,12 +286,11 @@
         "autoUpgradeMinorVersion": true,
         "settings": {
           "fileUris": [
-            "[concat(parameters('vmExtensionScriptLocation'), 'OnStartAzureVirtualMachineFileServer.ps1')]",
-            "[concat(parameters('vmExtensionScriptLocation'), 'fileserver.cr.zip')]"
+            "[concat(parameters('vmExtensionScriptLocation'), 'ConfigureFileServer.ps1')]"
           ]
         },
         "protectedSettings": {
-          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -Command .\\OnStartAzureVirtualMachineFileServer.ps1 -fileServerAdminUserName \"', variables('powershell_fileShareOwner'), '\" -fileServerAdminPassword \"', variables('powershell_fileShareOwnerPassword'), '\" -fileShareOwnerUserName \"', variables('powershell_fileShareOwner'), '\" -fileShareOwnerPassword \"', variables('powershell_fileShareOwnerPassword'), '\" -fileShareUserUserName \"', variables('powershell_fileShareUser'), '\" -fileShareUserPassword \"', variables('powershell_fileShareUserPassword'), '\" -ZipFiles fileserver.cr')]"
+          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -File ConfigureFileServer.ps1 ',variables('scriptParameters'))]"
         }
       }
     }

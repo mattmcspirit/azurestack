@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1906
+Azure Stack Development Kit Configurator 1906.1
 ==============
 
 Version Compatibility
@@ -25,6 +25,7 @@ This includes:
 * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
 * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
 * Windows Server 2019 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository (Optional)
+* All Windows Server images are patched with latest SSU and CUs automatically
 * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
 * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
 * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)

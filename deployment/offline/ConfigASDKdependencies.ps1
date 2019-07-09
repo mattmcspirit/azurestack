@@ -6,7 +6,7 @@
 
 .VERSION
 
-    1906  Latest version, to align with current ASDK Configurator version.
+    1906.1  Latest version, to align with current ASDK Configurator version.
 
 .AUTHOR
 
@@ -386,7 +386,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         # Ubuntu Server 16.04 ZIP
         #$row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
         #hard coding to a known working VHD
-        $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/16.04/release-20190514/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
+        $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/16.04/release-20190628/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
         $row.filename = "UbuntuServer1.0.0.zip"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS zip file"; $Table.Rows.Add($row)
         # Ubuntu Server AZPKG
         $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
@@ -565,11 +565,8 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/azuredeploy.json"
         $row.filename = "FileServerTemplate.json"; $row.path = "$templatePath"; $row.productName = "File Server template for deployment"; $Table.Rows.Add($row)
         # File Server PowerShell Script
-        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/scripts/OnStartAzureVirtualMachineFileServer.ps1"
-        $row.filename = "OnStartAzureVirtualMachineFileServer.ps1"; $row.path = "$scriptPath"; $row.productName = "File Server script for deployment"; $Table.Rows.Add($row)
-        # File Server DSC zip Script
-        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/templates/FileServer/scripts/fileserver.cr.zip"
-        $row.filename = "fileserver.cr.zip"; $row.path = "$scriptPath"; $row.productName = "File Server DSC zip for deployment"; $Table.Rows.Add($row)
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/scripts/ConfigureFileServer.ps1"
+        $row.filename = "ConfigureFileServer.ps1"; $row.path = "$scriptPath"; $row.productName = "File Server script for deployment"; $Table.Rows.Add($row)
         # App Service Helper Scripts
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
         #$row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/appservice/appservicehelper1.4.zip"
@@ -835,13 +832,36 @@ try {
     
         ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
         if ($buildVersion -eq "14393") {
-            $ssuArray = @("4132216", "4465659", "4485447", "4498947")
+            # Test for dynamically building the SSU array
+            $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
+            $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
+            $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
+            $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link)
+            $ssuArray = @()
+            foreach ($update in $feed) {
+                # trim down the URL to just get the KB
+                $ssuItem = ($update.link).Split('/')[4]
+                $ssuArray += "$ssuItem"
+            }
+            # Old ssuArray accurate as of July 2019
+            #$ssuArray = @("4132216", "4465659", "4485447", "4498947", "4503537")
             $updateArray = @("4091664")
             $ssuSearchString = 'Windows Server 2016'
             $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2016 for x64-based Systems'
         }
         elseif ($buildVersion -eq "17763") {
-            $ssuArray = @("4470788", "4493510", "4499728")
+            $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
+            $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
+            $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
+            $feed = ($feed | Where-Object { $_.title -like "*1809*" } | Select-Object -Property Link | Sort-Object link)
+            $ssuArray = @()
+            foreach ($update in $feed) {
+                # trim down the URL to just get the KB
+                $ssuItem = ($update.link).Split('/')[4]
+                $ssuArray += "$ssuItem"
+            }
+            # Old ssuArray accurate as of July 2019
+            #$ssuArray = @("4470788", "4493510", "4499728", "4504369")
             $updateArray = @("4465065")
             $ssuSearchString = 'Windows Server 2019'
             $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2019 for x64-based Systems'
