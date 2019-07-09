@@ -153,7 +153,19 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
                     Write-Host "Checking build number to determine Servicing Stack Updates"
                     if ($buildVersion -eq "14393") {
-                        $ssuArray = @("4132216", "4465659", "4485447", "4498947", "4503537")
+                        # Test for dynamically building the SSU array
+                        $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
+                        $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
+                        $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
+                        $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link)
+                        $ssuArray = @()
+                        foreach ($update in $feed) {
+                            # trim down the URL to just get the KB
+                            $ssuItem = ($update.link).Split('/')[4]
+                            $ssuArray += "$ssuItem"
+                        }
+                        # Old ssuArray accurate as of July 2019
+                        #$ssuArray = @("4132216", "4465659", "4485447", "4498947", "4503537")
                         #Fix for broken Feb 2019 update
                         #$ssuArray = @("4132216", "4465659")
                         $updateArray = @("4091664")
@@ -161,7 +173,18 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2016 for x64-based Systems'
                     }
                     elseif ($buildVersion -eq "17763") {
-                        $ssuArray = @("4470788", "4493510", "4499728", "4504369")
+                        $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
+                        $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
+                        $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
+                        $feed = ($feed | Where-Object { $_.title -like "*1809*" } | Select-Object -Property Link | Sort-Object link)
+                        $ssuArray = @()
+                        foreach ($update in $feed) {
+                            # trim down the URL to just get the KB
+                            $ssuItem = ($update.link).Split('/')[4]
+                            $ssuArray += "$ssuItem"
+                        }
+                        # Old ssuArray accurate as of July 2019
+                        #$ssuArray = @("4470788", "4493510", "4499728", "4504369")
                         $updateArray = @("4465065")
                         $ssuSearchString = 'Windows Server 2019'
                         $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2019 for x64-based Systems'
