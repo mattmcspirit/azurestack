@@ -10,6 +10,7 @@ Here you'll find information on key changes, bug fixes and improvements made by 
 * App Service File Server deployment improvements
 * App Service File Server now uses Server Core 2016 image
 * Updated Ubuntu Server 16.04 Image - 16.04.20190628
+* Servicing Stack Update now dynamically gathered at runtime
 
 ### What's new in version 1906?
 * Updated to support ASDK 1.1906.0.30
