@@ -2177,7 +2177,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             $quotaIDs += (Get-AzsKeyVaultQuota @kvParams -ErrorAction Stop -Verbose).ID
 
             # Create the Plan and Private Offer
-            New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
+            if (-not (Get-AzureRmResourceGroup -Name $RGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                New-AzureRmResourceGroup -Name $RGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+            }
+            
             $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
             New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
 
@@ -2186,13 +2189,19 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             if ((!$skipMySQL) -or (!$skipMSSQL)) {
                 $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
                 $subUserName = (Get-AzureRmContext).Account.Id
-                New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN DB HOSTS'
+                if (!(Get-AzsUserSubscription -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*ADMIN DB HOSTS' } )) {
+                    Write-Host "Creating the *ADMIN DB HOSTS subscription for deployment of database resources"
+                    New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN DB HOSTS'
+                }
             }
 
             if (!$skipAppService) {
                 $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
                 $subUserName = (Get-AzureRmContext).Account.Id
-                New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN APPSVC BACKEND'
+                if (!(Get-AzsUserSubscription -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*ADMIN APPSVC BACKEND' } )) {
+                    Write-Host "Creating the *ADMIN APPSVC BACKEND subscription for deployment of app service resources"
+                    New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN APPSVC BACKEND'
+                }
             }
 
             # Log the user out of the "AzureStackAdmin" environment
