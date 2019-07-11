@@ -144,6 +144,17 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     throw "The AppServiceSQLServer stage of the process has failed. This should fully complete before the App Service deployment can be started. Check the AppServiceSQLServer log, ensure that step is completed first, and rerun."
                 }
             }
+
+            $serverFull2016JobCheck = CheckProgress -progressStage "ServerFull2016Image"
+            while ($serverFull2016JobCheck -ne "Complete") {
+                Write-Host "The ServerFull2016Image stage of the process has not yet completed. Checking again in 20 seconds"
+                Start-Sleep -Seconds 20
+                $serverFull2016JobCheck = CheckProgress -progressStage "ServerFull2016Image"
+                if ($serverFull2016JobCheck -eq "Failed") {
+                    throw "The ServerFull2016Image stage of the process has failed. This should fully complete before the App Service deployment can be started. Check the AppServiceSQLServer log, ensure that step is completed first, and rerun."
+                }
+            }
+
             Write-Host "Logging into Azure Stack into the admin space to retrieve relevant info"
             # Login to Azure Stack to grab FQDNs and also Identity App ID locally
             <#
