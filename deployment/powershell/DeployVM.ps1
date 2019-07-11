@@ -321,11 +321,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Write-Host "Clearing previous Azure/Azure Stack logins"
             Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
-            Write-Host "Logging into Azure Stack into the user space, to create the backend resources"
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-            $azsLocation = (Get-AzureRmLocation).DisplayName
             
             if (($vmType -eq "SQLServer") -or ($vmType -eq "MySQL")) {
+                Write-Host "Logging into Azure Stack into the user space, to create the backend resources"
+                Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                $azsLocation = (Get-AzureRmLocation).DisplayName
                 Write-Host "Selecting the *ADMIN DB HOSTS subscription"
                 $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
                 $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
@@ -333,11 +333,9 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Current subscription ID is: $subID"
             }
             elseif (($vmType -eq "AppServiceDB") -or ($vmType -eq "AppServiceFS")) {
-                Write-Host "Selecting the *ADMIN APPSVC BACKEND subscription"
-                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN APPSVC BACKEND' }
-                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-                $subID = $azureContext.Subscription.Id
-                Write-Host "Current subscription ID is: $subID"
+                Write-Host "Logging into Azure Stack into the admin space, to create the backend resources"
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                $azsLocation = (Get-AzureRmLocation).DisplayName
             }
                         
             Write-Host "Creating a dedicated Resource Group for all $vmType hosting assets"

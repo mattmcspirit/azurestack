@@ -2106,7 +2106,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     $scriptStep = $progressStage.ToUpper()
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
-            Write-Host "Creating a plan and private offer in the tenant space, for deploying RP resources such as database hosts and App Service resources."
+            Write-Host "Creating a plan and private offer in the tenant space, for deploying RP resources such as database hosts"
             # Configure a simple base plan and offer for IaaS for specific use by the admin for storing RP related resources
             Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
@@ -2200,14 +2200,15 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
                 }
             }
 
-            if (!$skipAppService) {
+            # No longer required as App Service backend should be deployed into Default Provider Sub (even for Production)
+            <#if (!$skipAppService) {
                 $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
                 $subUserName = (Get-AzureRmContext).Account.Id
                 if (!(Get-AzsUserSubscription -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*ADMIN APPSVC BACKEND' } )) {
                     Write-Host "Creating the *ADMIN APPSVC BACKEND subscription for deployment of app service resources"
                     New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN APPSVC BACKEND'
                 }
-            }
+            }#>
 
             # Log the user out of the "AzureStackAdmin" environment
             Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
@@ -3013,11 +3014,13 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         Write-Output "All other downloads have been stored here: $ASDKpath" >> $txtPath
         Write-Output "`r`nSQL & MySQL Resource Provider Information:" >> $txtPath
 
+        $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         $ArmEndpoint = "https://management.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
 
         if (!$skipMySQL) {
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Selecting the *ADMIN DB HOSTS subscription"
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
             $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
@@ -3030,6 +3033,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             Write-Output "MySQL Database Hosting VM Credentials = mysqladmin | $VMpwd" >> $txtPath
         }
         if (!$skipMSSQL) {
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Selecting the *ADMIN DB HOSTS subscription"
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
             $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
@@ -3042,11 +3046,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             Write-Output "SQL Server Database Hosting VM Credentials = sqladmin | $VMpwd" >> $txtPath
         }
         if (!$skipAppService) {
-            Write-Host "Selecting the *ADMIN APPSVC BACKEND subscription"
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN APPSVC BACKEND' }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $subID = $azureContext.Subscription.Id
-            Write-Host "Current subscription ID is: $subID"
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Getting File Server and SQL App Server FQDN"
             $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
