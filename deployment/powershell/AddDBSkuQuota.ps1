@@ -93,9 +93,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
-            Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
+            <#Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
             Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
             Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
+            #>
 
             # Need to ensure this stage doesn't start before the DBRP stage has finished
             $dbJobCheck = CheckProgress -progressStage "$($dbsku)RP"

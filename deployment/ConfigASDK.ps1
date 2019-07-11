@@ -1746,8 +1746,8 @@ try {
     }
 
     # Load the Storage PowerShell modules explicitly specifying the versions
-    Import-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Verbose
-    Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Verbose
+    #Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
+    #Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
 
     ### TEST ALL LOGINS #########################################################################################################################################
     #############################################################################################################################################################
