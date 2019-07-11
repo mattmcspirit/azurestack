@@ -489,7 +489,7 @@ try {
             elseif ($appType -eq "EXE") { $filePath = "$fileName" }
             Write-Host "Installing $appName"
             $installHostApp = Start-Process -FilePath "$filePath" -ArgumentList $arguments -Wait -PassThru -Verbose
-            if ($installHostApp.ExitCode -ne 0) {
+            if ($installHostApp.ExitCode -notin 0,1641,3010) {
                 throw "Installation of $appName returned error code: $($installHostApp.ExitCode)"
             }
             if ($installHostApp.ExitCode -eq 0) {
@@ -1298,7 +1298,7 @@ try {
     # Install SqlLocalDB from MSI
     $sqlLocalInstallPath = "C:\Program Files\Microsoft SQL Server\140\Tools\Binn\"
     HostAppInstaller -localInstallPath "$sqlLocalInstallPath\SqlLocalDB.exe" -appName SqlLocalDB `
-        -arguments "/i `"$sqlLocalDBpath\SqlLocalDB.msi`" /qn IACCEPTSQLLOCALDBLICENSETERMS=YES /l*v `"$sqlLocalDBpath\SqlLocalDB.log`"" `
+        -arguments "/i `"$sqlLocalDBpath\SqlLocalDB.msi`" /qn IACCEPTSQLLOCALDBLICENSETERMS=YES /norestart /l*v `"$sqlLocalDBpath\SqlLocalDB.log`"" `
         -fileName "SqlLocalDB.msi" -appType "MSI"
 
     # Add SqlLocalDB to $env:Path
