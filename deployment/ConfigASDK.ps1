@@ -492,7 +492,7 @@ try {
             if ($installHostApp.ExitCode -notin 0,1641,3010) {
                 throw "Installation of $appName returned error code: $($installHostApp.ExitCode)"
             }
-            if ($installHostApp.ExitCode -eq 0) {
+            if ($installHostApp.ExitCode -in 0,1641,3010) {
                 Write-Host "Installation of $appName completed successfully"
             }
         }
