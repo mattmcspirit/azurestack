@@ -40,6 +40,8 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1906.2  Minor bug fixes and cleanup
+            Deployment of App Service FS and DB into Admin Sub
     1906.1  Minor bug fixes and cleanup
             App Service File Server deployment improvements
             App Service File Server now uses Server Core 2016 image

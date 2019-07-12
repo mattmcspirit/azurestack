@@ -5,6 +5,10 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1906.2?
+* Minor bug fixes and cleanup
+* Deployment of App Service FS and DB into Admin Sub
+
 ### What's new in version 1906.1?
 * Minor bug fixes and cleanup
 * App Service File Server deployment improvements
