@@ -129,9 +129,10 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
 
-            Write-Host "Importing storage modules for Azure.Storage and AzureRM.Storage."
+            <#Write-Host "Importing storage modules for Azure.Storage and AzureRM.Storage."
             Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
             Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
+            #>
 
             #### Certificates ####
             Write-Host "Generating Certificates for App Service"
