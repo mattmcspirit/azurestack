@@ -1,7 +1,9 @@
 #!/bin/bash
+# This script is used when installing MySQL 5.7 from locally downloaded MySQL binaries
+# These binaries should be stored in a local Azure Stack storage account, and configured by the ASDK Configurator
 
 # Validate input parameters
-if [[ ! ("$#" -eq 3) ]]; 
+if [[ ! ("$#" -eq 3) ]];
 then
     echo "Parameters missing for MySQL configuration." >&2
     exit 1
@@ -10,34 +12,43 @@ fi
 # Get parameters and assign variables
 MySQLPassword=$1
 AllowRemoteConnections=$(echo "$2" | tr '[:upper:]' '[:lower:]')
-
-# Download and Install the Latest Updates for the OS
-sudo apt-get update -y
+STORAGE_URI=$3
 
 # Set hostname in etc/hosts
-sudo echo "127.0.0.1  $HOSTNAME" >> /etc/hosts
+sudo echo "127.0.0.1  $HOSTNAME" | sudo tee -a /etc/hosts
 
 # Enable Ubuntu Firewall and allow SSH & MySQL Ports
 ufw --force enable
 ufw allow 22
 ufw allow 3306
 
-# Install dirmngr (certs)
-sudo apt install -y dirmngr
-sudo apt-key adv --keyserver pool.sks-keyservers.net --recv-keys 5072E1F5
-
-    # Retrieve the latest APT repo for MySQL and save it
-    echo "deb http://repo.mysql.com/apt/ubuntu $(lsb_release -sc) mysql-8.0" | sudo tee /etc/apt/sources.list.d/mysql80.list
-
-    # Update
-    sudo apt update -y
-    apt-get upgrade -y
-
 # Install MySQL 8.0
 echo "mysql-community-server mysql-community-server/root-pass password root" | sudo debconf-set-selections
 echo "mysql-community-server mysql-community-server/re-root-pass password root" | sudo debconf-set-selections
 echo "mysql-community-server mysql-server/default-auth-override select Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)" | sudo debconf-set-selections
-sudo DEBIAN_FRONTEND=noninteractive apt install --download-only mysql-server mysql-client -y
+
+export DEBIAN_FRONTEND=noninteractive
+
+# Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
+wget ${STORAGE_URI}mysql-{libaio,libevent-core,libmecab,common,client-core,client,server-core,server}.deb
+
+# Install the files
+dpkg -i mysql-libaio.deb
+sleep 3
+dpkg -i mysql-libevent-core.deb
+sleep 3
+dpkg -i mysql-libmecab.deb
+sleep 3
+dpkg -i mysql-common.deb
+sleep 3
+dpkg -i mysql-client-core.deb
+sleep 3
+dpkg -i mysql-client.deb
+sleep 3
+dpkg -i mysql-server-core.deb
+sleep 3
+dpkg -i mysql-server.deb
+sleep 3
 
 # Reset MySQL Password to match supplied parameter
 mysql -u root -proot -e "use mysql; ALTER USER 'root'@'localhost' IDENTIFIED BY '$MySQLPassword'; flush privileges;"
