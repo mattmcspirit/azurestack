@@ -256,9 +256,13 @@
             "location": "[resourceGroup().location]",
             "dependsOn": [
                 "[parameters('publicIpAddressName')]",
-                "[parameters('virtualNetworkName')]"
+                "[parameters('virtualNetworkName')]",
+                "[variables('nsgName')]"
             ],
             "properties": {
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+                },
                 "ipConfigurations": [
                     {
                         "name": "ipconfig1",
