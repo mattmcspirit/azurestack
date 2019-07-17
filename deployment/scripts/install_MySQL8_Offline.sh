@@ -46,19 +46,19 @@ dpkg -i mysql-mecab-ipadic.deb
 sleep 3
 dpkg -i mysql-mecab-ipadic-utf.deb
 sleep 3
-dpkg -i mysql8-common
+dpkg -i mysql8-common.deb
 sleep 3
-dpkg -i mysql8-community-client-core
+dpkg -i mysql8-community-client-core.deb
 sleep 3
-dpkg -i mysql8-community-client
+dpkg -i mysql8-community-client.deb
 sleep 3
-dpkg -i mysql8-client
+dpkg -i mysql8-client.deb
 sleep 3
-dpkg -i mysql8-community-server-core
+dpkg -i mysql8-community-server-core.deb
 sleep 3
-dpkg -i mysql8-community-server
+dpkg -i mysql8-community-server.deb
 sleep 3
-dpkg -i mysql8-server
+dpkg -i mysql8-server.deb
 sleep 3
 
 # Reset MySQL Password to match supplied parameter
