@@ -412,11 +412,14 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
             $row.filename = "Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Windows Server 2019 Datacenter Core Marketplace Package"; $Table.Rows.Add($row)
         }
         # MYSQL AZPKG
-        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/ASDKConfigurator.MySQL.1.0.0.azpkg"
-        $row.filename = "ASDKConfigurator.MySQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "MySQL Marketplace Package"; $Table.Rows.Add($row)
+        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/AzureStackPOC.MySQL.1.0.0.azpkg"
+        $row.filename = "AzureStackPOC.MySQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "MySQL Marketplace Package"; $Table.Rows.Add($row)
+        # MYSQL8 AZPKG
+        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/AzureStackPOC.MySQL8.1.0.0.azpkg"
+        $row.filename = "AzureStackPOC.MySQL8.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "MySQL Marketplace Package"; $Table.Rows.Add($row)
         # SQL AZPKG
-        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MSSQL/ASDKConfigurator.MSSQL.1.0.0.azpkg"
-        $row.filename = "ASDKConfigurator.MSSQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "SQL Server Marketplace Package"; $Table.Rows.Add($row)
+        $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MSSQL/AzureStackPOC.MSSQL.1.0.0.azpkg"
+        $row.filename = "AzureStackPOC.MSSQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "SQL Server Marketplace Package"; $Table.Rows.Add($row)
         # MySQL RP
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestackmysqlrp11330"
         $row.filename = "MySQL.zip"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files"; $Table.Rows.Add($row)
