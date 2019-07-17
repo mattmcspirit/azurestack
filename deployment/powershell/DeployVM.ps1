@@ -137,6 +137,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
 
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            $ArmEndpoint = "https://management.$customDomainSuffix"
+            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+
             <#Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
             Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
             Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
@@ -211,8 +216,6 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
                         if ($mySQLProgressCheck -ne "Complete") {
                             ### Login to Azure Stack ###
-                            $ArmEndpoint = "https://management.$customDomainSuffix"
-                            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                             Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
                             Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
@@ -269,11 +272,6 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                 }
             }
-
-            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            $ArmEndpoint = "https://management.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
 
             # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
             if ($deploymentMode -eq "Online") {
