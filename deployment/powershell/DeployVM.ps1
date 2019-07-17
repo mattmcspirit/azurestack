@@ -215,8 +215,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                             Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
-                            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-                            $subID = $azureContext.Subscription.Id
+                            Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
+                            $subID = $sub.SubscriptionId
+                            #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                            #$subID = $azureContext.Subscription.Id
                             Write-Host "Current subscription ID is: $subID"
                             while (!$(Get-AzureRmVirtualNetwork -ResourceGroupName "azurestack-dbhosting" -Name "dbhosting_vnet" -ErrorAction SilentlyContinue | Get-AzureRmVirtualNetworkSubnetConfig).ProvisioningState -eq "Succeeded") {
                                 Write-Host "Waiting for deployment of database virtual network and subnet before continuing with deployment of SQL Server for DB hosting. Checking again in 10 seconds."
@@ -298,8 +300,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                 Write-Host "Selecting the *ADMIN OFFLINE SCRIPTS subscription"
                 $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN OFFLINE SCRIPTS' }
-                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-                $subID = $azureContext.Subscription.Id
+                Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
+                $subID = $sub.SubscriptionId
+                #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                #$subID = $azureContext.Subscription.Id
                 Write-Host "Current subscription ID is: $subID"
                 $asdkOfflineRGName = "azurestack-offlinescripts"
                 $asdkOfflineStorageAccountName = "offlinestor"
@@ -329,8 +333,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $azsLocation = (Get-AzureRmLocation).DisplayName
                 Write-Host "Selecting the *ADMIN DB HOSTS subscription"
                 $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
-                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-                $subID = $azureContext.Subscription.Id
+                Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
+                $subID = $sub.SubscriptionId
+                #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                #$subID = $azureContext.Subscription.Id
                 Write-Host "Current subscription ID is: $subID"
             }
             elseif (($vmType -eq "AppServiceDB") -or ($vmType -eq "AppServiceFS")) {

@@ -121,8 +121,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $azsLocation = (Get-AzureRmLocation).DisplayName
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $subID = $azureContext.Subscription.Id
+            Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
+            $subID = $sub.SubscriptionId
+            $azureContext = (Get-AzureRmContext).Account.Id
+            #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            #$subID = $azureContext.Subscription.Id
             $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
 
             Write-Host "Setting variables for creating the SKU and Quota"

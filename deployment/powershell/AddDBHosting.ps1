@@ -137,8 +137,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Selecting the *ADMIN DB HOSTS subscription"
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $subID = $azureContext.Subscription.Id
+            Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
+            $subID = $sub.SubscriptionId
+            #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            #$subID = $azureContext.Subscription.Id
             Write-Host "Current subscription ID is: $subID"
             
             Write-Host "Setting up Database Variables"
