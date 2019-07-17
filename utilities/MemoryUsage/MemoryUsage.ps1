@@ -18,8 +18,7 @@ Requires  : PowerShell Version 5.0 or above
 Module    : Tested with AzureRM 2.5.0 and Azure Stack 1.7.2 already installed
 
 .EXAMPLE
-.\MemoryUsage.ps1 -authType AzureAd -tenant "contoso.onmicrosoft.com" -armEndpoint "https://adminmanagement.local.azurestack.external"
-.\MemoryUsage.ps1 -authType AzureAd -tenant "contoso.onmicrosoft.com" -armEndpoint "https://management.local.azurestack.external"
+.\MemoryUsage.ps1 -authType AzureAd -tenant "contoso.onmicrosoft.com" -domainSuffix "local.azurestack.external"
 
 These examples will use Azure AD as the authentication model, and the same tenant. The difference here is, that the first example is
 targeting the administration space, and the second is targeting the tenant space.
@@ -35,7 +34,7 @@ param (
     [String] $tenant,
 
     [Parameter(Mandatory = $true)]
-    [String] $armEndpoint
+    [String] $domainSuffix
 )
 
 $Global:VerbosePreference = "SilentlyContinue"
@@ -44,8 +43,21 @@ $Global:ProgressPreference = 'SilentlyContinue'
 
 Write-Host "Beginning login process into your Azure Stack system"
 Write-Host "Selected Active Directory authentication type is $authType"
-Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$armEndpoint" | Out-Null
-Write-Host "Using the following Azure Stack ARM Endpoint: $armEndpoint"
+
+Write-Host "Creating text file to record memory consumption"
+$txtPath = ".\MemoryUsage.txt"
+Remove-Item -Path $txtPath -Confirm:$false -Force -ErrorAction SilentlyContinue | Out-Null
+New-Item "$txtPath" -ItemType file -Force | Out-Null
+$date = $(Get-Date).ToString("MMdd-HHmmss")
+Write-Output "VM Memory Usage - $date" >> $txtPath
+Write-Output "-------------------------------------------------------------`n" >> $txtPath
+
+Write-Host "Prompting for credentials"
+$creds = Get-Credential -Message "Please enter your Azure Stack credentials"
+
+Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "https://adminmanagement.$domainSuffix" | Out-Null
+Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "https://management.$domainSuffix" | Out-Null
+
 Write-Host "Obtaining tenant name"
 $AuthEndpoint = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
 
@@ -56,47 +68,56 @@ elseif ($authType.ToString() -like "ADFS") {
     $tenantId = (Invoke-Restmethod -Verbose:$false "$($AuthEndpoint)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
 }
 
-# After signing in to your environment, Azure Stack cmdlets
-# can be easily targeted at your Azure Stack instance.
-Write-Host "Logging into Azure Stack. Triggering credential pop-up."
-Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantId | Out-Null
-
 Clear-Host
 
-$sub = Get-AzsSubscription
-$subMemory = 0
-$totalSubMemory = 0
-
-foreach ($s in $sub) {
+$environments = Get-AzureRmEnvironment | Where-Object { $_.Name -like "*AzureStack*" } | Sort-Object -Property Name
+foreach ($e in $environments) {
+    Write-Host "`nLogging into Azure Stack, into the $($e.Name) environment.`n" -ForegroundColor Cyan 
+    Add-AzureRmAccount -EnvironmentName $e.Name -Credential $creds -TenantId $tenantId | Out-Null
+    
+    $sub = Get-AzsSubscription
     $subMemory = 0
-    $totalVMMemoryUse = 0
-    $totalVmssMemoryUse = 0
-    Select-AzureRmSubscription -Subscription $s.SubscriptionId | Out-Null
+    $totalSubMemory = 0
 
-    # Get Native Virtual Machine memory first
-    $VM = Get-AzureRmVM
-    $location = (Get-AzureRmLocation).Location
+    foreach ($s in $sub) {
+        $subMemory = 0
+        $totalVMMemoryUse = 0
+        $totalVmssMemoryUse = 0
+        Select-AzureRmSubscription -Subscription $s.SubscriptionId | Out-Null
 
-    foreach ($v in $vm) {
-        $memory = ((Get-AzureRmVMSize -Location $location | Where-Object { $_.Name -eq $v.HardwareProfile.VmSize }).MemoryInMB) / 1024
-        Write-Host "SUBSCRIPTION NAME: $($s.DisplayName)  |  VM NAME: $($v.Name)  |  VM SIZE: $($v.HardwareProfile.VmSize)  |  VM MEMORY USAGE: $($memory)GB"
-        $vmMemory += $memory
-        $totalVMMemoryUse += $memory
-    }
+        # Get Native Virtual Machine memory first
+        $VM = Get-AzureRmVM
+        $location = (Get-AzureRmLocation).Location
 
-    # Then get VMSS memory usage
-    $vmSSlist = Get-AzureRmVmss -ErrorAction SilentlyContinue
-    foreach ($vmSS in $vmSSlist) {
-        $vmlist = Get-AzureRmVmssVM -VMScaleSetName $($vmSS.Name) -ResourceGroupName $($vmSS.ResourceGroupName) -ErrorAction SilentlyContinue
-        foreach ($v in $vmlist) {
-            $memory = ((Get-AzureRmVMSize -Location east | Where-Object { $_.Name -eq ($v.Sku).Name }).MemoryInMB) / 1024
-            Write-Host "SUBSCRIPTION NAME: $($s.DisplayName)  |  VM NAME: $($v.Name)  |  VM SIZE: $(($v.Sku).Name)  |  VM MEMORY USAGE: $($memory)GB"
-            $vmssMemory += $memory
-            $totalVmssMemoryUse += $memory
+        foreach ($v in $vm) {
+            $memory = ((Get-AzureRmVMSize -Location $location | Where-Object { $_.Name -eq $v.HardwareProfile.VmSize }).MemoryInMB) / 1024
+            Write-Host "SUBSCRIPTION NAME: $($s.DisplayName)  |  VM NAME: $($v.Name)  |  VM SIZE: $($v.HardwareProfile.VmSize)  |  VM MEMORY USAGE: $($memory)GB"
+            Write-Output "SUBSCRIPTION NAME: $($s.DisplayName)  |  VM NAME: $($v.Name)  |  VM SIZE: $($v.HardwareProfile.VmSize)  |  VM MEMORY USAGE: $($memory)GB" >> $txtPath
+            $vmMemory += $memory
+            $totalVMMemoryUse += $memory
+        }
+
+        # Then get VMSS memory usage
+        $vmSSlist = Get-AzureRmVmss -ErrorAction SilentlyContinue
+        foreach ($vmSS in $vmSSlist) {
+            $vmlist = Get-AzureRmVmssVM -VMScaleSetName $($vmSS.Name) -ResourceGroupName $($vmSS.ResourceGroupName) -ErrorAction SilentlyContinue
+            foreach ($v in $vmlist) {
+                $memory = ((Get-AzureRmVMSize -Location east | Where-Object { $_.Name -eq ($v.Sku).Name }).MemoryInMB) / 1024
+                Write-Host "SUBSCRIPTION NAME: $($s.DisplayName)  |  VM NAME: $($v.Name)  |  VM SIZE: $(($v.Sku).Name)  |  VM MEMORY USAGE: $($memory)GB"
+                Write-Output "SUBSCRIPTION NAME: $($s.DisplayName)  |  VM NAME: $($v.Name)  |  VM SIZE: $(($v.Sku).Name)  |  VM MEMORY USAGE: $($memory)GB" >> $txtPath
+                $vmssMemory += $memory
+                $totalVmssMemoryUse += $memory
+            }
+        }
+        $subMemory = $totalVMMemoryUse += $totalVmssMemoryUse
+        $totalSubMemory += $subMemory
+        if ($subMemory -gt 0) {
+            Write-Host "Subscription $($s.DisplayName) virtual machine memory usage: $($subMemory)GB`n" -ForegroundColor DarkYellow
+            Write-Output "Subscription $($s.DisplayName) virtual machine memory usage: $($subMemory)GB`n" >> $txtPath
         }
     }
-    $subMemory = $totalVMMemoryUse += $totalVmssMemoryUse
-    $totalSubMemory += $subMemory
-    Write-Host "Subscription $($s.DisplayName) virtual machine memory usage: $($subMemory)GB`n" -ForegroundColor GREEN
+    Write-Host "Final VM Memory Consumption: $($totalSubMemory)GB across your subscriptions in the $($e.Name) environment" -ForegroundColor GREEN
+    Write-Output "Final VM Memory Consumption: $($totalSubMemory)GB across your subscriptions in the $($e.Name) environment`n" >> $txtPath
 }
-Write-Host "Final VM Memory Consumption: $($totalSubMemory)GB across your subscriptions" -ForegroundColor GREEN
+$filePath = (Get-ChildItem -Path $txtPath).FullName
+Write-Host "`nPlease see a record of the final results in the file located at $filePath" -ForegroundColor Green
