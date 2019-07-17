@@ -286,7 +286,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Host "Logging into Azure Stack into the admin space, to grab information"
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
                     $azsLocation = (Get-AzureRmLocation).DisplayName
-                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "ASDKConfigurator.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
+                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "AzureStackPOC.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
                     $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/"
                 }
             }
@@ -314,7 +314,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Host "Getting the URIs for all AZPKG files for deployment of resources"
                     Write-Host "Logging into Azure Stack into the admin space, to grab information"
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "ASDKConfigurator.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
+                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "AzureStackPOC.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
                 }
                 $scriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob, $asdkOfflineContainerName) -replace "https", "http"
             }
