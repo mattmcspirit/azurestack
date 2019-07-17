@@ -140,7 +140,7 @@
     },
     "variables": {
         "randomGUID": "[substring(uniqueString(subscription().subscriptionId, resourceGroup().id, parameters('vmName'),parameters('adminUsername')),0,6)]",
-        "diagStorageAccountName": "[concat(parameters('vmName'),'diagstor', variables('randomGUID'))]",
+        "diagStorageAccountName": "[concat(parameters('vmName'),'diag', variables('randomGUID'))]",
         "storageAccountResourceGroup": "[resourceGroup().name]",
         "virtualNetworkResourceGroup": "[resourceGroup().name]",
         "publicIPAddressResourceGroup": "[resourceGroup().name]",
