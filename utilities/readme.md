@@ -57,11 +57,7 @@ Module    : Tested with AzureRM 2.5.0 and Azure Stack 1.7.2 already installed
 
 ```powershell
 .\MemoryUsage.ps1 -authType AzureAd -tenant "contoso.onmicrosoft.com" `
--armEndpoint "https://adminmanagement.local.azurestack.external"
-
-.\MemoryUsage.ps1 -authType AzureAd -tenant "contoso.onmicrosoft.com" `
--armEndpoint "https://management.local.azurestack.external"
+-domainSuffix "local.azurestack.external"
 ```
 
-These examples will use Azure AD as the authentication model, and the same tenant. The difference here is, that the first example is
-targeting the administration space, and the second is targeting the tenant space.
+This examples will use Azure AD as the authentication model, and the same tenant. The script will attempt to login to both the Admin and Tenant space, and query your subscriptions across both.
