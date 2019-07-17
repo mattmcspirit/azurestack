@@ -167,13 +167,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             # Need to ensure this stage doesn't start before the Ubuntu Server images have been put into the PIR
             if ($vmType -eq "MySQL") {
                 # Then need to confirm the gallery items are in place
-                $MySQLGalleryItemJobCheck = CheckProgress -progressStage "MySQLGalleryItem"
+                $MySQLGalleryItemJobCheck = CheckProgress -progressStage "MySQL80GalleryItem"
                 while ($MySQLGalleryItemJobCheck -ne "Complete") {
-                    Write-Host "The MySQLGalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
+                    Write-Host "The MySQL80GalleryItem stage of the process has not yet completed. Checking again in 20 seconds"
                     Start-Sleep -Seconds 20
-                    $MySQLGalleryItemJobCheck = CheckProgress -progressStage "MySQLGalleryItem"
+                    $MySQLGalleryItemJobCheck = CheckProgress -progressStage "MySQL80GalleryItem"
                     if ($MySQLGalleryItemJobCheck -eq "Failed") {
-                        throw "The MySQLGalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the MySQLGalleryItem log, ensure that step is completed first, and rerun."
+                        throw "The MySQL80GalleryItem stage of the process has failed. This should fully complete before the database VMs can be deployed. Check the MySQL80GalleryItem log, ensure that step is completed first, and rerun."
                     }
                 }
             }

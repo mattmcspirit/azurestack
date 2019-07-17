@@ -10,7 +10,7 @@ param (
     [String] $deploymentMode,
 
     [Parameter(Mandatory = $true)]
-    [ValidateSet("MySQL", "SQLServer")]
+    [ValidateSet("MySQL57", "MySQL80", "SQLServer")]
     [String] $azpkg,
 
     [parameter(Mandatory = $true)]
@@ -71,7 +71,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             StageReset -progressStage $progressStage
             $progressCheck = CheckProgress -progressStage $progressStage
             Write-Host "Clearing up any failed attempts to deploy the gallery items"
-            Get-AzsGalleryItem | Where-Object { $_.Name -like "*ASDK*" } | Remove-AzsGalleryItem -Force -ErrorAction SilentlyContinue
+            Get-AzsGalleryItem | Where-Object { $_.Name -like "*AzureStackPOC*" } | Remove-AzsGalleryItem -Force -ErrorAction SilentlyContinue
         }
         Write-Host "Clearing previous Azure/Azure Stack logins"
         Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
@@ -96,11 +96,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $azsLocation = (Get-AzureRmLocation).DisplayName
         Write-Host "Resource Group = $asdkImagesRGName, Storage Account = $asdkImagesStorageAccountName and Container = $asdkImagesContainerName"
         Write-Host "Setting AZPKG Package Name"
-        if ($azpkg -eq "MySQL") {
-            $azpkgPackageName = "ASDKConfigurator.MySQL.1.0.0"
+        if ($azpkg -eq "MySQL57") {
+            $azpkgPackageName = "AzureStackPOC.MySQL.1.0.0"
+        }
+        if ($azpkg -eq "MySQL80") {
+            $azpkgPackageName = "AzureStackPOC.MySQL8.1.0.0"
         }
         elseif ($azpkg -eq "SQLServer") {
-            $azpkgPackageName = "ASDKConfigurator.MSSQL.1.0.0"
+            $azpkgPackageName = "AzureStackPOC.MSSQL.1.0.0"
             Start-Sleep -Seconds 30
         }
         Write-Host "AZPKG Package Name = $azpkgPackageName"
@@ -138,11 +141,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
             if ($deploymentMode -eq "Online") {
                 Write-Host "Uploading $azpkgPackageName"
-                if ($azpkg -eq "MySQL") {
-                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/ASDKConfigurator.MySQL.1.0.0.azpkg"
+                if ($azpkg -eq "MySQL57") {
+                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/AzureStackPOC.MySQL.1.0.0.azpkg"
+                }
+                if ($azpkg -eq "MySQL80") {
+                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MySQL/AzureStackPOC.MySQL8.1.0.0.azpkg"
                 }
                 elseif ($azpkg -eq "SQLServer") {
-                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MSSQL/ASDKConfigurator.MSSQL.1.0.0.azpkg"
+                    $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MSSQL/AzureStackPOC.MSSQL.1.0.0.azpkg"
                 }  
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
