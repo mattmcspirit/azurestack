@@ -43,20 +43,11 @@ not be recommended. A txt document will list the images that have been tested.
 **Main Use:** For a particular user, gather total memory usage associated with deployed VMs.
 
 If you'd like to understand the total VM memory consumption associated with your user account, you can use this script to query
-your Azure Stack system. It will query and return the total memory consumed across both native virtual machines, and virtual machines deployed as part of a VM Scale Set (VMSS)
-
-.NOTES
-File Name : MemoryUsage.ps1
-Author    : Matt McSpirit
-Version   : 1.0
-Date      : 28-June-2019
-Update    : 28-June-2019
-Requires  : PowerShell Version 5.0 or above
-Module    : Tested with AzureRM 2.5.0 and Azure Stack 1.7.2 already installed
+your Azure Stack system. It will query and return the total memory consumed across both native virtual machines, and virtual machines deployed as part of a VM Scale Set (VMSS).
 
 ```powershell
 .\MemoryUsage.ps1 -authType AzureAd -tenant "contoso.onmicrosoft.com" `
 -domainSuffix "local.azurestack.external"
 ```
 
-This examples will use Azure AD as the authentication model, and the same tenant. The script will attempt to login to both the Admin and Tenant space, and query your subscriptions across both.
+This example will use Azure AD as the authentication model, and the same tenant. The script will attempt to login to both the Admin and Tenant space, and query your subscriptions across both.
