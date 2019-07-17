@@ -43,8 +43,7 @@ not be recommended. A txt document will list the images that have been tested.
 **Main Use:** For a particular user, gather total memory usage associated with deployed VMs.
 
 If you'd like to understand the total VM memory consumption associated with your user account, you can use this script to query
-your Azure Stack system. It can only be used to target the Administration OR tenant space, and not both simultaneously. It will query and return
-the total memory consumed across both native virtual machines, and virtual machines deployed as part of a VM Scale Set (VMSS)
+your Azure Stack system. It will query and return the total memory consumed across both native virtual machines, and virtual machines deployed as part of a VM Scale Set (VMSS)
 
 .NOTES
 File Name : MemoryUsage.ps1
