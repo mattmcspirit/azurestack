@@ -1,5 +1,5 @@
 #!/bin/bash
-# This script is used when installing MySQL 5.7 from locally downloaded MySQL binaries
+# This script is used when installing MySQL 8.0 from locally downloaded MySQL binaries
 # These binaries should be stored in a local Azure Stack storage account, and configured by the ASDK Configurator
 
 # Validate input parameters
@@ -30,7 +30,8 @@ echo "mysql-community-server mysql-server/default-auth-override select Use Legac
 export DEBIAN_FRONTEND=noninteractive
 
 # Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
-wget ${STORAGE_URI}mysql-{libaio,libevent-core,libmecab,common,client-core,client,server-core,server}.deb
+wget ${STORAGE_URI}mysql-{libaio,libevent-core,libmecab,mecab-utils,mecab-ipadic,mecab-ipadic-utf,server-core,server}.deb
+wget ${STORAGE_URI}mysql8-{common,community-client-core,community-client,client,community-server-core,community-server,server}.deb
 
 # Install the files
 dpkg -i mysql-libaio.deb
@@ -39,15 +40,25 @@ dpkg -i mysql-libevent-core.deb
 sleep 3
 dpkg -i mysql-libmecab.deb
 sleep 3
-dpkg -i mysql-common.deb
+dpkg -i mysql-mecab-utils.deb
 sleep 3
-dpkg -i mysql-client-core.deb
+dpkg -i mysql-mecab-ipadic.deb
 sleep 3
-dpkg -i mysql-client.deb
+dpkg -i mysql-mecab-ipadic-utf.deb
 sleep 3
-dpkg -i mysql-server-core.deb
+dpkg -i mysql8-common
 sleep 3
-dpkg -i mysql-server.deb
+dpkg -i mysql8-community-client-core
+sleep 3
+dpkg -i mysql8-community-client
+sleep 3
+dpkg -i mysql8-client
+sleep 3
+dpkg -i mysql8-community-server-core
+sleep 3
+dpkg -i mysql8-community-server
+sleep 3
+dpkg -i mysql8-server
 sleep 3
 
 # Reset MySQL Password to match supplied parameter
