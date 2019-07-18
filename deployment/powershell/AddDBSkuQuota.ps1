@@ -159,7 +159,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $dbToken = $null
             $dbTokens = $null
             $dbTokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-            $dbToken = $dbTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $AzureContext.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+            $dbToken = $dbTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureContext | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
 
             # Build the header for authorization
             Write-Host "Building the headers"
