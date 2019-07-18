@@ -195,7 +195,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             if ($dbHost -eq "MySQL") {
                 New-AzureRmResourceGroupDeployment -Name AddMySQLHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `
                     -username "root" -password $secureVMpwd -hostingServerName $dbFqdn -totalSpaceMB 20480 `
-                    -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
+                    -skuName "MySQL80" -Mode Incremental -Verbose -ErrorAction Stop
             }
             elseif ($dbHost -eq "SQLServer") {
                 New-AzureRmResourceGroupDeployment -Name AddSQLServerHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `
