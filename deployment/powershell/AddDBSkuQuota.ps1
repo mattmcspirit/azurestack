@@ -132,7 +132,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             # Set the variables and gather token for creating the SKU & Quota
             if ($dbsku -eq "MySQL") {
                 $skuFamily = "MySQL"
-                $skuName = "MySQL57"
+                $skuName = "MySQL80"
                 $skuTier = "Standalone"
                 $dbArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
                 $databaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
