@@ -1,4 +1,4 @@
-Azure Stack Development Kit Configurator 1906.2
+Azure Stack Development Kit Configurator 1906.3
 ==============
 
 Version Compatibility
@@ -28,11 +28,11 @@ This includes:
 * All Windows Server images are patched with latest SSU and CUs automatically
 * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
 * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
-* Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
+* Gallery item created for MySQL 5.7, 8.0 and SQL Server 2017 (all on Ubuntu Server 16.04 LTS)
 * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs)
 * MySQL Resource Provider installation
 * SQL Server Resource Provider installation
-* Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
+* Deployment of a MySQL 8.0 hosting server on Ubuntu Server 16.04 LTS
 * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
 * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
 * App Service prerequisites installation (SQL Server PowerShell, SQL Server DB VM and Standalone File Server)

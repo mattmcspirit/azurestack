@@ -15,7 +15,7 @@
     * Windows Server 2019 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository (Optional)
     * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
     * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
-    * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
+    * Gallery item created for MySQL 5.7, 8.0 and SQL Server 2017 (all on Ubuntu Server 16.04 LTS)
     * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs)
     * MySQL Resource Provider installation
     * SQL Server Resource Provider installation
@@ -40,6 +40,8 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1906.3  Minor bug fixes and cleanup
+            Added MySQL 8.0 Gallery Item and Default DB Host Deployment
     1906.2  Minor bug fixes and cleanup
             Deployment of App Service FS and DB into Admin Sub
     1906.1  Minor bug fixes and cleanup
