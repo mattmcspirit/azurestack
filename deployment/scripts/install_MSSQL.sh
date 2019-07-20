@@ -19,6 +19,9 @@ sudo echo "127.0.0.1  $HOSTNAME" >> /etc/hosts
 # Defaults to developer
 MSSQL_PID='evaluation'
 
+# Install SQL Server Agent (recommended)
+SQL_INSTALL_AGENT='y'
+
 # Install SQL Server Full Text Search (optional)
 # SQL_INSTALL_FULLTEXT='y'
 
@@ -40,10 +43,17 @@ sudo ufw allow ssh
 sudo ufw reload
 yes | sudo ufw enable
 
+#echo Adding Microsoft repositories...
+#wget -vO- https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+#sudo add-apt-repository "$(wget -qO- https://packages.microsoft.com/config/ubuntu/16.04/mssql-server-2017.list)"
+#sudo wget -qO- https://packages.microsoft.com/config/ubuntu/16.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+
 echo Adding Microsoft repositories...
-wget -vO- https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-sudo add-apt-repository "$(wget -qO- https://packages.microsoft.com/config/ubuntu/16.04/mssql-server-2017.list)"
-sudo wget -qO- https://packages.microsoft.com/config/ubuntu/16.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+sudo curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+repoargs="$(curl https://packages.microsoft.com/config/ubuntu/16.04/mssql-server-2017.list)"
+sudo add-apt-repository "${repoargs}"
+repoargs="$(curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list)"
+sudo add-apt-repository "${repoargs}"
 
 echo Running apt-get update -y...
 sudo apt-get update -y
@@ -63,6 +73,14 @@ sudo ACCEPT_EULA=Y apt-get install -y mssql-tools unixodbc-dev
 echo Adding SQL Server tools to your path...
 echo PATH="$PATH:/opt/mssql-tools/bin" >> ~/.bash_profile
 echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bashrc
+source ~/.bashrc
+
+# Optional SQL Server Agent installation:
+if [ ! -z $SQL_INSTALL_AGENT ]
+then
+  echo Installing SQL Server Agent...
+  sudo apt-get install -y mssql-server-agent
+fi
 
 # Optional SQL Server Full Text Search installation:
 if [ ! -z $SQL_INSTALL_FULLTEXT ]

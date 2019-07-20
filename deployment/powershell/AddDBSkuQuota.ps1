@@ -121,15 +121,18 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $azsLocation = (Get-AzureRmLocation).DisplayName
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $subID = $azureContext.Subscription.Id
+            Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
+            $subID = $sub.SubscriptionId
+            $azureContext = (Get-AzureRmContext).Account.Id
+            #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            #$subID = $azureContext.Subscription.Id
             $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
 
             Write-Host "Setting variables for creating the SKU and Quota"
             # Set the variables and gather token for creating the SKU & Quota
             if ($dbsku -eq "MySQL") {
                 $skuFamily = "MySQL"
-                $skuName = "MySQL57"
+                $skuName = "MySQL80"
                 $skuTier = "Standalone"
                 $dbArmEndpoint = $ArmEndpoint.TrimEnd("/", "\");
                 $databaseAdapterNamespace = "Microsoft.MySQLAdapter.Admin"
@@ -156,7 +159,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $dbToken = $null
             $dbTokens = $null
             $dbTokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-            $dbToken = $dbTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $AzureContext.Account.Id | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+            $dbToken = $dbTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureContext | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
 
             # Build the header for authorization
             Write-Host "Building the headers"

@@ -240,7 +240,7 @@
                         "type": "Microsoft.Common.TextBox",
                         "label": "MySQL Install Script URL",
                         "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/",
-                        "toolTip": "Choose the URL location of where the MySQL Custom Script can be found. If your ASDK host is connected to the internet, choose Online, but if this is disconnected, use Local, but ensure script files have been added to a local storage account first. The ASDK Configurator will have performed this step for you.",
+                        "toolTip": "Choose the URL location of where the MySQL Custom Script can be found. If your Azure Stack is connected to the internet, choose Online, but if this is disconnected, use Local, but ensure script files have been added to a local storage account first. The Azure Stack POC Configurator will have performed this step for you.",
                         "constraints": {
                             "required": true
                         },

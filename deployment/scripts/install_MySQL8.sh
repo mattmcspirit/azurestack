@@ -29,15 +29,15 @@ sudo apt-key adv --keyserver pool.sks-keyservers.net --recv-keys 5072E1F5
     # Retrieve the latest APT repo for MySQL and save it
     echo "deb http://repo.mysql.com/apt/ubuntu $(lsb_release -sc) mysql-8.0" | sudo tee /etc/apt/sources.list.d/mysql80.list
 
-    # Update
-    sudo apt update -y
-    apt-get upgrade -y
+# Update
+sudo apt update -y
+apt-get upgrade -y
 
 # Install MySQL 8.0
 echo "mysql-community-server mysql-community-server/root-pass password root" | sudo debconf-set-selections
 echo "mysql-community-server mysql-community-server/re-root-pass password root" | sudo debconf-set-selections
 echo "mysql-community-server mysql-server/default-auth-override select Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)" | sudo debconf-set-selections
-sudo DEBIAN_FRONTEND=noninteractive apt install --download-only mysql-server mysql-client -y
+sudo DEBIAN_FRONTEND=noninteractive apt install mysql-server mysql-client -y
 
 # Reset MySQL Password to match supplied parameter
 mysql -u root -proot -e "use mysql; ALTER USER 'root'@'localhost' IDENTIFIED BY '$MySQLPassword'; flush privileges;"

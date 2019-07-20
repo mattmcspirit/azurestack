@@ -1,0 +1,89 @@
+{
+    "$schema": "https://gallery.azure.com/schemas/2015-10-01/manifest.json#",
+    "name": "MSSQL",
+    "publisher": "AzureStackPOC",
+    "version": "1.0.0",
+    "displayName": "ms-resource:displayName",
+    "publisherDisplayName": "ms-resource:publisherDisplayName",
+    "publisherLegalName": "ms-resource:publisherDisplayName",
+    "summary": "ms-resource:summary",
+    "longSummary": "ms-resource:longSummary",
+    "description": "ms-resource:description",
+    "longDescription": "ms-resource:description",
+    "uiDefinition": {
+        "path": "UIDefinition.json"
+    },
+    "artifacts": [
+        {
+            "name": "createuidefinition",
+            "type": "Custom",
+            "path": "DeploymentTemplates\\createUiDefinition.json",
+            "isDefault": false
+        },
+        {
+            "name": "DefaultTemplate",
+            "type": "Template",
+            "path": "DeploymentTemplates\\mainTemplate.json",
+            "isDefault": true
+        },
+        {
+            "name": "azuredeploy.parameters.json",
+            "type": "Custom",
+            "path": "DeploymentTemplates\\azuredeploy.parameters.json",
+            "isDefault": false
+        }
+    ],
+    "categories": [
+        "Compute"
+    ],
+    "links": [
+        {
+            "displayName": "ms-resource:linkDisplayName0",
+            "uri": "https://azure.microsoft.com/documentation/articles/virtual-machines-sql-server-infrastructure-services/"
+        },
+        {
+            "displayName": "ms-resource:linkDisplayName1",
+            "uri": "https://www.microsoft.com/en-us/sql-server/sql-server-2017"
+        },
+        {
+            "displayName": "ms-resource:linkDisplayName2",
+            "uri": "http://social.msdn.microsoft.com/Forums/windowsazure/home?forum=WAVirtualMachinesforWindows&filter=unanswered&brandIgnore=True&sort=relevancedesc&searchTerm=SQL"
+        },
+        {
+            "displayName": "ms-resource:linkDisplayName3",
+            "uri": "https://azure.microsoft.com/pricing/details/virtual-machines/#sql"
+        }
+    ],
+    "images": [
+        {
+            "context": "ibiza",
+            "items": [
+                {
+                    "id": "small",
+                    "path": "icons\\Small.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "medium",
+                    "path": "icons\\Medium.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "large",
+                    "path": "icons\\Large.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "wide",
+                    "path": "icons\\Wide.png",
+                    "type": "icon"
+                },
+                {
+                    "id": "screenShot0",
+                    "path": "screenshots\\screenshot1.png",
+                    "type": "screenshot"
+                }
+            ]
+        }
+    ]
+}

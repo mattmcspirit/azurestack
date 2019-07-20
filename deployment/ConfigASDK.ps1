@@ -15,7 +15,7 @@
     * Windows Server 2019 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository (Optional)
     * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
     * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
-    * Gallery item created for MySQL 5.7 and SQL Server 2017 (both on Ubuntu Server 16.04 LTS)
+    * Gallery item created for MySQL 5.7, 8.0 and SQL Server 2017 (all on Ubuntu Server 16.04 LTS)
     * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs)
     * MySQL Resource Provider installation
     * SQL Server Resource Provider installation
@@ -40,6 +40,8 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1906.3  Minor bug fixes and cleanup
+            Added MySQL 8.0 Gallery Item and Default DB Host Deployment
     1906.2  Minor bug fixes and cleanup
             Deployment of App Service FS and DB into Admin Sub
     1906.1  Minor bug fixes and cleanup
@@ -1393,7 +1395,8 @@ try {
             ServerFull2016Image  = "Incomplete";
             ServerCore2019Image  = "Incomplete";
             ServerFull2019Image  = "Incomplete";
-            MySQLGalleryItem     = "Incomplete";
+            MySQL57GalleryItem   = "Incomplete";
+            MySQL80GalleryItem   = "Incomplete";
             SQLServerGalleryItem = "Incomplete";
             AddVMExtensions      = "Incomplete";
             MySQLRP              = "Incomplete";
@@ -2370,16 +2373,27 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     ##############################################################################################################################################################
 
     # Define the DB Gallery Item jobs
-    $jobName = "AddMySQLAzpkg"
-    $AddMySQLAzpkg = {
-        Start-Job -Name AddMySQLAzpkg -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, `
+    $jobName = "AddMySQL57Azpkg"
+    $AddMySQL57Azpkg = {
+        Start-Job -Name AddMySQL57Azpkg -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, `
             $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix `
                 -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch `
-                -azpkg "MySQL" -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
+                -azpkg "MySQL57" -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
-    JobLauncher -jobName $jobName -jobToExecute $AddMySQLAzpkg -Verbose
+    JobLauncher -jobName $jobName -jobToExecute $AddMySQL57Azpkg -Verbose
+
+    $jobName = "AddMySQL80Azpkg"
+    $AddMySQL80Azpkg = {
+        Start-Job -Name AddMySQL80Azpkg -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, `
+            $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix `
+                -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch `
+                -azpkg "MySQL80" -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
+        } -Verbose -ErrorAction Stop
+    }
+    JobLauncher -jobName $jobName -jobToExecute $AddMySQL80Azpkg -Verbose
 
     $jobName = "AddSQLServerAzpkg"
     $AddSQLServerAzpkg = {

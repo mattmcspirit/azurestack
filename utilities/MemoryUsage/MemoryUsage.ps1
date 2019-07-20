@@ -102,7 +102,7 @@ foreach ($e in $environments) {
         foreach ($vmSS in $vmSSlist) {
             $vmlist = Get-AzureRmVmssVM -VMScaleSetName $($vmSS.Name) -ResourceGroupName $($vmSS.ResourceGroupName) -ErrorAction SilentlyContinue
             foreach ($v in $vmlist) {
-                $memory = ((Get-AzureRmVMSize -Location east | Where-Object { $_.Name -eq ($v.Sku).Name }).MemoryInMB) / 1024
+                $memory = ((Get-AzureRmVMSize -Location $location | Where-Object { $_.Name -eq ($v.Sku).Name }).MemoryInMB) / 1024
                 Write-Host "SUBSCRIPTION NAME: $($s.DisplayName)  |  VM NAME: $($v.Name)  |  VM SIZE: $(($v.Sku).Name)  |  VM MEMORY USAGE: $($memory)GB"
                 Write-Output "SUBSCRIPTION NAME: $($s.DisplayName)  |  VM NAME: $($v.Name)  |  VM SIZE: $(($v.Sku).Name)  |  VM MEMORY USAGE: $($memory)GB" >> $txtPath
                 $vmssMemory += $memory

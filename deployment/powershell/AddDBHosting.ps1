@@ -134,11 +134,15 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Write-Host "Logging into Azure Stack into the user space to get the FQDN of the Hosting Server"
             $ArmEndpoint = "https://management.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             Write-Host "Selecting the *ADMIN DB HOSTS subscription"
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $subID = $azureContext.Subscription.Id
+            Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
+            $subID = $sub.SubscriptionId
+            #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            #$subID = $azureContext.Subscription.Id
             Write-Host "Current subscription ID is: $subID"
             
             Write-Host "Setting up Database Variables"
@@ -171,8 +175,6 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Clear-AzureRmContext -Scope CurrentUser -Force
 
             Write-Host "Logging into Azure Stack into the admin space to complete the process"
-            $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
             $azsLocation = (Get-AzureRmLocation).DisplayName
             $adminDbRg = "azurestack-admindbhosting"
@@ -193,7 +195,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             if ($dbHost -eq "MySQL") {
                 New-AzureRmResourceGroupDeployment -Name AddMySQLHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `
                     -username "root" -password $secureVMpwd -hostingServerName $dbFqdn -totalSpaceMB 20480 `
-                    -skuName "MySQL57" -Mode Incremental -Verbose -ErrorAction Stop
+                    -skuName "MySQL80" -Mode Incremental -Verbose -ErrorAction Stop
             }
             elseif ($dbHost -eq "SQLServer") {
                 New-AzureRmResourceGroupDeployment -Name AddSQLServerHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `

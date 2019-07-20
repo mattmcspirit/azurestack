@@ -1,7 +1,7 @@
 {
     "$schema": "https://gallery.azure.com/schemas/2015-10-01/manifest.json#",
-    "name": "MSSQL",
-    "publisher": "ASDKConfigurator",
+    "name": "MySQL",
+    "publisher": "AzureStackPOC",
     "version": "1.0.0",
     "displayName": "ms-resource:displayName",
     "publisherDisplayName": "ms-resource:publisherDisplayName",
@@ -38,20 +38,12 @@
     ],
     "links": [
         {
-            "displayName": "ms-resource:linkDisplayName0",
-            "uri": "https://azure.microsoft.com/documentation/articles/virtual-machines-sql-server-infrastructure-services/"
+            "displayName": "ms-resource:documentationLink",
+            "uri": "https://www.oracle.com/mysql/index.html"
         },
         {
-            "displayName": "ms-resource:linkDisplayName1",
-            "uri": "https://www.microsoft.com/en-us/sql-server/sql-server-2017"
-        },
-        {
-            "displayName": "ms-resource:linkDisplayName2",
-            "uri": "http://social.msdn.microsoft.com/Forums/windowsazure/home?forum=WAVirtualMachinesforWindows&filter=unanswered&brandIgnore=True&sort=relevancedesc&searchTerm=SQL"
-        },
-        {
-            "displayName": "ms-resource:linkDisplayName3",
-            "uri": "https://azure.microsoft.com/pricing/details/virtual-machines/#sql"
+            "displayName": "ms-resource:documentationLink2",
+            "uri": "https://dev.mysql.com/doc/"
         }
     ],
     "images": [
@@ -80,7 +72,7 @@
                 },
                 {
                     "id": "screenShot0",
-                    "path": "screenshots\\screenshot1.png",
+                    "path": "screenshots\\Screenshot1.png",
                     "type": "screenshot"
                 }
             ]

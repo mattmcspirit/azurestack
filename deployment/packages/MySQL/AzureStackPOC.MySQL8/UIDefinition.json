@@ -1,0 +1,18 @@
+{
+  "$schema": "https://gallery.azure.com/schemas/2015-02-12/UIDefinition.json#",
+  "createDefinition": {
+    "createBlade": {
+      "name": "CreateMultiVmWizardBlade",
+      "extension": "Microsoft_Azure_Compute"
+    },
+    "startboardPart": {
+      "name": "ResourceGroupMapPinnedPart",
+      "extension": "HubsExtension"
+    },
+    "startboardPartKeyId": "id"
+  },
+  "initialData": {
+    "model": ""
+  },
+  "options": {}
+}

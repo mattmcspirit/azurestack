@@ -4,7 +4,7 @@
     "parameters": {
         "vmName": {
             "type": "string",
-            "defaultValue": "mysql",
+            "defaultValue": "sql",
             "metadata": {
                 "description": "VM Name"
             }
@@ -18,7 +18,7 @@
         },
         "adminUsername": {
             "type": "string",
-            "defaultValue": "mysqladmin",
+            "defaultValue": "sqladmin",
             "metadata": {
                 "description": "Admin user name"
             }
@@ -37,11 +37,11 @@
                 "description": "Admin password"
             }
         },
-        "mySQLPassword": {
+        "msSQLPassword": {
             "type": "securestring",
             "defaultValue": "",
             "metadata": {
-                "description": "Password for MySQL Database Server"
+                "description": "Password for SQL Server 2017 Database Server"
             }
         },
         "sshPublicKey": {
@@ -60,7 +60,7 @@
         },
         "virtualNetworkName": {
             "type": "string",
-            "defaultValue": "mysql_vnet",
+            "defaultValue": "sql_vnet",
             "metadata": {
                 "description": "Virtual Network Name"
             }
@@ -74,7 +74,7 @@
         },
         "virtualNetworkSubnetName": {
             "type": "string",
-            "defaultValue": "mysql_subnet",
+            "defaultValue": "sql_subnet",
             "metadata": {
                 "description": "Virtual Network subnet name"
             }
@@ -95,14 +95,14 @@
         },
         "publicIPAddressName": {
             "type": "string",
-            "defaultValue": "mysql_ip",
+            "defaultValue": "sql_ip",
             "metadata": {
                 "description": "Public IP Address Name"
             }
         },
         "publicIPAddressDomainNameLabel": {
             "type": "string",
-            "defaultValue": "mysql",
+            "defaultValue": "sql",
             "metadata": {
                 "description": "Public IP domain name prefix"
             }
@@ -118,22 +118,11 @@
                 "description": "Managed Disks Storage Account Type"
             }
         },
-        "allowRemoteConnections": {
-            "type": "string",
-            "defaultValue": "No",
-            "allowedValues": [
-                "Yes",
-                "No"
-            ],
-            "metadata": {
-                "description": "Choose to allow remote connections for MySQL Database Server"
-            }
-        },
         "scriptBaseUrl": {
             "type": "string",
             "metadata": {
                 "artifactsBaseUrl": "",
-                "description": "Choose where the MySQL install script can be found"
+                "description": "Choose where the SQL Server 2017 install script can be found"
             },
             "defaultValue": "https://raw.githubusercontent.com/mattmcspirit/azurestack/master/deployment/scripts/"
         }
@@ -220,11 +209,11 @@
             "properties": {
                 "securityRules": [
                     {
-                        "name": "mySQL",
+                        "name": "SQL",
                         "properties": {
                             "protocol": "Tcp",
                             "sourcePortRange": "*",
-                            "destinationPortRange": "3306",
+                            "destinationPortRange": "1433",
                             "sourceAddressPrefix": "*",
                             "destinationAddressPrefix": "*",
                             "access": "Allow",
@@ -242,7 +231,7 @@
                             "sourceAddressPrefix": "*",
                             "destinationAddressPrefix": "*",
                             "access": "Allow",
-                            "priority": 201,
+                            "priority": 110,
                             "direction": "Inbound"
                         }
                     }
@@ -255,10 +244,14 @@
             "name": "[variables('nicName')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[parameters('publicIpAddressName')]",
-                "[parameters('virtualNetworkName')]"
+                "[concat('Microsoft.Network/publicIPAddresses/', parameters('publicIPAddressName'))]",
+                "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]",
+                "[concat('Microsoft.Network/networkSecurityGroups/', variables('nsgName'))]"
             ],
             "properties": {
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+                },
                 "ipConfigurations": [
                     {
                         "name": "ipconfig1",
@@ -339,27 +332,27 @@
                 "autoUpgradeMinorVersion": true,
                 "settings": {
                     "fileUris": [
-                        "[concat(parameters('scriptBaseUrl'), 'install_MySQL.sh')]"
+                        "[concat(parameters('scriptBaseUrl'), 'install_MSSQL.sh')]"
                     ]
                 },
                 "protectedSettings": {
-                    "commandToExecute": "[concat('bash install_MySQL.sh ', parameters('mySQLPassword'), ' ', parameters('allowRemoteConnections'), ' ', parameters('scriptBaseUrl'))]"
+                    "commandToExecute": "[concat('bash install_MSSQL.sh ', parameters('msSQLPassword'), ' ', parameters('scriptBaseUrl'))]"
                 }
             }
         }
     ],
     "outputs": {
-        "MySQLVMFQDN:": {
+        "SQLVMFQDN:": {
             "value": "[concat('https://',reference(resourceId('Microsoft.Network/publicIPAddresses',parameters('publicIPAddressName'))).dnsSettings.fqdn)]",
             "type": "string"
         },
-        "MySQLAdminUsername ": {
+        "SQLAdminUsername ": {
             "type": "string",
             "value": "[parameters('adminUsername')]"
         },
-        "MySQLDatabaseUsername ": {
+        "SQLDatabaseUsername ": {
             "type": "string",
-            "value": "root"
+            "value": "sa"
         }
     }
 }
