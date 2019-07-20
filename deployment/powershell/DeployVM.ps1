@@ -356,7 +356,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             $vmDeployAttempt = 1
             while (!(Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name $deploymentName -ErrorAction SilentlyContinue | Where-Object { $_.ProvisioningState -eq "Succeeded" }) -and ($vmDeployAttempt -le 3)) {
                 try {
-                    Write-Host " This is deployment attempt $vmDeployAttempt for deploying the $vmType VM."
+                    Write-Host "This is deployment attempt $vmDeployAttempt for deploying the $vmType VM."
                     if ($vmType -eq "MySQL") {
                         Write-Host "Creating a dedicated $vmType database VM running on Ubuntu Server for database hosting"
                         if (Get-AzureRmResourceGroupDeployment -ResourceGroupName $rg -Name $deploymentName -ErrorAction SilentlyContinue | Where-Object { $_.ProvisioningState -eq "Succeeded" }) {
