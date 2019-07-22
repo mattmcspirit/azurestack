@@ -2,7 +2,7 @@
 
 .SYNOPSYS
 
-    The purpose of this script is to automate as much as possible post deployment tasks in Azure Stack Development Kit
+    The purpose of this script is to automate as much as possible post deployment tasks for an Azure Stack POC.
     This includes:
     * Validates all input parameters
     * Installs Azure Stack PowerShell and AzureRM modules
@@ -10,13 +10,13 @@
     * Updated password expiration (180 days)
     * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
     * Tools installation (Azure Stack Tools)
-    * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
+    * Registration of the Azure Stack POC system to Azure (Optional - enables Marketplace Syndication)
     * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
     * Windows Server 2019 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository (Optional)
     * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
     * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
     * Gallery item created for MySQL 5.7, 8.0 and SQL Server 2017 (all on Ubuntu Server 16.04 LTS)
-    * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs)
+    * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered Azure Stack systems)
     * MySQL Resource Provider installation
     * SQL Server Resource Provider installation
     * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
@@ -35,8 +35,8 @@
     * MySQL, SQL, App Service and Host Customization can be optionally skipped
     * Cleans up download folder to ensure clean future runs
     * Transcript Log for errors and troubleshooting
-    * Progress Tracking and rerun reliability with ConfigASDK database hosted on SqlLocalDB (2017)
-    * Stores script output in a ConfigASDKOutput.txt, for future reference
+    * Progress Tracking and rerun reliability with AzSPoC database hosted on SqlLocalDB (2017)
+    * Stores script output in a AzSPoCOutput.txt, for future reference
     * Supports usage in offline/disconnected environments
 
 .VERSION
@@ -175,7 +175,7 @@ param (
     [parameter(Mandatory = $false)]
     [String]$ISOPath2019,
 
-    # Password used for deployment of the ASDK.
+    # Password used for deployment of the Azure Stack ASDK only - not used with multiNode system.
     [parameter(Mandatory = $false)]
     [String]$azureStackAdminPwd,
 
@@ -191,8 +191,8 @@ param (
     [parameter(Mandatory = $false)]
     [string]$azureAdPwd,
 
-    # If you want the script to register the ASDK for you, use this flag
-    [switch]$registerASDK,
+    # If you want the script to register the Azure Stack POC system for you, use this flag
+    [switch]$registerAzS,
 
     # If you want to use the same Azure AD creds that you used to deploy Azure Stack, to register it, set this flag
     [switch]$useAzureCredsForRegistration,
@@ -219,11 +219,12 @@ param (
     [switch]$skipAppService,
 
     # If you don't want to customize the ASDK host with useful apps such as Chrome, Azure CLI, VS Code etc. set this flag
+    # This will automatically be skipped when deploying for a multiNode
     [switch]$skipCustomizeHost,
 
     # Offline installation package path for all key components
     [parameter(Mandatory = $false)]
-    [string]$configAsdkOfflineZipPath,
+    [string]$AzSPoCOfflineZipPath,
 
     # This is used mainly for testing, when you want to run against a specific GitHub branch. Master should be used for all non-testing scenarios.
     [Parameter(Mandatory = $false)]
@@ -231,6 +232,9 @@ param (
 
     # If you have older hardware that can't handle concurrent VM deployments, use this flag
     [switch]$serialMode,
+
+    # If you plan to use this for a multiNode POC system, use this flag
+    [switch]$multiNode,
 
     # 
     [Parameter(Mandatory = $false)]
@@ -293,27 +297,27 @@ try {
         #### Need to upload to blob storage first from extracted ZIP ####
         #$azpkgFullPath = $null
         $azpkgFileName = $null
-        #$azpkgFullPath = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.FullName }
-        $azpkgFileName = Get-ChildItem -Path "$ASDKpath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.Name }
+        #$azpkgFullPath = Get-ChildItem -Path "$azsPath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.FullName }
+        $azpkgFileName = Get-ChildItem -Path "$azsPath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.Name }
                                 
         # Check there's not a gallery item already uploaded to storage
-        if ($(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue)) {
+        if ($(Get-AzureStorageBlob -Container $azsImagesContainerName -Blob $azpkgFileName -Context $azsStorageAccount.Context -ErrorAction SilentlyContinue)) {
             Write-Verbose -Message "You already have an upload of $azpkgFileName within your Storage Account. No need to re-upload."
-            Write-Verbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+            Write-Verbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $azsImagesContainerName -Blob $azpkgFileName -Context $azsStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
         }
         else {
             $uploadAzpkgAttempt = 1
-            while (!$(Get-AzureStorageBlob -Container $asdkImagesContainerName -Blob $azpkgFileName -Context $asdkStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
+            while (!$(Get-AzureStorageBlob -Container $azsImagesContainerName -Blob $azpkgFileName -Context $azsStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
                 try {
                     # Log back into Azure Stack to ensure login hasn't timed out
                     Write-Verbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                    #Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $asdkImagesContainerName -Blob "$azpkgFileName" -Context $asdkStorageAccount.Context -ErrorAction Stop | Out-Null
+                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                    #Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $azsImagesContainerName -Blob "$azpkgFileName" -Context $azsStorageAccount.Context -ErrorAction Stop | Out-Null
                     ################## AzCopy Testing ##############################################
-                    $containerDestination = '{0}{1}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkImagesContainerName
+                    $containerDestination = '{0}{1}' -f $azsStorageAccount.PrimaryEndpoints.Blob, $azsImagesContainerName
                     $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
-                    $azpkgDirectory = "$ASDKpath\packages"
-                    $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $asdkImagesRGName -Name $asdkImagesStorageAccountName).Value[0]
+                    $azpkgDirectory = "$azsPath\packages"
+                    $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $azsImagesRGName -Name $azsImagesStorageAccountName).Value[0]
                     $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}"" /Z:""{6}""", $azCopyPath, $azpkgDirectory, $containerDestination, $storageAccountKey, $azpkgFileName, $azCopyLogPath, $journalPath)
                     Write-Host "Executing the following command:`n'n$azCopyCmd"
                     $result = cmd /c $azCopyCmd
@@ -333,7 +337,7 @@ try {
                 }
             }
         }
-        $azpkgURI = '{0}{1}/{2}' -f $asdkStorageAccount.PrimaryEndpoints.Blob, $asdkImagesContainerName, $azpkgFileName
+        $azpkgURI = '{0}{1}/{2}' -f $azsStorageAccount.PrimaryEndpoints.Blob, $azsImagesContainerName, $azpkgFileName
         Write-Verbose -Message "Uploading $azpkgFileName from $azpkgURI"
         return [string]$azpkgURI
     }
@@ -411,8 +415,8 @@ try {
             [parameter(Mandatory = $true)]
             [string] $progressStage
         )
-        # Update the ConfigASDK Progress database with successful completion then display updated table
-        Write-Host "ASDK Configurator Stage: $progressStage successfully completed. Updating ConfigASDK Progress database"
+        # Update the AzSPoC Progress database with successful completion then display updated table
+        Write-Host "Azure Stack POC Configurator Stage: $progressStage successfully completed. Updating AzSPoC Progress database"
         Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Complete';" -Verbose:$false -ErrorAction Stop
         Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -Verbose:$false -ErrorAction Stop
     }
@@ -423,8 +427,8 @@ try {
             [parameter(Mandatory = $true)]
             [string] $progressStage
         )
-        # Update the ConfigASDK Progress database with skipped status then display updated table
-        Write-Host "ASDK Configurator Stage: $progressStage skipped. Updating ConfigASDK Progress database"
+        # Update the AzSPoC Progress database with skipped status then display updated table
+        Write-Host "Azure Stack POC Configurator Stage: $progressStage skipped. Updating AzSPoC Progress database"
         Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Skipped';" -Verbose:$false -ErrorAction Stop
         Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -Verbose:$false -ErrorAction Stop
     }
@@ -435,8 +439,8 @@ try {
             [parameter(Mandatory = $true)]
             [string] $progressStage
         )
-        # Update the ConfigASDK Progress database with failed completion then display updated table, with failure message
-        Write-Host "ASDK Configurator Stage: $progressStage failed. Updating ConfigASDK Progress database"
+        # Update the AzSPoC Progress database with failed completion then display updated table, with failure message
+        Write-Host "Azure Stack POC Configurator Stage: $progressStage failed. Updating AzSPoC Progress database"
         Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Failed';" -Verbose:$false -ErrorAction Stop
         Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -Verbose:$false -ErrorAction Stop
         Write-Host "$_.Exception.Message" -ErrorAction Stop
@@ -448,8 +452,8 @@ try {
             [parameter(Mandatory = $true)]
             [string] $progressStage
         )
-        # Reset the ConfigASDK Progress database from previously being skipped, to incomplete
-        Write-Host "The $progressStage stage was either previously skipped, or failed - Updating ConfigASDK Progress database to Incomplete."
+        # Reset the AzSPoC Progress database from previously being skipped, to incomplete
+        Write-Host "The $progressStage stage was either previously skipped, or failed - Updating AzSPoC Progress database to Incomplete."
         Invoke-Sqlcmd -Server $sqlServerInstance -Query "USE $databaseName UPDATE Progress SET $progressStage = 'Incomplete';" -Verbose:$false -ErrorAction Stop
         Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -Verbose:$false -ErrorAction Stop
     }
@@ -528,7 +532,7 @@ try {
     $startTime = Get-Date -Format g
     $sw = [Diagnostics.Stopwatch]::StartNew()
 
-    ### SET ERCS IP Address - same for all default ASDKs ###
+    ### SET ERCS IP Address - same for all default ASDKs but multiNode will require a specific IP ###
     $ERCSip = "AzS-ERCS01"
 
     # Define Regex for Password Complexity - needs to be at least 12 characters, with at least 1 upper case, 1 lower case, 1 number and 1 special character
@@ -556,7 +560,7 @@ try {
 
     ### START LOGGING ###
     $runTime = $(Get-Date).ToString("MMddyy-HHmmss")
-    $fullLogPath = "$logPath\ConfigASDKLog$runTime.txt"
+    $fullLogPath = "$logPath\AzSPoCLog$runTime.txt"
     $logStart = Start-Transcript -Path "$fullLogPath" -Append
     Write-CustomVerbose -Message $logStart
 
@@ -585,10 +589,10 @@ try {
         else {
             Write-CustomVerbose -Message "One or more internet connectivity tests failed"
             $validOnlineInstall = $false
-            if ($configAsdkOfflineZipPath) {
+            if ($AzSPoCOfflineZipPath) {
                 Write-CustomVerbose -Message "However, offline zip path has been provided so installation can continue"
-                if ($registerASDK) {
-                    Write-CustomVerbose -Message "You have selected to register your ASDK, which requires internet connectivity."
+                if ($registerAzS) {
+                    Write-CustomVerbose -Message "You have selected to register your Azure Stack POC system, which requires internet connectivity."
                 }
             }
             else {
@@ -643,7 +647,7 @@ try {
             Write-CustomVerbose -Message "However, the ASDK host OS is reporting a total of $([INT]$totalFreeMemory)GB free physical memory"
             [INT]$memoryDifference = ([INT]$totalPhysicalMemory - [INT]$totalFreeMemory) - [INT]$totalVmMemory
             Write-CustomVerbose -Message "This is a difference of $([INT]$memoryDifference)GB on top of the Azure Stack VM usage, and is most likely consumed by system processes and overheads."
-            Write-CustomVerbose -Message "If you run out of memory, this may cause the ASDK Configurator to fail."
+            Write-CustomVerbose -Message "If you run out of memory, this may cause the Azure Stack POC Configurator to fail."
             Start-Sleep 10
         }
         else {
@@ -662,26 +666,26 @@ try {
     ### PartialOnline (internet connected, but using offline zip), and Offline (ADFS with offline zip)
 
     try {
-        if (($authenticationType.ToString() -like "AzureAd") -and $validOnlineInstall -and !$configAsdkOfflineZipPath) {
+        if (($authenticationType.ToString() -like "AzureAd") -and $validOnlineInstall -and !$AzSPoCOfflineZipPath) {
             $deploymentMode = "Online"
         }
-        elseif (($authenticationType.ToString() -like "AzureAd") -and $validOnlineInstall -and $configAsdkOfflineZipPath) {
+        elseif (($authenticationType.ToString() -like "AzureAd") -and $validOnlineInstall -and $AzSPoCOfflineZipPath) {
             $deploymentMode = "PartialOnline"
         }
         elseif (($authenticationType.ToString() -like "AzureAd") -and !$validOnlineInstall) {
             $exception = "Azure AD is the selected authentication model, but you failed internet connectivity tests. Check your internet connectivity, then retry."
             throw $exception
         }
-        elseif (($authenticationType.ToString() -like "ADFS") -and $validOnlineInstall -and !$configAsdkOfflineZipPath) {
+        elseif (($authenticationType.ToString() -like "ADFS") -and $validOnlineInstall -and !$AzSPoCOfflineZipPath) {
             $deploymentMode = "Online"
         }
-        elseif (($authenticationType.ToString() -like "ADFS") -and $validOnlineInstall -and $configAsdkOfflineZipPath) {
+        elseif (($authenticationType.ToString() -like "ADFS") -and $validOnlineInstall -and $AzSPoCOfflineZipPath) {
             $deploymentMode = "PartialOnline"
         }
-        elseif (($authenticationType.ToString() -like "ADFS") -and !$validOnlineInstall -and $configAsdkOfflineZipPath) {
+        elseif (($authenticationType.ToString() -like "ADFS") -and !$validOnlineInstall -and $AzSPoCOfflineZipPath) {
             $deploymentMode = "Offline"
         }
-        elseif (($authenticationType.ToString() -like "ADFS") -and !$validOnlineInstall -and !$configAsdkOfflineZipPath) {
+        elseif (($authenticationType.ToString() -like "ADFS") -and !$validOnlineInstall -and !$AzSPoCOfflineZipPath) {
             $exception = "ADFS is your selected authentication model, but you failed internet connectivity tests and didn't provide an offline zip path."
             throw $exception
         }
@@ -694,21 +698,21 @@ try {
 
     ### Validate offline Zip Path ###
     try {
-        if ($configAsdkOfflineZipPath) {
+        if ($AzSPoCOfflineZipPath) {
             Write-CustomVerbose -Message "Validating offline zip path."
-            $validZipPath = [System.IO.File]::Exists("$configAsdkOfflineZipPath")
-            $validZipfile = [System.IO.Path]::GetExtension("$configAsdkOfflineZipPath")
+            $validZipPath = [System.IO.File]::Exists("$AzSPoCOfflineZipPath")
+            $validZipfile = [System.IO.Path]::GetExtension("$AzSPoCOfflineZipPath")
 
             if ($validZipPath -eq $true -and $validZipfile -eq ".zip") {
                 Write-CustomVerbose -Message "Found path to valid zip file" 
-                $configAsdkOfflineZipPath = [System.IO.Path]::GetFullPath($configAsdkOfflineZipPath)
-                Write-CustomVerbose -Message "The zip path found at $configAsdkOfflineZipPath will be used"
+                $AzSPoCOfflineZipPath = [System.IO.Path]::GetFullPath($AzSPoCOfflineZipPath)
+                Write-CustomVerbose -Message "The zip path found at $AzSPoCOfflineZipPath will be used"
                 $offlineZipIsValid = $true
             }
             elseif ($validZipPath -eq $false -or $validZipfile -ne ".zip") {
-                $configAsdkOfflineZipPath = Read-Host "Zip path is invalid - please enter a valid path to the offline zip file"
-                $validZipPath = [System.IO.File]::Exists("$configAsdkOfflineZipPath")
-                $validZipfile = [System.IO.Path]::GetExtension("$configAsdkOfflineZipPath")
+                $AzSPoCOfflineZipPath = Read-Host "Zip path is invalid - please enter a valid path to the offline zip file"
+                $validZipPath = [System.IO.File]::Exists("$AzSPoCOfflineZipPath")
+                $validZipfile = [System.IO.Path]::GetExtension("$AzSPoCOfflineZipPath")
                 if ($validZipPath -eq $false -or $validZipfile -ne ".zip") {
                     $offlineZipIsValid = $false
                     Write-CustomVerbose -Message "No valid path to a zip file was entered again. Exiting process..." -ErrorAction Stop
@@ -717,18 +721,18 @@ try {
                 }
                 elseif ($validZipPath -eq $true -and $validZipfile -eq ".zip") {
                     Write-CustomVerbose -Message "Found path to valid zip file" 
-                    $configAsdkOfflineZipPath = [System.IO.Path]::GetFullPath($configAsdkOfflineZipPath)
-                    Write-CustomVerbose -Message "The zip file found at $configAsdkOfflineZipPath will be used"
+                    $AzSPoCOfflineZipPath = [System.IO.Path]::GetFullPath($AzSPoCOfflineZipPath)
+                    Write-CustomVerbose -Message "The zip file found at $AzSPoCOfflineZipPath will be used"
                     $offlineZipIsValid = $true
                 }
             }
         }
         ### Validate path to ISO File ###
-        # If both the ConfigASDKfiles.zip file exists AND the $ISOPath has been provided by the user, set the $ISOPath to $null as it will be defined later
-        if (([System.IO.File]::Exists($configAsdkOfflineZipPath)) -and ([System.IO.File]::Exists($ISOPath))) { 
+        # If both the AzSPoCfiles.zip file exists AND the $ISOPath has been provided by the user, set the $ISOPath to $null as it will be defined later
+        if (([System.IO.File]::Exists($AzSPoCOfflineZipPath)) -and ([System.IO.File]::Exists($ISOPath))) { 
             $ISOPath = $null
         }
-        if (([System.IO.File]::Exists($configAsdkOfflineZipPath)) -and ([System.IO.File]::Exists($ISOPath2019))) { 
+        if (([System.IO.File]::Exists($AzSPoCOfflineZipPath)) -and ([System.IO.File]::Exists($ISOPath2019))) { 
             $ISOPath2019 = $null
         }
     }
@@ -791,7 +795,7 @@ try {
     ### Validate Virtual Machine (To be created) Password ###
 
     if ([string]::IsNullOrEmpty($VMpwd)) {
-        Write-CustomVerbose -Message "You didn't enter a password for the virtual machines that the ASDK configurator will create." 
+        Write-CustomVerbose -Message "You didn't enter a password for the virtual machines that the Azure Stack POC Configurator will create." 
         $secureVMpwd = Read-Host "Please enter a password for the virtual machines that will be created during this process" -AsSecureString -ErrorAction Stop
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureVMpwd)            
         $VMpwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
@@ -853,74 +857,74 @@ try {
     }
 
     ### Credentials Recap ###
-    # $azureStackAdminUsername = "AzureStack\AzureStackAdmin" | Used to log into the local ASDK Host
-    # azureStackAdminPwd (and $secureAzureStackAdminPwd) | Used to log into the local ASDK Host
-    # $azureStackAdminCreds | Used to log into the local ASDK Host
+    # $azureStackAdminUsername = "AzureStack\AzureStackAdmin" | Used to log into the local Azure Stack POC Environment
+    # azureStackAdminPwd (and $secureAzureStackAdminPwd) | Used to log into the local ASDK Host - not used on a multiNode system
+    # $azureStackAdminCreds | Used to log into the local ASDK Host - not used in a multiNode environment
 
     ### Validate Azure Stack Development Kit Service Administrator Credentials (AZURE AD ONLY) ###
 
     if ($authenticationType.ToString() -like "AzureAd") {
 
-        ### Validate Azure AD Service Administrator Username (Used for ASDK Deployment) ###
+        ### Validate Azure AD Service Administrator Username (Used for Azure Stack POC Deployment) ###
 
         if ([string]::IsNullOrEmpty($azureAdUsername)) {
             Write-CustomVerbose -Message "You didn't enter a username for the Azure AD login." 
             $azureAdUsername = Read-Host "Please enter a username in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" -ErrorAction Stop
         }
 
-        Write-CustomVerbose -Message "Checking to see if Azure AD Service Administrator (Used for ASDK Deployment) username is correctly formatted..."
+        Write-CustomVerbose -Message "Checking to see if Azure AD Service Administrator (Used for Azure Stack POC Deployment) username is correctly formatted..."
 
         if ($azureAdUsername.ToLower() -cmatch $emailRegex -eq $true) {
-            Write-CustomVerbose -Message "Azure AD Service Administrator username (Used for ASDK Deployment) is correctly formatted."
+            Write-CustomVerbose -Message "Azure AD Service Administrator username (Used for Azure Stack POC Deployment) is correctly formatted."
             $azureAdUsername = $azureAdUsername.ToLower()
             Write-CustomVerbose -Message "$azureAdUsername will be used to connect to Azure." 
         }
 
         elseif ($azureAdUsername.ToLower() -cmatch $emailRegex -eq $false) {
-            Write-CustomVerbose -Message "Azure AD Service Administrator Username (Used for ASDK Deployment) isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
+            Write-CustomVerbose -Message "Azure AD Service Administrator Username (Used for Azure Stack POC Deployment) isn't correctly formatted. It should be entered in the format username@<directoryname>.onmicrosoft.com, or your own custom domain, for example username@contoso.com" 
             # Obtain new username
-            $azureAdUsername = Read-Host "Enter Azure AD Service Administrator Username (Used for ASDK Deployment) again" -ErrorAction Stop
+            $azureAdUsername = Read-Host "Enter Azure AD Service Administrator Username (Used for Azure Stack POC Deployment) again" -ErrorAction Stop
             if ($azureAdUsername.ToLower() -cmatch $emailRegex -eq $true) {
                 $azureAdUsername = $azureAdUsername.ToLower()
-                Write-CustomVerbose -Message "Azure AD Service Administrator Username (Used for ASDK Deployment) is correctly formatted." 
+                Write-CustomVerbose -Message "Azure AD Service Administrator Username (Used for Azure Stack POC Deployment) is correctly formatted." 
                 Write-CustomVerbose -Message "$azureAdUsername will be used to connect to Azure." 
             }
             else {
-                Write-CustomVerbose -Message "No valid Azure AD Service Administrator Username (Used for ASDK Deployment) was entered again. Exiting process..." -ErrorAction Stop 
+                Write-CustomVerbose -Message "No valid Azure AD Service Administrator Username (Used for Azure Stack POC Deployment) was entered again. Exiting process..." -ErrorAction Stop 
                 Set-Location $ScriptLocation
                 return
             }
         }
 
-        Write-CustomVerbose -Message "Checking to see if Azure AD Service Administrator (Used for ASDK Deployment) is a Microsoft Account"
+        Write-CustomVerbose -Message "Checking to see if Azure AD Service Administrator (Used for Azure Stack POC Deployment) is a Microsoft Account"
         Write-CustomVerbose -Message "Microsoft Accounts (Live, Hotmail, Outlook) do not work for non-interactive login to Azure AD via PowerShell..."
 
         if ($azureAdUsername.ToLower() -cmatch $liveIdRegex -eq $true) {
             Write-CustomVerbose -Message "You seem to be using a Microsoft Account (Live/Hotmail/Outlook) for authentication"
             Write-CustomVerbose -Message "Unfortunately, a Microsoft Account cannot be used to login to Azure/Azure Stack non-interactively via PowerShell"
             Write-CustomVerbose -Message "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net"
-            Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials."
+            Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the Azure Stack POC Configuration with these credentials."
             Set-Location $ScriptLocation
             return
         }
         else {
-            Write-CustomVerbose -Message "Azure AD Service Administrator Username (Used for ASDK Deployment) is not a Microsoft Account and is therefore valid." 
+            Write-CustomVerbose -Message "Azure AD Service Administrator Username (Used for Azure Stack POC Deployment) is not a Microsoft Account and is therefore valid." 
             Write-CustomVerbose -Message "$azureAdUsername will be used to connect to Azure." 
         }
 
-        ### Validate Azure AD Service Administrator (Used for ASDK Deployment) Password ###
+        ### Validate Azure AD Service Administrator (Used for Azure Stack POC Deployment) Password ###
 
         if ([string]::IsNullOrEmpty($azureAdPwd)) {
-            Write-CustomVerbose -Message "You didn't enter the Azure AD Service Administrator account (Used for ASDK Deployment) password." 
-            $secureAzureAdPwd = Read-Host "Please enter the password for the Azure AD Service Administrator account used to deploy the ASDK. It should be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
+            Write-CustomVerbose -Message "You didn't enter the Azure AD Service Administrator account (Used for Azure Stack POC Deployment) password." 
+            $secureAzureAdPwd = Read-Host "Please enter the password for the Azure AD Service Administrator account used to deploy the Azure Stack POC. It should be at least 8 characters, with at least 1 upper case and 1 special character." -AsSecureString -ErrorAction Stop
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureAdPwd)            
             $azureAdPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
         }
 
-        Write-CustomVerbose -Message "Checking to see if password for the Azure AD Service Administrator used to deploy the ASDK, is strong..."
+        Write-CustomVerbose -Message "Checking to see if password for the Azure AD Service Administrator used to deploy the Azure Stack POC, is strong..."
 
         if ($azureAdPwd -cmatch $regex -eq $true) {
-            Write-CustomVerbose -Message "Password for the Azure AD Service Administrator account used to deploy the ASDK meets desired complexity level" 
+            Write-CustomVerbose -Message "Password for the Azure AD Service Administrator account used to deploy the Azure Stack POC meets desired complexity level" 
             # Convert plain text password to a secure string
             $secureAzureAdPwd = ConvertTo-SecureString -AsPlainText $azureAdPwd -Force
             $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
@@ -933,19 +937,19 @@ try {
             $azureAdCreds = New-Object -TypeName System.Management.Automation.PSCredential ($azureAdUsername, $secureAzureAdPwd) -ErrorAction Stop
         }
 
-        $asdkCreds = $azureAdCreds
+        $azsCreds = $azureAdCreds
 
         ### Credentials Recap ###
         # $azureAdUsername | Used for Azure AD athentication to log into Azure/Azure Stack portals
         # $azureAdPwd (and $secureAzureAdPwd) | Used to log into Azure/Azure Stack portals
         # $azureAdCreds | Combined credentials, used to log into Azure/Azure Stack portals
-        # $asdkCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $azureStackAdminCreds (if ADFS)
+        # $azsCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $azureStackAdminCreds (if ADFS)
 
-        if ($useAzureCredsForRegistration -and $registerASDK) {
+        if ($useAzureCredsForRegistration -and $registerAzS) {
             $azureRegCreds = $azureAdCreds
         }
 
-        elseif (!$useAzureCredsForRegistration -and $registerASDK) {
+        elseif (!$useAzureCredsForRegistration -and $registerAzS) {
         
             if ([string]::IsNullOrEmpty($azureRegUsername)) {
                 Write-CustomVerbose -Message "You didn't enter a username for Azure account you'll use to register the Azure Stack to." 
@@ -980,7 +984,7 @@ try {
                 Write-CustomVerbose -Message "You seem to be using a Microsoft Account (Live/Hotmail/Outlook) for authentication"
                 Write-CustomVerbose -Message "Unfortunately, a Microsoft Account cannot be used to login to Azure/Azure Stack non-interactively via PowerShell"
                 Write-CustomVerbose -Message "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net"
-                Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials."
+                Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the Azure Stack POC Configuration with these credentials."
                 Set-Location $ScriptLocation
                 return
             }
@@ -1021,27 +1025,27 @@ try {
     $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
 
     ### Credentials Recap ###
-    # $azureRegUsername | Used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
-    # $azureRegPwd (and $secureAzureRegPwd) | Used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
-    # $azureRegCreds | Combined credentials, used for Azure AD authentication to register the ASDK if NOT using same Azure AD Creds as deployment
+    # $azureRegUsername | Used for Azure AD authentication to register the Azure Stack POC System if NOT using same Azure AD Creds as deployment
+    # $azureRegPwd (and $secureAzureRegPwd) | Used for Azure AD authentication to register the Azure Stack POC System if NOT using same Azure AD Creds as deployment
+    # $azureRegCreds | Combined credentials, used for Azure AD authentication to register the Azure Stack POC System if NOT using same Azure AD Creds as deployment
     # $cloudAdminCreds | Used for ADFS login (azurestackadmin not used) and also MySQL/SQL RP deployment
 
     if ($authenticationType.ToString() -like "ADFS") {
-        $asdkCreds = $cloudAdminCreds
+        $azsCreds = $cloudAdminCreds
     }
 
     ### Credentials Recap ###
-    # $asdkCreds | If deployment is using ADFS, $asdkCreds will be set to match $azureStackAdminCreds, which should be azurestack\azurestackadmin and accompanying password
+    # $azsCreds | If deployment is using ADFS, $azsCreds will be set to match $azureStackAdminCreds, which should be azurestack\azurestackadmin and accompanying password
 
-    if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
+    if ($authenticationType.ToString() -like "ADFS" -and $registerAzS) {
 
-        # If the user has chosen ADFS authentication, they will need to be prompted to provide some additional Azure credentials to register the ASDK.
+        # If the user has chosen ADFS authentication, they will need to be prompted to provide some additional Azure credentials to register the Azure Stack POC.
         # This If statement captures those credentials
 
         Remove-Variable -Name azureAdPwd -Force -ErrorAction SilentlyContinue
         Remove-Variable -Name azureAdUsername -Force -ErrorAction SilentlyContinue
 
-        Write-CustomVerbose -Message "Checking for an Azure AD username - this account will be used to register the ADFS-based ASDK to Azure..."
+        Write-CustomVerbose -Message "Checking for an Azure AD username - this account will be used to register the ADFS-based Azure Stack POC to Azure..."
             
         if ([string]::IsNullOrEmpty($azureRegUsername)) {
             Write-CustomVerbose -Message "You didn't enter a username for Azure account you'll use to register the Azure Stack to." 
@@ -1081,7 +1085,7 @@ try {
             Write-CustomVerbose -Message "You seem to be using a Microsoft Account (Live/Hotmail/Outlook) for authentication"
             Write-CustomVerbose -Message "Unfortunately, a Microsoft Account cannot be used to login to Azure/Azure Stack non-interactively via PowerShell"
             Write-CustomVerbose -Message "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net"
-            Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials."
+            Write-CustomVerbose -Message "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the Azure Stack POC Configuration with these credentials."
             Set-Location $ScriptLocation
             return
         }
@@ -1091,7 +1095,7 @@ try {
         }
         
         ### Validate Azure AD Registration Password ADFS-based Azure Stack ###
-        Write-CustomVerbose -Message "Checking for an Azure AD password - this account will be used to register the ADFS-based ASDK to Azure..."
+        Write-CustomVerbose -Message "Checking for an Azure AD password - this account will be used to register the ADFS-based Azure Stack POC to Azure..."
         
         if ([string]::IsNullOrEmpty($azureRegPwd)) {
             Write-CustomVerbose -Message "You didn't enter the Azure AD password that you want to use for registration." 
@@ -1117,7 +1121,7 @@ try {
         }
     }
 
-    if ($registerASDK) {
+    if ($registerAzS) {
 
         Write-CustomVerbose -Message "Checking for a valid Azure subscription ID that will be used to register the Azure Stack to Azure"
         ### Validate Azure Subscription ID for Registration ###
@@ -1138,7 +1142,7 @@ try {
     }
 
     ### Validate Custom Domain Suffix ###
-    Write-CustomVerbose -Message "The domain suffix that you're using for this ASDK deployment is $customDomainSuffix"
+    Write-CustomVerbose -Message "The domain suffix that you're using for this Azure Stack POC deployment is $customDomainSuffix"
     if ($customDomainSuffix -eq "local.azurestack.external") {
         Write-CustomVerbose -Message "Domain suffix is the default local.azurestack.external - no need for further validation"
     }
@@ -1180,13 +1184,13 @@ try {
 
     $zipExtractedRunFlag = "$ScriptLocation\ZipExtractedRunFlag.txt"
     $zipExtracted = [System.IO.File]::Exists($zipExtractedRunFlag)
-    if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid -eq $true)) {
+    if (($AzSPoCOfflineZipPath) -and ($offlineZipIsValid -eq $true)) {
         if (!$zipExtracted) {
             try {
-                Write-CustomVerbose -Message "ASDK Configurator dependency files located at: $configAsdkOfflineZipPath"
+                Write-CustomVerbose -Message "Azure Stack POC Configurator dependency files located at: $AzSPoCOfflineZipPath"
                 Write-CustomVerbose -Message "Starting extraction to $downloadPath"
                 ### Extract the Zip file, move contents to appropriate place
-                Expand-Archive -Path $configAsdkOfflineZipPath -DestinationPath $downloadPath -Force -Verbose -ErrorAction Stop
+                Expand-Archive -Path $AzSPoCOfflineZipPath -DestinationPath $downloadPath -Force -Verbose -ErrorAction Stop
                 New-Item $zipExtractedRunFlag -ItemType file -Force
             }
             catch {
@@ -1196,58 +1200,58 @@ try {
             }
         }
         elseif ($zipExtracted -eq $true) {
-            Write-CustomVerbose -Message "ConfigASDKfiles has been previously extracted successfully"
+            Write-CustomVerbose -Message "AzSPoCfiles.zip has been previously extracted successfully"
         }
     }
-    elseif (!$configAsdkOfflineZipPath) {
+    elseif (!$AzSPoCOfflineZipPath) {
         Write-CustomVerbose -Message "Skipping zip extraction - this is a 100% online deployment`r`n"
     }
 
-    ### CREATE ASDK FOLDER ######################################################################################################################################
+    ### CREATE AzSFiles FOLDER ######################################################################################################################################
     #############################################################################################################################################################
 
-    $ConfigAsdkRunFlag = "$ScriptLocation\ConfigASDKRunFlag.txt"
-    $isRerun = [System.IO.File]::Exists($ConfigAsdkRunFlag)
-    ### CREATE ASDK FOLDER ###
-    $ASDKpath = [System.IO.Directory]::Exists("$downloadPath\ASDK")
-    if ($ASDKpath -eq $true) {
-        $ASDKpath = "$downloadPath\ASDK"
-        Write-CustomVerbose -Message "ASDK folder exists at $downloadPath - no need to create it."
-        Write-CustomVerbose -Message "Download files will be placed in $downloadPath\ASDK"
-        Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
+    $AzSPoCRunFlag = "$ScriptLocation\AzSPoCRunFlag.txt"
+    $isRerun = [System.IO.File]::Exists($AzSPoCRunFlag)
+    ### CREATE AzSFiles FOLDER ###
+    $azsPath = [System.IO.Directory]::Exists("$downloadPath\AzSFiles")
+    if ($azsPath -eq $true) {
+        $azsPath = "$downloadPath\AzSFiles"
+        Write-CustomVerbose -Message "AzSFiles folder exists at $downloadPath - no need to create it."
+        Write-CustomVerbose -Message "Download files will be placed in $downloadPath\AzSFiles"
+        Write-CustomVerbose -Message "AzSFiles folder full path is $azsPath"
         if ((!$isRerun) -and ($deploymentMode -eq "Online")) {
-            # If this is a fresh run, the $asdkPath should be empty to avoid any conflicts.
+            # If this is a fresh run, the $azsPath should be empty to avoid any conflicts.
             # It may exist from a previous successful run
-            Write-CustomVerbose -Message "Cleaning up an old ASDK Folder from a previous completed run"
+            Write-CustomVerbose -Message "Cleaning up an old AzSFiles Folder from a previous completed run"
             # Will attempt multiple times as sometimes it fails
             $i = 0 
             While ($i -le 3) {
-                Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Item "$azsPath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 $i++
             }
         }
-        New-Item $ConfigAsdkRunFlag -ItemType file -Force | Out-Null
+        New-Item $AzSPoCRunFlag -ItemType file -Force | Out-Null
     }
-    elseif ($ASDKpath -eq $false) {
-        # Create the ASDK folder.
-        Write-CustomVerbose -Message "ASDK folder doesn't exist within $downloadPath, creating it"
-        mkdir "$downloadPath\ASDK" -Force | Out-Null
-        $ASDKpath = "$downloadPath\ASDK"
-        Write-CustomVerbose -Message "ASDK folder full path is $ASDKpath"
+    elseif ($azsPath -eq $false) {
+        # Create the AzSFiles folder.
+        Write-CustomVerbose -Message "AzSFiles folder doesn't exist within $downloadPath, creating it"
+        mkdir "$downloadPath\AzSFiles" -Force | Out-Null
+        $azsPath = "$downloadPath\AzSFiles"
+        Write-CustomVerbose -Message "AzSFiles folder full path is $azsPath"
         # Create txt file to act as flag that this is a rerun in future
-        New-Item $ConfigAsdkRunFlag -ItemType file -Force
+        New-Item $AzSPoCRunFlag -ItemType file -Force
     }
 
     ### DOWNLOAD AzCopy #########################################################################################################################################
     #############################################################################################################################################################
 
     # Check for existence of directory for AzCopy and creating if it doesn't exist
-    if (![System.IO.Directory]::Exists("$asdkPath\azcopy")) {
-        mkdir "$asdkPath\azcopy" -Force | Out-Null
-        $azCopyPath = "$asdkPath\azcopy"
+    if (![System.IO.Directory]::Exists("$azsPath\azcopy")) {
+        mkdir "$azsPath\azcopy" -Force | Out-Null
+        $azCopyPath = "$azsPath\azcopy"
     }
     else {
-        $azCopyPath = "$asdkPath\azcopy"
+        $azCopyPath = "$azsPath\azcopy"
     }
 
     # If there isn't already a copy of the MSI locally, pull it down
@@ -1281,12 +1285,12 @@ try {
     #############################################################################################################################################################
 
     # Check for existence of directory for SqlLocalDB and creating if it doesn't exist
-    if (![System.IO.Directory]::Exists("$asdkPath\SqlLocalDB")) {
-        mkdir "$asdkPath\SqlLocalDB" -Force | Out-Null
-        $sqlLocalDBpath = "$asdkPath\SqlLocalDB"
+    if (![System.IO.Directory]::Exists("$azsPath\SqlLocalDB")) {
+        mkdir "$azsPath\SqlLocalDB" -Force | Out-Null
+        $sqlLocalDBpath = "$azsPath\SqlLocalDB"
     }
     else {
-        $sqlLocalDBpath = "$asdkPath\SqlLocalDB"
+        $sqlLocalDBpath = "$azsPath\SqlLocalDB"
     }
 
     # If there isn't already a copy of the MSI locally, pull it down
@@ -1323,10 +1327,10 @@ try {
         }
     }
     elseif (($deploymentMode -ne "Online")) {
-        $SourceLocation = "$downloadPath\ASDK\PowerShell"
-        $RepoName = "ConfigASDKRepo"
+        $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
+        $RepoName = "AzSPoCRepo"
         if (!(Get-InstalledModule -Name SqlServer -ErrorAction SilentlyContinue -Verbose)) {
-            # Need to grab module from the ConfigASDKfiles.zip
+            # Need to grab module from the AzSPoCfiles.zip
             if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
                 Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
             }                
@@ -1353,34 +1357,34 @@ try {
     ### CREATE DB ###############################################################################################################################################
     #############################################################################################################################################################
 
-    # Need to check if ConfigASDK Database exists and if not, create it, storing the files in the default location for other base DBs (master etc)
-    $databaseName = "ConfigASDK"
+    # Need to check if AzSPoC Database exists and if not, create it, storing the files in the default location for other base DBs (master etc)
+    $databaseName = "AzSPoC"
     $instancePath = "$env:LOCALAPPDATA\Microsoft\Microsoft SQL Server Local DB\Instances\MSSQLLocalDB"
-    $configAsdkDatabaseExists = Invoke-Sqlcmd -Server $sqlServerInstance -Query "SELECT NAME FROM sys.databases WHERE name IN ('ConfigASDK')" | Out-String
-    if (!$configAsdkDatabaseExists) {
-        $createQuery = "CREATE DATABASE $databaseName ON PRIMARY (NAME=[ConfigASDKdata], FILENAME = '$instancePath\ConfigASDKdata.mdf') LOG ON (NAME=[ConfigASDKlog], FILENAME = '$instancePath\ConfigASDKlog.ldf');"
+    $AzSPoCDatabaseExists = Invoke-Sqlcmd -Server $sqlServerInstance -Query "SELECT NAME FROM sys.databases WHERE name IN ('AzSPoC')" | Out-String
+    if (!$AzSPoCDatabaseExists) {
+        $createQuery = "CREATE DATABASE $databaseName ON PRIMARY (NAME=[AzSPoCdata], FILENAME = '$instancePath\AzSPoCdata.mdf') LOG ON (NAME=[AzSPoClog], FILENAME = '$instancePath\AzSPoClog.ldf');"
         Invoke-Sqlcmd -Server $sqlServerInstance -Query $createQuery -Verbose -ErrorAction Stop
     }
     else {
-        Write-Host "The ConfigASDK Database already exists. No need to recreate."
+        Write-Host "The AzSPoC Database already exists. No need to recreate."
     }
 
     # Need to check if the logins are present
-    $configAsdkSqlLoginExists = Get-SqlLogin -ServerInstance $sqlServerInstance -LoginName "asdkadmin" -ErrorAction SilentlyContinue | Out-String
-    if (!$configAsdkSqlLoginExists) {
-        $sqlLocalDbAdmin = "asdkadmin"
+    $AzSPoCSqlLoginExists = Get-SqlLogin -ServerInstance $sqlServerInstance -LoginName "azspocadmin" -ErrorAction SilentlyContinue | Out-String
+    if (!$AzSPoCSqlLoginExists) {
+        $sqlLocalDbAdmin = "azspocadmin"
         $sqlLocalDbCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $sqlLocalDbAdmin, $secureVMpwd -ErrorAction Stop
-        Add-SqlLogin -ServerInstance $sqlServerInstance -LoginName "asdkadmin" -LoginPSCredential $sqlLocalDbCreds -LoginType SqlLogin -DefaultDatabase "ConfigASDK" -Enable -GrantConnectSql -ErrorAction SilentlyContinue -Verbose:$false
+        Add-SqlLogin -ServerInstance $sqlServerInstance -LoginName "azspocadmin" -LoginPSCredential $sqlLocalDbCreds -LoginType SqlLogin -DefaultDatabase "AzSPoC" -Enable -GrantConnectSql -ErrorAction SilentlyContinue -Verbose:$false
     }
     else {
-        Write-Host "The ConfigASDK Admin Login already exists. No need to recreate."
+        Write-Host "The AzSPoC Admin Login already exists. No need to recreate."
     }
 
     # Need to check if a table is present
     $tableName = "Progress"
-    $configAsdkSqlTableExists = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction SilentlyContinue | Out-String
-    if (!$configAsdkSqlTableExists) {
-        # Need to populate a PowerShell Hash Table that contains all of the stages of the ConfigASDK Script
+    $AzSPoCSqlTableExists = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction SilentlyContinue | Out-String
+    if (!$AzSPoCSqlTableExists) {
+        # Need to populate a PowerShell Hash Table that contains all of the stages of the AzSPoC Script
         $progressHashTable = [ordered]@{
             GetScripts           = "Incomplete";
             CheckPowerShell      = "Incomplete";
@@ -1428,12 +1432,12 @@ try {
         $progressHashTable.ForEach( { $_.ForEach( { [PSCustomObject]$_ }) | Write-SqlTableData -ServerInstance $sqlServerInstance `
                     -DatabaseName $databaseName -SchemaName dbo -TableName $tableName -Force -ErrorAction Stop -Verbose })
 
-        $configAsdkSqlTable = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction SilentlyContinue | Out-String
-        $configAsdkSqlTable
+        $AzSPoCSqlTable = Read-SqlTableData -ServerInstance $sqlServerInstance -DatabaseName "$databaseName" -SchemaName "dbo" -TableName "$tableName" -ErrorAction SilentlyContinue | Out-String
+        $AzSPoCSqlTable
     }
     else {
-        Write-Host "The ConfigASDK Progress Table already exists. No need to recreate."
-        $configAsdkSqlTableExists
+        Write-Host "The AzSPoC Progress Table already exists. No need to recreate."
+        $AzSPoCSqlTableExists
     }
 
     ### VALIDATE ISO ############################################################################################################################################
@@ -1443,7 +1447,7 @@ try {
     try {
         Write-CustomVerbose -Message "Validating Windows Server 2016 RTM ISO path"
         # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
-        if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
+        if (($AzSPoCOfflineZipPath) -and ($offlineZipIsValid = $true)) {
             $ISOPath = Get-ChildItem -Path "$downloadPath\2016iso\*" -Recurse -Include *.iso -ErrorAction Stop | ForEach-Object { $_.FullName }
         }
         $validISOPath = [System.IO.File]::Exists($ISOPath)
@@ -1492,7 +1496,7 @@ try {
 
     # Do a quick check of the extracted zip file (if it exists) to check if there's a 2019 ISO in there.
     # If this deployment is PartialOnline/Offline and using the Zip, we need to search for the ISO
-    if (($configAsdkOfflineZipPath) -and ($offlineZipIsValid = $true)) {
+    if (($AzSPoCOfflineZipPath) -and ($offlineZipIsValid = $true)) {
         Write-Host "Looing in your Extracted ZIP file for a Windows Server 2019 ISO..."
         if (Get-ChildItem -Path "$downloadPath\2019iso\*" -Recurse -Include *.iso -ErrorAction SilentlyContinue) {
             $ISOPath2019 = Get-ChildItem -Path "$downloadPath\2019iso\*" -Recurse -Include *.iso -ErrorAction Stop | ForEach-Object { $_.FullName }
@@ -1565,7 +1569,7 @@ try {
                 Write-CustomVerbose -Message "PowerShell scripts will be placed in $scriptPath"
             }
             elseif ($scriptPath -eq $false) {
-                # Create the ASDK folder.
+                # Create the Scripts folder.
                 Write-CustomVerbose -Message "Scripts folder doesn't exist within $ScriptLocation, creating it"
                 mkdir "$ScriptLocation\Scripts" -Force | Out-Null
                 $scriptPath = "$ScriptLocation\Scripts"
@@ -1586,11 +1590,11 @@ try {
             }
             elseif ($deploymentMode -ne "Online") {
                 # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
-                $SourceLocation = "$downloadPath\ASDK\PowerShell\Scripts"
+                $SourceLocation = "$downloadPath\AzSFiles\PowerShell\Scripts"
                 Copy-Item -Path "$SourceLocation\*" -Destination "$scriptPath" -Include "*.ps1" -Verbose -ErrorAction Stop
             }
             Get-ChildItem -Path "$scriptPath\*" -Recurse | Unblock-File -Verbose
-            # Update the ConfigASDK Progress database with successful completion
+            # Update the AzSPoC Progress database with successful completion
             StageComplete -progressStage $progressStage
         }
         catch {
@@ -1600,7 +1604,7 @@ try {
         }
     }
     elseif ($progressCheck -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+        Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
 
     ### POWERSHELL CHECK #########################################################################################################################################
@@ -1613,7 +1617,7 @@ try {
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             Clear-Host
-            Write-CustomVerbose -Message "Checking for a previous installation of PowerShell. If found, to ensure full compatibility with the ConfigASDK, this will be cleaned up...please wait..."
+            Write-CustomVerbose -Message "Checking for a previous installation of PowerShell. If found, to ensure full compatibility with the AzSPoC, this will be cleaned up...please wait..."
             $cleanupRequired = $false
             <#$psRepositoryName = "PSGallery"
         $psRepositoryInstallPolicy = "Trusted"
@@ -1641,7 +1645,7 @@ try {
             }
 
             if ($cleanupRequired -eq $true) {
-                Write-CustomVerbose -Message "A previous installation of PowerShell has been detected. To ensure full compatibility with the ConfigASDK, this will be cleaned up"
+                Write-CustomVerbose -Message "A previous installation of PowerShell has been detected. To ensure full compatibility with the AzSPoC, this will be cleaned up"
                 Write-CustomVerbose -Message "Cleaning...."
                 try {
                     if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2019-03-01-hybrid") })) {
@@ -1675,7 +1679,7 @@ try {
             if ($cleanupRequired -eq $true) {
                 Write-CustomVerbose -Message "A previous installation of PowerShell has been removed from this system."
                 Write-CustomVerbose -Message "Once you have closed this PowerShell session, delete all the folders that start with 'Azure' from the $Env:ProgramFiles\WindowsPowerShell\Modules"
-                Write-CustomVerbose -Message "Once deleted, rerun the ConfigASDK script. This will reinstall PowerShell for you."
+                Write-CustomVerbose -Message "Once deleted, rerun the AzSPoC script. This will reinstall PowerShell for you."
                 BREAK
             }
         }
@@ -1686,7 +1690,7 @@ try {
         }
     }
     elseif ($progressCheck -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+        Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
 
     ### INSTALL POWERSHELL ######################################################################################################################################
@@ -1726,8 +1730,8 @@ try {
                 Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
             }
             elseif ($deploymentMode -ne "Online") {
-                $SourceLocation = "$downloadPath\ASDK\PowerShell"
-                $RepoName = "ConfigASDKRepo"
+                $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
+                $RepoName = "AzSPoCRepo"
                 if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
                     Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
                 }
@@ -1747,7 +1751,7 @@ try {
         }
     }
     elseif ($progressCheck -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+        Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
 
     # Load the Storage PowerShell modules explicitly specifying the versions
@@ -1759,7 +1763,7 @@ try {
 
     $scriptStep = "TEST LOGINS"
     # Register an AzureRM environment that targets your administrative Azure Stack instance
-    Write-CustomVerbose -Message "ASDK Configurator will now test all logins"
+    Write-CustomVerbose -Message "Azure Stack POC Configurator will now test all logins"
     $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
     Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
     $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
@@ -1769,7 +1773,7 @@ try {
             ### TEST AZURE LOGIN - Login to Azure Cloud
             Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r"
             $tenantId = (Invoke-RestMethod -Verbose:$false "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-            Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $asdkCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
             Write-CustomVerbose -Message "Current Azure Subscription information:"
             Get-AzureRmContext | Format-Table -AutoSize
             Start-Sleep -Seconds 5
@@ -1778,7 +1782,7 @@ try {
             Write-CustomVerbose -Message "Testing Azure Stack login with Azure Active Directory"
             Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
             Write-CustomVerbose -Message "Current Azure Stack Subscription information:"
             Get-AzureRmContext | Format-Table -AutoSize
             Start-Sleep -Seconds 5
@@ -1788,7 +1792,7 @@ try {
                 Write-Host "Error Message: $_.Exception.Message" -ForegroundColor Red
                 Write-Host "Based on this error message, it appears you are using a Microsoft Account for login (Live/Hotmail/Outlook). This is not supported for non-interactive login to Azure AD via PowerShell" -ForegroundColor Red
                 Write-Host "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net, or a Service Principal." -ForegroundColor Red
-                Write-Host "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials." -ForegroundColor Red
+                Write-Host "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the Azure Stack POC Configuration with these credentials." -ForegroundColor Red
                 Set-Location $ScriptLocation
                 return
             }
@@ -1807,7 +1811,7 @@ try {
             $tenantId = (invoke-restmethod -Verbose:$false "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
             Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
             Write-CustomVerbose -Message "Current Azure Stack Subscription information:"
             Get-AzureRmContext | Format-Table -AutoSize
         }
@@ -1817,7 +1821,7 @@ try {
             return
         }
     }
-    if ($registerASDK -and ($deploymentMode -ne "Offline")) {
+    if ($registerAzS -and ($deploymentMode -ne "Offline")) {
         try {
             ### OPTIONAL - TEST AZURE REGISTRATION CREDS
             Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory"
@@ -1833,7 +1837,7 @@ try {
                 Write-Host "Error Message: $_.Exception.Message" -ForegroundColor Red
                 Write-Host "Based on this error message, it appears you are using a Microsoft Account for login (Live/Hotmail/Outlook). This is not supported for non-interactive login to Azure AD via PowerShell" -ForegroundColor Red
                 Write-Host "Non-interactive Azure AD logins require an organization account, such as admin@contoso.onmicrosoft.com, or admin@fabrikam.net, or a Service Principal." -ForegroundColor Red
-                Write-Host "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the ASDK Configuration with these credentials." -ForegroundColor Red
+                Write-Host "It is recommended that you create an alternative account in your Azure AD, and give this appropriate permissons to both your Azure subscription, and your Azure Stack Default Provider subscription, then rerun the Azure Stack POC Configuration with these credentials." -ForegroundColor Red
                 Set-Location $ScriptLocation
                 return
             }
@@ -1844,8 +1848,8 @@ try {
             }
         }
     }
-    elseif (!$registerASDK) {
-        Write-CustomVerbose -Message "User has chosen to not register the ASDK with Azure"
+    elseif (!$registerAzS) {
+        Write-CustomVerbose -Message "User has chosen to not register the Azure Stack POC with Azure"
         Write-CustomVerbose -Message "No need to test login for registration"
         $azureRegTenantID = $null
         $azureRegSubId = $null
@@ -1863,7 +1867,7 @@ try {
     #############################################################################################################################################################
 
     # Once logins have been successfully tested, increment run counter to track usage
-    # This is used to understand how many times the ConfigASDK.ps1 script has been run
+    # This is used to understand how many times the AzSPoC.ps1 script has been run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     try { Invoke-WebRequest "http://bit.ly/asdkcounter" -UseBasicParsing -DisableKeepAlive | Out-Null } catch { $_.Exception.Response.StatusCode.Value__ }
 
@@ -1881,14 +1885,14 @@ try {
             if ($deploymentMode -eq "Online") {
                 # Download the tools archive using a function incase the download fails or is interrupted.
                 $toolsURI = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
-                $toolsDownloadLocation = "$ASDKpath\master.zip"
+                $toolsDownloadLocation = "$azsPath\master.zip"
                 Write-CustomVerbose -Message "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
-                Write-CustomVerbose -Message "The download will be stored in $ASDKpath."
+                Write-CustomVerbose -Message "The download will be stored in $azsPath."
                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                 DownloadWithRetry -downloadURI "$toolsURI" -downloadLocation "$toolsDownloadLocation" -retries 10
             }
             elseif ($deploymentMode -ne "Online") {
-                $toolsDownloadLocation = "$ASDKpath\master.zip"
+                $toolsDownloadLocation = "$azsPath\master.zip"
             }
             # Expand the downloaded files
             Write-CustomVerbose -Message "Expanding Archive"
@@ -1906,7 +1910,7 @@ try {
         }
     }
     elseif ($progressCheck -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+        Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
 
     # Change to the tools directory
@@ -1968,7 +1972,7 @@ try {
         }
     }
     elseif ($progressCheck -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+        Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
 
     ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
@@ -1977,7 +1981,7 @@ try {
     $progressStage = "Registration"
     $progressCheck = CheckProgress -progressStage $progressStage
     $scriptStep = $progressStage.ToUpper()
-    if ($registerASDK -and ($deploymentMode -ne "Offline")) {
+    if ($registerAzS -and ($deploymentMode -ne "Offline")) {
         if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             try {
                 Write-CustomVerbose -Message "Starting Azure Stack registration to Azure"
@@ -1991,7 +1995,7 @@ try {
                 elseif ($authenticationType.ToString() -like "ADFS") {
                     $tenantId = (invoke-restmethod -Verbose:$false "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
                 }
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
                 Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
                 # Register the Azure Stack resource provider in your Azure subscription
                 Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
@@ -1999,29 +2003,29 @@ try {
                 Import-Module $modulePath\Registration\RegisterWithAzure.psm1 -Force -Verbose
                 #Register Azure Stack
                 $asdkHostName = ($env:computername).ToLower()
-                $asdkRegName = "asdkreg-$asdkHostName-$runTime"
-                Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "$asdkRegName" -BillingModel Development -ErrorAction Stop
+                $azsRegName = "azsreg-$asdkHostName-$runTime"
+                Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "$azsRegName" -BillingModel Development -ErrorAction Stop
                 # Create Cleanup Doc - First Create File
-                $CleanUpRegPS1Path = "$downloadPath\ASDKRegCleanUp.ps1"
+                $CleanUpRegPS1Path = "$downloadPath\AzSRegCleanUp.ps1"
                 Remove-Item -Path $CleanUpRegPS1Path -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
                 New-Item "$CleanUpRegPS1Path" -ItemType file -Force
                 # Populate file with key parameters
-                Write-Output "# This script should be used to remove a registration resource from Azure, prior to redeploying your ASDK on this hardware`n" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
+                Write-Output "# This script should be used to remove a registration resource from Azure, prior to redeploying your Azure Stack POC on this hardware`n" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 Write-Output "# Populate key parameters" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 Write-Output "`$modulePath = `"$modulePath`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 Write-Output 'Import-Module "$modulePath\Registration\RegisterWithAzure.psm1" -Force -Verbose' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
-                Write-Output "`$asdkRegName = `"$asdkRegName`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
+                Write-Output "`$azsRegName = `"$azsRegName`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 # Populate AAD Registration Information
                 Write-Output "`n# Populate AAD Registration Information" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 $azureUsername = $azureRegCreds.Username
-                Write-Output "`$azureRegCreds = Get-Credential -UserName `"$azureUsername`" -Message `"Enter the credentials you used to register this ASDK for username:$azureUsername.`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
+                Write-Output "`$azureRegCreds = Get-Credential -UserName `"$azureUsername`" -Message `"Enter the credentials you used to register this Azure Stack POC for username:$azureUsername.`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 Write-Output "`$azureRegSubId = `"$azureRegSubId`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 Write-Output "`$azureRegSub = Add-AzureRmAccount -EnvironmentName `"AzureCloud`" -SubscriptionId `"$azureRegSubId`" -Credential `$azureRegCreds" -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
-                # Get ASDK Privileged Endpoint Creds
-                Write-Output "`n# Get ASDK Privileged Endpoint Creds" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
+                # Get Azure Stack POC Privileged Endpoint Creds
+                Write-Output "`n# Get Azure Stack POC Privileged Endpoint Creds" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 Write-Output '$cloudAdminCreds = Get-Credential -UserName "azurestack\cloudadmin" -Message "Enter the credentials to access the privileged endpoint."' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 # Perform Removal
-                Write-Output 'Remove-AzsRegistration -PrivilegedEndpoint "Azs-ERCS01" -PrivilegedEndpointCredential $cloudAdminCreds -RegistrationName "$asdkRegName"' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
+                Write-Output 'Remove-AzsRegistration -PrivilegedEndpoint "Azs-ERCS01" -PrivilegedEndpointCredential $cloudAdminCreds -RegistrationName "$azsRegName"' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 StageComplete -progressStage $progressStage
             }
             catch {
@@ -2031,10 +2035,10 @@ try {
             }
         }
         elseif ($progressCheck -eq "Complete") {
-            Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+            Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
         }
     }
-    elseif (!$registerASDK) {
+    elseif (!$registerAzS) {
         Write-CustomVerbose -Message "Skipping Azure Stack registration to Azure"
         StageSkipped -progressStage $progressStage
     }
@@ -2052,7 +2056,7 @@ try {
         Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
         $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
+        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
     }
     elseif ($authenticationType.ToString() -like "ADFS") {
         # Clear old Azure login
@@ -2060,7 +2064,7 @@ try {
         $tenantId = (Invoke-RestMethod "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
         Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $asdkCreds -ErrorAction Stop
+        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
     }
     else {
         Write-CustomVerbose -Message ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
@@ -2083,8 +2087,8 @@ try {
             foreach ($script in $scriptArray) {
                 $testScript = [System.IO.File]::Exists("$scriptPath\$script")
                 if ($testScript -eq $false) {
-                    throw "Didn't find $script within the $scriptPath folder. If this is a rerun, ensure your ConfigASDK.ps1 file is located in the same location as the first run, for example, if your ConfigASDK.ps1 file is located at `
-C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\ConfigASDK\Scripts. Moving your ConfigASDK.ps1 file to another folder for a rerun will likely cause the script to fail, unless you also move your Scripts folder."
+                    throw "Didn't find $script within the $scriptPath folder. If this is a rerun, ensure your AzSPoC.ps1 file is located in the same location as the first run, for example, if your AzSPoC.ps1 file is located at `
+C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Scripts. Moving your AzSPoC.ps1 file to another folder for a rerun will likely cause the script to fail, unless you also move your Scripts folder."
                     return
                 }
                 else {
@@ -2093,8 +2097,8 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             }
         }
         elseif ($scriptPath -eq $false) {
-            throw "Didn't find the Scripts folder located with your ConfigASDK.ps1 file. If this is a rerun, ensure your ConfigASDK.ps1 file is located in the same location as the first run, for example, if your ConfigASDK.ps1 file is located at `
-C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\ConfigASDK\Scripts. Moving your ConfigASDK.ps1 file to another folder for a rerun will likely cause the script to fail, unless you also move your Scripts folder."
+            throw "Didn't find the Scripts folder located with your AzSPoC.ps1 file. If this is a rerun, ensure your AzSPoC.ps1 file is located in the same location as the first run, for example, if your AzSPoC.ps1 file is located at `
+C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Scripts. Moving your AzSPoC.ps1 file to another folder for a rerun will likely cause the script to fail, unless you also move your Scripts folder."
             return
         }
     }
@@ -2117,7 +2121,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             Clear-AzureRmContext -Scope CurrentUser -Force
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
             $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
 
@@ -2221,7 +2225,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
             # Log the user into the "AzureStackUser" environment
             Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "https://management.$customDomainSuffix"
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
 
             # Register all the RPs for that user
             foreach ($s in (Get-AzureRmSubscription)) {
@@ -2238,7 +2242,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         }
     }
     elseif ($progressCheck -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+        Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
 
     ### ADD VM IMAGES - JOB SETUP ################################################################################################################################
@@ -2293,12 +2297,12 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     # Define the image jobs
     $jobName = "AddUbuntuImage"
     $AddUbuntuImage = {
-        Start-Job -Name AddUbuntuImage -InitializationScript $export_functions -ArgumentList $ISOpath, $ISOPath2019, $ASDKpath, $customDomainSuffix, $registerASDK, $deploymentMode, $modulePath, `
-            $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $branch, $sqlServerInstance, $databaseName, $tableName, $runMode -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
-                -customDomainSuffix $Using:customDomainSuffix -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
+        Start-Job -Name AddUbuntuImage -InitializationScript $export_functions -ArgumentList $ISOpath, $ISOPath2019, $azsPath, $customDomainSuffix, $registerAzS, $deploymentMode, $modulePath, `
+            $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $azsCreds, $ScriptLocation, $branch, $sqlServerInstance, $databaseName, $tableName, $runMode -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -AzSPath $Using:azsPath `
+                -customDomainSuffix $Using:customDomainSuffix -registerAzS $Using:registerAzS -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
                 -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-                -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 -image "UbuntuServer" -branch $Using:branch -runMode $Using:runMode `
+                -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 -image "UbuntuServer" -branch $Using:branch -runMode $Using:runMode `
                 -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
@@ -2306,10 +2310,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "DownloadWindowsUpdates"
     $DownloadWindowsUpdates = {
-        Start-Job -Name DownloadWindowsUpdates -InitializationScript $export_functions -ArgumentList $ISOpath, $ISOPath2019, $ASDKpath, $customDomainSuffix, `
-            $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\DownloadWinUpdates.ps1 -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 -ASDKpath $Using:ASDKpath `
-                -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds `
+        Start-Job -Name DownloadWindowsUpdates -InitializationScript $export_functions -ArgumentList $ISOpath, $ISOPath2019, $azsPath, $customDomainSuffix, `
+            $deploymentMode, $tenantID, $azsCreds, $ScriptLocation, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\DownloadWinUpdates.ps1 -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 -AzSPath $Using:azsPath `
+                -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -azsCreds $Using:azsCreds `
                 -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -ScriptLocation $Using:ScriptLocation
         } -Verbose -ErrorAction Stop
     }
@@ -2317,12 +2321,12 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddServerCore2016Image"
     $AddServerCore2016Image = {
-        Start-Job -Name AddServerCore2016Image -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $registerASDK, $deploymentMode, `
-            $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath, $ISOPath2019, $branch, `
+        Start-Job -Name AddServerCore2016Image -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $registerAzS, $deploymentMode, `
+            $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $azsCreds, $ScriptLocation, $runMode, $ISOpath, $ISOPath2019, $branch, `
             $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix -registerASDK $Using:registerASDK `
+            Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -registerAzS $Using:registerAzS `
                 -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID `
-                -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 `
+                -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 `
                 -image "ServerCore2016" -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
         } -Verbose -ErrorAction Stop
     }
@@ -2330,13 +2334,13 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddServerFull2016Image"
     $AddServerFull2016Image = {
-        Start-Job -Name AddServerFull2016Image -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, `
-            $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, `
+        Start-Job -Name AddServerFull2016Image -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, `
+            $registerAzS, $deploymentMode, $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $azsCreds, $ScriptLocation, `
             $runMode, $ISOpath, $ISOPath2019, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
-                -customDomainSuffix $Using:customDomainSuffix -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
+            Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -AzSPath $Using:azsPath `
+                -customDomainSuffix $Using:customDomainSuffix -registerAzS $Using:registerAzS -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
                 -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-                -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 -image "ServerFull2016" -branch $Using:branch `
+                -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 -image "ServerFull2016" -branch $Using:branch `
                 -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
         } -Verbose -ErrorAction Stop
     }
@@ -2344,12 +2348,12 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddServerCore2019Image"
     $AddServerCore2019Image = {
-        Start-Job -Name AddServerCore2019Image -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $registerASDK, $deploymentMode, `
-            $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, $runMode, $ISOpath, $ISOPath2019, $branch, `
+        Start-Job -Name AddServerCore2019Image -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $registerAzS, $deploymentMode, `
+            $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $azsCreds, $ScriptLocation, $runMode, $ISOpath, $ISOPath2019, $branch, `
             $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix -registerASDK $Using:registerASDK `
+            Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -registerAzS $Using:registerAzS `
                 -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID `
-                -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 `
+                -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 `
                 -image "ServerCore2019" -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
         } -Verbose -ErrorAction Stop
     }
@@ -2357,13 +2361,13 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddServerFull2019Image"
     $AddServerFull2019Image = {
-        Start-Job -Name AddServerFull2019Image -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, `
-            $registerASDK, $deploymentMode, $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $asdkCreds, $ScriptLocation, `
+        Start-Job -Name AddServerFull2019Image -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, `
+            $registerAzS, $deploymentMode, $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $azsCreds, $ScriptLocation, `
             $runMode, $ISOpath, $ISOPath2019, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -ASDKpath $Using:ASDKpath `
-                -customDomainSuffix $Using:customDomainSuffix -registerASDK $Using:registerASDK -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
+            Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -AzSPath $Using:azsPath `
+                -customDomainSuffix $Using:customDomainSuffix -registerAzS $Using:registerAzS -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
                 -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
-                -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 -image "ServerFull2019" -branch $Using:branch `
+                -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 -image "ServerFull2019" -branch $Using:branch `
                 -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode
         } -Verbose -ErrorAction Stop
     }
@@ -2375,10 +2379,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     # Define the DB Gallery Item jobs
     $jobName = "AddMySQL57Azpkg"
     $AddMySQL57Azpkg = {
-        Start-Job -Name AddMySQL57Azpkg -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, `
+        Start-Job -Name AddMySQL57Azpkg -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $deploymentMode, $tenantID, $azsCreds, $ScriptLocation, `
             $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix `
-                -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch `
+            Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix `
+                -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch `
                 -azpkg "MySQL57" -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
@@ -2386,10 +2390,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddMySQL80Azpkg"
     $AddMySQL80Azpkg = {
-        Start-Job -Name AddMySQL80Azpkg -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, `
+        Start-Job -Name AddMySQL80Azpkg -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $deploymentMode, $tenantID, $azsCreds, $ScriptLocation, `
             $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix `
-                -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch `
+            Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix `
+                -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch `
                 -azpkg "MySQL80" -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
@@ -2397,10 +2401,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddSQLServerAzpkg"
     $AddSQLServerAzpkg = {
-        Start-Job -Name AddSQLServerAzpkg -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $deploymentMode, $tenantID, $asdkCreds, $ScriptLocation, `
+        Start-Job -Name AddSQLServerAzpkg -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $deploymentMode, $tenantID, $azsCreds, $ScriptLocation, `
             $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix `
-                -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch `
+            Set-Location $Using:ScriptLocation; .\Scripts\AddGalleryItems.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix `
+                -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -branch $Using:branch `
                 -azpkg "SQLServer" -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
@@ -2411,10 +2415,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddVMExtensions"
     $AddVMExtensions = {
-        Start-Job -Name AddVMExtensions -InitializationScript $export_functions -ArgumentList $deploymentMode, $tenantID, $customDomainSuffix, $asdkCreds, $ScriptLocation, $registerASDK, `
+        Start-Job -Name AddVMExtensions -InitializationScript $export_functions -ArgumentList $deploymentMode, $tenantID, $customDomainSuffix, $azsCreds, $ScriptLocation, $registerAzS, `
             $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddVMExtensions.ps1 -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -customDomainSuffix $Using:customDomainSuffix -asdkCreds $Using:asdkCreds `
-                -ScriptLocation $Using:ScriptLocation -registerASDK $Using:registerASDK -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName `
+            Set-Location $Using:ScriptLocation; .\Scripts\AddVMExtensions.ps1 -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -customDomainSuffix $Using:customDomainSuffix -azsCreds $Using:azsCreds `
+                -ScriptLocation $Using:ScriptLocation -registerAzS $Using:registerAzS -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName `
                 -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
@@ -2425,10 +2429,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddMySQLRP"
     $AddMySQLRP = {
-        Start-Job -Name AddMySQLRP -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $secureVMpwd, $deploymentMode, $serialMode, `
-            $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
-                -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
+        Start-Job -Name AddMySQLRP -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $secureVMpwd, $deploymentMode, $serialMode, `
+            $tenantID, $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
+                -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
                 -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
                 -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
         } -Verbose -ErrorAction Stop
@@ -2437,10 +2441,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddSQLServerRP"
     $AddSQLServerRP = {
-        Start-Job -Name AddSQLServerRP -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $secureVMpwd, $deploymentMode, $serialMode, `
-            $tenantID, $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
-                -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
+        Start-Job -Name AddSQLServerRP -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $secureVMpwd, $deploymentMode, $serialMode, `
+            $tenantID, $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
+                -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
                 -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
                 -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
         } -Verbose -ErrorAction Stop
@@ -2452,9 +2456,9 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddMySQLSku"
     $AddMySQLSku = {
-        Start-Job -Name AddMySQLSku -InitializationScript $export_functions -ArgumentList $tenantID, $asdkCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, `
+        Start-Job -Name AddMySQLSku -InitializationScript $export_functions -ArgumentList $tenantID, $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, `
             $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddDBSkuQuota.ps1 -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
+            Set-Location $Using:ScriptLocation; .\Scripts\AddDBSkuQuota.ps1 -tenantID $Using:TenantID -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation `
                 -customDomainSuffix $Using:customDomainSuffix -dbsku "MySQL" -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -sqlServerInstance $Using:sqlServerInstance `
                 -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
@@ -2463,9 +2467,9 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddSQLServerSku"
     $AddSQLServerSku = {
-        Start-Job -Name AddSQLServerSku -InitializationScript $export_functions -ArgumentList $tenantID, $asdkCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, `
+        Start-Job -Name AddSQLServerSku -InitializationScript $export_functions -ArgumentList $tenantID, $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, `
             $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddDBSkuQuota.ps1 -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation `
+            Set-Location $Using:ScriptLocation; .\Scripts\AddDBSkuQuota.ps1 -tenantID $Using:TenantID -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation `
                 -customDomainSuffix $Using:customDomainSuffix -dbsku "SQLServer" -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -sqlServerInstance $Using:sqlServerInstance `
                 -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
@@ -2477,9 +2481,9 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "UploadScripts"
     $UploadScripts = {
-        Start-Job -Name UploadScripts -InitializationScript $export_functions -ArgumentList $ASDKpath, $tenantID, $asdkCreds, $deploymentMode, $customDomainSuffix, $ScriptLocation, `
+        Start-Job -Name UploadScripts -InitializationScript $export_functions -ArgumentList $azsPath, $tenantID, $azsCreds, $deploymentMode, $customDomainSuffix, $ScriptLocation, `
             $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\UploadScripts.ps1 -ASDKpath $Using:ASDKpath -tenantID $Using:TenantID -asdkCreds $Using:asdkCreds `
+            Set-Location $Using:ScriptLocation; .\Scripts\UploadScripts.ps1 -AzSPath $Using:azsPath -tenantID $Using:TenantID -azsCreds $Using:azsCreds `
                 -deploymentMode $Using:deploymentMode -customDomainSuffix $Using:customDomainSuffix -ScriptLocation $Using:ScriptLocation -sqlServerInstance $Using:sqlServerInstance `
                 -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
@@ -2491,11 +2495,11 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "DeployMySQLHost"
     $DeployMySQLHost = {
-        Start-Job -Name DeployMySQLHost -InitializationScript $export_functions -ArgumentList $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-            $asdkCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ASDKpath $Using:ASDKpath `
+        Start-Job -Name DeployMySQLHost -InitializationScript $export_functions -ArgumentList $azsPath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
+            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -AzSPath $Using:azsPath `
                 -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "MySQL" -tenantID $Using:TenantID `
-                -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -customDomainSuffix $Using:customDomainSuffix `
+                -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -customDomainSuffix $Using:customDomainSuffix `
                 -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance `
                 -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
         } -Verbose -ErrorAction Stop
@@ -2504,10 +2508,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "DeploySQLServerHost"
     $DeploySQLServerHost = {
-        Start-Job -Name DeploySQLServerHost -InitializationScript $export_functions -ArgumentList $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-            $asdkCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ASDKpath $Using:ASDKpath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
-                -vmType "SQLServer" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds `
+        Start-Job -Name DeploySQLServerHost -InitializationScript $export_functions -ArgumentList $azsPath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
+            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -AzSPath $Using:azsPath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
+                -vmType "SQLServer" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -azsCreds $Using:azsCreds `
                 -ScriptLocation $Using:ScriptLocation -customDomainSuffix $Using:customDomainSuffix -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL `
                 -skipAppService $Using:skipAppService -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
         } -Verbose -ErrorAction Stop
@@ -2519,10 +2523,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddMySQLHosting"
     $AddMySQLHosting = {
-        Start-Job -Name AddMySQLHosting -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $deploymentMode, $tenantID, $secureVMpwd, `
-            $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -dbHost "MySQL" `
-                -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -skipMySQL $Using:skipMySQL `
+        Start-Job -Name AddMySQLHosting -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $deploymentMode, $tenantID, $secureVMpwd, `
+            $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -dbHost "MySQL" `
+                -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -skipMySQL $Using:skipMySQL `
                 -skipMSSQL $Using:skipMSSQL -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
@@ -2530,10 +2534,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddSQLHosting"
     $AddSQLHosting = {
-        Start-Job -Name AddSQLHosting -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $deploymentMode, $tenantID, $secureVMpwd, `
-            $asdkCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -dbHost "SQLServer" `
-                -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -skipMySQL $Using:skipMySQL `
+        Start-Job -Name AddSQLHosting -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $deploymentMode, $tenantID, $secureVMpwd, `
+            $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\AddDBHosting.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -dbHost "SQLServer" `
+                -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -skipMySQL $Using:skipMySQL `
                 -skipMSSQL $Using:skipMSSQL -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
@@ -2544,10 +2548,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "DeployAppServiceFS"
     $DeployAppServiceFS = {
-        Start-Job -Name DeployAppServiceFS -InitializationScript $export_functions -ArgumentList $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-            $asdkCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ASDKpath $Using:ASDKpath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
-                -vmType "AppServiceFS" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds `
+        Start-Job -Name DeployAppServiceFS -InitializationScript $export_functions -ArgumentList $azsPath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
+            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -AzSPath $Using:azsPath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
+                -vmType "AppServiceFS" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -azsCreds $Using:azsCreds `
                 -ScriptLocation $Using:ScriptLocation -customDomainSuffix $Using:customDomainSuffix -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService `
                 -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
         } -Verbose -ErrorAction Stop
@@ -2556,10 +2560,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "DeployAppServiceDB"
     $DeployAppServiceDB = {
-        Start-Job -Name DeployAppServiceDB -InitializationScript $export_functions -ArgumentList $ASDKpath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-            $asdkCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -ASDKpath $Using:ASDKpath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
-                -vmType "AppServiceDB" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -asdkCreds $Using:asdkCreds `
+        Start-Job -Name DeployAppServiceDB -InitializationScript $export_functions -ArgumentList $azsPath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
+            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -AzSPath $Using:azsPath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
+                -vmType "AppServiceDB" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -azsCreds $Using:azsCreds `
                 -ScriptLocation $Using:ScriptLocation -customDomainSuffix $Using:customDomainSuffix -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService `
                 -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
         } -Verbose -ErrorAction Stop
@@ -2568,9 +2572,9 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "DownloadAppService"
     $DownloadAppService = {
-        Start-Job -Name DownloadAppService -InitializationScript $export_functions -ArgumentList $ASDKpath, $deploymentMode, $ScriptLocation, $skipAppService, `
+        Start-Job -Name DownloadAppService -InitializationScript $export_functions -ArgumentList $azsPath, $deploymentMode, $ScriptLocation, $skipAppService, `
             $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\DownloadAppService.ps1 -ASDKpath $Using:ASDKpath -deploymentMode $Using:deploymentMode -ScriptLocation $Using:ScriptLocation `
+            Set-Location $Using:ScriptLocation; .\Scripts\DownloadAppService.ps1 -AzSPath $Using:azsPath -deploymentMode $Using:deploymentMode -ScriptLocation $Using:ScriptLocation `
                 -skipAppService $Using:skipAppService -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
@@ -2578,13 +2582,13 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "AddAppServicePreReqs"
     $AddAppServicePreReqs = {
-        Start-Job -Name AddAppServicePreReqs -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $downloadPath, $deploymentMode, $authenticationType, `
-            $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $branch, $asdkCreds, $cloudAdminCreds, $ScriptLocation, $skipAppService, `
+        Start-Job -Name AddAppServicePreReqs -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $downloadPath, $deploymentMode, $authenticationType, `
+            $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $branch, $azsCreds, $cloudAdminCreds, $ScriptLocation, $skipAppService, `
             $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\AddAppServicePreReqs.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix `
+            Set-Location $Using:ScriptLocation; .\Scripts\AddAppServicePreReqs.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix `
                 -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -authenticationType $Using:authenticationType `
                 -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -secureVMpwd $Using:secureVMpwd -ERCSip $Using:ERCSip -branch $Using:branch `
-                -asdkCreds $Using:asdkCreds -cloudAdminCreds $Using:cloudAdminCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService `
+                -azsCreds $Using:azsCreds -cloudAdminCreds $Using:cloudAdminCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService `
                 -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
@@ -2592,11 +2596,11 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
     $jobName = "DeployAppService"
     $DeployAppService = {
-        Start-Job -Name DeployAppService -InitializationScript $export_functions -ArgumentList $ASDKpath, $customDomainSuffix, $downloadPath, $deploymentMode, $authenticationType, `
-            $azureDirectoryTenantName, $tenantID, $VMpwd, $asdkCreds, $ScriptLocation, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
-            Set-Location $Using:ScriptLocation; .\Scripts\DeployAppService.ps1 -ASDKpath $Using:ASDKpath -customDomainSuffix $Using:customDomainSuffix -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
+        Start-Job -Name DeployAppService -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $downloadPath, $deploymentMode, $authenticationType, `
+            $azureDirectoryTenantName, $tenantID, $VMpwd, $azsCreds, $ScriptLocation, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\DeployAppService.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
                 -authenticationType $Using:authenticationType -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -VMpwd $Using:VMpwd `
-                -asdkCreds $Using:asdkCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService -branch $Using:branch `
+                -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService -branch $Using:branch `
                 -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
@@ -2617,7 +2621,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     Clear-AzureRmContext -Scope CurrentUser -Force
     $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
     Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
     $progressStage = "RegisterNewRPs"
     $progressCheck = CheckProgress -progressStage $progressStage
     $scriptStep = $progressStage.ToUpper()
@@ -2638,7 +2642,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         }
     }
     elseif ($progressCheck -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+        Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
 
     #### CREATE BASIC BASE PLANS AND OFFERS ######################################################################################################################
@@ -2654,7 +2658,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             Clear-AzureRmContext -Scope CurrentUser -Force
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
             $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             $subID = $azureContext.Subscription.Id
@@ -2753,7 +2757,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             # Create a new subscription for that offer, for the currently logged in user
             $Offer = Get-AzsManagedOffer | Where-Object name -eq "BaseOffer"
             $subUserName = (Get-AzureRmContext).Account.Id
-            New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName "ASDK Subscription"
+            New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName "AzS PoC Subscription"
 
             # Log the user out of the "AzureStackAdmin" environment
             Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
@@ -2761,7 +2765,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
 
             # Log the user into the "AzureStackUser" environment
             Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "https://management.$customDomainSuffix"
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
 
             # Register all the RPs for that user
             foreach ($s in (Get-AzureRmSubscription)) {
@@ -2778,7 +2782,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         }
     }
     elseif ($progressCheck -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+        Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
 
     #### CUSTOMIZE ASDK HOST #####################################################################################################################################
@@ -2789,7 +2793,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     $scriptStep = $progressStage.ToUpper()
 
     if ($progressCheck -eq "Complete") {
-        Write-CustomVerbose -Message "ASDK Configurator Stage: $progressStage previously completed successfully"
+        Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
     elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
         # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
@@ -2849,7 +2853,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
                     refreshenv
                 }
                 elseif ($deploymentMode -ne "Online") {
-                    $hostAppsPath = "$ASDKpath\hostapps"
+                    $hostAppsPath = "$azsPath\hostapps"
                     Set-Location $hostAppsPath
                     # Visual Studio Code
                     HostAppInstaller -localInstallPath "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" -appName VSCode `
@@ -2934,18 +2938,18 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
                             $vmAliasEndpoint = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/packages/Aliases/aliases.json"
                         }
                         elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                            $item = Get-ChildItem -Path "$ASDKpath\images" -Recurse -Include ("aliases.json") -ErrorAction Stop
+                            $item = Get-ChildItem -Path "$azsPath\images" -Recurse -Include ("aliases.json") -ErrorAction Stop
                             $itemName = $item.Name
                             $itemFullPath = $item.FullName
                             $uploadItemAttempt = 1
-                            while (!$(Get-AzureStorageBlob -Container $asdkOfflineContainerName -Blob $itemName -Context $asdkOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
+                            while (!$(Get-AzureStorageBlob -Container $azsOfflineContainerName -Blob $itemName -Context $azsOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
                                 try {
                                     # Log back into Azure Stack to ensure login hasn't timed out
                                     Write-CustomVerbose -Message "$itemName not found. Upload Attempt: $uploadItemAttempt"
                                     $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
                                     Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-                                    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-                                    Set-AzureStorageBlobContent -File "$itemFullPath" -Container $asdkOfflineContainerName -Blob $itemName -Context $asdkOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
+                                    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                                    Set-AzureStorageBlobContent -File "$itemFullPath" -Container $azsOfflineContainerName -Blob $itemName -Context $azsOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
                                 }
                                 catch {
                                     Write-CustomVerbose -Message "Upload failed."
@@ -2953,10 +2957,10 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
                                     $uploadItemAttempt++
                                 }
                             }
-                            $vmAliasEndpoint = ('{0}{1}/{2}' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob, $asdkOfflineContainerName, $itemName) -replace "https", "http"
+                            $vmAliasEndpoint = ('{0}{1}/{2}' -f $azsOfflineStorageAccount.PrimaryEndpoints.Blob, $azsOfflineContainerName, $itemName) -replace "https", "http"
                         }
-                        Write-CustomVerbose -Message "Virtual Machine Alias Endpoint for your ASDK = $vmAliasEndpoint"
-                        Write-CustomVerbose -Message "Configuring your Azure CLI environment on the ASDK host, for Admin and User"
+                        Write-CustomVerbose -Message "Virtual Machine Alias Endpoint for your Azure Stack POC system = $vmAliasEndpoint"
+                        Write-CustomVerbose -Message "Configuring your Azure CLI environment on the Azure Stack POC system, for Admin and User"
                         # Register AZ CLI environment for Admin
                         Write-CustomVerbose -Message "Configuring for AzureStackAdmin"
                         az cloud register -n AzureStackAdmin --endpoint-resource-manager "https://adminmanagement.$customDomainSuffix" --suffix-storage-endpoint $customDomainSuffix --suffix-keyvault-dns ".adminvault.$customDomainSuffix" --endpoint-vm-image-alias-doc $vmAliasEndpoint
@@ -3001,7 +3005,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     $scriptStep = $progressStage.ToUpper()
     try {
         ### Create Output Document ###
-        $txtPath = "$downloadPath\ConfigASDKOutput.txt"
+        $txtPath = "$downloadPath\AzSPoCOutput.txt"
         Remove-Item -Path $txtPath -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
         New-Item "$txtPath" -ItemType file -Force
         Write-Output "`r`nThis document contains useful information about your deployment" > $txtPath
@@ -3013,21 +3017,21 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             Write-Output "Use the following username to login to your ASDK host: $azureStackAdminUsername" >> $txtPath
             Write-Output "Use the following username to login to the Azure Stack portal: $azureAdUsername" >> $txtPath
         }
-        Write-Output "`r`nASDK has been registered to Azure: $($registerASDK.IsPresent)" >> $txtPath
-        if ($registerASDK) {
+        Write-Output "`r`nAzure Stack POC system has been registered to Azure: $($registerAzS.IsPresent)" >> $txtPath
+        if ($registerAzS) {
             Write-Output "Your Azure Stack was registered to this Azure subscription: $azureRegSubId" >> $txtPath
         }
-        if ($useAzureCredsForRegistration -and $registerASDK) {
+        if ($useAzureCredsForRegistration -and $registerAzS) {
             Write-Output "Your Azure Stack was registered to Azure with the following username: $azureAdUsername" >> $txtPath
         }
-        elseif ($authenticationType.ToString() -like "AzureAd" -and !$useAzureCredsForRegistration -and $registerASDK) {
+        elseif ($authenticationType.ToString() -like "AzureAd" -and !$useAzureCredsForRegistration -and $registerAzS) {
             Write-Output "Your Azure Stack was registered to Azure with the following username: $azureRegUsername" >> $txtPath
         }
-        if ($authenticationType.ToString() -like "ADFS" -and $registerASDK) {
+        if ($authenticationType.ToString() -like "ADFS" -and $registerAzS) {
             Write-Output "Your Azure Stack was registered to Azure with the following username: $azureRegUsername" >> $txtPath
         }
         Write-Output "`r`nThe Azure Stack PowerShell tools have been downloaded to: $modulePath" >> $txtPath
-        Write-Output "All other downloads have been stored here: $ASDKpath" >> $txtPath
+        Write-Output "All other downloads have been stored here: $azsPath" >> $txtPath
         Write-Output "`r`nSQL & MySQL Resource Provider Information:" >> $txtPath
 
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
@@ -3036,7 +3040,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
 
         if (!$skipMySQL) {
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             Write-Host "Selecting the *ADMIN DB HOSTS subscription"
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
             $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
@@ -3049,7 +3053,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             Write-Output "MySQL Database Hosting VM Credentials = mysqladmin | $VMpwd" >> $txtPath
         }
         if (!$skipMSSQL) {
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             Write-Host "Selecting the *ADMIN DB HOSTS subscription"
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
             $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
@@ -3062,12 +3066,12 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             Write-Output "SQL Server Database Hosting VM Credentials = sqladmin | $VMpwd" >> $txtPath
         }
         if (!$skipAppService) {
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             Write-Host "Getting File Server and SQL App Server FQDN"
             $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
             $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
-            $AppServicePath = "$ASDKpath\appservice"
+            $AppServicePath = "$azsPath\appservice"
             Write-Output "`r`nApp Service Resource Provider Information:" >> $txtPath
             Write-Output "App Service File Server VM FQDN: $fileServerFqdn" >> $txtPath
             Write-Output "App Service File Server VM Credentials = fileshareowner or fileshareuser | $VMpwd" >> $txtPath
@@ -3115,7 +3119,7 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     #### FINAL STEPS #############################################################################################################################################
     ##############################################################################################################################################################
 
-    ### Clean Up ASDK Folder ###
+    ### Clean Up AzSFiles Folder ###
     $scriptStep = "CLEANUP"
 
     # Need to check whole Progress database table for Incomplete or Failed status.
@@ -3151,14 +3155,14 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
             Get-ChildItem -Path "$AppServicePath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ "$completedPath\AppServiceCerts" -Force -ErrorAction SilentlyContinue -Verbose }
         }
 
-        Write-CustomVerbose -Message "Cleaning up ASDK Folder"
+        Write-CustomVerbose -Message "Cleaning up AzSFiles Folder"
         # Will attempt multiple times as sometimes it fails
         $i = 1
         While ($i -le 5) {
             Write-CustomVerbose -Message "Cleanup Attempt: $i"
-            if ($([System.IO.Directory]::Exists("$ASDKpath"))) {
-                Remove-Item "$ASDKpath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-                Remove-Item -Path "$ASDKpath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            if ($([System.IO.Directory]::Exists("$azsPath"))) {
+                Remove-Item "$azsPath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Item -Path "$azsPath" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue -Verbose
             }
             if ($([System.IO.Directory]::Exists("$AppServicePath"))) {
                 Remove-Item -Path "$AppServicePath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
@@ -3177,9 +3181,9 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
         Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
-        $asdkImagesRGName = "azurestack-adminimages"
-        Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
+        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+        $azsImagesRGName = "azurestack-adminimages"
+        Get-AzureRmResourceGroup -Name $azsImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
 
         # Create desktop icons
         $shortcut_name = "Azure Stack Admin Portal" 
@@ -3231,9 +3235,9 @@ C:\ConfigASDK\ConfigASDK.ps1, you should find the Scripts folder located at C:\C
     $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
 
     Set-Location $ScriptLocation -ErrorAction SilentlyContinue
-    Write-Host "ASDK Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
-    Write-Host "You started the ASDK Configurator deployment at $startTime." -ErrorAction SilentlyContinue
-    Write-Host "ASDK Configurator deployment completed at $endTime." -ErrorAction SilentlyContinue
+    Write-Host "Azure Stack POC Configurator setup completed successfully, taking $difference." -ErrorAction SilentlyContinue
+    Write-Host "You started the Azure Stack POC Configurator deployment at $startTime." -ErrorAction SilentlyContinue
+    Write-Host "Azure Stack POC Configurator deployment completed at $endTime." -ErrorAction SilentlyContinue
 
 }
 catch {

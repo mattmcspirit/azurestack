@@ -8,7 +8,7 @@ param (
     [String] $tenantID,
 
     [parameter(Mandatory = $true)]
-    [pscredential] $asdkCreds,
+    [pscredential] $azsCreds,
 
     [Parameter(Mandatory = $true)]
     [String] $customDomainSuffix,
@@ -71,20 +71,20 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Host "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
 }
 elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progressCheck -eq "Skipped") {
-        Write-Host "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
-        # Update the ConfigASDK database with skip status
+        Write-Host "Operator previously skipped this step, but now wants to perform this step. Updating AzSPoC database to Incomplete."
+        # Update the AzSPoC database with skip status
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
     }
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             if ($progressCheck -eq "Failed") {
-                # Update the ConfigASDK database back to incomplete status if previously failed
+                # Update the AzSPoC database back to incomplete status if previously failed
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
@@ -118,7 +118,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             Write-Host "Logging into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             $azsLocation = (Get-AzureRmLocation).DisplayName
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
             Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
@@ -241,7 +241,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $message = $_.Exception.Message
                 Write-Error -Message ("Failed to create $($dbsku) Resource Provider Quota with name {0}, failed with error: {1}" -f $quotaName, $message) 
             }
-            # Update the ConfigASDK database with successful completion
+            # Update the AzSPoC database with successful completion
             $progressStage = $progressName
             StageComplete -progressStage $progressStage
         }
@@ -254,7 +254,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     }
 }
 elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
-    # Update the ConfigASDK database with skip status
+    # Update the AzSPoC database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage
 }

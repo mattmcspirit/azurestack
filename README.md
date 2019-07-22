@@ -1,18 +1,18 @@
-Azure Stack Development Kit Configurator 1906.3
+Azure Stack POC Configurator 1906.3
 ==============
 
 Version Compatibility
 -----------
-The current version of the ConfigASDK.ps1 script has been **tested with the following versions**:
+The current version of the AzSPoC.ps1 script has been **tested with the following versions**:
 * ASDK build **1.1906.0.30 (1906)**
 * Azure Stack PowerShell Module **1.7.2**
 
-**IMPORTANT** - this version of the ConfigASDK.ps1 script has been tested with ASDK build 1906, Azure Stack PowerShell 1.7.2. and the new AzureRM PowerShell 2.5.0.  A version that supports the older ASDK builds (1811 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 1906, Azure Stack PowerShell 1.7.2. and the new AzureRM PowerShell 2.5.0.  A version that supports the older ASDK builds (1811 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
 
 Description
 -----------
 Once you have **completed the installation of your ASDK**, you need to populate it with content, in order to have a more complete experience. This content may include virtual machine images, extensions, database hosts, app services and more. All of that takes time to install and configure.
-The purpose of this ConfigASDK.ps1 script is to automate as much as possible, the post-deployment tasks for the Azure Stack Development Kit
+The purpose of this AzSPoC.ps1 script is to automate as much as possible, the post-deployment tasks for the Azure Stack Development Kit
 
 This includes:
 * Validates all input parameters
@@ -48,8 +48,8 @@ This includes:
 * MySQL, SQL, App Service and Host Customization can be optionally skipped
 * Cleans up download folder to ensure clean future runs
 * Transcript Log for errors and troubleshooting
-* Progress Tracking and rerun reliability with ConfigASDK database hosted on SqlLocalDB (2017)
-* Stores script output in a ConfigASDKOutput.txt, for future reference
+* Progress Tracking and rerun reliability with AzSPoC database hosted on SqlLocalDB (2017)
+* Stores script output in a AzSPoCOutput.txt, for future reference
 * Supports usage in offline/disconnected environments
 * New -serialMode which excecutes VM deployments in serial, rather than parallel - better for older hardware
 * Now supports ASDKs that have been depoyed with a custom domain suffix, e.g. https://portal.west.contoso.lab
@@ -60,17 +60,17 @@ New in 1902 onwards
 -----------
 Storage uploads of VHDs and other artifacts now use AzCopy for improved performance. In addition, there is now added support for the **automated creation of Windows Server 2019 images** that will be added to your platform image repository. See the instructions below.
 
-In addition, should you choose to customize your ASDK deployment by using a custom domain suffix, such as west.contoso.lab, instead of local.azurestack.external, the ASDK Configurator now supports this. **NOTE, if you didn't deploy your ASDK with a different custom domain suffix, you can ignore the -customDomainSuffix parameter**
+In addition, should you choose to customize your ASDK deployment by using a custom domain suffix, such as west.contoso.lab, instead of local.azurestack.external, the Azure Stack POC Configurator now supports this. **NOTE, if you didn't deploy your ASDK with a different custom domain suffix, you can ignore the -customDomainSuffix parameter**
 
 Important Considerations
 ------------
-Firstly, **you must have already deployed the ASDK**. Secondly, for an **Azure AD deployment of the ASDK** (or if you want use ConfigASDK.ps1 with an ADFS deployment of the ASDK, but **register** it to Azure), to run the ConfigASDK.ps1 script, you need to be using a true **organizational account**, such as admin@contoso.onmicrosoft.com or admin@contoso.com, and this account should have global admin credentials for the specified Azure AD directory. Even if you have a non-organizational account, such as an outlook.com account, that has the right level of privilege in Azure AD, the ConfigASDK.ps1 script **uses a -Credential switch for non-interactive login, which doesn’t work with non-organizational accounts**. You will receive an error.
+Firstly, **you must have already deployed the ASDK**. Secondly, for an **Azure AD deployment of the ASDK** (or if you want use AzSPoC.ps1 with an ADFS deployment of the ASDK, but **register** it to Azure), to run the AzSPoC.ps1 script, you need to be using a true **organizational account**, such as admin@contoso.onmicrosoft.com or admin@contoso.com, and this account should have global admin credentials for the specified Azure AD directory. Even if you have a non-organizational account, such as an outlook.com account, that has the right level of privilege in Azure AD, the AzSPoC.ps1 script **uses a -Credential switch for non-interactive login, which doesn’t work with non-organizational accounts**. You will receive an error.
 
-**You do not need to install Azure/AzureStack PowerShell before running the script. The ASDK Configurator will install and configure Azure/AzureStack PowerShell for you. If you have already installed the Azure/AzureStack PowerShell modules, the script will first clean your PowerShell configuration to ensure optimal operation.**
+**You do not need to install Azure/AzureStack PowerShell before running the script. The Azure Stack POC Configurator will install and configure Azure/AzureStack PowerShell for you. If you have already installed the Azure/AzureStack PowerShell modules, the script will first clean your PowerShell configuration to ensure optimal operation.**
 
 ASDK Host Sizing
 ------------
-The ASDK Configurator will deploy a total of 12 additional virtual machines to support the MySQL, SQL Server, and App Service Resource Providers, should you choose to deploy all the RPs.  You will therefore need an ASDK host machine that has at least 29.5GB free memory to support these additional virtual machines:
+The Azure Stack POC Configurator will deploy a total of 12 additional virtual machines to support the MySQL, SQL Server, and App Service Resource Providers, should you choose to deploy all the RPs.  You will therefore need an ASDK host machine that has at least 29.5GB free memory to support these additional virtual machines:
 
 * **MySQL RP** - 2 VMs (RP VM, DB Host VM) = **5.5GB**
 * **SQL Server RP** - 2 VMs (RP VM, DB Host VM) = **5.5GB**
@@ -78,44 +78,44 @@ The ASDK Configurator will deploy a total of 12 additional virtual machines to s
 
 **Total with all RPs deployed = 34GB in addition to the core running Azure Stack ASDK VMs**
 
-Before you run the ASDK Configurator, ensure that you have enough memory available on your ASDK host system. On a typical ASDK system, the core Azure Stack VMs will already consume between 50-60GB of host memory, so please ensure you have enough remaining to deploy the additional resource providers. As per the updated specs here: https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-deploy-considerations, a system with at least 192GB memory is recommended to evaluate all features.
+Before you run the Azure Stack POC Configurator, ensure that you have enough memory available on your ASDK host system. On a typical ASDK system, the core Azure Stack VMs will already consume between 50-60GB of host memory, so please ensure you have enough remaining to deploy the additional resource providers. As per the updated specs here: https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-deploy-considerations, a system with at least 192GB memory is recommended to evaluate all features.
 
 Running on older/low performance hardware
 ------------
-If your system doesn't have SSDs, or is an older system, the ASDK Configurator may experience issues during parallel deployment of virtual machines. This may also be true in environments where you have virtualized the ASDK, and are running it nested on an alternative virtualization/cloud platform, such as ESXi, or in an Azure VM. If that's the case, it's recommended to run the ConfigASDK.ps1 script with the **-serialMode flag**, and this will instruct the script to deploy any VMs, one at a time. This takes a little longer, but offers increased reliability on systems with lower levels of performance.
+If your system doesn't have SSDs, or is an older system, the Azure Stack POC Configurator may experience issues during parallel deployment of virtual machines. This may also be true in environments where you have virtualized the ASDK, and are running it nested on an alternative virtualization/cloud platform, such as ESXi, or in an Azure VM. If that's the case, it's recommended to run the AzSPoC.ps1 script with the **-serialMode flag**, and this will instruct the script to deploy any VMs, one at a time. This takes a little longer, but offers increased reliability on systems with lower levels of performance.
 
 Offline/Disconnected Support
 ------------
 * Do you want to deploy your ASDK in an environment that **doesn't have internet connectivity**?
 * Do you want to download the 5GB+ of required dependencies (Ubuntu image, Database resource providers, App Service binaries, JSON files etc) in advance of running the script?
 
-If you answered **yes** to any of those, you can deploy the ConfigASDK in an offline/disconnected mode. To do so, you should **[read the offline/disconnected documentation.](</deployment/offline/README.md>)**
+If you answered **yes** to any of those, you can deploy the AzSPoC in an offline/disconnected mode. To do so, you should **[read the offline/disconnected documentation.](</deployment/offline/README.md>)**
 
 Step by Step Guidance (for internet-connected ASDK)
 ------------
 
-### Step 1 - Download the ConfigASDK.ps1 script ###
-The first step in the process is to create a local folder on the ASDK host, and then download the ConfigASDK.ps1.
+### Step 1 - Download the AzSPoC.ps1 script ###
+The first step in the process is to create a local folder on the ASDK host, and then download the AzSPoC.ps1.
 
 * Deploy your ASDK
 * Once complete, login as azurestack\azurestackadmin on your ASDK host.
-* Open an elevated PowerShell window and run the following script to download the ConfigASDK.ps1 file:
+* Open an elevated PowerShell window and run the following script to download the AzSPoC.ps1 file:
 
 ```powershell
 # Create directory on the root drive.
-New-Item -ItemType Directory -Force -Path "C:\ConfigASDK"
-Set-Location "C:\ConfigASDK"
+New-Item -ItemType Directory -Force -Path "C:\AzSPoC"
+Set-Location "C:\AzSPoC"
 
-# Download the ConfigASDK Script.
+# Download the AzSPoC Script.
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-Webrequest http://bit.ly/configasdk -UseBasicParsing -OutFile ConfigASDK.ps1
+Invoke-Webrequest http://bit.ly/AzSPoC -UseBasicParsing -OutFile AzSPoC.ps1
 ```
 ### Step 2 - Previous Run Cleanup ###
-If you have run the ASDK Configurator successfully on this physical host before, you may have artifacts left over in your -downloadPath (assuming you use the same path each time) that can affect the next deployment, so please remove any existing files and folders from within your -downloadPath before running the ConfigASDK.ps1 script. If you only have a "Completed" folder, this does not need to be deleted.
+If you have run the Azure Stack POC Configurator successfully on this physical host before, you may have artifacts left over in your -downloadPath (assuming you use the same path each time) that can affect the next deployment, so please remove any existing files and folders from within your -downloadPath before running the AzSPoC.ps1 script. If you only have a "Completed" folder, this does not need to be deleted.
 
 ![Existing files](deployment/offline/media/AsdkFolderCleanup.png)
 
-### Step 3 - Run the ConfigASDK.ps1 script ###
+### Step 3 - Run the AzSPoC.ps1 script ###
 With the script downloaded successfully, you can move on to running the script. Below, you will find a number of examples to help you run the script, depending on your scenario. Before you use the examples, please read the general guidance below:
 
 **General Guidance**
@@ -138,7 +138,7 @@ Usage Examples:
 **Scenario 1** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use the same Azure AD credentials as you used when you deployed your ASDK:
 
 ```powershell
-.\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+.\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
@@ -150,7 +150,7 @@ Usage Examples:
 **Scenario 2** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use a **different** set of Azure AD credentials from the set you used when you deployed your ASDK:
 
 ```powershell
-.\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+.\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
@@ -163,7 +163,7 @@ Usage Examples:
 **Scenario 3** - Using Azure AD for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
 
 ```powershell
-.\ConfigASDK.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
+.\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!'
 ```
@@ -171,7 +171,7 @@ Usage Examples:
 **Scenario 4** - Using ADFS for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you will have to use a different set of Azure AD credentials as your ASDK was deployed with ADFS:
 
 ```powershell
-.\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
+.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerASDK `
 -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
@@ -180,7 +180,7 @@ Usage Examples:
 **Scenario 5** - Using ADFS for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
 
 ```powershell
-.\ConfigASDK.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
+.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
 ```
 

@@ -2,11 +2,11 @@
 .SYNOPSYS
 
     The purpose of this script is to automate the download of all files and scripts required for installing all services on ASDK, that are to be
-    configured by the ASDK Configurator.
+    configured by the Azure Stack POC Configurator.
 
 .VERSION
 
-    1906.3  Latest version, to align with current ASDK Configurator version.
+    1906.3  Latest version, to align with current Azure Stack POC Configurator version.
 
 .AUTHOR
 
@@ -166,7 +166,7 @@ elseif ($validDownloadPath -eq $false) {
 
 ### Start Logging ###
 $logTime = $(Get-Date).ToString("MMdd-HHmmss")
-$logPath = "$downloadPath\ConfigASDKDependencyLog$logTime.txt"
+$logPath = "$downloadPath\AzSPoCDependencyLog$logTime.txt"
 $logStart = Start-Transcript -Path "$logPath" -Append
 Write-CustomVerbose -Message $logStart
 Write-Host "Creating log folder"
@@ -314,45 +314,45 @@ Get-PSRepository -Name "PSGallery"
 ########################################################################################################################################################
 
 $scriptStep = "CREATE FOLDERS"
-### Create root ConfigASDKfiles FOLDER and sub folder structure ###
-$configASDKFilePathExists = [System.IO.Directory]::Exists("$downloadPath\ConfigASDKfiles")
-if ($configASDKFilePathExists -eq $true) {
-    $configASDKFilePath = "$downloadPath\ConfigASDKfiles"
+### Create root AzSPoCfiles FOLDER and sub folder structure ###
+$AzSPoCFilePathExists = [System.IO.Directory]::Exists("$downloadPath\AzSPoCfiles")
+if ($AzSPoCFilePathExists -eq $true) {
+    $AzSPoCFilePath = "$downloadPath\AzSPoCfiles"
     Write-CustomVerbose -Message "ASDK folder exists at $downloadPath - no need to create it."
-    Write-CustomVerbose -Message "Download files will be placed in $downloadPath\ConfigASDKfiles"
+    Write-CustomVerbose -Message "Download files will be placed in $downloadPath\AzSPoCfiles"
     $i = 0 
     While ($i -le 3) {
-        Remove-Item "$configASDKFilePath\*" -Exclude "*.iso" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+        Remove-Item "$AzSPoCFilePath\*" -Exclude "*.iso" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
         $i++
     }
 }
-elseif ($configASDKFilePathExists -eq $false) {
+elseif ($AzSPoCFilePathExists -eq $false) {
     # Create the ASDK folder.
     Write-CustomVerbose -Message "ASDK folder doesn't exist within $downloadPath, creating it"
-    $configASDKFilePath = mkdir "$downloadPath\ConfigASDKfiles" -Force
+    $AzSPoCFilePath = mkdir "$downloadPath\AzSPoCfiles" -Force
 }
 
-$ASDKpath = mkdir "$configASDKFilePath\ASDK" -Force
-$packagePath = mkdir "$ASDKpath\packages" -Force
-$sqlLocalDBpath = mkdir "$ASDKpath\SqlLocalDB" -Force
-$azCopyPath = mkdir "$ASDKpath\azcopy" -Force
-$hostAppsPath = mkdir "$ASDKpath\hostapps" -Force
-$templatePath = mkdir "$ASDKpath\templates" -Force
-$scriptPath = mkdir "$ASDKpath\scripts" -Force
-$binaryPath = mkdir "$ASDKpath\binaries" -Force
-$psPath = mkdir "$ASDKpath\powershell" -Force
-$psScriptPath = mkdir "$ASDKpath\powershell\Scripts" -Force
-$dbPath = mkdir "$ASDKpath\databases" -Force
-$imagesPath = mkdir "$ASDKpath\images" -Force
-$isoTarget2016 = mkdir "$configASDKFilePath\2016iso" -Force
+$azsPath = mkdir "$AzSPoCFilePath\AzSFiles" -Force
+$packagePath = mkdir "$azsPath\packages" -Force
+$sqlLocalDBpath = mkdir "$azsPath\SqlLocalDB" -Force
+$azCopyPath = mkdir "$azsPath\azcopy" -Force
+$hostAppsPath = mkdir "$azsPath\hostapps" -Force
+$templatePath = mkdir "$azsPath\templates" -Force
+$scriptPath = mkdir "$azsPath\scripts" -Force
+$binaryPath = mkdir "$azsPath\binaries" -Force
+$psPath = mkdir "$azsPath\powershell" -Force
+$psScriptPath = mkdir "$azsPath\powershell\Scripts" -Force
+$dbPath = mkdir "$azsPath\databases" -Force
+$imagesPath = mkdir "$azsPath\images" -Force
+$isoTarget2016 = mkdir "$AzSPoCFilePath\2016iso" -Force
 if ($ISOPath2019) {
-    $isoTarget2019 = mkdir "$configASDKFilePath\2019iso" -Force
+    $isoTarget2019 = mkdir "$AzSPoCFilePath\2019iso" -Force
     mkdir "$imagesPath\2019" -Force
 }
 mkdir "$imagesPath\2016" -Force
 $ubuntuPath = mkdir "$imagesPath\UbuntuServer" -Force
-$appServicePath = mkdir "$ASDKpath\appservice" -Force
-$extensionPath = mkdir "$ASDKpath\appservice\extension" -Force
+$appServicePath = mkdir "$azsPath\appservice" -Force
+$extensionPath = mkdir "$azsPath\appservice\extension" -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 ### Create Download Table ##############################################################################################################################
@@ -371,9 +371,9 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $table.Columns.Add("path", "string") | Out-Null
         $table.Columns.Add("Uri", "string") | Out-Null
 
-        # ConfigASDK.ps1 Script
-        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/ConfigASDK.ps1"
-        $row.filename = "ConfigASDK.ps1"; $row.path = "$downloadPath"; $row.productName = "ASDK Configurator Script"; $Table.Rows.Add($row)
+        # AzSPoC.ps1 Script
+        $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/AzSPoC.ps1"
+        $row.filename = "AzSPoC.ps1"; $row.path = "$downloadPath"; $row.productName = "Azure Stack POC Configurator Script"; $Table.Rows.Add($row)
         # SqlLocalDB MSI
         $row = $table.NewRow(); $row.Uri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
         $row.filename = "SqlLocalDB.msi"; $row.path = "$sqlLocalDBPath"; $row.productName = "SqlLocalDB"; $Table.Rows.Add($row)
@@ -382,7 +382,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row.filename = "AzCopy.msi"; $row.path = "$azCopyPath"; $row.productName = "AzCopy"; $Table.Rows.Add($row)
         # Azure Stack Tools
         $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
-        $row.filename = "Master.zip"; $row.path = "$ASDKpath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
+        $row.filename = "Master.zip"; $row.path = "$azsPath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
         # Ubuntu Server 16.04 ZIP
         #$row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
         #hard coding to a known working VHD
@@ -438,7 +438,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
 
         ### Grab the MySQL Offline Binaries - used when ASDK is deployed in a completely offline mode
         ### The MySQL script would usually install MySQL via apt-get, however in an offline mode, this isn't possible, hence
-        ### we download them here, and upload them to local Azure Stack storage as part of the ASDK Configurator
+        ### we download them here, and upload them to local Azure Stack storage as part of the Azure Stack POC Configurator
 
         # MySQL 5.7 & 8 Offline Dependency #1
         $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/" -UseBasicParsing
@@ -568,7 +568,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
 
         ### Grab the SQL Server 2017 for Ubuntu Offline Binaries - used when ASDK is deployed in a completely offline mode
         ### The SQL Server 2017 script would usually install SQL Server via apt-get, however in an offline mode, this isn't possible, hence
-        ### we download them here, and upload them to local Azure Stack storage as part of the ASDK Configurator
+        ### we download them here, and upload them to local Azure Stack storage as part of the Azure Stack POC Configurator
 
         # SQL Server 2017 Main Binary
         $WebResponse = Invoke-WebRequest "https://packages.microsoft.com/ubuntu/16.04/mssql-server-2017/pool/main/m/mssql-server/" -UseBasicParsing
@@ -1034,11 +1034,11 @@ try {
         foreach ( $Url in $Urls ) {
             $filename = (($Url.Substring($Url.LastIndexOf("/") + 1)).Split("-", 2)[1])
             $filename = $filename -replace "_.*\.", "."
-            $target = "$((Get-Item $ASDKpath).FullName)\images\$v\$filename"
+            $target = "$((Get-Item $azsPath).FullName)\images\$v\$filename"
             if (!(Test-Path -Path $target)) {
                 foreach ($ssu in $ssuArray) {
-                    if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
-                        Remove-Item -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu" -Force -Verbose -ErrorAction Stop
+                    if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
+                        Remove-Item -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu" -Force -Verbose -ErrorAction Stop
                     }
                 }
                 Write-Host "Update will be stored at $target"
@@ -1052,19 +1052,19 @@ try {
     
         # Rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
         foreach ($ssu in $ssuArray) {
-            if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
+            if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
                 Write-Host "The $buildVersion Servicing Stack Update already exists within the target folder"
             }
             else {
                 Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
-                Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object { $_.FullName -like "*$($ssu)*" } | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
+                Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu | Where-Object { $_.FullName -like "*$($ssu)*" } | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
             }
         }
         # All updates should now be downloaded - time to distribute them into correct folders.
-        New-Item -ItemType Directory -Path "$ASDKpath\images\$v\SSU" -Force | Out-Null
-        New-Item -ItemType Directory -Path "$ASDKpath\images\$v\CU" -Force | Out-Null
-        Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*ssu*" } | Move-Item -Destination "$ASDKpath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
-        Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notlike "*ssu*" } | Move-Item -Destination "$ASDKpath\images\$v\CU" -Force -ErrorAction Stop -Verbose
+        New-Item -ItemType Directory -Path "$azsPath\images\$v\SSU" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$azsPath\images\$v\CU" -Force | Out-Null
+        Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*ssu*" } | Move-Item -Destination "$azsPath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
+        Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notlike "*ssu*" } | Move-Item -Destination "$azsPath\images\$v\CU" -Force -ErrorAction Stop -Verbose
     }
 }
 catch {
@@ -1081,10 +1081,10 @@ try {
     Get-ChildItem -Path "$downloadPath\*" -Recurse | Unblock-File -Verbose
     $session = New-PSSession -Name CreateZip -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
     Write-CustomVerbose -Message "Packaging files into a single ZIP file"
-    Invoke-Command -Session $session -ArgumentList $downloadPath, $configASDKFilePath -ScriptBlock {
-        $zipPath = "$Using:downloadPath\ConfigASDKfiles.zip"
+    Invoke-Command -Session $session -ArgumentList $downloadPath, $AzSPoCFilePath -ScriptBlock {
+        $zipPath = "$Using:downloadPath\AzSPoCfiles.zip"
         Install-Module -Name 7Zip4PowerShell -Verbose -Force
-        Compress-7Zip -CompressionLevel None -Path "$Using:configASDKFilePath" -ArchiveFileName $zipPath -Format Zip;
+        Compress-7Zip -CompressionLevel None -Path "$Using:AzSPoCFilePath" -ArchiveFileName $zipPath -Format Zip;
         Remove-Module -Name 7Zip4PowerShell -Verbose -Force
     }
     Remove-PSSession -Name CreateZip -Confirm:$false -ErrorAction SilentlyContinue -Verbose
@@ -1110,7 +1110,7 @@ $Secs = $sw.Elapsed.Seconds
 $difference = '{0:00}h:{1:00}m:{2:00}s' -f $Hrs, $Mins, $Secs
 
 Set-Location $ScriptLocation -ErrorAction SilentlyContinue
-Write-Output "ASDK Configurator offline downloader completed successfully, taking $difference." -ErrorAction SilentlyContinue
+Write-Output "Azure Stack POC Configurator offline downloader completed successfully, taking $difference." -ErrorAction SilentlyContinue
 Write-Output "You started the at $startTime." -ErrorAction SilentlyContinue
 Write-Output "The process completed at $endTime." -ErrorAction SilentlyContinue
 Stop-Transcript -ErrorAction SilentlyContinue

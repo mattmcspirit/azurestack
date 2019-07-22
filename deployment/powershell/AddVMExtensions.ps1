@@ -10,10 +10,10 @@ param (
     [String] $tenantID,
 
     [parameter(Mandatory = $true)]
-    [pscredential] $asdkCreds,
+    [pscredential] $azsCreds,
 
     [Parameter(Mandatory = $false)]
-    [String] $registerASDK,
+    [String] $registerAzS,
     
     [parameter(Mandatory = $true)]
     [String] $ScriptLocation,
@@ -54,7 +54,7 @@ Write-Host "Log started at $runTime"
 $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
-if (($registerASDK -eq $true) -and ($deploymentMode -ne "Offline")) {
+if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             if ($progressCheck -eq "Failed") {
@@ -98,7 +98,7 @@ if (($registerASDK -eq $true) -and ($deploymentMode -ne "Offline")) {
             Write-Host "Logging into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRmEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             $activationName = "default"
             $activationRG = "azurestack-activation"
             Write-Host "Checking if Azure Stack is activated and successfully registered"
@@ -109,7 +109,7 @@ if (($registerASDK -eq $true) -and ($deploymentMode -ne "Offline")) {
                     while (!$(Get-AzsAzureBridgeDownloadedProduct -Name $extension -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
                         Write-Host "Didn't find $extension in your gallery. Downloading from the Azure Stack Marketplace"
                         Invoke-AzsAzureBridgeProductDownload -ActivationName $activationName -Name $extension -ResourceGroupName $activationRG -Force -Confirm:$false -Verbose
-                        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                     }
                 }
                 $getDownloads = (Get-AzsAzureBridgeDownloadedProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*") })
@@ -117,14 +117,14 @@ if (($registerASDK -eq $true) -and ($deploymentMode -ne "Offline")) {
                 foreach ($download in $getDownloads) {
                     Write-Host "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"
                 }
-                # Update the ConfigASDK database with successful completion
+                # Update the AzSPoC database with successful completion
                 StageComplete -progressStage $progressStage
             }
             else {
                 # No Azure Bridge Activation Record found - Skip rather than fail
                 Write-Host "Skipping Microsoft VM Extension download, no Azure Bridge Activation Object called $activationName could be found within the resource group $activationRG on your Azure Stack"
-                Write-Host "Assuming registration of this ASDK was successful, you should be able to manually download the VM extensions from Marketplace Management in the admin portal`r`n"
-                # Update the ConfigASDK database with skip status
+                Write-Host "Assuming registration of this Azure Stack POC was successful, you should be able to manually download the VM extensions from Marketplace Management in the admin portal`r`n"
+                # Update the AzSPoC database with skip status
                 StageSkipped -progressStage $progressStage
             }
         }
@@ -136,15 +136,15 @@ if (($registerASDK -eq $true) -and ($deploymentMode -ne "Offline")) {
         }
     }
     elseif ($progressCheck -eq "Skipped") {
-        Write-Host "ASDK Configurator Stage: $progressStage previously skipped"
+        Write-Host "Azure Stack POC Configurator Stage: $progressStage previously skipped"
     }
     elseif ($progressCheck -eq "Complete") {
-        Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
+        Write-Host "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
 }
-elseif ($registerASDK -eq $false) {
+elseif ($registerAzS -eq $false) {
     Write-Host "Skipping VM Extension download, as Azure Stack has not been registered`r`n"
-    # Update the ConfigASDK database with skip status
+    # Update the AzSPoC database with skip status
     StageSkipped -progressStage $progressStage
 }
 Set-Location $ScriptLocation

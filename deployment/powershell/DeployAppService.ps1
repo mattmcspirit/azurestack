@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ASDKpath,
+    [String] $azsPath,
 
     [parameter(Mandatory = $true)]
     [String]$downloadPath,
@@ -23,7 +23,7 @@ param (
     [String] $tenantID,
 
     [parameter(Mandatory = $true)]
-    [pscredential] $asdkCreds,
+    [pscredential] $azsCreds,
 
     [parameter(Mandatory = $true)]
     [String] $VMpwd,
@@ -76,13 +76,13 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Host "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
 }
 elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progressCheck -eq "Skipped") {
-        Write-Host "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
-        # Update the ConfigASDK database back to incomplete
+        Write-Host "Operator previously skipped this step, but now wants to perform this step. Updating AzSPoC database to Incomplete."
+        # Update the AzSPoC database back to incomplete
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
     }
@@ -92,14 +92,14 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 # Clean up previous attempt - RG
                 $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
                 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                 $azsLocation = (Get-AzureRmLocation).DisplayName
                 $appServiceRGCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
                 if ($appServiceRGCheck) {
                     Write-Output "There is evidence of a previous attempted App Service deployment in the App Service Resource Group. Starting cleanup..."
                     Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
                 }
-                # Update the ConfigASDK database back to incomplete status if previously failed
+                # Update the AzSPoC database back to incomplete status if previously failed
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
@@ -160,7 +160,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             <#
             $ArmEndpoint = "https://management.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             Write-Host "Selecting the *ADMIN APPSVC BACKEND subscription"
             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN APPSVC BACKEND' }
             $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
@@ -169,7 +169,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             #>
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             Write-Host "Getting File Server and SQL App Server FQDN"
             $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
@@ -215,7 +215,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 throw "Missing Identity Application ID - Exiting process"
             }
 
-            $AppServicePath = "$ASDKpath\appservice"
+            $AppServicePath = "$azsPath\appservice"
             Set-Location "$AppServicePath"
 
             # Pull the pre-deployment JSON file from online, or the local zip file.
@@ -226,11 +226,11 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 DownloadWithRetry -downloadURI "$appServiceJsonURI" -downloadLocation "$appServiceJsonDownloadLocation" -retries 10
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                if ([System.IO.File]::Exists("$ASDKpath\appservice\AppSvcPre.json")) {
+                if ([System.IO.File]::Exists("$azsPath\appservice\AppSvcPre.json")) {
                     Write-Host "Located AppSvcPre.json file"
                 }
-                if (-not [System.IO.File]::Exists("$ASDKpath\appservice\AppSvcPre.json")) {
-                    throw "Missing AppSvcPre.json file in extracted app service dependencies folder. Please ensure this exists at $ASDKpath\appservice\ - Exiting process"
+                if (-not [System.IO.File]::Exists("$azsPath\appservice\AppSvcPre.json")) {
+                    throw "Missing AppSvcPre.json file in extracted app service dependencies folder. Please ensure this exists at $azsPath\appservice\ - Exiting process"
                 }
             }
             $JsonConfig = Get-Content -Path "$AppServicePath\AppSvcPre.json"
@@ -277,7 +277,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Write-Host "Logging back into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             $azsLocation = (Get-AzureRmLocation).DisplayName
             $appServiceFailCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
             if ($appServiceFailCheck.ProvisioningState -eq 'Failed') {
@@ -286,7 +286,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             # Deploy App Service EXE
-            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($asdkCreds.Password)
+            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($azsCreds.Password)
             $appServiceInstallPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
             $appServiceLogTime = $(Get-Date).ToString("MMdd-HHmmss")
             $appServiceLogPath = "$AppServicePath\AppSvcLog$appServiceLogTime.txt"
@@ -294,10 +294,10 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Write-Host "Starting deployment of the App Service"
 
             if ($deploymentMode -eq "Online") {
-                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log `"$appServiceLogPath`" Deploy UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=`"$AppServicePath\AppSvcPost.json`"" -PassThru
+                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log `"$appServiceLogPath`" Deploy UserName=$($azsCreds.UserName) Password=$appServiceInstallPwd ParamFile=`"$AppServicePath\AppSvcPost.json`"" -PassThru
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log `"$appServiceLogPath`" Deploy OfflineInstallationPackageFile=`"$AppServicePath\appserviceoffline.zip`" UserName=$($asdkCreds.UserName) Password=$appServiceInstallPwd ParamFile=`"$AppServicePath\AppSvcPost.json`"" -PassThru
+                Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log `"$appServiceLogPath`" Deploy OfflineInstallationPackageFile=`"$AppServicePath\appserviceoffline.zip`" UserName=$($azsCreds.UserName) Password=$appServiceInstallPwd ParamFile=`"$AppServicePath\AppSvcPost.json`"" -PassThru
             }
 
             while ((Get-Process AppService -ErrorAction SilentlyContinue).Responding) {
@@ -317,7 +317,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Logging back into Azure Stack to confirm the Resource Group shows as Succeeded or Failed"
                 $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
                 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                 $appServiceFailCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
                 if ($appServiceFailCheck.ProvisioningState -eq 'Succeeded') {
                     Write-Output "There is evidence of a failed App Service deployment in the log file, but the App Service Resource Group shows success. Starting cleanup..."
@@ -333,7 +333,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             # Ensure logged into Azure Stack
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
             if ($appServiceRgCheck.ProvisioningState -ne 'Succeeded') {
                 Write-Host "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
@@ -343,7 +343,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Host "App Service deployment with name: $($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState)"
             }
 
-            # Update the ConfigASDK database with successful completion
+            # Update the AzSPoC database with successful completion
             $progressStage = $progressName
             StageComplete -progressStage $progressStage
         }
@@ -357,7 +357,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
 }
 elseif ($skipAppService -and ($progressCheck -ne "Complete")) {
     Write-Host "Operator chose to skip App Service Deployment`r`n"
-    # Update the ConfigASDK database with skip status
+    # Update the AzSPoC database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage
 }

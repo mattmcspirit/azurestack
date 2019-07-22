@@ -75,7 +75,7 @@ While ($jobsStillExecuting -eq $true) {
     Start-Sleep -Seconds 20
     Clear-Host
     $sqlServerInstance = '(localdb)\MSSQLLocalDB'
-    $databaseName = $databaseName = "ConfigASDK"
+    $databaseName = $databaseName = "AzSPoC"
     $tableName = "Progress"
     Write-Host "`r`n****** CURRENT JOB STATUS - This screen will refresh every 30 seconds ******"
     Write-Host "****** DO NOT CLOSE THIS SESSION - If you do, please run .\GetJobStatus.ps1 from within $scriptLocation\Scripts to resume job monitoring ******" -ForegroundColor Red

@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ASDKpath,
+    [String] $azsPath,
 
     [Parameter(Mandatory = $true)]
     [String] $ISOPath,
@@ -19,7 +19,7 @@ param (
     [String] $tenantID,
 
     [parameter(Mandatory = $true)]
-    [pscredential] $asdkCreds,
+    [pscredential] $azsCreds,
     
     [parameter(Mandatory = $true)]
     [String] $ScriptLocation,
@@ -76,7 +76,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Write-Host "Logging into Azure Stack to check if images are required, and therefore if updates need downloading"
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
         $azsLocation = (Get-AzureRmLocation).DisplayName
         Write-Host "Determine if a Windows Server 2019 ISO has been provided"
         if ($ISOPath2019) {
@@ -94,7 +94,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $platformImageCore = Get-AzsPlatformImage -Location $azsLocation -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
             $serverCoreVMImageAlreadyAvailable = $false
             if ($platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
-                Write-Host "There appears to be at least 1 suitable Windows Server $v Datacenter Server Core image within your Platform Image Repository which we will use for the ASDK Configurator." 
+                Write-Host "There appears to be at least 1 suitable Windows Server $v Datacenter Server Core image within your Platform Image Repository which we will use for the Azure Stack POC Configurator." 
                 $serverCoreVMImageAlreadyAvailable = $true
             }
 
@@ -105,7 +105,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             $serverFullVMImageAlreadyAvailable = $false
 
             if ($platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {
-                Write-Host "There appears to be at least 1 suitable Windows Server $v Datacenter Server Full image within your Platform Image Repository which we will use for the ASDK Configurator." 
+                Write-Host "There appears to be at least 1 suitable Windows Server $v Datacenter Server Full image within your Platform Image Repository which we will use for the Azure Stack POC Configurator." 
                 $serverFullVMImageAlreadyAvailable = $true
             }
             if ($serverCoreVMImageAlreadyAvailable -eq $false) {
@@ -299,11 +299,11 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     foreach ( $Url in $Urls ) {
                         $filename = (($Url.Substring($Url.LastIndexOf("/") + 1)).Split("-", 2)[1])
                         $filename = $filename -replace "_.*\.", "."
-                        $target = "$((Get-Item $ASDKpath).FullName)\images\$v\$filename"
+                        $target = "$((Get-Item $azsPath).FullName)\images\$v\$filename"
                         if (!(Test-Path -Path $target)) {
                             foreach ($ssu in $ssuArray) {
-                                if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
-                                    Remove-Item -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu" -Force -Verbose -ErrorAction Stop
+                                if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
+                                    Remove-Item -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu" -Force -Verbose -ErrorAction Stop
                                 }
                             }
                             Write-Host "Update will be stored at $target"
@@ -317,23 +317,23 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
                     # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
                     foreach ($ssu in $ssuArray) {
-                        if ((Test-Path -Path "$((Get-Item $ASDKpath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
+                        if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
                             Write-Host "The $buildVersion Servicing Stack Update already exists within the target folder"
                         }
                         else {
                             Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
-                            Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu | Where-Object { $_.FullName -like "*$($ssu)*" } | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
+                            Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu | Where-Object { $_.FullName -like "*$($ssu)*" } | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
                         }
                     }
                     # All updates should now be downloaded - time to distribute them into correct folders.
-                    New-Item -ItemType Directory -Path "$ASDKpath\images\$v\SSU" -Force | Out-Null
-                    New-Item -ItemType Directory -Path "$ASDKpath\images\$v\CU" -Force | Out-Null
-                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*ssu*" } | Move-Item -Destination "$ASDKpath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
-                    Get-ChildItem -Path "$ASDKpath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notlike "*ssu*" } | Move-Item -Destination "$ASDKpath\images\$v\CU" -Force -ErrorAction Stop -Verbose
+                    New-Item -ItemType Directory -Path "$azsPath\images\$v\SSU" -Force | Out-Null
+                    New-Item -ItemType Directory -Path "$azsPath\images\$v\CU" -Force | Out-Null
+                    Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*ssu*" } | Move-Item -Destination "$azsPath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
+                    Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notlike "*ssu*" } | Move-Item -Destination "$azsPath\images\$v\CU" -Force -ErrorAction Stop -Verbose
                 }
             }
         }
-        # Update the ConfigASDK database with successful completion
+        # Update the AzSPoC database with successful completion
         $progressStage = "WindowsUpdates"
         StageComplete -progressStage $progressStage
     }
@@ -345,7 +345,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     }
 }
 elseif ($progressCheck -eq "Complete") {
-    Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Host "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
 $endTime = $(Get-Date).ToString("MMdd-HHmmss")

@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ASDKpath,
+    [String] $azsPath,
 
     [Parameter(Mandatory = $true)]
     [String] $downloadPath,
@@ -23,7 +23,7 @@ param (
     [String] $VMpwd,
 
     [parameter(Mandatory = $true)]
-    [pscredential] $asdkCreds,
+    [pscredential] $azsCreds,
     
     [parameter(Mandatory = $true)]
     [String] $ScriptLocation,
@@ -118,20 +118,20 @@ $progressStage = $progressName
 $progressCheck = CheckProgress -progressStage $progressStage
 
 if ($progressCheck -eq "Complete") {
-    Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Host "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
 }
 elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
     if ($progressCheck -eq "Skipped") {
-        Write-Host "Operator previously skipped this step, but now wants to perform this step. Updating ConfigASDK database to Incomplete."
-        # Update the ConfigASDK database back to incomplete
+        Write-Host "Operator previously skipped this step, but now wants to perform this step. Updating AzSPoC database to Incomplete."
+        # Update the AzSPoC database back to incomplete
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
     }
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             if ($progressCheck -eq "Failed") {
-                # Update the ConfigASDK database back to incomplete status if previously failed
+                # Update the AzSPoC database back to incomplete status if previously failed
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
@@ -220,7 +220,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
                         if ($mySQLProgressCheck -ne "Complete") {
                             ### Login to Azure Stack ###
-                            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                             $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
                             Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
                             $subID = $sub.SubscriptionId
@@ -288,7 +288,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Host "Getting the URIs for all AZPKG files for deployment of resources"
                     ### Login to Azure Stack ###
                     Write-Host "Logging into Azure Stack into the admin space, to grab information"
-                    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                     $azsLocation = (Get-AzureRmLocation).DisplayName
                     $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "AzureStackPOC.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
                     $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/"
@@ -299,7 +299,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force
                 Write-Host "Logging into Azure Stack into the user space, to grab the location of the scripts and packages"
-                Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                 Write-Host "Selecting the *ADMIN OFFLINE SCRIPTS subscription"
                 $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN OFFLINE SCRIPTS' }
                 Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
@@ -307,22 +307,22 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
                 #$subID = $azureContext.Subscription.Id
                 Write-Host "Current subscription ID is: $subID"
-                $asdkOfflineRGName = "azurestack-offlinescripts"
-                $asdkOfflineStorageAccountName = "offlinestor"
-                $asdkOfflineContainerName = "offlinecontainer"
-                $asdkOfflineStorageAccount = Get-AzureRmStorageAccount -Name $asdkOfflineStorageAccountName -ResourceGroupName $asdkOfflineRGName -ErrorAction SilentlyContinue
+                $azsOfflineRGName = "azurestack-offlinescripts"
+                $azsOfflineStorageAccountName = "offlinestor"
+                $azsOfflineContainerName = "offlinecontainer"
+                $azsOfflineStorageAccount = Get-AzureRmStorageAccount -Name $azsOfflineStorageAccountName -ResourceGroupName $azsOfflineRGName -ErrorAction SilentlyContinue
                 if ($vmType -eq "AppServiceFS") {
                     Write-Host "Downloading the template required for the File Server"
                     $templateFile = "FileServerTemplate.json"
-                    $mainTemplateURI = Get-ChildItem -Path "$ASDKpath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
+                    $mainTemplateURI = Get-ChildItem -Path "$azsPath\templates" -Recurse -Include "$templateFile" | ForEach-Object { $_.FullName }
                 }
                 else {
                     Write-Host "Getting the URIs for all AZPKG files for deployment of resources"
                     Write-Host "Logging into Azure Stack into the admin space, to grab information"
-                    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                     $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "AzureStackPOC.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
                 }
-                $scriptBaseURI = ('{0}{1}/' -f $asdkOfflineStorageAccount.PrimaryEndpoints.Blob, $asdkOfflineContainerName) -replace "https", "http"
+                $scriptBaseURI = ('{0}{1}/' -f $azsOfflineStorageAccount.PrimaryEndpoints.Blob, $azsOfflineContainerName) -replace "https", "http"
             }
             ### Login to Azure Stack ###
             Write-Host "Clearing previous Azure/Azure Stack logins"
@@ -331,7 +331,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             
             if (($vmType -eq "SQLServer") -or ($vmType -eq "MySQL")) {
                 Write-Host "Logging into Azure Stack into the user space, to create the backend resources"
-                Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                 $azsLocation = (Get-AzureRmLocation).DisplayName
                 Write-Host "Selecting the *ADMIN DB HOSTS subscription"
                 $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
@@ -343,7 +343,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             elseif (($vmType -eq "AppServiceDB") -or ($vmType -eq "AppServiceFS")) {
                 Write-Host "Logging into Azure Stack into the admin space, to create the backend resources"
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                 $azsLocation = (Get-AzureRmLocation).DisplayName
             }
                         
@@ -545,7 +545,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 return
             }
 
-            # Update the ConfigASDK database with successful completion
+            # Update the AzSPoC database with successful completion
             $progressStage = $progressName
             StageComplete -progressStage $progressStage
         }
@@ -558,7 +558,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
     }
 }
 elseif (($skipRP) -and ($progressCheck -ne "Complete")) {
-    # Update the ConfigASDK database with skip status
+    # Update the AzSPoC database with skip status
     $progressStage = $progressName
     StageSkipped -progressStage $progressStage
 }
