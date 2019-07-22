@@ -1,12 +1,12 @@
 <#
 .SYNOPSYS
 
-    The purpose of this script is to automate the download of all files and scripts required for installing all services on ASDK, that are to be
+    The purpose of this script is to automate the download of all files and scripts required for installing all services on an Azure Stack system, that are to be
     configured by the Azure Stack POC Configurator.
 
 .VERSION
 
-    1906.3  Latest version, to align with current Azure Stack POC Configurator version.
+    1906.4  Latest version, to align with current Azure Stack POC Configurator version.
 
 .AUTHOR
 
@@ -318,7 +318,7 @@ $scriptStep = "CREATE FOLDERS"
 $AzSPoCFilePathExists = [System.IO.Directory]::Exists("$downloadPath\AzSPoCfiles")
 if ($AzSPoCFilePathExists -eq $true) {
     $AzSPoCFilePath = "$downloadPath\AzSPoCfiles"
-    Write-CustomVerbose -Message "ASDK folder exists at $downloadPath - no need to create it."
+    Write-CustomVerbose -Message "Azure Stack POC files folder exists at $downloadPath - no need to create it."
     Write-CustomVerbose -Message "Download files will be placed in $downloadPath\AzSPoCfiles"
     $i = 0 
     While ($i -le 3) {
@@ -327,8 +327,8 @@ if ($AzSPoCFilePathExists -eq $true) {
     }
 }
 elseif ($AzSPoCFilePathExists -eq $false) {
-    # Create the ASDK folder.
-    Write-CustomVerbose -Message "ASDK folder doesn't exist within $downloadPath, creating it"
+    # Create the Azure Stack POC folder.
+    Write-CustomVerbose -Message "Azure Stack POC files folder doesn't exist within $downloadPath, creating it"
     $AzSPoCFilePath = mkdir "$downloadPath\AzSPoCfiles" -Force
 }
 
@@ -436,7 +436,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MySQL8_Offline.sh"
         $row.filename = "install_MySQL8.sh"; $row.path = "$scriptPath"; $row.productName = "MySQL 8 install script"; $Table.Rows.Add($row)
 
-        ### Grab the MySQL Offline Binaries - used when ASDK is deployed in a completely offline mode
+        ### Grab the MySQL Offline Binaries - used when Azure Stack system is deployed in a completely offline mode
         ### The MySQL script would usually install MySQL via apt-get, however in an offline mode, this isn't possible, hence
         ### we download them here, and upload them to local Azure Stack storage as part of the Azure Stack POC Configurator
 
@@ -566,7 +566,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MSSQL_Offline.sh"
         $row.filename = "install_MSSQL.sh"; $row.path = "$scriptPath"; $row.productName = "SQL Server Install Script"; $Table.Rows.Add($row)
 
-        ### Grab the SQL Server 2017 for Ubuntu Offline Binaries - used when ASDK is deployed in a completely offline mode
+        ### Grab the SQL Server 2017 for Ubuntu Offline Binaries - used when Azure Stack POC system is deployed in a completely offline mode
         ### The SQL Server 2017 script would usually install SQL Server via apt-get, however in an offline mode, this isn't possible, hence
         ### we download them here, and upload them to local Azure Stack storage as part of the Azure Stack POC Configurator
 
