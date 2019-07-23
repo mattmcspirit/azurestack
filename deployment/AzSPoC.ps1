@@ -40,6 +40,7 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1906.4  Generalizing to Azure Stack over ASDK only
     1906.3  Minor bug fixes and cleanup
             Added MySQL 8.0 Gallery Item and Default DB Host Deployment
     1906.2  Minor bug fixes and cleanup
@@ -177,7 +178,7 @@ param (
 
     # Password used for deployment of the Azure Stack ASDK only - not used with multiNode system.
     [parameter(Mandatory = $false)]
-    [String]$azureStackAdminPwd,
+    [String]$asdkHostPwd,
 
     # Provide Local Administrator password for App Service, MySQL and SQL VMs.
     [parameter(Mandatory = $false)]
@@ -220,7 +221,7 @@ param (
 
     # If you don't want to customize the ASDK host with useful apps such as Chrome, Azure CLI, VS Code etc. set this flag
     # This will automatically be skipped when deploying for a multiNode
-    [switch]$skipCustomizeHost,
+    [switch]$skipCustomizeAsdkHost,
 
     # Offline installation package path for all key components
     [parameter(Mandatory = $false)]
@@ -236,7 +237,23 @@ param (
     # If you plan to use this for a multiNode POC system, use this flag
     [switch]$multiNode,
 
-    # 
+    # The IP address associated with the PEP, if this isn't an ASDK.
+    [Parameter(Mandatory = $false)]
+    [String]$pepIP,
+
+    # Password for Privileged Endpoint
+    [parameter(Mandatory = $false)]
+    [string]$pepPwd,
+
+    # Domain used for multiNode
+    [parameter(Mandatory = $false)]
+    [string]$azsInternalDomain,
+
+    # Path where your certificates for multiNode are stored
+    [parameter(Mandatory = $false)]
+    [String]$certPath,
+
+    # Custom domain suffix - will be mandatory for a multiNode, but can be hacked for ASDK
     [Parameter(Mandatory = $false)]
     [string]$customDomainSuffix = "local.azurestack.external"
 )
@@ -532,9 +549,6 @@ try {
     $startTime = Get-Date -Format g
     $sw = [Diagnostics.Stopwatch]::StartNew()
 
-    ### SET ERCS IP Address - same for all default ASDKs but multiNode will require a specific IP ###
-    $ERCSip = "AzS-ERCS01"
-
     # Define Regex for Password Complexity - needs to be at least 12 characters, with at least 1 upper case, 1 lower case, 1 number and 1 special character
     $regex = @"
 (?=^.{12,123}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*
@@ -550,6 +564,10 @@ try {
 
     $liveIdRegex = @"
 @(live\.|hotmail\.|outlook\.)
+"@
+
+    $ipRegex = @"
+^(?:(?:0?0?\d|0?[1-9]\d|1\d\d|2[0-5][0-5]|2[0-4]\d)\.){3}(?:0?0?\d|0?[1-9]\d|1\d\d|2[0-5][0-5]|2[0-4]\d)$
 "@
 
     ### SET LOG LOCATION ###
@@ -607,56 +625,58 @@ try {
         return
     }
 
-    ### HOST MEMORY CHECK ###############################################################################################################################################
+    ### ASDK MEMORY CHECK ########################################################################################################################################
     ##############################################################################################################################################################
 
-    Write-CustomVerbose -Message "Validating ASDK host memory to ensure you can deploy the additional resource providers on this system"
-    Write-CustomVerbose -Message "Calculating ASDK host memory"
-    [INT]$totalPhysicalMemory = Get-CimInstance win32_ComputerSystem -Verbose:$false | ForEach-Object { [math]::round($_.TotalPhysicalMemory / 1GB) }
-    Write-CustomVerbose -Message "Total physical memory in the ASDK host = $([INT]$totalPhysicalMemory)GB"
-    [INT]$totalRPMemoryRequired = "0"
-    if (!$skipMySQL) {
-        Write-CustomVerbose -Message "You've chosen to deploy the MySQL Resource Provider. This requires 5.5GB RAM"
-        [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 5.5
-    }
-    if (!$skipMSSQL) {
-        Write-CustomVerbose -Message "You've chosen to deploy the SQL Server Resource Provider. This requires 5.5GB RAM"
-        [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 5.5
-    }
-    if (!$skipAppService) {
-        Write-CustomVerbose -Message "You've chosen to deploy the App Service Resource Provider. This requires 23GB RAM"
-        [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 23
-    }
-    if ([INT]$totalRPMemoryRequired -gt 0) {
-        Write-CustomVerbose -Message "Based on your resource provider selections, you need a total of $([INT]$totalRPMemoryRequired)GB to install the Resource Providers"
-        Write-CustomVerbose -Message "Calculating total current Azure Stack VM memory usage"
-        $azureStackVMs = Get-VM | Where-Object { $_.VMName -like "*Azs*" }
-        $azureStackVMs | Format-Table Name, State, @{n = "Memory"; e = { $_.memoryassigned / 1MB } } -AutoSize
-        Remove-Variable -Name totalVmMemory -Force -ErrorAction SilentlyContinue
-        $totalVmMemory = $azureStackVMs | Measure-Object memoryassigned –sum
-        $totalVmMemory = [math]::round($totalVmMemory.sum / 1GB)
-        [INT]$totalVmMemory = $totalVmMemory
+    if (!$multiNode) {
+        Write-CustomVerbose -Message "Validating ASDK host memory to ensure you can deploy the additional resource providers on this system"
+        Write-CustomVerbose -Message "Calculating ASDK host memory"
+        [INT]$totalPhysicalMemory = Get-CimInstance win32_ComputerSystem -Verbose:$false | ForEach-Object { [math]::round($_.TotalPhysicalMemory / 1GB) }
         Write-CustomVerbose -Message "Total physical memory in the ASDK host = $([INT]$totalPhysicalMemory)GB"
-        Write-CustomVerbose -Message "Total memory currently assigned to Azure Stack VMs on the ASDK host = $([INT]$totalVmMemory)GB"
-        Write-CustomVerbose -Message "Total memory required by your selected resource provider VMs on the ASDK host = $([INT]$totalRPMemoryRequired)GB"
-        [INT]$memoryAvailable = [INT]$totalPhysicalMemory - [INT]$totalVmMemory
-        if ([INT]$memoryAvailable -gt [INT]$totalRPMemoryRequired) {
-            Write-CustomVerbose -Message "You have $([INT]$memoryAvailable)GB memory available on your host, which is enough to run your chosen resource providers"
-            Remove-Variable -Name totalFreeMemory -Force -ErrorAction SilentlyContinue
-            [INT]$totalFreeMemory = Get-CimInstance Win32_OperatingSystem -Verbose:$false | ForEach-Object { [math]::round($_.FreePhysicalMemory / 1MB) }
-            Write-CustomVerbose -Message "However, the ASDK host OS is reporting a total of $([INT]$totalFreeMemory)GB free physical memory"
-            [INT]$memoryDifference = ([INT]$totalPhysicalMemory - [INT]$totalFreeMemory) - [INT]$totalVmMemory
-            Write-CustomVerbose -Message "This is a difference of $([INT]$memoryDifference)GB on top of the Azure Stack VM usage, and is most likely consumed by system processes and overheads."
-            Write-CustomVerbose -Message "If you run out of memory, this may cause the Azure Stack POC Configurator to fail."
-            Start-Sleep 10
+        [INT]$totalRPMemoryRequired = "0"
+        if (!$skipMySQL) {
+            Write-CustomVerbose -Message "You've chosen to deploy the MySQL Resource Provider. This requires 5.5GB RAM"
+            [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 5.5
+        }
+        if (!$skipMSSQL) {
+            Write-CustomVerbose -Message "You've chosen to deploy the SQL Server Resource Provider. This requires 5.5GB RAM"
+            [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 5.5
+        }
+        if (!$skipAppService) {
+            Write-CustomVerbose -Message "You've chosen to deploy the App Service Resource Provider. This requires 23GB RAM"
+            [INT]$totalRPMemoryRequired = [INT]$totalRPMemoryRequired + 23
+        }
+        if ([INT]$totalRPMemoryRequired -gt 0) {
+            Write-CustomVerbose -Message "Based on your resource provider selections, you need a total of $([INT]$totalRPMemoryRequired)GB to install the Resource Providers"
+            Write-CustomVerbose -Message "Calculating total current Azure Stack VM memory usage"
+            $azureStackVMs = Get-VM | Where-Object { $_.VMName -like "*Azs*" }
+            $azureStackVMs | Format-Table Name, State, @{n = "Memory"; e = { $_.memoryassigned / 1MB } } -AutoSize
+            Remove-Variable -Name totalVmMemory -Force -ErrorAction SilentlyContinue
+            $totalVmMemory = $azureStackVMs | Measure-Object memoryassigned –sum
+            $totalVmMemory = [math]::round($totalVmMemory.sum / 1GB)
+            [INT]$totalVmMemory = $totalVmMemory
+            Write-CustomVerbose -Message "Total physical memory in the ASDK host = $([INT]$totalPhysicalMemory)GB"
+            Write-CustomVerbose -Message "Total memory currently assigned to Azure Stack VMs on the ASDK host = $([INT]$totalVmMemory)GB"
+            Write-CustomVerbose -Message "Total memory required by your selected resource provider VMs on the ASDK host = $([INT]$totalRPMemoryRequired)GB"
+            [INT]$memoryAvailable = [INT]$totalPhysicalMemory - [INT]$totalVmMemory
+            if ([INT]$memoryAvailable -gt [INT]$totalRPMemoryRequired) {
+                Write-CustomVerbose -Message "You have $([INT]$memoryAvailable)GB memory available on your host, which is enough to run your chosen resource providers"
+                Remove-Variable -Name totalFreeMemory -Force -ErrorAction SilentlyContinue
+                [INT]$totalFreeMemory = Get-CimInstance Win32_OperatingSystem -Verbose:$false | ForEach-Object { [math]::round($_.FreePhysicalMemory / 1MB) }
+                Write-CustomVerbose -Message "However, the ASDK host OS is reporting a total of $([INT]$totalFreeMemory)GB free physical memory"
+                [INT]$memoryDifference = ([INT]$totalPhysicalMemory - [INT]$totalFreeMemory) - [INT]$totalVmMemory
+                Write-CustomVerbose -Message "This is a difference of $([INT]$memoryDifference)GB on top of the Azure Stack VM usage, and is most likely consumed by system processes and overheads."
+                Write-CustomVerbose -Message "If you run out of memory, this may cause the Azure Stack POC Configurator to fail."
+                Start-Sleep 10
+            }
+            else {
+                throw "Your ASDK host only has $([INT]$memoryAvailable)GB memory remaining, which is less than the required $([INT]$totalRPMemoryRequired)GB for your chosen resource providers.`
+        Add more memory or reduce the number of resource providers that you wish to deploy"
+            }
         }
         else {
-            throw "Your ASDK host only has $([INT]$memoryAvailable)GB memory remaining, which is less than the required $([INT]$totalRPMemoryRequired)GB for your chosen resource providers.`
-    Add more memory or reduce the number of resource providers that you wish to deploy"
+            Write-CustomVerbose -Message "It appears you've chosen to deploy none of the Resource Providers. No need for further host memory checks"
         }
-    }
-    else {
-        Write-CustomVerbose -Message "It appears you've chosen to deploy none of the Resource Providers. No need for further host memory checks"
     }
 
     ### VALIDATION ###############################################################################################################################################
@@ -792,7 +812,8 @@ try {
     ### VALIDATE CREDS ##########################################################################################################################################
     #############################################################################################################################################################
 
-    ### Validate Virtual Machine (To be created) Password ###
+    ### VM PASSWORD VALIDATION ##################################################################################################################################
+    #############################################################################################################################################################
 
     if ([string]::IsNullOrEmpty($VMpwd)) {
         Write-CustomVerbose -Message "You didn't enter a password for the virtual machines that the Azure Stack POC Configurator will create." 
@@ -830,38 +851,43 @@ try {
         }
     }
 
-    ### Validate Azure Stack Development Kit Deployment Credentials ###
-    if ([string]::IsNullOrEmpty($azureStackAdminPwd)) {
-        Write-CustomVerbose -Message "You didn't enter the Azure Stack Development Kit Deployment password." 
-        $secureAzureStackAdminPwd = Read-Host "Please enter the password used for the Azure Stack Development Kit Deployment, for account AzureStack\AzureStackAdmin" -AsSecureString -ErrorAction Stop
-        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAzureStackAdminPwd)            
-        $azureStackAdminPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+    ### ASDK CRED VALIDATION ####################################################################################################################################
+    #############################################################################################################################################################
+
+    if (!$multiNode) {
+        ### Validate Azure Stack Development Kit Deployment Credentials ###
+        if ([string]::IsNullOrEmpty($asdkHostPwd)) {
+            Write-CustomVerbose -Message "You didn't enter the ASDK Host password." 
+            $secureAsdkHostPwd = Read-Host "Please enter the password used for the ASDK Host Deployment, for account AzureStack\AzureStackAdmin" -AsSecureString -ErrorAction Stop
+            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureAsdkHostPwd)            
+            $asdkHostPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+        }
+
+        Write-CustomVerbose -Message "Checking to see Azure Stack Admin password is strong..."
+        $asdkAdminUsername = "AzureStack\AzureStackAdmin"
+        if ($asdkHostPwd -cmatch $regex -eq $true) {
+            Write-CustomVerbose -Message "Azure Stack Development Kit Deployment password for AzureStack\AzureStackAdmin, meets desired complexity level" 
+            # Convert plain text password to a secure string
+            $secureAsdkHostPwd = ConvertTo-SecureString -AsPlainText $asdkHostPwd -Force
+            $asdkAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $asdkAdminUsername, $secureAsdkHostPwd -ErrorAction Stop
+        }
+    
+        elseif ($asdkHostPwd -cmatch $regex -eq $false) {
+            Write-Host "`r`nAzure Stack Admin (AzureStack\AzureStackAdmin) password is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
+            Start-Sleep -Seconds 10
+            # Convert plain text password to a secure string
+            $secureAsdkHostPwd = ConvertTo-SecureString -AsPlainText $asdkHostPwd -Force
+            $asdkAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $asdkAdminUsername, $secureAsdkHostPwd -ErrorAction Stop
+        }
+    
+        ### Credentials Recap ###
+        # $asdkAdminUsername = "AzureStack\AzureStackAdmin" | Used to log into the local Azure Stack ASDK Host
+        # $asdkHostPwd (and $secureAsdkHostPwd) | Used to log into the local ASDK Host - not used on a multiNode system
+        # $asdkAdminCreds | Used to log into the local ASDK Host - not used in a multiNode environment
     }
 
-    Write-CustomVerbose -Message "Checking to see Azure Stack Admin password is strong..."
-
-    $azureStackAdminUsername = "AzureStack\AzureStackAdmin"
-    if ($azureStackAdminPwd -cmatch $regex -eq $true) {
-        Write-CustomVerbose -Message "Azure Stack Development Kit Deployment password for AzureStack\AzureStackAdmin, meets desired complexity level" 
-        # Convert plain text password to a secure string
-        $secureAzureStackAdminPwd = ConvertTo-SecureString -AsPlainText $azureStackAdminPwd -Force
-        $azureStackAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $azureStackAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
-    }
-
-    elseif ($azureStackAdminPwd -cmatch $regex -eq $false) {
-        Write-Host "`r`nAzure Stack Admin (AzureStack\AzureStackAdmin) password is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
-        Start-Sleep -Seconds 10
-        # Convert plain text password to a secure string
-        $secureAzureStackAdminPwd = ConvertTo-SecureString -AsPlainText $azureStackAdminPwd -Force
-        $azureStackAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $azureStackAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
-    }
-
-    ### Credentials Recap ###
-    # $azureStackAdminUsername = "AzureStack\AzureStackAdmin" | Used to log into the local Azure Stack POC Environment
-    # azureStackAdminPwd (and $secureAzureStackAdminPwd) | Used to log into the local ASDK Host - not used on a multiNode system
-    # $azureStackAdminCreds | Used to log into the local ASDK Host - not used in a multiNode environment
-
-    ### Validate Azure Stack Development Kit Service Administrator Credentials (AZURE AD ONLY) ###
+    ### AZURE AD VALIDATION #####################################################################################################################################
+    #############################################################################################################################################################
 
     if ($authenticationType.ToString() -like "AzureAd") {
 
@@ -943,12 +969,11 @@ try {
         # $azureAdUsername | Used for Azure AD athentication to log into Azure/Azure Stack portals
         # $azureAdPwd (and $secureAzureAdPwd) | Used to log into Azure/Azure Stack portals
         # $azureAdCreds | Combined credentials, used to log into Azure/Azure Stack portals
-        # $azsCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $azureStackAdminCreds (if ADFS)
+        # $azsCreds | New variable to represent the $azureAdCreds (if Azure AD) or the $asdkAdminCreds (if ADFS)
 
         if ($useAzureCredsForRegistration -and $registerAzS) {
             $azureRegCreds = $azureAdCreds
         }
-
         elseif (!$useAzureCredsForRegistration -and $registerAzS) {
         
             if ([string]::IsNullOrEmpty($azureRegUsername)) {
@@ -1020,22 +1045,164 @@ try {
         }
     }
 
-    ### Create Cloud Admin Creds ###
-    $cloudAdminUsername = "azurestack\cloudadmin"
-    $cloudAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $cloudAdminUsername, $secureAzureStackAdminPwd -ErrorAction Stop
+    ### MULTINODE VALIDATION ####################################################################################################################################
+    #############################################################################################################################################################
+
+    if ($multiNode -and ($pepIP -and $pepPwd -and $customDomainSuffix -and $certPath -and $azsInternalDomain)) {
+        Write-Host "All multinode parameters have been defined - we will now validate the parameters to ensure accuracy."
+    }
+    if (!$multiNode -and ($pepIP -and $pepPwd -and $customDomainSuffix -and $certPath -and $azsInternalDomain)) {
+        Set-Location $ScriptLocation
+        Write-Host "All multinode parameters have been defined - but you didn't use the -multiNode switch - please use this to confirm this is a multinode." -ForegroundColor Red
+        Break
+    }
+    if ($multiNode -and (!$pepIP -or !$pepPwd -or !$customDomainSuffix -or !$certPath -or !$azsInternalDomain)) {
+        Write-Host "You've specified a multinode deployment, yet you've not provided all related parameters"
+        if (!$pepIP) {
+            Set-Location $ScriptLocation
+            Write-Host "The -pepIP parameter is missing - this is the IP address of your privileged endpoint. Please rerun the script and provide this IP address or remove the -multiNode switch if this is an ASDK." -ForegroundColor Red
+            Break
+        }
+        if (!$pepPwd) {
+            Set-Location $ScriptLocation
+            Write-Host "The -pepPwd parameter is missing - this is the password you use to log into privileged endpoint. Please rerun the script and provide this password or remove the -multiNode switch if this is an ASDK." -ForegroundColor Red
+            Break
+        }
+        if (!$customDomainSuffix) {
+            Set-Location $ScriptLocation
+            Write-Host "The -customDomainSuffix parameter is missing - this is the custom URL used to access your Azure Stack, i.e. region.contoso.com. Please rerun the script and provide this information or remove the -multiNode switch if this is an ASDK" -ForegroundColor Red
+            Break
+        }
+        if (!$certPath) {
+            Set-Location $ScriptLocation
+            Write-Host "The -certPath parameter is missing - this is the path where you have stored your certificates for the Azure Stack deployment and the resource providers. Please rerun the script and provide the certificate path or remove the -multiNode switch if this is an ASDK." -ForegroundColor Red
+            Break
+        }
+        if (!$azsInternalDomain) {
+            Set-Location $ScriptLocation
+            Write-Host "The -azsInternalDomain parameter is missing - this is the internal domain of the Azure Stack system, specified during the deployment. Please rerun the script and provide the internal domain or remove the -multiNode switch if this is an ASDK." -ForegroundColor Red
+            Break
+        }
+    }
+    if ($pepIP -and !$multiNode) {
+        Set-Location $ScriptLocation
+        Write-Host "You've specified the -pepIP parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -pepIP if this is an ASDK." -ForegroundColor Red
+        Break
+    }
+    if ($pepPwd -and !$multiNode) {
+        Set-Location $ScriptLocation
+        Write-Host "You've specified the -pepPwd parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -pepPwd if this is an ASDK." -ForegroundColor Red
+        Break
+    }
+    if ($customDomainSuffix -and !$multiNode) {
+        Set-Location $ScriptLocation
+        Write-Host "You've specified the -customDomainSuffix parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -customDomainSuffix if this is an ASDK." -ForegroundColor Red
+        Break
+    }
+    if ($certPath -and !$multiNode) {
+        Set-Location $ScriptLocation
+        Write-Host "You've specified the -certPath parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, , or remove the -certPath if this is an ASDK." -ForegroundColor Red
+        Break
+    }
+    if ($azsInternalDomain -and !$multiNode) {
+        Set-Location $ScriptLocation
+        Write-Host "You've specified the -azsInternalDomain parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -azsInternalDomain if this is an ASDK." -ForegroundColor Red
+        Break
+    }
+
+    ### By this point, you should either know whether this is a multinode deployment, and all parameters should exist, or not
+
+    if ($multiNode) {
+        # Validate internal domain entry and set the pepAdminUsername
+        if ([string]::IsNullOrEmpty($azsInternalDomain)) {
+            Write-CustomVerbose -Message "You specified this is a multinode deployment, but didn't provide a valid internal domain for your deployment" 
+            $azsInternalDomain = Read-Host "Please enter the internal domain that was specified during your Azure Stack deployment for example, contoso." -ErrorAction Stop
+            $pepAdminUsername = "$azsInternalDomain\cloudadmin"
+        }
+        else {
+            $pepAdminUsername = "$azsInternalDomain\cloudadmin"
+        }
+        # Validate password for privileged endpoint
+        if ([string]::IsNullOrEmpty($pepPwd)) {
+            Write-CustomVerbose -Message "You didn't enter the password for the Privileged Endpoint." 
+            $securePepPwd = Read-Host "Please enter the password used for the Privileged Endpoint" -AsSecureString -ErrorAction Stop
+            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePepPwd)            
+            $pepPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+        }
+        Write-CustomVerbose -Message "Checking to see Privileged Endpoint password is strong..."
+        if ($pepPwd -cmatch $regex -eq $true) {
+            Write-CustomVerbose -Message "Privileged Endpoint password is strong." 
+            # Convert plain text password to a secure string
+            $securePepPwd = ConvertTo-SecureString -AsPlainText $pepPwd -Force
+        }
+        elseif ($pepPwd -cmatch $regex -eq $false) {
+            Write-Host "`r`nAzure Stack Privileged Endpoint password is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
+            Start-Sleep -Seconds 10
+            # Convert plain text password to a secure string
+            $securePepPwd = ConvertTo-SecureString -AsPlainText $pepPwd -Force
+        }
+        # Validate IP address structure for privileged endpoint
+        if ([string]::IsNullOrEmpty($pepIP)) {
+            Write-CustomVerbose -Message "You didn't enter an IP address for the Privileged Endpoint." 
+            $pepIP = Read-Host "Please enter a valid IP address for the Privileged Endpoint." -ErrorAction Stop
+        }
+        Write-CustomVerbose -Message "Checking to see Privileged Endpoint IP address is valid..."
+        if ($pepIP -cmatch $ipRegex -eq $true) {
+            Write-CustomVerbose -Message "Privileged Endpoint IP address is valid. IP address is $pepIP"
+            $ERCSip = $pepIP
+        }
+        elseif ($pepIP -cmatch $ipRegex -eq $false) {
+            Write-Host "Azure Stack Privileged Endpoint IP address is valid.`nIt should be a correctly formed IPv4 address, for example 192.168.100.101." -ForegroundColor Red
+            Break
+        }
+        # Validate -certPath
+        Write-CustomVerbose -Message "Validating certificate path."
+        $validCertPath = [System.IO.Directory]::Exists($certPath)
+        if ($validCertPath -eq $true) {
+            Write-CustomVerbose -Message "Certificate path exists and is valid" 
+            Write-CustomVerbose -Message "Certificates in this folder will be scanned and renamed for use with the configuration" 
+            $certPath = Set-Location -Path "$certPath" -PassThru
+        }
+        elseif ($validCertPath -eq $false) {
+            $downloadPath = Read-Host "Certificate path is invalid - please enter a valid path where your certificates for the Azure Stack system is located"
+            $validCertPath = [System.IO.Directory]::Exists($certPath)
+            if ($validCertPath -eq $false) {
+                Write-CustomVerbose -Message "No valid cert path was entered again. Exiting process..." -ErrorAction Stop
+                Set-Location $ScriptLocation
+                return
+            }
+            elseif ($validCertPath -eq $true) {
+                Write-CustomVerbose -Message "Certificate path exists and is valid" 
+                Write-CustomVerbose -Message "Files will be stored at $certPath" 
+                $certPath = Set-Location -Path "$certPath" -PassThru
+            }
+        }
+    }
+    else {
+        $azsInternalDomain = "azurestack"
+        $pepAdminUsername = "$azsInternalDomain\cloudadmin"
+        $pepPwd = $secureAsdkHostPwd
+        $ERCSip = "AzS-ERCS01"
+    }
+
+    ### Create PeP Admin Creds ###
+    $pepAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $pepAdminUsername, $pepPwd -ErrorAction Stop
 
     ### Credentials Recap ###
     # $azureRegUsername | Used for Azure AD authentication to register the Azure Stack POC System if NOT using same Azure AD Creds as deployment
     # $azureRegPwd (and $secureAzureRegPwd) | Used for Azure AD authentication to register the Azure Stack POC System if NOT using same Azure AD Creds as deployment
     # $azureRegCreds | Combined credentials, used for Azure AD authentication to register the Azure Stack POC System if NOT using same Azure AD Creds as deployment
-    # $cloudAdminCreds | Used for ADFS login (azurestackadmin not used) and also MySQL/SQL RP deployment
+    # $pepAdminCreds | Used for ADFS login (azurestackadmin not used) and also MySQL/SQL RP deployment
+
+    ### ADFS VALIDATION #########################################################################################################################################
+    #############################################################################################################################################################
 
     if ($authenticationType.ToString() -like "ADFS") {
-        $azsCreds = $cloudAdminCreds
+        $azsCreds = $pepAdminCreds
     }
 
     ### Credentials Recap ###
-    # $azsCreds | If deployment is using ADFS, $azsCreds will be set to match $azureStackAdminCreds, which should be azurestack\azurestackadmin and accompanying password
+    # $azsCreds | If deployment is using ADFS, $azsCreds will be set to match $asdkAdminCreds, which should be azurestack\azurestackadmin and accompanying password
 
     if ($authenticationType.ToString() -like "ADFS" -and $registerAzS) {
 
@@ -1121,6 +1288,9 @@ try {
         }
     }
 
+    ### VALIDATE SUB FOR REGISTRATION ###########################################################################################################################
+    #############################################################################################################################################################
+
     if ($registerAzS) {
 
         Write-CustomVerbose -Message "Checking for a valid Azure subscription ID that will be used to register the Azure Stack to Azure"
@@ -1140,6 +1310,9 @@ try {
             return    
         }
     }
+
+    ### VALIDATE DOMAIN SUFFIX ##################################################################################################################################
+    #############################################################################################################################################################
 
     ### Validate Custom Domain Suffix ###
     Write-CustomVerbose -Message "The domain suffix that you're using for this Azure Stack POC deployment is $customDomainSuffix"
@@ -1163,6 +1336,9 @@ try {
             }
         }
     }
+
+    ### PORTAL CONNECTIVITY #####################################################################################################################################
+    #############################################################################################################################################################
 
     ### Test connectivity to portals ###
     Write-CustomVerbose -Message "Testing connectivity to adminportal.$customDomainSuffix and portal.$customDomainSuffix"
@@ -1390,6 +1566,7 @@ try {
             CheckPowerShell      = "Incomplete";
             InstallPowerShell    = "Incomplete";
             DownloadTools        = "Incomplete";
+            CheckCerts           = "Incomplete";
             HostConfiguration    = "Incomplete";
             Registration         = "Incomplete";
             AdminPlanOffer       = "Incomplete";
@@ -1478,13 +1655,22 @@ try {
         $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
         $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
         $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
+        $edition = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Edition ").ToString().Split(" ")[2].Trim()
         Dismount-DiskImage -ImagePath $ISOPath
         Write-CustomVerbose -Message "The ISO file found at $ISOpath has a Windows Server build version of: $buildVersion"
         if ($buildVersion -ne "14393") {
-            Throw "The Windows Server $buildVersion does not equal 14393 - this is not a valid Windows Server 2016 RTM ISO image. Please check your image, and rerun the script"
+            Write-Host "The Windows Server $buildVersion does not equal 14393 - this is not a valid Windows Server 2016 RTM ISO image. Please check your image, and rerun the script" -ForegroundColor Red
         }
         else {
             Write-CustomVerbose -Message "The Windows Server $buildVersion does equal 14393, which is a valid build number and the process will continue"
+        }
+        if ($multiNode) {
+            if ($edition -like "*Eval*") {
+                Write-Host "This Windows Server 2016 ISO is evaluation media, which should not be used on a multinode Azure Stack system." -ForegroundColor Red
+                Write-Host "Instead of this media, you should use media downloaded from MSDN/Visual Studio, or Volume License media. This will ensure correct activation on the Azure Stack system" -ForegroundColor Red
+                Write-Host "Please use the correct media, then rerun the script." -ForegroundColor Red
+                BREAK
+            }  
         }
     }
     catch {
@@ -1536,13 +1722,22 @@ try {
             $isoDriveLetterForVersion = ($isoMountForVersion | Get-Volume).DriveLetter
             $wimPath = "$IsoDriveLetterForVersion`:\sources\install.wim"
             $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
+            $edition = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Edition ").ToString().Split(" ")[2].Trim()
             Dismount-DiskImage -ImagePath $ISOPath2019
             Write-CustomVerbose -Message "The ISO file found at $ISOpath2019 has a Windows Server build version of: $buildVersion"
             if ($buildVersion -ne "17763") {
-                Throw "Build version: $buildVersion does not equal 17763 - this is not a valid Windows Server 2019 RTM ISO image. Please check your image, and rerun the script"
+                Write-Host "Build version: $buildVersion does not equal 17763 - this is not a valid Windows Server 2019 RTM ISO image. Please check your image, and rerun the script" -ForegroundColor Red
             }
             else {
                 Write-CustomVerbose -Message "The Windows Server $buildVersion does equal 17763, which is a valid build number and the process will continue"
+            }
+            if ($multiNode) {
+                if ($edition -like "*Eval*") {
+                    Write-Host "This Windows Server 2019 ISO is evaluation media, which should not be used on a multinode Azure Stack system." -ForegroundColor Red
+                    Write-Host "Instead of this media, you should use media downloaded from MSDN/Visual Studio, or Volume License media. This will ensure correct activation on the Azure Stack system" -ForegroundColor Red
+                    Write-Host "Please use the correct media, then rerun the script." -ForegroundColor Red
+                    BREAK
+                }  
             }
         }
         catch {
@@ -1619,16 +1814,6 @@ try {
             Clear-Host
             Write-CustomVerbose -Message "Checking for a previous installation of PowerShell. If found, to ensure full compatibility with the AzSPoC, this will be cleaned up...please wait..."
             $cleanupRequired = $false
-            <#$psRepositoryName = "PSGallery"
-        $psRepositoryInstallPolicy = "Trusted"
-        $psRepositorySourceLocation = "https://www.powershellgallery.com/api/v2"
-        $psRepository = Get-PSRepository -ErrorAction SilentlyContinue | Where-Object {($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation")}
-        if ($psRepository) {
-            $cleanupRequired = $false
-        }
-        else {
-            $cleanupRequired = $true
-        }#>
             try {
                 $psRmProfle = Get-AzureRmProfile -ErrorAction Ignore | Where-Object { ($_.ProfileName -eq "2019-03-01-hybrid") -or ($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile") }
             }
@@ -1754,10 +1939,6 @@ try {
         Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
 
-    # Load the Storage PowerShell modules explicitly specifying the versions
-    #Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
-    #Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
-
     ### TEST ALL LOGINS #########################################################################################################################################
     #############################################################################################################################################################
 
@@ -1856,6 +2037,46 @@ try {
         $azureRegCreds = $null
     }
 
+    ### VALIDATE PEP #############################################################################################################################################
+    ##############################################################################################################################################################
+
+    # Establish a session with the PEP to ensure everything is working correctly
+    Write-Host "Validating access to the Privileged Endpoint..."
+    Write-Host "Targeting $ERCSip..."
+    if ($multiNode) {
+        Remove-Variable -Name currentWinRm -ErrorAction SilentlyContinue
+        $currentWinRm = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
+        if ($currentWinRm -eq '*') {
+            Write-Host "WinRM is already configured with a wildcard, no further action required"
+        }
+        elseif ($currentWinRm -notcontains "*$ERCSip*") {
+            if ([string]::IsNullOrEmpty($currentWinRm)) {
+                Write-Host "TrustedHosts is empty, adding $ERCSip to the TrustedHosts list."
+                $currentWinRm += "$ERCSip"
+            }
+            else {
+                Write-Host "TrustedHosts exists and has the following entry: $currentWinRm"
+                Write-Host "Adding $ERCSip to the TrustedHosts list."
+                $currentWinRm += ",$ERCSip"
+            }
+            Set-item WSMan:\localhost\Client\TrustedHosts –value $currentWinRm -Force -ErrorAction Stop
+        }
+    }
+    try {
+        Write-Host "Validating connection to the Privileged Endpoint"
+        $pepTest = New-PSSession -ComputerName $ERCSip -Credential $pepAdminCreds -ConfigurationName PrivilegedEndpoint -ErrorAction Stop
+        Write-Host "Connection to the Privileged Endpoint was successful. The details are as follows:"
+        $pepTest
+        Write-Host "`nCleaning up the session test..."
+        Remove-PSSession -Session $pepTest -ErrorAction Stop
+    }
+    catch {
+        Write-Host "Connectivity to the Privileged Endpoint failed - please check the domain, IP address and credentials and rerun the script" -ForegroundColor Red
+        Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
+        Set-Location $ScriptLocation
+        return
+    }
+
     ### CLEAN LOGINS #######################################################################################################################################
     ########################################################################################################################################################
 
@@ -1927,52 +2148,59 @@ try {
     $progressCheck = CheckProgress -progressStage $progressStage
     $scriptStep = $progressStage.ToUpper()
 
-    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
-        try {
-            # Set password expiration to 180 days
-            Write-CustomVerbose -Message "Configuring password expiration policy"
-            Set-ADDefaultDomainPasswordPolicy -MaxPasswordAge 180.00:00:00 -Identity azurestack.local
-            Get-ADDefaultDomainPasswordPolicy
-
-            # Set Power Policy
-            Write-CustomVerbose -Message "Optimizing power policy for high performance"
-            POWERCFG.EXE /S SCHEME_MIN
-
-            # Disable Windows Update on infrastructure VMs
-            Write-CustomVerbose -Message "Disabling Windows Update on Infrastructure VMs and ASDK Host`r`n"
-            $AZSvms = Get-VM -Name AZS*
-            $scriptblock = {
-                Get-Service -Name wuauserv | Stop-Service -Force -PassThru | Set-Service -StartupType disabled -Confirm:$false
-            }
-            foreach ($vm in $AZSvms) {
-                Invoke-Command -VMName $vm.name -ScriptBlock $scriptblock -Credential $azureStackAdminCreds
-            }
-
-            # Disable Windows Update and DNS Server on Host - using foreach loop as ASDK on Azure solution doesn't have DNS Server.
-            $serviceArray = @()
-            $serviceArray.Clear()
-            $serviceArray = "wuauserv", "DNS"
-            foreach ($service in $serviceArray) {
-                if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
-                    Write-CustomVerbose -Message "Stopping Service: $service"
-                    Stop-Service -Name $service -Force -PassThru
-                    Write-CustomVerbose -Message "Disabling Service: $service at startup"
-                    Set-Service -Name $service -StartupType disabled -Confirm:$false
+    if (!$multiNode) {
+        if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
+            try {
+                # Set password expiration to 180 days
+                Write-CustomVerbose -Message "Configuring password expiration policy"
+                Set-ADDefaultDomainPasswordPolicy -MaxPasswordAge 180.00:00:00 -Identity azurestack.local
+                Get-ADDefaultDomainPasswordPolicy
+    
+                # Set Power Policy
+                Write-CustomVerbose -Message "Optimizing power policy for high performance"
+                POWERCFG.EXE /S SCHEME_MIN
+    
+                # Disable Windows Update on infrastructure VMs
+                Write-CustomVerbose -Message "Disabling Windows Update on Infrastructure VMs and ASDK Host`r`n"
+                $AZSvms = Get-VM -Name AZS*
+                $scriptblock = {
+                    Get-Service -Name wuauserv | Stop-Service -Force -PassThru | Set-Service -StartupType disabled -Confirm:$false
                 }
-                else {
-                    Write-CustomVerbose -Message "Service: $service not found, continuing process..."
+                foreach ($vm in $AZSvms) {
+                    Invoke-Command -VMName $vm.name -ScriptBlock $scriptblock -Credential $asdkAdminCreds
                 }
+    
+                # Disable Windows Update and DNS Server on Host - using foreach loop as ASDK on Azure solution doesn't have DNS Server.
+                $serviceArray = @()
+                $serviceArray.Clear()
+                $serviceArray = "wuauserv", "DNS"
+                foreach ($service in $serviceArray) {
+                    if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
+                        Write-CustomVerbose -Message "Stopping Service: $service"
+                        Stop-Service -Name $service -Force -PassThru
+                        Write-CustomVerbose -Message "Disabling Service: $service at startup"
+                        Set-Service -Name $service -StartupType disabled -Confirm:$false
+                    }
+                    else {
+                        Write-CustomVerbose -Message "Service: $service not found, continuing process..."
+                    }
+                }
+                StageComplete -progressStage $progressStage
             }
-            StageComplete -progressStage $progressStage
+            Catch {
+                StageFailed -progressStage $progressStage
+                Set-Location $ScriptLocation
+                return
+            }
         }
-        Catch {
-            StageFailed -progressStage $progressStage
-            Set-Location $ScriptLocation
-            return
+        elseif ($progressCheck -eq "Complete") {
+            Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
         }
     }
-    elseif ($progressCheck -eq "Complete") {
-        Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
+    else {
+        # Update the AzSPoC database with skip status
+        $progressStage = $progressName
+        StageSkipped -progressStage $progressStage
     }
 
     ### REGISTER AZURE STACK TO AZURE ############################################################################################################################
@@ -2002,9 +2230,15 @@ try {
                 # Import the registration module that was downloaded with the GitHub tools
                 Import-Module $modulePath\Registration\RegisterWithAzure.psm1 -Force -Verbose
                 #Register Azure Stack
-                $asdkHostName = ($env:computername).ToLower()
-                $azsRegName = "azsreg-$asdkHostName-$runTime"
-                Set-AzsRegistration -PrivilegedEndpointCredential $cloudAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "$azsRegName" -BillingModel Development -ErrorAction Stop
+                if (!$multiNode) {
+                    $asdkHostName = ($env:computername).ToLower()
+                    $azsRegName = "azsreg-$asdkHostName-$runTime"
+                }
+                else {
+                    $randomGuid = ((New-Guid).ToString()).Substring(0, 6)
+                    $azsRegName = "azsreg-$randomGuid-$runTime"
+                }
+                Set-AzsRegistration -PrivilegedEndpointCredential $pepAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "$azsRegName" -BillingModel Development -ErrorAction Stop
                 # Create Cleanup Doc - First Create File
                 $CleanUpRegPS1Path = "$downloadPath\AzSRegCleanUp.ps1"
                 Remove-Item -Path $CleanUpRegPS1Path -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
@@ -2023,9 +2257,9 @@ try {
                 Write-Output "`$azureRegSub = Add-AzureRmAccount -EnvironmentName `"AzureCloud`" -SubscriptionId `"$azureRegSubId`" -Credential `$azureRegCreds" -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 # Get Azure Stack POC Privileged Endpoint Creds
                 Write-Output "`n# Get Azure Stack POC Privileged Endpoint Creds" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
-                Write-Output '$cloudAdminCreds = Get-Credential -UserName "azurestack\cloudadmin" -Message "Enter the credentials to access the privileged endpoint."' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
+                Write-Output '$pepAdminCreds = Get-Credential -UserName "$azsInternalDomain\cloudadmin" -Message "Enter the credentials to access the privileged endpoint."' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 # Perform Removal
-                Write-Output 'Remove-AzsRegistration -PrivilegedEndpoint "Azs-ERCS01" -PrivilegedEndpointCredential $cloudAdminCreds -RegistrationName "$azsRegName"' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
+                Write-Output 'Remove-AzsRegistration -PrivilegedEndpoint "$ERCSip" -PrivilegedEndpointCredential $pepAdminCreds -RegistrationName "$azsRegName"' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 StageComplete -progressStage $progressStage
             }
             catch {
@@ -2253,11 +2487,20 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
 
     $scriptStep = "LAUNCHJOBS"
     # Get current free space on the drive used to hold the Azure Stack images
-    Write-CustomVerbose -Message "Calculating free disk space on Cluster Shared Volume, to plan image upload concurrency"
-    Start-Sleep 5
-    $freeCSVSpace = [int](((Get-ClusterSharedVolume | Select-Object -Property Name -ExpandProperty SharedVolumeInfo).Partition.FreeSpace) / 1GB)
-    Write-CustomVerbose -Message "Free space on Cluster Shared Volume = $($freeCSVSpace)GB"
-    Start-Sleep 3
+    if (!$multiNode) {
+        Write-CustomVerbose -Message "Calculating free disk space on Cluster Shared Volume, to plan image upload concurrency"
+        Start-Sleep 5
+        $freeDiskSpace = [int](((Get-ClusterSharedVolume | Select-Object -Property Name -ExpandProperty SharedVolumeInfo).Partition.FreeSpace) / 1GB)
+        Write-CustomVerbose -Message "Free space on Cluster Shared Volume = $($freeDiskSpace)GB"
+        Start-Sleep 3
+    }
+    else {
+        Write-CustomVerbose -Message "Calculating free disk space on your local system, to plan image upload concurrency"
+        Start-Sleep 5
+        $freeDiskSpace = [int](((Get-ClusterSharedVolume | Select-Object -Property Name -ExpandProperty SharedVolumeInfo).Partition.FreeSpace) / 1GB)
+        Write-CustomVerbose -Message "Free space on local system volume = $($freeDiskSpace)GB"
+        Start-Sleep 3
+    }
 
     if ($null -eq $ISOPath2019) {
         $sm = 45
@@ -2271,23 +2514,23 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         $lg = 200
     }
 
-    if ($freeCSVSpace -lt $sm) {
+    if ($freeDiskSpace -lt $sm) {
         Write-CustomVerbose -Message "Free space is less than $($sm)GB - you don't have enough room on the drive to create the Windows Server image with updates"
         throw "You need additional space to create a Windows Server image. Minimum required free space is $($sm)GB"
     }
-    elseif ($freeCSVSpace -ge $sm -and $freeCSVSpace -lt $md) {
+    elseif ($freeDiskSpace -ge $sm -and $freeDiskSpace -lt $md) {
         Write-CustomVerbose -Message "Free space is less than $($md)GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
         Write-CustomVerbose -Message "Your Ubuntu Server and Windows Server images will be created serially.  This could take some time."
         # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core 3. Windows Server Full (+ WS 2019 Core, + WS 2019 Full Optionally)
         $runMode = "serial"
     }
-    elseif ($freeCSVSpace -ge $med -and $freeCSVSpace -lt $lg) {
+    elseif ($freeDiskSpace -ge $med -and $freeDiskSpace -lt $lg) {
         Write-CustomVerbose -Message "Free space is less than $($lg)GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
         Write-CustomVerbose -Message "Your Ubuntu Server will be created first, then Windows Server images will be created in parallel.  This could take some time."
         # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after both prior jobs have finished 3. (+ WS 2019 Core, + WS 2019 Full Optionally)
         $runMode = "partialParallel"
     }
-    elseif ($freeCSVSpace -ge $lg) {
+    elseif ($freeDiskSpace -ge $lg) {
         Write-CustomVerbose -Message "Free space is more than $($lg)GB - you have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
         Write-CustomVerbose -Message "This is the fastest way to populate the Azure Stack Platform Image Repository."
         # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel (+ WS 2019 Core, + WS 2019 Full Optionally) after Windows Update job is finished.
@@ -2430,9 +2673,9 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $jobName = "AddMySQLRP"
     $AddMySQLRP = {
         Start-Job -Name AddMySQLRP -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $secureVMpwd, $deploymentMode, $serialMode, `
-            $tenantID, $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            $tenantID, $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $pepAdminCreds, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
-                -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
+                -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -pepAdminCreds $Using:pepAdminCreds `
                 -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
                 -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
         } -Verbose -ErrorAction Stop
@@ -2442,9 +2685,9 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $jobName = "AddSQLServerRP"
     $AddSQLServerRP = {
         Start-Job -Name AddSQLServerRP -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $secureVMpwd, $deploymentMode, $serialMode, `
-            $tenantID, $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $cloudAdminCreds, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            $tenantID, $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $pepAdminCreds, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
-                -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -cloudAdminCreds $Using:cloudAdminCreds `
+                -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -pepAdminCreds $Using:pepAdminCreds `
                 -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
                 -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
         } -Verbose -ErrorAction Stop
@@ -2583,12 +2826,12 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $jobName = "AddAppServicePreReqs"
     $AddAppServicePreReqs = {
         Start-Job -Name AddAppServicePreReqs -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $downloadPath, $deploymentMode, $authenticationType, `
-            $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $branch, $azsCreds, $cloudAdminCreds, $ScriptLocation, $skipAppService, `
+            $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $branch, $azsCreds, $pepAdminCreds, $ScriptLocation, $skipAppService, `
             $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\AddAppServicePreReqs.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix `
                 -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -authenticationType $Using:authenticationType `
                 -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -secureVMpwd $Using:secureVMpwd -ERCSip $Using:ERCSip -branch $Using:branch `
-                -azsCreds $Using:azsCreds -cloudAdminCreds $Using:cloudAdminCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService `
+                -azsCreds $Using:azsCreds -pepAdminCreds $Using:pepAdminCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService `
                 -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
@@ -2795,7 +3038,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     if ($progressCheck -eq "Complete") {
         Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
-    elseif (!$skipCustomizeHost -and ($progressCheck -ne "Complete")) {
+    elseif (!$skipCustomizeAsdkHost -and ($progressCheck -ne "Complete")) {
         # We first need to check if in a previous run, this section was skipped, but now, the user wants to add this, so we need to reset the progress.
         if ($progressCheck -eq "Skipped") {
             StageReset
@@ -2989,7 +3232,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             }
         }
     }
-    elseif ($skipCustomizeHost -and ($progressCheck -ne "Complete")) {
+    elseif ($skipCustomizeAsdkHost -and ($progressCheck -ne "Complete")) {
         StageSkipped -progressStage $progressStage
     }
     
@@ -3011,10 +3254,10 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         Write-Output "`r`nThis document contains useful information about your deployment" > $txtPath
         Write-Output "`r`nYour chosen authentication type was: $authenticationType" >> $txtPath
         if ($authenticationType.ToString() -like "ADFS") {
-            Write-Output "Your ASDK admin account and the Azure Stack portal use the following account for login: $azureStackAdminUsername" >> $txtPath
+            Write-Output "Your ASDK admin account and the Azure Stack portal use the following account for login: $asdkAdminUsername" >> $txtPath
         }
         elseif ($authenticationType.ToString() -like "AzureAD") {
-            Write-Output "Use the following username to login to your ASDK host: $azureStackAdminUsername" >> $txtPath
+            Write-Output "Use the following username to login to your ASDK host: $asdkAdminUsername" >> $txtPath
             Write-Output "Use the following username to login to the Azure Stack portal: $azureAdUsername" >> $txtPath
         }
         Write-Output "`r`nAzure Stack POC system has been registered to Azure: $($registerAzS.IsPresent)" >> $txtPath

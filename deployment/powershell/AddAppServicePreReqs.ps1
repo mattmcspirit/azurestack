@@ -35,7 +35,7 @@ param (
     [pscredential] $azsCreds,
 
     [parameter(Mandatory = $true)]
-    [pscredential] $cloudAdminCreds,
+    [pscredential] $pepAdminCreds,
     
     [parameter(Mandatory = $true)]
     [String] $ScriptLocation,
@@ -141,7 +141,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             
             if (!$([System.IO.File]::Exists("$AppServicePath\CertsCreated.txt"))) {
                 .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName $customDomainSuffix
-                .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $cloudAdminCreds
+                .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $pepAdminCreds
                 New-Item -Path "$AppServicePath\CertsCreated.txt" -ItemType file -Force
             }
             else {
