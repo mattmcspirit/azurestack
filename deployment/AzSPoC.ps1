@@ -2488,7 +2488,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $scriptStep = "LAUNCHJOBS"
     # Get current free space on the drive used to hold the Azure Stack images
     if (!$multiNode) {
-        Write-CustomVerbose -Message "Calculating free disk space on Cluster Shared Volume, to plan image upload concurrency"
+        Write-CustomVerbose -Message "Calculating free disk space on ASDK Cluster Shared Volume, to plan image upload concurrency"
         Start-Sleep 5
         $freeDiskSpace = [int](((Get-ClusterSharedVolume | Select-Object -Property Name -ExpandProperty SharedVolumeInfo).Partition.FreeSpace) / 1GB)
         Write-CustomVerbose -Message "Free space on Cluster Shared Volume = $($freeDiskSpace)GB"
