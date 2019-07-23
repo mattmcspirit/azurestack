@@ -253,6 +253,10 @@ param (
     [parameter(Mandatory = $false)]
     [String]$certPath,
 
+    # Path where your certificates for multiNode are stored
+    [parameter(Mandatory = $false)]
+    [String]$certPwd,
+
     # Custom domain suffix - will be mandatory for a multiNode, but can be hacked for ASDK
     [Parameter(Mandatory = $false)]
     [string]$customDomainSuffix = "local.azurestack.external"
@@ -1048,15 +1052,15 @@ try {
     ### MULTINODE VALIDATION ####################################################################################################################################
     #############################################################################################################################################################
 
-    if ($multiNode -and ($pepIP -and $pepPwd -and $customDomainSuffix -and $certPath -and $azsInternalDomain)) {
+    if ($multiNode -and ($pepIP -and $pepPwd -and $customDomainSuffix -and $certPath -and $azsInternalDomain -and $certPwd)) {
         Write-Host "All multinode parameters have been defined - we will now validate the parameters to ensure accuracy."
     }
-    if (!$multiNode -and ($pepIP -and $pepPwd -and $customDomainSuffix -and $certPath -and $azsInternalDomain)) {
+    if (!$multiNode -and ($pepIP -and $pepPwd -and $customDomainSuffix -and $certPath -and $azsInternalDomain -and $certPwd)) {
         Set-Location $ScriptLocation
         Write-Host "All multinode parameters have been defined - but you didn't use the -multiNode switch - please use this to confirm this is a multinode." -ForegroundColor Red
         Break
     }
-    if ($multiNode -and (!$pepIP -or !$pepPwd -or !$customDomainSuffix -or !$certPath -or !$azsInternalDomain)) {
+    if ($multiNode -and (!$pepIP -or !$pepPwd -or !$customDomainSuffix -or !$certPath -or !$azsInternalDomain -or $certPwd)) {
         Write-Host "You've specified a multinode deployment, yet you've not provided all related parameters"
         if (!$pepIP) {
             Set-Location $ScriptLocation
@@ -1076,6 +1080,11 @@ try {
         if (!$certPath) {
             Set-Location $ScriptLocation
             Write-Host "The -certPath parameter is missing - this is the path where you have stored your certificates for the Azure Stack deployment and the resource providers. Please rerun the script and provide the certificate path or remove the -multiNode switch if this is an ASDK." -ForegroundColor Red
+            Break
+        }
+        if (!$certPwd) {
+            Set-Location $ScriptLocation
+            Write-Host "The -certPwd parameter is missing - this is the password you used for your certificates for the Azure Stack deployment and the resource providers. Please rerun the script and provide the certificate password or remove the -multiNode switch if this is an ASDK." -ForegroundColor Red
             Break
         }
         if (!$azsInternalDomain) {
@@ -1102,6 +1111,11 @@ try {
     if ($certPath -and !$multiNode) {
         Set-Location $ScriptLocation
         Write-Host "You've specified the -certPath parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, , or remove the -certPath if this is an ASDK." -ForegroundColor Red
+        Break
+    }
+    if ($certPwd -and !$multiNode) {
+        Set-Location $ScriptLocation
+        Write-Host "You've specified the -certPwd parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, , or remove the -certPwd if this is an ASDK." -ForegroundColor Red
         Break
     }
     if ($azsInternalDomain -and !$multiNode) {
@@ -1177,12 +1191,32 @@ try {
                 $certPath = Set-Location -Path "$certPath" -PassThru
             }
         }
+        # Validate password for privileged endpoint
+        if ([string]::IsNullOrEmpty($certPwd)) {
+            Write-CustomVerbose -Message "You didn't enter the password for the Privileged Endpoint." 
+            $secureCertPwd = Read-Host "Please enter the password used for the Privileged Endpoint" -AsSecureString -ErrorAction Stop
+            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureCertPwd)            
+            $certPwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)  
+        }
+        Write-CustomVerbose -Message "Checking to see Privileged Endpoint password is strong..."
+        if ($certPwd -cmatch $regex -eq $true) {
+            Write-CustomVerbose -Message "Privileged Endpoint password is strong." 
+            # Convert plain text password to a secure string
+            $secureCertPwd = ConvertTo-SecureString -AsPlainText $certPwd -Force
+        }
+        elseif ($certPwd -cmatch $regex -eq $false) {
+            Write-Host "`r`nAzure Stack Privileged Endpoint password is not a strong password.`nIt should ideally be at least 8 characters, with at least 1 upper case, 1 lower case, and 1 special character.`nPlease consider a stronger password in the future.`r`n" -ForegroundColor Cyan
+            Start-Sleep -Seconds 10
+            # Convert plain text password to a secure string
+            $secureCertPwd = ConvertTo-SecureString -AsPlainText $certPwd -Force
+        }
     }
     else {
         $azsInternalDomain = "azurestack"
         $pepAdminUsername = "$azsInternalDomain\cloudadmin"
         $pepPwd = $secureAsdkHostPwd
         $ERCSip = "AzS-ERCS01"
+        $certPwd = $secureAsdkHostPwd
     }
 
     ### Create PeP Admin Creds ###
@@ -2141,6 +2175,105 @@ try {
     Set-Location $modulePath
     Disable-AzureRmDataCollection -WarningAction SilentlyContinue
 
+    ### CHECK CERTS FOR MULTINODE ##########################################################################################################################
+    ########################################################################################################################################################
+
+    $progressStage = "CheckCerts"
+    $progressCheck = CheckProgress -progressStage $progressStage
+    $scriptStep = $progressStage.ToUpper()
+
+    if ($multiNode) {
+        Write-Host "This is a multinode deployment - this step will discover and organize your certificates."
+        if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
+            try {
+                Write-Host "Looking for your root certificate, which should be in the certificate path that you provided..."
+                $multiNodeRootCert = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.cer" -ErrorAction Stop
+                if ($multiNodeRootCert) {
+                    Write-Host "Found a certificate at $($multiNodeRootCert.FullName)"
+                    Write-Host "Renaming the located certificate..."
+                    Rename-Item -Path $multiNodeRootCert.FullName -NewName "AzureStackRootCert.cer" -ErrorAction Stop
+                    $multiNodeRootCert = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.cer" -ErrorAction Stop
+                    Write-Host "Root cert located at $($multiNodeRootCert.FullName)"
+                }
+                else {
+                    Write-Host "Could not locate any .cer files - please ensure you have your Azure Stack root certificate in your certificate path folder, then rerun the script." -ForegroundColor Red
+                    Break
+                }
+                $multiNodePFXCerts = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.pfx" -ErrorAction Stop
+                foreach ($cert in $multiNodePFXCerts) {
+                    $PFXPath = $cert.FullName
+                    Write-Host "Found a valid certificate at $PFXPath`n"
+                    $PFX = New-Object -TypeName 'System.Security.Cryptography.X509Certificates.X509Certificate2Collection' -ErrorAction Stop
+                    Write-Host "Importing certificate..."
+                    $PFX.Import($PFXPath, $certPwd, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet)
+                    foreach ($p in $PFX) {
+                        if ($p.DnsNameList.Unicode -like '*.appservice.*') {
+                            if ($p.DnsNameList.Unicode.Count -gt 1) {
+                                if ($p.DnsNameList.Unicode -like '`*.appservice.*') {
+                                    Write-Host "Gathering information on the App Service certificates"
+                                    $newCertName = (($p.DnsNameList.Unicode | Select-Object -First 1) -replace '\*', "wildcard") + ".pfx"
+                                    Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode | Select-Object -First 1)"
+                                }
+                            }
+                            else {
+                                Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode)"
+                                $newCertName = ($p.DnsNameList.Unicode) + ".pfx"
+                            }
+                        }
+                        elseif ($p.DnsNameList.Unicode -like '`*.dbadapter.*') {
+                            Write-Host "Gathering information on the Database certificates"
+                            Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode)"
+                            $newCertName = (($p.DnsNameList.Unicode) -replace '\*', "wildcard") + ".pfx"
+                        }
+                    }
+                    Write-Host "Renaming certificate for simplified management..."
+                    Rename-Item -Path $PFXPath -NewName $newCertName -ErrorAction Stop
+                    Write-Host "Done. New cert name is $newCertName."
+                }
+                Write-Host "Getting updated names for certificates..."
+                # Checking for App Service Certs
+                $appServiceCerts = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*appservice*.pfx" -ErrorAction Stop
+                if (!$skipAppService -and ($appServiceCerts.Count -ge 4)) {
+                    Write-Host "`nIt appears you have the correct number of certificates for the App Service deployment:`n"
+                    $appServiceCerts.Name
+                }
+                else {
+                    Write-Host "`nIt looks as if you do not have the correct number of certificates for the App Service deployment" -ForegroundColor Red
+                    Write-Host "You should have at least 4 separate certificates - please check the documentation for details" -ForegroundColor Red
+                    Break
+                }
+                # Checking for Database RP Cert
+                $dbCerts = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*dbadapter*.pfx" -ErrorAction Stop
+                if (!$skipAppService -and ($dbCerts.Count -ge 1)) {
+                    Write-Host "`nIt appears you have the correct number of certificates for the Database RP (SQL or MySQL) deployment:`n"
+                    $dbCerts.Name
+                }
+                else {
+                    Write-Host "`nIt looks as if you do not have the correct number of certificates for the Database RP deployment" -ForegroundColor Red
+                    Write-Host "You should have at least 1 wildcard certificate - please check the documentation for details" -ForegroundColor Red
+                    Break
+                }
+                StageComplete -progressStage $progressStage
+            }
+            Catch {
+                StageFailed -progressStage $progressStage
+                Set-Location $ScriptLocation
+                return
+            }
+        }
+        elseif ($progressCheck -eq "Complete") {
+            Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
+        }
+        elseif ($progressCheck -eq "Skipped") {
+            Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously skipped"
+        }
+    }
+    else {
+        # Update the AzSPoC database with skip status
+        $progressStage = $progressName
+        StageSkipped -progressStage $progressStage
+    }
+
     ### CONFIGURE THE AZURE STACK HOST & INFRA VIRTUAL MACHINES ############################################################################################
     ########################################################################################################################################################
 
@@ -2195,6 +2328,9 @@ try {
         }
         elseif ($progressCheck -eq "Complete") {
             Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
+        }
+        elseif ($progressCheck -eq "Skipped") {
+            Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously skipped"
         }
     }
     else {
@@ -2497,7 +2633,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     else {
         Write-CustomVerbose -Message "Calculating free disk space on your local system, to plan image upload concurrency"
         Start-Sleep 5
-        $freeDiskSpace = [int](((Get-ClusterSharedVolume | Select-Object -Property Name -ExpandProperty SharedVolumeInfo).Partition.FreeSpace) / 1GB)
+        $freeDiskSpace = [int](((Get-Volume -FilePath "$azsPath").SizeRemaining) / 1GB)
         Write-CustomVerbose -Message "Free space on local system volume = $($freeDiskSpace)GB"
         Start-Sleep 3
     }
