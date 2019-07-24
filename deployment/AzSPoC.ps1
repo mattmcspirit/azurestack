@@ -2191,7 +2191,7 @@ try {
                 if ($multiNodeRootCert) {
                     Write-Host "Found a certificate at $($multiNodeRootCert.FullName)"
                     Write-Host "Renaming the located certificate..."
-                    Rename-Item -Path $multiNodeRootCert.FullName -NewName "AzureStackRootCert.cer" -ErrorAction Stop
+                    Rename-Item -Path $multiNodeRootCert.FullName -NewName "AzureStackCertificationAuthority.cer" -ErrorAction Stop
                     $multiNodeRootCert = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.cer" -ErrorAction Stop
                     Write-Host "Root cert located at $($multiNodeRootCert.FullName)"
                 }
@@ -2211,7 +2211,7 @@ try {
                             if ($p.DnsNameList.Unicode.Count -gt 1) {
                                 if ($p.DnsNameList.Unicode -like '`*.appservice.*') {
                                     Write-Host "Gathering information on the App Service certificates"
-                                    $newCertName = (($p.DnsNameList.Unicode | Select-Object -First 1) -replace '\*', "wildcard") + ".pfx"
+                                    $newCertName = (($p.DnsNameList.Unicode | Select-Object -First 1) -replace '\*', "_") + ".pfx"
                                     Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode | Select-Object -First 1)"
                                 }
                             }
@@ -2223,7 +2223,7 @@ try {
                         elseif ($p.DnsNameList.Unicode -like '`*.dbadapter.*') {
                             Write-Host "Gathering information on the Database certificates"
                             Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode)"
-                            $newCertName = (($p.DnsNameList.Unicode) -replace '\*', "wildcard") + ".pfx"
+                            $newCertName = (($p.DnsNameList.Unicode) -replace '\*', "_") + ".pfx"
                         }
                     }
                     Write-Host "Renaming certificate for simplified management..."
@@ -3399,10 +3399,12 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         Write-Output "`r`nThis document contains useful information about your deployment" > $txtPath
         Write-Output "`r`nYour chosen authentication type was: $authenticationType" >> $txtPath
         if ($authenticationType.ToString() -like "ADFS") {
-            Write-Output "Your ASDK admin account and the Azure Stack portal use the following account for login: $asdkAdminUsername" >> $txtPath
+            Write-Output "Your ASDK admin account and the Azure Stack portal use the following account for login: $pepAdminUsername" >> $txtPath
         }
         elseif ($authenticationType.ToString() -like "AzureAD") {
-            Write-Output "Use the following username to login to your ASDK host: $asdkAdminUsername" >> $txtPath
+            if (!$multiNode) {
+                Write-Output "Use the following username to login to your ASDK host: $asdkAdminUsername" >> $txtPath
+            }
             Write-Output "Use the following username to login to the Azure Stack portal: $azureAdUsername" >> $txtPath
         }
         Write-Output "`r`nAzure Stack POC system has been registered to Azure: $($registerAzS.IsPresent)" >> $txtPath
@@ -3477,14 +3479,23 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             Write-Output "File Share User: fileshareuser" >> $txtPath
             Write-Output "File Share User Password: $VMpwd" >> $txtPath
             Write-Output "Identity Application ID: $identityApplicationID" >> $txtPath
-            Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.$customDomainSuffix.pfx" >> $txtPath
+            if (!$multiNode) {
+                Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.$customDomainSuffix.pfx" >> $txtPath
+                Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority.cer" >> $txtPath
+                Write-Output "App Service default SSL certificate file (*.pfx): $AppServicePath\_.appservice.$customDomainSuffix.pfx" >> $txtPath
+                Write-Output "App Service API SSL certificate file (*.pfx): $AppServicePath\api.appservice.$customDomainSuffix.pfx" >> $txtPath
+                Write-Output "App Service Publisher SSL certificate file (*.pfx): $AppServicePath\ftp.appservice.$customDomainSuffix.pfx" >> $txtPath
+            }
+            else {
+                Write-Output "Identity Application Certificate file (*.pfx): $certPath\sso.appservice.$customDomainSuffix.pfx" >> $txtPath
+                Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $certPath\AzureStackCertificationAuthority.cer" >> $txtPath
+                Write-Output "App Service default SSL certificate file (*.pfx): $certPath\_.appservice.$customDomainSuffix.pfx" >> $txtPath
+                Write-Output "App Service API SSL certificate file (*.pfx): $certPath\api.appservice.$customDomainSuffix.pfx" >> $txtPath
+                Write-Output "App Service Publisher SSL certificate file (*.pfx): $certPath\ftp.appservice.$customDomainSuffix.pfx" >> $txtPath
+            }
             Write-Output "Identity Application Certificate (*.pfx) password: $VMpwd" >> $txtPath
-            Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority.cer" >> $txtPath
-            Write-Output "App Service default SSL certificate file (*.pfx): $AppServicePath\_.appservice.$customDomainSuffix.pfx" >> $txtPath
             Write-Output "App Service default SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
-            Write-Output "App Service API SSL certificate file (*.pfx): $AppServicePath\api.appservice.$customDomainSuffix.pfx" >> $txtPath
             Write-Output "App Service API SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
-            Write-Output "App Service Publisher SSL certificate file (*.pfx): $AppServicePath\ftp.appservice.$customDomainSuffix.pfx" >> $txtPath
             Write-Output "App Service Publisher SSL certificate (*.pfx) password: $VMpwd" >> $txtPath
             Write-Output "SQL Server Name: $sqlAppServerFqdn" >> $txtPath
             Write-Output "SQL sysadmin login: sa" >> $txtPath
@@ -3541,6 +3552,12 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         }
         if ([bool](Get-ChildItem -Path "$AppServicePath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose)) {
             Get-ChildItem -Path "$AppServicePath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ "$completedPath\AppServiceCerts" -Force -ErrorAction SilentlyContinue -Verbose }
+        }
+        elseif ($multiNode) {
+            if ([bool](Get-ChildItem -Path "$certPath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose)) {
+                Get-ChildItem -Path "$certPath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ "$completedPath\AppServiceCerts" -Force -ErrorAction SilentlyContinue -Verbose }
+            }
+
         }
 
         Write-CustomVerbose -Message "Cleaning up AzSFiles Folder"
