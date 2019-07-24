@@ -57,7 +57,13 @@ param (
     [String] $databaseName,
 
     [Parameter(Mandatory = $true)]
-    [String] $tableName
+    [String] $tableName,
+
+    [parameter(Mandatory = $false)]
+    [String] $multiNode,
+
+    [parameter(Mandatory = $false)]
+    [String] $azsRegName
 )
 
 $Global:VerbosePreference = "Continue"
@@ -96,7 +102,6 @@ $progressCheck = CheckProgress -progressStage $progressStage
 $azsImagesRGName = "azurestack-adminimages"
 $azsImagesStorageAccountName = "azsimagesstor"
 $azsImagesContainerName = "azsimagescontainer"
-$csvImagePath = "C:\ClusterStorage\Volume1"
 
 if (!$([System.IO.Directory]::Exists("$azsPath\images"))) {
     New-Item -Path "$azsPath\images" -ItemType Directory -Force | Out-Null   
@@ -112,12 +117,23 @@ if ($ISOPath2019) {
 if (!$([System.IO.Directory]::Exists("$azsPath\images\$image"))) {
     New-Item -Path "$azsPath\images\$image" -ItemType Directory -Force | Out-Null
 }
-if (!$([System.IO.Directory]::Exists("$csvImagePath\images"))) {
-    New-Item -Path "$csvImagePath\images" -ItemType Directory -Force | Out-Null
+
+if (!$multiNode) {
+    $imageRootPath = "C:\ClusterStorage\Volume1"
 }
-if (!$([System.IO.Directory]::Exists("$csvImagePath\Images\$image"))) {
-    New-Item -Path "$csvImagePath\Images\$image" -ItemType Directory -Force | Out-Null
+else {
+    $imageRootPath = $azsPath
 }
+
+if (!$multiNode) {
+    if (!$([System.IO.Directory]::Exists("$imageRootPath\images"))) {
+        New-Item -Path "$imageRootPath\images" -ItemType Directory -Force | Out-Null
+    }
+    if (!$([System.IO.Directory]::Exists("$imageRootPath\images\$image"))) {
+        New-Item -Path "$imageRootPath\images\$image" -ItemType Directory -Force | Out-Null
+    }
+}
+
 
 # Check if 2019 images are going to be created by confirming ISO path is present
 if (($progressStage -eq "ServerCore2019Image") -or ($progressStage -eq "ServerFull2019Image")) {
@@ -144,11 +160,6 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
-
-            <#Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
-            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
-            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
-            #>
 
             # Need to confirm if Windows Update stage previously completed
             if ($image -ne "UbuntuServer") {
@@ -275,6 +286,13 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     }
                 }
             }
+            if ($multiNode) {
+                $windowsVhdSize = 60
+            }
+            else {
+                $windowsVhdSize = 40
+            }
+            
             Set-Location "$azsPath\images"
             # Check which image is being deployed
             if ($image -eq "ServerCore2016") {
@@ -283,7 +301,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 $onlinePackage = "*Microsoft.WindowsServer2016DatacenterServerCore-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
-                $vhdVersion = "2016.40.$date"
+                $vhdVersion = "2016.$windowsVhdSize.$date"
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
@@ -296,7 +314,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 $onlinePackage = "*Microsoft.WindowsServer2016Datacenter-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
-                $vhdVersion = "2016.40.$date"
+                $vhdVersion = "2016.$windowsVhdSize.$date"
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
@@ -309,7 +327,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 $onlinePackage = "*Microsoft.WindowsServer2019DatacenterServerCore-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
-                $vhdVersion = "2019.40.$date"
+                $vhdVersion = "2019.$windowsVhdSize.$date"
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
@@ -322,7 +340,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 $onlinePackage = "*Microsoft.WindowsServer2019Datacenter-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019Datacenter-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
-                $vhdVersion = "2019.40.$date"
+                $vhdVersion = "2019.$windowsVhdSize.$date"
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
@@ -366,9 +384,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
                     $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
                     Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
-                    $asdkHostName = ($env:computername).ToLower()
                     $Registration = (Get-AzureRmResource | Where-Object { ($_.ResourceType -eq "Microsoft.AzureStack/registrations") `
-                                -and (($_.Name -like "azsreg-$asdkHostName*") -or ($_.Name -like "AzureStack*")) } | Select-Object -First 1 -ErrorAction SilentlyContinue).Name
+                                -and (($_.Name -like "*$azsRegName*") -or ($_.Name -like "AzureStack*")) } | Select-Object -First 1 -ErrorAction SilentlyContinue).Name
                     if (!$Registration) {
                         throw "No registration records found in your chosen Azure subscription. Please validate the success of your Azure Stack POC registration and ensure records have been created successfully."
                         Set-Location $ScriptLocation
@@ -517,12 +534,12 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 }
                 else {
                     Write-Host "There is no suitable $blobName image within your Storage Account. We'll need to upload a new one."
-                    $validDownloadPathVHD = [System.IO.File]::Exists("$csvImagePath\Images\$image\$blobName")
+                    $validDownloadPathVHD = [System.IO.File]::Exists("$imageRootPath\images\$image\$blobName")
                     Write-Host "Checking for a local copy first..."
                     # If there's no local VHD, create one.
                     if ($validDownloadPathVHD -eq $true) {
                         Write-Host "Located suitable VHD in this folder. No need to download again..."
-                        $serverVHD = Get-ChildItem -Path "$csvImagePath\Images\$image\$blobName"
+                        $serverVHD = Get-ChildItem -Path "$imageRootPath\images\$image\$blobName"  
                         Write-Host "VHD located at $serverVHD"
                     }
                     else {
@@ -534,15 +551,15 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                 Write-Host "Checking to see if the Ubuntu Server ZIP already exists in Azure Stack POC Configurator folder"
                                 $UbuntuServerZIP = Get-ChildItem -Path "$azsPath\images\$image\$($azpkg.offer)*.zip"
                                 Write-Host "Ubuntu Server ZIP located at $UbuntuServerZIP"
-                                if (!$(Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction SilentlyContinue)) {
-                                    Copy-Item -Path "$azsPath\images\$image\$($azpkg.offer)*.zip" -Destination "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
-                                    $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                                if (!$(Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction SilentlyContinue)) {
+                                    Copy-Item -Path "$azsPath\images\$image\$($azpkg.offer)*.zip" -Destination "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
+                                    $UbuntuServerZIP = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                                 }
                                 else {
-                                    $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                                    $UbuntuServerZIP = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                                 }
-                                Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$csvImagePath\Images\$image\" -Force -ErrorAction Stop
-                                $serverVHD = Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                                Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$imageRootPath\images\$image\" -Force -ErrorAction Stop
+                                $serverVHD = Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
                             }
                             else {
                                 # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
@@ -579,15 +596,15 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                     #>
                                 $ubuntuDownloadLocation = "$azsPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                                 DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
-                                if (!([System.IO.File]::Exists("$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"))) {
-                                    Copy-Item -Path "$azsPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Destination "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
-                                    $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                                if (!([System.IO.File]::Exists("$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"))) {
+                                    Copy-Item -Path "$azsPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Destination "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
+                                    $UbuntuServerZIP = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                                 }
                                 else {
-                                    $UbuntuServerZIP = Get-ChildItem -Path "$csvImagePath\Images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                                    $UbuntuServerZIP = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
                                 }
-                                Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$csvImagePath\Images\$image\" -Force -ErrorAction Stop
-                                $serverVHD = Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                                Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$imageRootPath\images\$image\" -Force -ErrorAction Stop
+                                $serverVHD = Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
                             }
                         }
                         elseif ($image -ne "UbuntuServer") {
@@ -623,8 +640,10 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             else {
                                 $v = "2016"
                             }
-                            Copy-Item -Path "$azsPath\images\$v\*" -Destination "$csvImagePath\Images\$image\" -Recurse -Force -Verbose -ErrorAction Stop
-                            $target = "$csvImagePath\Images\$image\SSU"
+                            if (!$multiNode) {
+                                Copy-Item -Path "$azsPath\images\$v\*" -Destination "$imageRootPath\images\$image\" -Recurse -Force -Verbose -ErrorAction Stop
+                            }
+                            $target = "$imageRootPath\images\$image\SSU"
 
                             $imageCreationSuccess = $false
                             $imageRetries = 0
@@ -633,14 +652,14 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                 try {
                                     Write-Host "Starting image creation process. Creation attempt: $imageRetries"
                                     if ($image -eq "ServerCore$($v)") {
-                                        .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\Images\$image\$($blobname)" `
+                                        .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes "$($windowsVhdSize)GB" -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
                                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                                     }
                                     elseif ($image -eq "ServerFull$($v)") {
-                                        .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes 40GB -Edition "$edition" -VHDPath "$csvImagePath\Images\$image\$($blobname)" `
+                                        .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes "$($windowsVhdSize)GB" -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
                                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                                     }
-                                    if (!$(Get-ChildItem -Path "$csvImagePath\Images\$image\$blobName" -ErrorAction SilentlyContinue)) {
+                                    if (!$(Get-ChildItem -Path "$imageRootPath\images\$image\$blobName" -ErrorAction SilentlyContinue)) {
                                         Write-Host "Something went wrong during image creation but the error cannot be caught here."
                                         Write-Host "Cleaning up"
                                         $imageCreationSuccess = $false
@@ -653,11 +672,11 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                         $mountPath = "$azsPath\images\$image\Mount"
                                         New-Item -ItemType Directory -Path "$mountPath" -Force | Out-Null
                                         Write-Host "Mounting the VHD"
-                                        Mount-WindowsImage -ImagePath "$csvImagePath\Images\$image\$blobName" -Index 1 `
-                                            -Path "$mountPath" -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
+                                        Mount-WindowsImage -ImagePath "$imageRootPath\images\$image\$blobName" -Index 1 `
+                                            -Path "$mountPath" -Verbose -LogPath "$imageRootPath\images\$image\$($image)Dism.log"
                                         Write-Host "Adding the Update packages"
-                                        Add-WindowsPackage -Path "$mountPath" -PackagePath "$csvImagePath\Images\$image\CU" `
-                                            -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
+                                        Add-WindowsPackage -Path "$mountPath" -PackagePath "$imageRootPath\images\$image\CU" `
+                                            -Verbose -LogPath "$imageRootPath\images\$image\$($image)Dism.log"
 
                                         Write-Host "Updating the Windows Server Edition and AVMA product key. This may take a while."
                                         Write-Host "Getting current Windows Server edition from the image"
@@ -668,12 +687,12 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                             Write-Host "This image will also be updated with the Automatic VM Activation Key"
                                             if ($image -like "*2016") {
                                                 Write-Host "This is a $edition image, and will now be updated to the correct edition and key. Please be patient."
-                                                dism /image:$mountPath /set-edition:ServerDatacenter /ProductKey:TMJ3Y-NTRTM-FJYXT-T22BY-CWG3J /AcceptEula /LogPath:"$csvImagePath\Images\$image\$($image)Dism.log"
+                                                dism /image:$mountPath /set-edition:ServerDatacenter /ProductKey:TMJ3Y-NTRTM-FJYXT-T22BY-CWG3J /AcceptEula /LogPath:"$imageRootPath\images\$image\$($image)Dism.log"
     
                                             }
                                             elseif ($image -like "*2019") {
                                                 Write-Host "This is a $edition image, and will now be updated to the correct edition and key. Please be patient."
-                                                dism /image:$mountPath /set-edition:ServerDatacenter /ProductKey:H3RNG-8C32Q-Q8FRX-6TDXV-WMBMW /AcceptEula /LogPath:"$csvImagePath\Images\$image\$($image)Dism.log"
+                                                dism /image:$mountPath /set-edition:ServerDatacenter /ProductKey:H3RNG-8C32Q-Q8FRX-6TDXV-WMBMW /AcceptEula /LogPath:"$imageRootPath\images\$image\$($image)Dism.log"
                                             }
                                         }
                                         elseif ($edition -eq "ServerDatacenterEvalCor") {
@@ -685,18 +704,18 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                             Write-Host "Your image currently has the $edition Edition. This is the correct edition for automatic activation, however we will now update the product key for AVMA"
                                             if ($image -like "*2016") {
                                                 Write-Host "This is a $edition image, and will now be updated to the correct AVMA key. Please be patient."
-                                                dism /image:$mountPath /Set-ProductKey:TMJ3Y-NTRTM-FJYXT-T22BY-CWG3J /LogPath:"$csvImagePath\Images\$image\$($image)Dism.log"
+                                                dism /image:$mountPath /Set-ProductKey:TMJ3Y-NTRTM-FJYXT-T22BY-CWG3J /LogPath:"$imageRootPath\images\$image\$($image)Dism.log"
     
                                             }
                                             elseif ($image -like "*2019") {
                                                 Write-Host "This is a $edition image, and will now be updated to the correct AVMA key. Please be patient."
-                                                dism /image:$mountPath /Set-ProductKey:H3RNG-8C32Q-Q8FRX-6TDXV-WMBMW /LogPath:"$csvImagePath\Images\$image\$($image)Dism.log"
+                                                dism /image:$mountPath /Set-ProductKey:H3RNG-8C32Q-Q8FRX-6TDXV-WMBMW /LogPath:"$imageRootPath\images\$image\$($image)Dism.log"
                                             }
                                         }
 
                                         Write-Host "Saving the image"
                                         Dismount-WindowsImage -Path "$mountPath" -Save `
-                                            -Verbose -LogPath "$csvImagePath\Images\$image\$($image)Dism.log"
+                                            -Verbose -LogPath "$imageRootPath\images\$image\$($image)Dism.log"
                                         $imageCreationSuccess = $true
                                     }
                                 }
@@ -704,19 +723,19 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                     Write-Host "Image creation wasn't successful. Cleaning up, then waiting 10 seconds before retrying."
                                     Write-Host "$_.Exception.Message"
                                     Dismount-DiskImage -ImagePath $ISOPath -ErrorAction SilentlyContinue
-                                    Get-ChildItem -Path "$csvImagePath\Images\$image\*" -Include "*.vhd" | Remove-Item -Force -ErrorAction SilentlyContinue
+                                    Get-ChildItem -Path "$imageRootPath\images\$image\*" -Include "*.vhd" | Remove-Item -Force -ErrorAction SilentlyContinue
                                     Start-Sleep -Seconds 10
                                 }
                             }
                             if (($imageCreationSuccess -eq $false) -and ($imageRetries -ge 3)) {
                                 Dismount-DiskImage -ImagePath $ISOPath -ErrorAction SilentlyContinue
-                                Get-ChildItem -Path "$csvImagePath\Images\$image\*" -Include "*.vhd" | Remove-Item -Force -ErrorAction SilentlyContinue
+                                Get-ChildItem -Path "$imageRootPath\images\$image\*" -Include "*.vhd" | Remove-Item -Force -ErrorAction SilentlyContinue
                                 $imageRetries = --$imageRetries;
                                 throw "Creating a Windows Server ($blobname) image failed after $imageRetries attempts. Check the logs then retry. Exiting process."
                                 Set-Location $ScriptLocation
                                 return
                             }
-                            $serverVHD = Get-ChildItem -Path "$csvImagePath\Images\$image\$blobName"
+                            $serverVHD = Get-ChildItem -Path "$imageRootPath\images\$image\$blobName"
                         }
                     }
                     # At this point, there is a local image (either existing or new, that needs uploading, first to a Storage Account
@@ -768,15 +787,15 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     Write-Host ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                     if ($image -eq "UbuntuServer") {
                         Write-Host "Cleaning up local hard drive space - deleting VHD file and ZIP from Cluster Shared Volume"
-                        Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).vhd" | Remove-Item -Force
-                        Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).ZIP" | Remove-Item -Force
-                        Get-ChildItem -Path "$csvImagePath\Images\$image\*" -Include "*.msu" | Remove-Item -Force
+                        Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).vhd" | Remove-Item -Force
+                        Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).ZIP" | Remove-Item -Force
+                        Get-ChildItem -Path "$imageRootPath\images\$image\*" -Include "*.msu" | Remove-Item -Force
                         Write-Host "Cleaning up VHD from storage account"
                         Remove-AzureStorageBlob -Blob $blobName -Container $azsImagesContainerName -Context $azsStorageAccount.Context -Force
                     }
                     else {
                         Write-Host "Cleaning up local hard drive space - deleting VHD file"
-                        Get-ChildItem -Path "$csvImagePath\Images\$image\" -Filter "$($blobname)" | Remove-Item -Force
+                        Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter "$($blobname)" | Remove-Item -Force
                         Write-Host "Cleaning up VHD from storage account"
                         Remove-AzureStorageBlob -Blob $blobName -Container $azsImagesContainerName -Context $azsStorageAccount.Context -Force
                     }
