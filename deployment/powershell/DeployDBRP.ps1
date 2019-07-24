@@ -280,10 +280,9 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     if ($deploymentMode -eq "Online") {
                         if ($multiNode) {
                             $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
-                            $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
+                            $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                             Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
                             .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd -AcceptLicense
-                        
                         }
                         else {
                             .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -AcceptLicense
