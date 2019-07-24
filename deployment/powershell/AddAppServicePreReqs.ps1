@@ -50,7 +50,16 @@ param (
     [String] $databaseName,
 
     [Parameter(Mandatory = $true)]
-    [String] $tableName
+    [String] $tableName,
+
+    [parameter(Mandatory = $false)]
+    [String] $certPath,
+
+    [parameter(Mandatory = $false)]
+    [String] $certPwd,
+
+    [parameter(Mandatory = $false)]
+    [String] $multiNode
 )
 
 $Global:VerbosePreference = "Continue"
@@ -138,14 +147,19 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Write-Host "Generating Certificates for App Service"
             $AppServicePath = "$azsPath\appservice"
             Set-Location "$AppServicePath"
-            
-            if (!$([System.IO.File]::Exists("$AppServicePath\CertsCreated.txt"))) {
-                .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName $customDomainSuffix
-                .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $pepAdminCreds
-                New-Item -Path "$AppServicePath\CertsCreated.txt" -ItemType file -Force
+
+            if (!$multiNode) {
+                if (!$([System.IO.File]::Exists("$AppServicePath\CertsCreated.txt"))) {
+                    .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName $customDomainSuffix
+                    .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $pepAdminCreds
+                    New-Item -Path "$AppServicePath\CertsCreated.txt" -ItemType file -Force
+                }
+                else {
+                    Write-Host "Certs have been previously successfully created"
+                }
             }
             else {
-                Write-Host "Certs have been previously successfully created"
+                Write-Host "This is a multinode deployment, and therefore the required certificates should already be located at $certPath"
             }
 
             #### AD Service Principal ####
@@ -162,8 +176,14 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $azsCreds -ErrorAction Stop
                     Set-Location "$AppServicePath" -Verbose
                     Write-Host "Generating the application ID for the App Service installation"
-                    $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -TenantArmEndpoint "management.$customDomainSuffix" `
-                        -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $azsCreds -Verbose
+                    if (!$multiNode) {
+                        $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -TenantArmEndpoint "management.$customDomainSuffix" `
+                            -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $azsCreds -Verbose
+                    }
+                    else {
+                        $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -TenantArmEndpoint "management.$customDomainSuffix" `
+                            -CertificateFilePath "$certPath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $certPwd -AzureStackAdminCredential $azsCreds -Verbose
+                    }
                     $identityApplicationID = $applicationId
                     Write-Host "Application ID is $identityApplicationID"
                     Write-Host "You don't need to sign into the Azure Portal to grant permissions, Azure Stack POC Configurator will automate this for you. Please wait."
@@ -206,8 +226,14 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                     Set-Location "$AppServicePath" -Verbose
                     Write-Host "Generating the application ID for the App Service installation"
-                    $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -PrivilegedEndpoint $ERCSip `
-                        -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $azsCreds -Verbose
+                    if (!$multiNode) {
+                        $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -PrivilegedEndpoint $ERCSip `
+                            -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $azsCreds -Verbose
+                    }
+                    else {
+                        $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -PrivilegedEndpoint $ERCSip `
+                            -CertificateFilePath "$certPath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $certPwd -CloudAdminCredential $azsCreds -Verbose
+                    }
                     Write-Host "Saving the application ID to a backup file."
                     $appIdPath = "$downloadPath\ApplicationIDBackup.txt"
                     $identityApplicationID = $appID
@@ -242,7 +268,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         Write-Host "Obtaining tokens"
                         $refreshToken = @([Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems() | Where-Object { $_.tenantId -eq $tenantId -and $_.ExpiresOn -gt (Get-Date) })[0].RefreshToken
                         $refreshtoken = $refreshtoken.Split("`n")[0]
-                        Write-Host "Generting body and header information"
+                        Write-Host "Generating body and header information"
                         $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
                         $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
                         $header = @{
