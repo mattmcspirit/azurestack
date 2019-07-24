@@ -2885,12 +2885,13 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $jobName = "DeployMySQLHost"
     $DeployMySQLHost = {
         Start-Job -Name DeployMySQLHost -InitializationScript $export_functions -ArgumentList $azsPath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
+            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, `
+            $serialMode, $multiNode -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -AzSPath $Using:azsPath `
                 -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -vmType "MySQL" -tenantID $Using:TenantID `
                 -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -customDomainSuffix $Using:customDomainSuffix `
                 -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance `
-                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
+                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $DeployMySQLHost -Verbose
@@ -2898,11 +2899,13 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $jobName = "DeploySQLServerHost"
     $DeploySQLServerHost = {
         Start-Job -Name DeploySQLServerHost -InitializationScript $export_functions -ArgumentList $azsPath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
+            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, `
+            $serialMode, $multiNode -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -AzSPath $Using:azsPath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
                 -vmType "SQLServer" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -azsCreds $Using:azsCreds `
                 -ScriptLocation $Using:ScriptLocation -customDomainSuffix $Using:customDomainSuffix -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL `
-                -skipAppService $Using:skipAppService -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
+                -skipAppService $Using:skipAppService -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance `
+                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $DeploySQLServerHost -Verbose
@@ -2938,11 +2941,13 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $jobName = "DeployAppServiceFS"
     $DeployAppServiceFS = {
         Start-Job -Name DeployAppServiceFS -InitializationScript $export_functions -ArgumentList $azsPath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
+            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, `
+            $serialMode, $multiNode -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -AzSPath $Using:azsPath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
                 -vmType "AppServiceFS" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -azsCreds $Using:azsCreds `
                 -ScriptLocation $Using:ScriptLocation -customDomainSuffix $Using:customDomainSuffix -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService `
-                -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
+                -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
+                -serialMode $Using:serialMode -multiNode $Using:multiNode
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $DeployAppServiceFS -Verbose
@@ -2950,11 +2955,13 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $jobName = "DeployAppServiceDB"
     $DeployAppServiceDB = {
         Start-Job -Name DeployAppServiceDB -InitializationScript $export_functions -ArgumentList $azsPath, $downloadPath, $deploymentMode, $tenantID, $secureVMpwd, $VMpwd, `
-            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, $serialMode -ScriptBlock {
+            $azsCreds, $ScriptLocation, $customDomainSuffix, $skipMySQL, $skipMSSQL, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, `
+            $serialMode, $multiNode -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DeployVM.ps1 -AzSPath $Using:azsPath -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
                 -vmType "AppServiceDB" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -azsCreds $Using:azsCreds `
                 -ScriptLocation $Using:ScriptLocation -customDomainSuffix $Using:customDomainSuffix -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService `
-                -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode
+                -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName `
+                -serialMode $Using:serialMode -multiNode $Using:multiNode
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $DeployAppServiceDB -Verbose
