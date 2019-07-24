@@ -518,10 +518,10 @@ try {
             elseif ($appType -eq "EXE") { $filePath = "$fileName" }
             Write-Host "Installing $appName"
             $installHostApp = Start-Process -FilePath "$filePath" -ArgumentList $arguments -Wait -PassThru -Verbose
-            if ($installHostApp.ExitCode -notin 0,1641,3010) {
+            if ($installHostApp.ExitCode -notin 0, 1641, 3010) {
                 throw "Installation of $appName returned error code: $($installHostApp.ExitCode)"
             }
-            if ($installHostApp.ExitCode -in 0,1641,3010) {
+            if ($installHostApp.ExitCode -in 0, 1641, 3010) {
                 Write-Host "Installation of $appName completed successfully"
             }
         }
@@ -2952,7 +2952,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                 -vmType "AppServiceFS" -tenantID $Using:TenantID -secureVMpwd $Using:secureVMpwd -VMpwd $Using:VMpwd -azsCreds $Using:azsCreds `
                 -ScriptLocation $Using:ScriptLocation -customDomainSuffix $Using:customDomainSuffix -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -skipAppService $Using:skipAppService `
                 -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
-                -serialMode $Using:serialMode -multiNode $Using:multiNode
+            -serialMode $Using:serialMode -multiNode $Using:multiNode
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $DeployAppServiceFS -Verbose
@@ -3581,7 +3581,6 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             if ([bool](Get-ChildItem -Path "$certPath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose)) {
                 Get-ChildItem -Path "$certPath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ "$completedPath\AppServiceCerts" -Force -ErrorAction SilentlyContinue -Verbose }
             }
-
         }
 
         Write-CustomVerbose -Message "Cleaning up AzSFiles Folder"
