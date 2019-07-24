@@ -47,7 +47,13 @@ param (
     [String] $tableName,
 
     [Parameter(Mandatory = $false)]
-    [String] $serialMode
+    [String] $serialMode,
+
+    [Parameter(Mandatory = $false)]
+    [String] $certPath,
+
+    [Parameter(Mandatory = $false)]
+    [String] $certPwd
 )
 
 $Global:VerbosePreference = "Continue"
@@ -123,7 +129,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $azsLocation = (Get-AzureRmLocation).DisplayName
                 # Perform a cleanup of the failed deployment - RG, Files
                 Write-Host "Checking for a previously failed deployemnt and cleaning up."
-                $rgName = "system.local.$($rp)adapter"
+                $rgName = "system.$azslocation.$($rp)adapter"
                 if (Get-AzureRmResourceGroup -Name "$rgName" -Location $azsLocation -ErrorAction SilentlyContinue) {
                     Remove-AzureRmResourceGroup -Name $rgName -Force -ErrorAction Stop -Verbose
                 }
@@ -132,11 +138,6 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
                 Clear-AzureRmContext -Scope CurrentUser -Force
                 Disable-AzureRMContextAutosave -Scope CurrentUser
-
-                <#Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
-                Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
-                Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
-                #>
 
                 # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
                 $serverCore2016JobCheck = CheckProgress -progressStage "ServerCore2016Image"
@@ -273,20 +274,30 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 # End of Temporary Workaround
                 ############################################################################################################################################################################
 
+                $secureCertPwd = ConvertTo-SecureString $certPwd -AsPlainText -Force
                 Write-Host "Starting deployment of $dbrp Resource Provider"
                 if ($dbrp -eq "MySQL") {
                     if ($deploymentMode -eq "Online") {
-                        .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -AcceptLicense
+                        if ($multiNode) {
+                            $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
+                            $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
+                            Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
+                            .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd -AcceptLicense
+                        
+                        }
+                        else {
+                            .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -AcceptLicense
+                        }
                     }
                     elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
-                        .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd -DependencyFilesLocalPath $dependencyFilePath -AcceptLicense
+                        .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -DependencyFilesLocalPath $dependencyFilePath -AcceptLicense
                     }
                 }
                 elseif ($dbrp -eq "SQLServer") {
-                    .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureVMpwd
+                    .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd
                 }
                 # Update the AzSPoC database with successful completion
                 $progressCheck = CheckProgress -progressStage $progressStage

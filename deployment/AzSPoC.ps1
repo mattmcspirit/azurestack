@@ -1216,8 +1216,8 @@ try {
         $pepAdminUsername = "$azsInternalDomain\cloudadmin"
         $pepPwd = $secureAsdkHostPwd
         $ERCSip = "AzS-ERCS01"
-        $certPwd = $asdkHostPwd
-        $secureCertPwd = $secureAsdkHostPwd
+        $certPwd = $VMpwd
+        $secureCertPwd = $secureVMpwd
     }
 
     ### Create PeP Admin Creds ###
@@ -2816,11 +2816,12 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $AddMySQLRP = {
         Start-Job -Name AddMySQLRP -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $secureVMpwd, $deploymentMode, $serialMode, `
             $tenantID, $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $pepAdminCreds, $certPath, $certPwd, $sqlServerInstance, $databaseName, `
-            $tableName, $multiNode, $azsInternalDomain -ScriptBlock {
+            $tableName, $multiNode, $certPath, $certPwd -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -pepAdminCreds $Using:pepAdminCreds `
                 -certPath $Using:certPath -certPwd $Using:certPwd -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
-                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multinode -azsInternalDomain $Using:azsInternalDomain
+                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode `
+                -certPwd $Using:certPwd -certPath $Using:certPath
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddMySQLRP -Verbose
@@ -2829,11 +2830,12 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $AddSQLServerRP = {
         Start-Job -Name AddSQLServerRP -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $secureVMpwd, $deploymentMode, $serialMode, `
             $tenantID, $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $pepAdminCreds, $certPath, $certPwd, $sqlServerInstance, $databaseName, `
-            $tableName, $multiNode, $azsInternalDomain -ScriptBlock {
+            $tableName, $multiNode, $certPath, $certPwd -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -pepAdminCreds $Using:pepAdminCreds `
                 -certPath $Using:certPath -certPwd $Using:certPwd -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
-                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multinode -azsInternalDomain $Using:azsInternalDomain
+                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode `
+                -certPwd $Using:certPwd -certPath $Using:certPath
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddSQLServerRP -Verbose
@@ -2986,11 +2988,13 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $jobName = "DeployAppService"
     $DeployAppService = {
         Start-Job -Name DeployAppService -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $downloadPath, $deploymentMode, $authenticationType, `
-            $azureDirectoryTenantName, $tenantID, $VMpwd, $azsCreds, $ScriptLocation, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            $azureDirectoryTenantName, $tenantID, $VMpwd, $azsCreds, $ScriptLocation, $skipAppService, $branch, $sqlServerInstance, $databaseName, $tableName, `
+            $certPath, $certPwd, $multiNode -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DeployAppService.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode `
                 -authenticationType $Using:authenticationType -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -VMpwd $Using:VMpwd `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService -branch $Using:branch `
-                -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
+                -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -certPath $Using:certPath -certPwd $Using:certPwd `
+                -multiNode $Using:multiNode
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $DeployAppService -Verbose
