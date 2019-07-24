@@ -192,7 +192,7 @@ $platformImage = Get-AzureRmVMImage -Location "local" -PublisherName Canonical -
 $platformImageTable = $platformImage | Sort-Object Version
 $platformImageTableTop1 = $platformImageTable | Select-Object -Last 1
 
-if ($platformImage -ne $null -and $platformImage.StatusCode -eq "OK")
+if ($null -ne $platformImage -and $platformImage.StatusCode -eq "OK")
     {
         Write-Host "There appears to be at least 1 suitable Ubuntu Server 16.04-LTS VM image within your Platform Image Repository `nwhich we will use for the DevOps Toolkit. Here are the details:" -ForegroundColor Green
         Start-Sleep -Seconds 1
@@ -422,7 +422,7 @@ Write-Host "Completed."
 
 Write-Host "Checking for an existing DevOps Toolkit Resource Group and Storage Account within your Azure Stack"
 Start-Sleep 2
-if ((Get-AzureRmResourceGroup -Name devopstoolkit -ErrorAction SilentlyContinue) -ne $null)
+if ($null -ne (Get-AzureRmResourceGroup -Name devopstoolkit -ErrorAction SilentlyContinue))
     {
         Write-Host "Found the following DevOps Toolkit Resource Group within your Azure Stack:"
         Get-AzureRmResourceGroup | Where-Object {$_.ResourceGroupName -eq "devopstoolkit"} | Format-Table ResourceGroupName, Location, ProvisioningState, ResourceId
