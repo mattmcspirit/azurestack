@@ -44,7 +44,16 @@ param (
     [String] $databaseName,
 
     [Parameter(Mandatory = $true)]
-    [String] $tableName
+    [String] $tableName,
+
+    [Parameter(Mandatory = $true)]
+    [String] $multiNode,
+
+    [Parameter(Mandatory = $true)]
+    [String] $certPath,
+
+    [Parameter(Mandatory = $true)]
+    [String] $certPwd
 )
 
 #Global:VerbosePreference = "Continue"
@@ -108,11 +117,6 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
             Disable-AzureRMContextAutosave -Scope CurrentUser
-
-            <#Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
-            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
-            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
-            #>
 
             # Need to ensure this stage doesn't start before the App Service components have been downloaded
             $appServicePreReqJobCheck = CheckProgress -progressStage "AddAppServicePreReqs"
@@ -179,6 +183,10 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Write-Host "SQL for App Service is at: $sqlAppServerFqdn"
             Write-Host "Identity Application ID is: $identityApplicationID"
 
+            if (!$multiNode) {
+                $certPwd = $VMpwd
+            }
+
             Write-Host "Checking variables are present before creating JSON"
             # Check Variables #
             if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName)) {
@@ -201,6 +209,12 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             else {
                 throw "Missing Virtual Machine password - Exiting process"
+            }
+            if ($certPwd) {
+                Write-Host "Certificate password is present."
+            }
+            else {
+                throw "Missing certificate password - Exiting process"
             }
             if ($sqlAppServerFqdn) {
                 Write-Host "SQL Server FQDN is present: $sqlAppServerFqdn"
@@ -246,9 +260,28 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             elseif ($authenticationType.ToString() -like "ADFS") {
                 $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", "adfs")
             }
+            if ($multiNode) {
+                $JsonConfig = $JsonConfig.Replace("<<controllerSkuSize>>", $VMpwd)
+
+            }
+            else {
+                $JsonConfig = $JsonConfig.Replace("<<controllerSkuSize>>", "Standard_A2")
+                $JsonConfig = $JsonConfig.Replace("<<managementSkuSize>>", "Standard_A2")
+                $JsonConfig = $JsonConfig.Replace("<<publisherSkuSize>>", "Standard_A2")
+                $JsonConfig = $JsonConfig.Replace("<<frontendSkuSize>>", "Standard_A2")
+                $JsonConfig = $JsonConfig.Replace("<<workerSkuSize>>", "Standard_A2")
+
+            }
+
             $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $fileServerFqdn)
             $JsonConfig = $JsonConfig.Replace("<<Password>>", $VMpwd)
-            $CertPathDoubleSlash = $AppServicePath.Replace("\", "\\")
+            $JsonConfig = $JsonConfig.Replace("<<certPassword>>", $certPwd)
+            if ($multiNode) {
+                $CertPathDoubleSlash = $certPath.Replace("\", "\\")
+            }
+            else {
+                $CertPathDoubleSlash = $AppServicePath.Replace("\", "\\")
+            }
             $JsonConfig = $JsonConfig.Replace("<<CertPathDoubleSlash>>", $CertPathDoubleSlash)
             $JsonConfig = $JsonConfig.Replace("<<SQLServerName>>", $sqlAppServerFqdn)
             $SQLServerUser = "sa"
