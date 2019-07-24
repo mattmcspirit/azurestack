@@ -1216,7 +1216,8 @@ try {
         $pepAdminUsername = "$azsInternalDomain\cloudadmin"
         $pepPwd = $secureAsdkHostPwd
         $ERCSip = "AzS-ERCS01"
-        $certPwd = $secureAsdkHostPwd
+        $certPwd = $asdkHostPwd
+        $secureCertPwd = $secureAsdkHostPwd
     }
 
     ### Create PeP Admin Creds ###
@@ -2959,9 +2960,10 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $jobName = "DownloadAppService"
     $DownloadAppService = {
         Start-Job -Name DownloadAppService -InitializationScript $export_functions -ArgumentList $azsPath, $deploymentMode, $ScriptLocation, $skipAppService, `
-            $sqlServerInstance, $databaseName, $tableName -ScriptBlock {
+            $sqlServerInstance, $databaseName, $tableName, $certPath, $certPwd, $multiNode -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DownloadAppService.ps1 -AzSPath $Using:azsPath -deploymentMode $Using:deploymentMode -ScriptLocation $Using:ScriptLocation `
-                -skipAppService $Using:skipAppService -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
+                -skipAppService $Using:skipAppService -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName `
+                -certPwd $Using:certPwd -certPath $Using:certPath -multiNode $Using:multiNode
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $DownloadAppService -Verbose
