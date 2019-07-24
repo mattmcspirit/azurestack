@@ -1123,6 +1123,11 @@ try {
         Write-Host "You've specified the -azsInternalDomain parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -azsInternalDomain if this is an ASDK." -ForegroundColor Red
         Break
     }
+    if ($multiNode -and ($customDomainSuffix -eq "local.azurestack.external")) {
+        Set-Location $ScriptLocation
+        Write-Host "You've specified the -multiNode switch but are using the default ASDK -customDomainSuffix of 'local.azurestack.external'. Please ensure yuo enter your custom domain if this is a multiNode deployment." -ForegroundColor Red
+        Break
+    }
 
     ### By this point, you should either know whether this is a multinode deployment, and all parameters should exist, or not
 
