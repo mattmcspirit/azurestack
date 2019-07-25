@@ -11,8 +11,8 @@
     * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
     * Tools installation (Azure Stack Tools)
     * Registration of the Azure Stack POC system to Azure (Optional - enables Marketplace Syndication)
-    * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
-    * Windows Server 2019 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository (Optional)
+    * Windows Server 2016 Datacenter Evaluation/MSDN/VL (Full + Core) images added to the Platform Image Repository
+    * Windows Server 2019 Datacenter Evaluation/MSDN/VL (Full + Core) images added to the Platform Image Repository (Optional)
     * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
     * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
     * Gallery item created for MySQL 5.7, 8.0 and SQL Server 2017 (all on Ubuntu Server 16.04 LTS)
