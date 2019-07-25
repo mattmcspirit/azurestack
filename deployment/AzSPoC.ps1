@@ -2,7 +2,7 @@
 
 .SYNOPSYS
 
-    The purpose of this script is to automate as much as possible post deployment tasks for an Azure Stack POC.
+    The purpose of this script is to automate as much as possible post deployment tasks for an Azure Stack POC for both an ASDK and MultiNode deployment.
     This includes:
     * Validates all input parameters
     * Installs Azure Stack PowerShell and AzureRM modules
@@ -40,6 +40,10 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1907    Updated to support ASDK 1.1907.0.20
+            Initial support for MultiNode deployments for POC purposes only
+            Rebranding and versioning to reflect multinode support
+            Minor bug fixes
     1906.4  Generalizing to Azure Stack over ASDK only
     1906.3  Minor bug fixes and cleanup
             Added MySQL 8.0 Gallery Item and Default DB Host Deployment
