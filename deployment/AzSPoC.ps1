@@ -168,11 +168,11 @@ param (
     [parameter(Mandatory = $true)]
     [String]$downloadPath,
 
-    # Path to Windows Server 2016 Datacenter Evaluation ISO file
+    # Path to Windows Server 2016 Datacenter ISO file
     [parameter(Mandatory = $false)]
     [String]$ISOPath,
 
-    # Path to Windows Server 2019 Datacenter Evaluation ISO file
+    # Path to Windows Server 2019 Datacenter ISO file
     [parameter(Mandatory = $false)]
     [String]$ISOPath2019,
 
