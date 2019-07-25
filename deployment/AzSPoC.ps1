@@ -141,7 +141,7 @@
 
 .GUIDANCE
 
-    Please refer to the Readme.md (https://github.com/mattmcspirit/azurestack/blob/master/deployment/README.md) for recommended
+    Please refer to the Readme.md (https://github.com/mattmcspirit/azurestack/blob/master/README.md) for recommended
     deployment parameter usage and instructions.
 
 #>
