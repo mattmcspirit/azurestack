@@ -2643,17 +2643,29 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         Write-CustomVerbose -Message "Free space on local system volume = $($freeDiskSpace)GB"
         Start-Sleep 3
     }
-
-    if ($null -eq $ISOPath2019) {
-        $sm = 45
-        $med = 85
-        $lg = 115
-
+    if ($multiNode) {
+        if ($null -eq $ISOPath2019) {
+            $sm = 45
+            $med = 135
+            $lg = 165
+        }
+        else {
+            $sm = 45
+            $med = 135
+            $lg = 285
+        }
     }
     else {
-        $sm = 45
-        $med = 85
-        $lg = 200
+        if ($null -eq $ISOPath2019) {
+            $sm = 45
+            $med = 85
+            $lg = 120
+        }
+        else {
+            $sm = 45
+            $med = 85
+            $lg = 200
+        }
     }
 
     if ($freeDiskSpace -lt $sm) {
@@ -2663,7 +2675,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     elseif ($freeDiskSpace -ge $sm -and $freeDiskSpace -lt $md) {
         Write-CustomVerbose -Message "Free space is less than $($md)GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
         Write-CustomVerbose -Message "Your Ubuntu Server and Windows Server images will be created serially.  This could take some time."
-        # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core 3. Windows Server Full (+ WS 2019 Core, + WS 2019 Full Optionally)
+        # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core 3. Windows Server Full (+ 4. WS 2019 Core, + 5. WS 2019 Full Optionally)
         $runMode = "serial"
     }
     elseif ($freeDiskSpace -ge $med -and $freeDiskSpace -lt $lg) {
