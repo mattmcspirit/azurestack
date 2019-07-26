@@ -1056,6 +1056,8 @@ try {
     ### MULTINODE VALIDATION ####################################################################################################################################
     #############################################################################################################################################################
 
+    Write-Host "Validating whether this is an ASDK or a multinode deployment..."
+
     if ($multiNode -and ($pepIP -and $pepPwd -and $customDomainSuffix -and $certPath -and $azsInternalDomain -and $certPwd)) {
         Write-Host "All multinode parameters have been defined - we will now validate the parameters to ensure accuracy."
     }
@@ -1107,7 +1109,7 @@ try {
         Write-Host "You've specified the -pepPwd parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -pepPwd if this is an ASDK." -ForegroundColor Red
         Break
     }
-    if ($customDomainSuffix -and !$multiNode) {
+    if (($customDomainSuffix -ne "local.azurestack.external") -and !$multiNode) {
         Set-Location $ScriptLocation
         Write-Host "You've specified the -customDomainSuffix parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -customDomainSuffix if this is an ASDK." -ForegroundColor Red
         Break
@@ -1223,13 +1225,14 @@ try {
     else {
         $azsInternalDomain = "azurestack"
         $pepAdminUsername = "$azsInternalDomain\cloudadmin"
-        $pepPwd = $secureAsdkHostPwd
+        [System.Security.SecureString]$pepPwd = $secureAsdkHostPwd
         $ERCSip = "AzS-ERCS01"
         $certPwd = $VMpwd
-        $secureCertPwd = $secureVMpwd
+        [System.Security.SecureString]$secureCertPwd = $secureVMpwd
     }
 
     ### Create PeP Admin Creds ###
+    Write-Host "Creating Privileged Endpoint Credentials..."
     $pepAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $pepAdminUsername, $pepPwd -ErrorAction Stop
 
     ### Credentials Recap ###
@@ -2109,8 +2112,7 @@ try {
     try {
         Write-Host "Validating connection to the Privileged Endpoint"
         $pepTest = New-PSSession -ComputerName $ERCSip -Credential $pepAdminCreds -ConfigurationName PrivilegedEndpoint -ErrorAction Stop
-        Write-Host "Connection to the Privileged Endpoint was successful. The details are as follows:"
-        $pepTest
+        Write-Host "Connection to the Privileged Endpoint was successful."
         Write-Host "`nCleaning up the session test..."
         Remove-PSSession -Session $pepTest -ErrorAction Stop
     }
@@ -2280,7 +2282,6 @@ try {
     }
     else {
         # Update the AzSPoC database with skip status
-        $progressStage = $progressName
         StageSkipped -progressStage $progressStage
     }
 
@@ -2345,7 +2346,6 @@ try {
     }
     else {
         # Update the AzSPoC database with skip status
-        $progressStage = $progressName
         StageSkipped -progressStage $progressStage
     }
 
@@ -2694,6 +2694,8 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel (+ WS 2019 Core, + WS 2019 Full Optionally) after Windows Update job is finished.
         $runMode = "parallel"
     }
+
+    BREAK
 
     # Define the image jobs
     $jobName = "AddUbuntuImage"
@@ -3417,7 +3419,6 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     }
     else {
         # Update the AzSPoC database with skip status
-        $progressStage = $progressName
         StageSkipped -progressStage $progressStage
     }
         
