@@ -2379,12 +2379,14 @@ try {
                 if (!$multiNode) {
                     $asdkHostName = ($env:computername).ToLower()
                     $azsRegName = "azsreg-$asdkHostName-$runTime"
+                    $billingModel = "Development"
                 }
                 else {
                     $randomGuid = ((New-Guid).ToString()).Substring(0, 6)
                     $azsRegName = "azsreg-$randomGuid-$runTime"
+                    $billingModel = "PayAsYouUse"
                 }
-                Set-AzsRegistration -PrivilegedEndpointCredential $pepAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "$azsRegName" -BillingModel Development -ErrorAction Stop
+                Set-AzsRegistration -PrivilegedEndpointCredential $pepAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "$azsRegName" -BillingModel $billingModel -ErrorAction Stop
                 # Create Cleanup Doc - First Create File
                 $CleanUpRegPS1Path = "$downloadPath\AzSRegCleanUp.ps1"
                 Remove-Item -Path $CleanUpRegPS1Path -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
