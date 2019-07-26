@@ -28,7 +28,7 @@ This includes (**for a multinode POC**):
 * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
 * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
 * Gallery item created for MySQL 5.7, 8.0 and SQL Server 2017 (all on Ubuntu Server 16.04 LTS)
-* Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs)
+* Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered systems)
 * MySQL Resource Provider installation
 * SQL Server Resource Provider installation
 * Deployment of a MySQL 8.0 hosting server on Ubuntu Server 16.04 LTS
@@ -106,17 +106,17 @@ The following table describes the endpoints and certificates required for the SQ
 
 <sup>2</sup> A &#42;.appservice.*&lt;region>.&lt;fqdn>* wild card certificate cannot be used in place of these three certificates (api.appservice.*&lt;region>.&lt;fqdn>*, ftp.appservice.*&lt;region>.&lt;fqdn>*, and sso.appservice.*&lt;region>.&lt;fqdn>*. Appservice explicitly requires the use of separate certificates for these endpoints.
 
-**Once you have those certificates, place them into a single folder on your workstation.**
+**Once you have those certificates, place them into a single folder on your workstation. Don't worry about the file names, the script will handle renaming the certs.**
 
 ### Step 4 - Run the AzSPoC.ps1 script ###
 With the script downloaded successfully, you can move on to running the script. Below, you will find a number of examples to help you run the script, depending on your scenario. Before you use the examples, please read the general guidance below:
 
-**General Guidance**
+#### General Guidance ####
 
 Mandatory Parameters | Explanation
 :------------ | :-------------
 **azureDirectoryTenantName** | You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
-**downloadPath** | Ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your ASDK host, NOT a mapped drive - known issues exist with mapped drives at this time**
+**downloadPath** | Ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your workstation, NOT a mapped drive - known issues exist with mapped drives at this time**
 **ISOPath** | Should point to the Windows Server 2016 **MSDN/Visual Studio/VL** media. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time. Evaluation media will not be supported with multinode systems**
 **VMpwd** | is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
 **azureAdUsername** | *Service Administrator* username you used when you deployed your Azure Stack system (in Azure AD connected mode).
@@ -131,6 +131,8 @@ Mandatory Parameters | Explanation
 **certPath** | A path that contains all of your certificates you plan to use for the App Service and Database RPs.
 **certPwd** | The password associated with the certificates.
 **customDomainSuffix** | This is the region and FQDN associated with your Azure Stack deployment, for example such as "west.contoso.com".  If you're not sure, log onto your Azure Stack portal and copy everything after portal., as your customDomainSuffix.
+
+There are also a number of optional parameters that you can supply depending on your deployment needs.
 
 Optional Parameters | Explanation
 :------------ | :-------------
@@ -148,7 +150,7 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
+-downloadPath "D:\AzSFiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerAzS -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
@@ -156,54 +158,42 @@ Usage Examples:
 **Please Note**
 * If you also want the script to create and upload Windows Server 2019 images, simply include **-ISOPath2019 "D:\WS2019EVALISO.iso"** and the script will take care of the rest.
 
-**Scenario 2** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use a **different** set of Azure AD credentials from the set you used when you deployed your ASDK:
+**Scenario 2** - Using Azure AD for authentication. You wish to register the Azure Stack system to Azure as part of the automated process. For registration, you wish to use a **different** set of Azure AD credentials from the set you used when you deployed your Azure Stack system:
 
 ```powershell
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
+-downloadPath "D:\AzSFiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerAzS -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
 **Please Note**
-* The key difference this time, is that the **-azureRegUsername** and **-azureRegPwd** flags are used, to capture the different set of Azure AD credentials (and therefore, different subscription) for registering the ASDK to Azure.
+* The key difference this time, is that the **-azureRegUsername** and **-azureRegPwd** flags are used, to capture the different set of Azure AD credentials (and therefore, different subscription) for registering the Azure Stack system to Azure.
 
-**Scenario 3** - Using Azure AD for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
+**Scenario 3** - Using Azure AD for authentication. You choose **not** to register the Azure Stack system to Azure as part of the automated process:
 
 ```powershell
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
+-downloadPath "D:\AzSFiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!'
 ```
 
-**Scenario 4** - Using ADFS for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you will have to use a different set of Azure AD credentials as your ASDK was deployed with ADFS:
+**Scenario 4** - Using ADFS for authentication. You wish to register the Azure Stack system to Azure as part of the automated process. For registration, you will have to use a different set of Azure AD credentials as your Azure Stack was deployed with ADFS:
 
 ```powershell
-.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
+.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\AzSFiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerAzS `
 -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
-**Scenario 5** - Using ADFS for authentication. You choose **not** to register the ASDK to Azure as part of the automated process:
+**Scenario 5** - Using ADFS for authentication. You choose **not** to register the Azure Stack system to Azure as part of the automated process:
 
 ```powershell
-.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
+.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\AzSFiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
 ```
-
-Optional Actions
-----------------
-
-Use the following switches to skip deployment of additional Resource Providers, or host customization. Note, if you don't specify these switches, the Resource Provider installation/customization will be performed as part of the deployment.
-
-* Use **-skipMySQL** to **not** install the MySQL Resource Provider, Hosting Server and SKU/Quotas.
-* Use **-skipMSSQL** to **not** install the Microsoft SQL Server Resource Provider, Hosting Server and SKU/Quotas.
-* Use **-skipAppService** to **not** install the App Service pre-requisites and App Service Resource Provider.
-* Use **-skipCustomizeHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
-
-In addition, you can choose to skip a particular resource provider deployment, such as -skipMySQL, but later, re-run the Configurator (using the same launch command) and **not** specify the -skipMySQL switch, and the Configurator will add that particular functionality.
 
 Post-Script Actions
 -------------------
@@ -211,8 +201,8 @@ This script can take many hours to finish, depending on your hardware and downlo
 
 ### Known Issues
 * A Windows Server 2016 ISO is required.  This should be build 1607 (The RTM release) and not any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809). These have not been validated for support with the database and App Service resource providers, so don't use those builds at this time. The script will block their usage.
-* If you wish to upload Windows Server 2019 images for testing, please use the 17763 build, which is the Windows Server 2019 RTM and can be downloaded from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019
-* Do not use a mapped drive for your -downloadPath on your ASDK host. There are known issues which are yet to be resolved. Please use a local drive.
+* If you wish to upload Windows Server 2019 images for testing, please use the 17763 build, which is the Windows Server 2019 RTM. All ISOs should be the MSDN/Visual Studio/Volume License media and **NOT** evaluation media.
+* Do not use a mapped drive for your -downloadPath on your workstation. There are known issues which are yet to be resolved. Please use a local drive.
 
 ### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
