@@ -152,7 +152,9 @@ Usage Examples:
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\AzSFiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
--registerAzS -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
+-registerAzS -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi" `
+-multiNode -azsInternalDomain "azscontoso" -pepIP "10.15.25.224" -pepPwd 'Passw0rd123!' `
+-certPath "D:\AzSCerts" -certPwd 'Passw0rd123!' -customDomainSuffix "west.contoso.com"
 ```
 
 **Please Note**
@@ -165,7 +167,9 @@ Usage Examples:
 -downloadPath "D:\AzSFiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerAzS -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
--azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
+-azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi" -multiNode -azsInternalDomain "azscontoso" `
+-pepIP "10.15.25.224" -pepPwd 'Passw0rd123!' -certPath "D:\AzSCerts" -certPwd 'Passw0rd123!' `
+-customDomainSuffix "west.contoso.com"
 ```
 
 **Please Note**
@@ -176,7 +180,9 @@ Usage Examples:
 ```powershell
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\AzSFiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
--VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!'
+-VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
+-multiNode -azsInternalDomain "azscontoso" -pepIP "10.15.25.224" -pepPwd 'Passw0rd123!' `
+-certPath "D:\AzSCerts" -certPwd 'Passw0rd123!' -customDomainSuffix "west.contoso.com"
 ```
 
 **Scenario 4** - Using ADFS for authentication. You wish to register the Azure Stack system to Azure as part of the automated process. For registration, you will have to use a different set of Azure AD credentials as your Azure Stack was deployed with ADFS:
@@ -185,14 +191,18 @@ Usage Examples:
 .\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\AzSFiles" -ISOPath "D:\WS2016EVALISO.iso" `
 -azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerAzS `
 -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
--azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
+-azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi" -multiNode -azsInternalDomain "azscontoso" `
+-pepIP "10.15.25.224" -pepPwd 'Passw0rd123!' -certPath "D:\AzSCerts" -certPwd 'Passw0rd123!' `
+-customDomainSuffix "west.contoso.com"
 ```
 
 **Scenario 5** - Using ADFS for authentication. You choose **not** to register the Azure Stack system to Azure as part of the automated process:
 
 ```powershell
 .\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\AzSFiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
+-azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -multiNode -azsInternalDomain "azscontoso" `
+-pepIP "10.15.25.224" -pepPwd 'Passw0rd123!' -certPath "D:\AzSCerts" -certPwd 'Passw0rd123!' `
+-customDomainSuffix "west.contoso.com"
 ```
 
 Post-Script Actions
