@@ -94,29 +94,33 @@ With the script downloaded successfully, you can move on to running the script. 
 
 **General Guidance**
 
-Parameter | Explanation
+Mandatory Parameters | Explanation
 :------------ | :-------------
 **azureDirectoryTenantName** | You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
 **downloadPath** | Ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your ASDK host, NOT a mapped drive - known issues exist with mapped drives at this time**
 **ISOPath** | Should point to the Windows Server 2016 **MSDN/Visual Studio/VL** media. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time. Evaluation media will not be supported with multinode systems**
-**ISOPath2019** | *Optional*, and should point to the Windows Server 2019 **MSDN/Visual Studio/VL** media. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images. Also, evaluation media will not be supported with multinode systems**
 **VMpwd** | is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
-**azureAdUsername** | *Service Administrator* username you used when you deployed your Azure Stack system (in Azure AD connected mode)
-**azureAdPwd** | *Service Administrator* password you used when you deployed your Azure Stack system (in Azure AD connected mode)
+**azureAdUsername** | *Service Administrator* username you used when you deployed your Azure Stack system (in Azure AD connected mode).
+**azureAdPwd** | *Service Administrator* password you used when you deployed your Azure Stack system (in Azure AD connected mode).
 **registerAzS** | Instructs the script to register your Azure Stack system to Azure.
 **useAzureCredsForRegistration** | Use this if you want to use the same *Service Administrator* Azure AD credentials to register the Azure Stack system, as you did when deployed the Azure Stack system.
+**azureRegSubId** | This is the subscription you'll use to register your Azure Stack system. You will need to have credentials that have enough privielege against this subscription to create resources.
+**multiNode** | This switch should be set for a multinode deployment of Azure Stack.
+**azsInternalDomain** | This is the domain you specified for the internals of Azure Stack and is not necessarily the same as the FQDN of the portal.
+**pepIP** | This is the IP address of your privileged endpoint within your Azure Stack system.  You can provide any of the 3 IPs associated with your 3 ERCs VMs
+**pepPwd** | The password associated with your azsInternaldomain\cloudadmin account.
+**certPath** | A path that contains all of your certificates you plan to use for the App Service and Database RPs.
+**certPwd** | The password associated with the certificates.
+**customDomainSuffix** | This is the region and FQDN associated with your Azure Stack deployment, for example such as "west.contoso.com".  If you're not sure, log onto your Azure Stack portal and copy everything after portal., as your customDomainSuffix.
 
-
-
-
-
-
-
-
-* If you specify -registerAzS but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials.
-* If you are using older hardware, or lower performance hardware with no SSD storage, and are experiencing VM deployment errors, use **-serialMode** to set the script to deploy VMs one at a time, rather than in parallel. This can help with reliability on older, lower performance hardware.
-* If you chose to customize the initial deployment of your ASDK by changing the region (default = "local") or the domain suffix (default = "azurestack.external"), you can use the flag **-customDomainSuffix** along with a correctly formed region and domain suffix, such as "west.contoso.com"
-
+Optional Parameters | Explanation
+:------------ | :-------------
+**azureRegUsername** | If you are **NOT** using useAzureCredsForRegistration, you will need to provide an Azure AD username that will be used for registration
+**azureRegPwd** | If you are **NOT** using useAzureCredsForRegistration, you will need to provide an Azure AD password that will be used for registration
+**ISOPath2019** | Should point to the Windows Server 2019 **MSDN/Visual Studio/VL** media. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images. Also, evaluation media will not be supported with multinode systems**
+**skipMySQL** | **Do not** install the MySQL Resource Provider, Hosting Server and SKU/Quotas.
+**skipMSSQL** | **Do not** install the Microsoft SQL Server Resource Provider, Hosting Server and SKU/Quotas.
+**skipAppService** | **Do not** install the App Service pre-requisites and App Service Resource Provider.
 
 Usage Examples:
 -------------
