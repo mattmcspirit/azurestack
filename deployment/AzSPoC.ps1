@@ -2697,8 +2697,6 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         $runMode = "parallel"
     }
 
-    BREAK
-
     # Define the image jobs
     $jobName = "AddUbuntuImage"
     $AddUbuntuImage = {
