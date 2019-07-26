@@ -92,7 +92,7 @@ If you have run the Azure Stack POC Configurator successfully on this physical h
 ### Step 3 - Centralize your certificates ###
 In order to use the AzSPoC.ps1 script with a multinode deployment, you will need to import certificates for the App Service and Database Resource Providers, assuming you're going to deploy those RPs.  If so, please read this carefully:
 
-The following table describes the endpoints and certificates required for the SQL and MySQL adapters and for App Service. You don't need to copy these certificates to the Azure Stack deployment folder. Instead, you provide these certificates when you install the additional resource providers. 
+The following table describes the endpoints and certificates required for the SQL and MySQL adapters and for App Service.
 
 |Scope (per region)|Certificate|Required certificate subject and Subject Alternative Names (SANs)|SubDomain namespace|
 |-----|-----|-----|-----|
