@@ -64,7 +64,7 @@ Offline/Disconnected Support
 
 If you answered **yes** to any of those, you can deploy the AzSPoC in an offline/disconnected mode. To do so, you should **[read the offline/disconnected documentation.](</deployment/multinode/offline/README.md>)**
 
-IMPORTANT - Step by Step Guidance (for internet-connected Azure Stack systems)
+IMPORTANT - Step by Step Guidance (Connected Azure Stack systems)
 ------------
 
 ### Step 1 - Download the AzSPoC.ps1 script ###
