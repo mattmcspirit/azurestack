@@ -1,30 +1,29 @@
-Azure Stack POC Configurator 1907
+Azure Stack POC Configurator 1907 - Multi-Node Guidance
 ==============
+
+If you are using an ASDK and not a multinode deployment, **STOP** and **[go back to the main readme.](</deployment/README.md>)**
 
 Version Compatibility
 -----------
 The current version of the AzSPoC.ps1 script has been **tested with the following versions**:
-* ASDK build **1.1907.0.20 (1907)**
+* Azure Stack build **1.1907.0.20 (1907)**
 * Azure Stack PowerShell Module **1.7.2**
 
-**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 1907, Azure Stack PowerShell 1.7.2. and the new AzureRM PowerShell 2.5.0.  A version that supports the older ASDK builds (1811 etc) can be found in the archive folder, however this will not be maintained. You should upgrade to a later ASDK.
+**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with Azure Stack build 1907, Azure Stack PowerShell 1.7.2. and the new AzureRM PowerShell 2.5.0.
 
 Description
 -----------
-Once you have **completed the installation of your ASDK**, you need to populate it with content, in order to have a more complete experience. This content may include virtual machine images, extensions, database hosts, app services and more. All of that takes time to install and configure.
-The purpose of this AzSPoC.ps1 script is to automate as much as possible, the post-deployment tasks for the Azure Stack Development Kit
+Once you have **completed the deployment of your Azure Stack system**, you need to populate it with content, in order to have a more complete experience for a POC. This content may include virtual machine images, extensions, database hosts, app services and more. All of that takes time to install and configure.
+The purpose of this AzSPoC.ps1 script is to automate as much as possible, the post-deployment tasks for an Azure Stack POC.
 
-This includes:
+This includes (**for a multinode POC**):
 * Validates all input parameters
-* Checks ASDK host memory for enough resources
-* Installs Azure Stack PowerShell and AzureRM modules
+* Installs Azure Stack PowerShell and AzureRM modules on your machine used to run the script
 * Ensures password for VMs meets complexity required for App Service installation
-* Updated password expiration (180 days)
-* Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
 * Tools installation (Azure Stack Tools)
-* Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
-* Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
-* Windows Server 2019 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository (Optional)
+* Registration of the Azure Stack system to Azure (Optional - enables Marketplace Syndication)
+* Windows Server 2016 Datacenter (Full + Core) images added to the Platform Image Repository
+* Windows Server 2019 Datacenter (Full + Core) images added to the Platform Image Repository (Optional)
 * All Windows Server images are patched with latest SSU and CUs automatically
 * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
 * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
@@ -43,62 +42,36 @@ This includes:
 * Set new default Quotas for MySQL, SQL Server, Compute, Network, Storage and Key Vault
 * Creates a Base Plan and Offer containing all deployed services
 * Creates a user subscription for the logged in tenant, and activates all resource providers
-* Installs a selection of useful apps via Chocolatey (Putty, Chrome, VS Code, WinDirStat, WinSCP, Python3)
-* Configures Python & Azure CLI for usage with ASDK
-* MySQL, SQL, App Service and Host Customization can be optionally skipped
+* MySQL, SQL, and App Service can be optionally skipped
 * Cleans up download folder to ensure clean future runs
 * Transcript Log for errors and troubleshooting
 * Progress Tracking and rerun reliability with AzSPoC database hosted on SqlLocalDB (2017)
 * Stores script output in a AzSPoCOutput.txt, for future reference
 * Supports usage in offline/disconnected environments
-* New -serialMode which excecutes VM deployments in serial, rather than parallel - better for older hardware
-* Now supports ASDKs that have been depoyed with a custom domain suffix, e.g. https://portal.west.contoso.lab
 
 Additionally, if you encounter an issue, try re-running the script with the same command you used to run it previously. The script is written in such a way that it shouldn't try to rerun previously completed steps.
 
-New in 1902 onwards
------------
-Storage uploads of VHDs and other artifacts now use AzCopy for improved performance. In addition, there is now added support for the **automated creation of Windows Server 2019 images** that will be added to your platform image repository. See the instructions below.
-
-In addition, should you choose to customize your ASDK deployment by using a custom domain suffix, such as west.contoso.lab, instead of local.azurestack.external, the Azure Stack POC Configurator now supports this. **NOTE, if you didn't deploy your ASDK with a different custom domain suffix, you can ignore the -customDomainSuffix parameter**
-
 Important Considerations
 ------------
-Firstly, **you must have already deployed the ASDK**. Secondly, for an **Azure AD deployment of the ASDK** (or if you want use AzSPoC.ps1 with an ADFS deployment of the ASDK, but **register** it to Azure), to run the AzSPoC.ps1 script, you need to be using a true **organizational account**, such as admin@contoso.onmicrosoft.com or admin@contoso.com, and this account should have global admin credentials for the specified Azure AD directory. Even if you have a non-organizational account, such as an outlook.com account, that has the right level of privilege in Azure AD, the AzSPoC.ps1 script **uses a -Credential switch for non-interactive login, which doesn’t work with non-organizational accounts**. You will receive an error.
+Firstly, **you must have already deployed the Azure Stack system**. Secondly, for an **Azure AD deployment of the Azure Stack** (or if you want use AzSPoC.ps1 with an ADFS deployment of Azure Stack, but **register** it to Azure), to run the AzSPoC.ps1 script, you need to be using a true **organizational account**, such as admin@contoso.onmicrosoft.com or admin@contoso.com, and this account should have global admin credentials for the specified Azure AD directory. Even if you have a non-organizational account, such as an outlook.com account, that has the right level of privilege in Azure AD, the AzSPoC.ps1 script **uses a -Credential switch for non-interactive login, which doesn’t work with non-organizational accounts**. You will receive an error.
 
 **You do not need to install Azure/AzureStack PowerShell before running the script. The Azure Stack POC Configurator will install and configure Azure/AzureStack PowerShell for you. If you have already installed the Azure/AzureStack PowerShell modules, the script will first clean your PowerShell configuration to ensure optimal operation.**
 
-ASDK Host Sizing
-------------
-The Azure Stack POC Configurator will deploy a total of 12 additional virtual machines to support the MySQL, SQL Server, and App Service Resource Providers, should you choose to deploy all the RPs.  You will therefore need an ASDK host machine that has at least 29.5GB free memory to support these additional virtual machines:
-
-* **MySQL RP** - 2 VMs (RP VM, DB Host VM) = **5.5GB**
-* **SQL Server RP** - 2 VMs (RP VM, DB Host VM) = **5.5GB**
-* **App Service** - 7 VMs (File Server, SQL Host, Front End Scale Set, Shared Worker Tier, Publisher Scale Set, CN0-VM, Management Servers Scale Set) = **23GB**
-
-**Total with all RPs deployed = 34GB in addition to the core running Azure Stack ASDK VMs**
-
-Before you run the Azure Stack POC Configurator, ensure that you have enough memory available on your ASDK host system. On a typical ASDK system, the core Azure Stack VMs will already consume between 50-60GB of host memory, so please ensure you have enough remaining to deploy the additional resource providers. As per the updated specs here: https://docs.microsoft.com/en-us/azure/azure-stack/asdk/asdk-deploy-considerations, a system with at least 192GB memory is recommended to evaluate all features.
-
-Running on older/low performance hardware
-------------
-If your system doesn't have SSDs, or is an older system, the Azure Stack POC Configurator may experience issues during parallel deployment of virtual machines. This may also be true in environments where you have virtualized the ASDK, and are running it nested on an alternative virtualization/cloud platform, such as ESXi, or in an Azure VM. If that's the case, it's recommended to run the AzSPoC.ps1 script with the **-serialMode flag**, and this will instruct the script to deploy any VMs, one at a time. This takes a little longer, but offers increased reliability on systems with lower levels of performance.
-
 Offline/Disconnected Support
 ------------
-* Do you want to deploy your ASDK in an environment that **doesn't have internet connectivity**?
+* Do you want to configure your Azure Stack multinode system in an environment that **doesn't have internet connectivity**?
 * Do you want to download the 5GB+ of required dependencies (Ubuntu image, Database resource providers, App Service binaries, JSON files etc) in advance of running the script?
 
-If you answered **yes** to any of those, you can deploy the AzSPoC in an offline/disconnected mode. To do so, you should **[read the offline/disconnected documentation.](</deployment/offline/README.md>)**
+If you answered **yes** to any of those, you can deploy the AzSPoC in an offline/disconnected mode. To do so, you should **[read the offline/disconnected documentation.](</deployment/multinode/offline/README.md>)**
 
-Step by Step Guidance (for internet-connected ASDK)
+IMPORTANT - Step by Step Guidance (for internet-connected Azure Stack systems)
 ------------
 
 ### Step 1 - Download the AzSPoC.ps1 script ###
-The first step in the process is to create a local folder on the ASDK host, and then download the AzSPoC.ps1.
+The first step in the process is to create a local folder on your workstation, and then download the AzSPoC.ps1.
 
-* Deploy your ASDK
-* Once complete, login as azurestack\azurestackadmin on your ASDK host.
+* Deploy your Azure Stack system
+* Once complete, login to your workstation.  **NOTE - this workstation needs to remain connected to the Azure Stack system for the duration of the script execution.**
 * Open an elevated PowerShell window and run the following script to download the AzSPoC.ps1 file:
 
 ```powershell
@@ -110,6 +83,7 @@ Set-Location "C:\AzSPoC"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Invoke-Webrequest http://bit.ly/AzSPoC -UseBasicParsing -OutFile AzSPoC.ps1
 ```
+
 ### Step 2 - Previous Run Cleanup ###
 If you have run the Azure Stack POC Configurator successfully on this physical host before, you may have artifacts left over in your -downloadPath (assuming you use the same path each time) that can affect the next deployment, so please remove any existing files and folders from within your -downloadPath before running the AzSPoC.ps1 script. If you only have a "Completed" folder, this does not need to be deleted.
 
@@ -119,29 +93,35 @@ If you have run the Azure Stack POC Configurator successfully on this physical h
 With the script downloaded successfully, you can move on to running the script. Below, you will find a number of examples to help you run the script, depending on your scenario. Before you use the examples, please read the general guidance below:
 
 **General Guidance**
-* For the **-azureDirectoryTenantName**, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
-* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your ASDK host, NOT a mapped drive - known issues exist with mapped drives at this time**
-* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time**
-* **-ISOPath2019** is optional, and should point to the Windows Server 2019 Evaluation media that you can download from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images**
-* **-azureStackAdminPwd** is the password you used when deploying your ASDK.
+
+Parameter | Explanation
+------------ | -------------
+**-azureDirectoryTenantName** | You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
+**-downloadPath** | Ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your ASDK host, NOT a mapped drive - known issues exist with mapped drives at this time**
+
+* **-azureDirectoryTenantName** - You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
+* **-downloadPath** - ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your ASDK host, NOT a mapped drive - known issues exist with mapped drives at this time**
+* **-ISOPath** should point to the Windows Server 2016 **MSDN/Visual Studio/VL** media. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time. Evaluation media will not be supported with multinode systems**
+* **-ISOPath2019** is optional, and should point to the Windows Server 2019 **MSDN/Visual Studio/VL** media. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images. Also, evaluation media will not be supported with multinode systems**
 * **-VMpwd** is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
 * **-azureAdUsername** and **-azureAdPwd** are the *Service Administrator* credentials you used when you deployed your ASDK host (in Azure AD connected mode)
-* Use the **-registerASDK** flag to instruct the script to register your ASDK to Azure.
+* Use the **-registerAzS** flag to instruct the script to register your ASDK to Azure.
 * Use the **-useAzureCredsForRegistration** flag if you want to use the same *Service Administrator* Azure AD credentials to register the ASDK, as you did when deploying the ASDK.
-* If you specify -registerASDK but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials.
+* If you specify -registerAzS but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials.
 * If you are using older hardware, or lower performance hardware with no SSD storage, and are experiencing VM deployment errors, use **-serialMode** to set the script to deploy VMs one at a time, rather than in parallel. This can help with reliability on older, lower performance hardware.
-* If you chose to customize the initial deployment of your ASDK by changing the region (default = "local") or the domain suffix (default = "azurestack.external"), you can use the flag **-customDomainSuffix** along with a correctly formed region and domain suffix, such as "west.contoto.com"
+* If you chose to customize the initial deployment of your ASDK by changing the region (default = "local") or the domain suffix (default = "azurestack.external"), you can use the flag **-customDomainSuffix** along with a correctly formed region and domain suffix, such as "west.contoso.com"
+
 
 Usage Examples:
 -------------
 
-**Scenario 1** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use the same Azure AD credentials as you used when you deployed your ASDK:
+**Scenario 1** - Using Azure AD for authentication. You wish to register the Azure Stack system to Azure as part of the automated process. For registration, you wish to use the same Azure AD credentials as you used when you deployed your Azure Stack system:
 
 ```powershell
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
--registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
+-registerAzS -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
 **Please Note**
@@ -153,7 +133,7 @@ Usage Examples:
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
--registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
+-registerAzS -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -172,7 +152,7 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -ISOPath "D:\WS2016EVALISO.iso" `
--azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerASDK `
+-azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerAzS `
 -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
