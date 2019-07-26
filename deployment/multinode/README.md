@@ -98,13 +98,13 @@ Parameter | Explanation
 :------------ | :-------------
 **azureDirectoryTenantName** | You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
 **downloadPath** | Ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your ASDK host, NOT a mapped drive - known issues exist with mapped drives at this time**
-**-ISOPath** | Should point to the Windows Server 2016 **MSDN/Visual Studio/VL** media. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time. Evaluation media will not be supported with multinode systems**
-**-ISOPath2019** | *Optional*, and should point to the Windows Server 2019 **MSDN/Visual Studio/VL** media. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images. Also, evaluation media will not be supported with multinode systems**
+**ISOPath** | Should point to the Windows Server 2016 **MSDN/Visual Studio/VL** media. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time. Evaluation media will not be supported with multinode systems**
+**ISOPath2019** | *Optional*, and should point to the Windows Server 2019 **MSDN/Visual Studio/VL** media. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images. Also, evaluation media will not be supported with multinode systems**
 **VMpwd** | is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
-**-azureAdUsername** | *Service Administrator* username you used when you deployed your Azure Stack system (in Azure AD connected mode)
-**-azureAdPwd** | *Service Administrator* password you used when you deployed your Azure Stack system (in Azure AD connected mode)
-**-registerAzS** | Instructs the script to register your Azure Stack system to Azure.
-**-useAzureCredsForRegistration** | Use this if you want to use the same *Service Administrator* Azure AD credentials to register the Azure Stack system, as you did when deployed the Azure Stack system.
+**azureAdUsername** | *Service Administrator* username you used when you deployed your Azure Stack system (in Azure AD connected mode)
+**azureAdPwd** | *Service Administrator* password you used when you deployed your Azure Stack system (in Azure AD connected mode)
+**registerAzS** | Instructs the script to register your Azure Stack system to Azure.
+**useAzureCredsForRegistration** | Use this if you want to use the same *Service Administrator* Azure AD credentials to register the Azure Stack system, as you did when deployed the Azure Stack system.
 
 
 
