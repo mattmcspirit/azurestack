@@ -87,7 +87,7 @@ Invoke-Webrequest http://bit.ly/AzSPoC -UseBasicParsing -OutFile AzSPoC.ps1
 ### Step 2 - Previous Run Cleanup ###
 If you have run the Azure Stack POC Configurator successfully on this physical host before, you may have artifacts left over in your -downloadPath (assuming you use the same path each time) that can affect the next deployment, so please remove any existing files and folders from within your -downloadPath before running the AzSPoC.ps1 script. If you only have a "Completed" folder, this does not need to be deleted.
 
-![Existing files](/../../deployment/offline/media/AsdkFolderCleanup.png)
+![Existing files](/../offline/media/AsdkFolderCleanup.png)
 
 ### Step 3 - Run the AzSPoC.ps1 script ###
 With the script downloaded successfully, you can move on to running the script. Below, you will find a number of examples to help you run the script, depending on your scenario. Before you use the examples, please read the general guidance below:
