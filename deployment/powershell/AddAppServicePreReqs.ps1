@@ -55,8 +55,8 @@ param (
     [parameter(Mandatory = $false)]
     [String] $certPath,
 
-    [parameter(Mandatory = $false)]
-    [String] $certPwd,
+    [parameter(Mandatory = $true)]
+    [securestring] $secureCertPwd,
 
     [parameter(Mandatory = $false)]
     [String] $multiNode
@@ -148,7 +148,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $AppServicePath = "$azsPath\appservice"
             Set-Location "$AppServicePath"
 
-            if (!$multiNode) {
+            if ($multiNode -eq $false) {
                 if (!$([System.IO.File]::Exists("$AppServicePath\CertsCreated.txt"))) {
                     .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName $customDomainSuffix
                     .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $pepAdminCreds
@@ -176,7 +176,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $azsCreds -ErrorAction Stop
                     Set-Location "$AppServicePath" -Verbose
                     Write-Host "Generating the application ID for the App Service installation"
-                    if (!$multiNode) {
+                    if ($multiNode -eq $false) {
                         $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -TenantArmEndpoint "management.$customDomainSuffix" `
                             -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $azsCreds -Verbose
                     }
@@ -226,7 +226,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                     Set-Location "$AppServicePath" -Verbose
                     Write-Host "Generating the application ID for the App Service installation"
-                    if (!$multiNode) {
+                    if ($multiNode -eq $false) {
                         $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -PrivilegedEndpoint $ERCSip `
                             -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $azsCreds -Verbose
                     }

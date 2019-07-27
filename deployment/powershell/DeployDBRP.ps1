@@ -52,8 +52,11 @@ param (
     [Parameter(Mandatory = $false)]
     [String] $certPath,
 
+    [parameter(Mandatory = $true)]
+    [securestring] $secureCertPwd,
+
     [Parameter(Mandatory = $false)]
-    [String] $certPwd
+    [String] $multiNode
 )
 
 $Global:VerbosePreference = "Continue"
@@ -274,7 +277,6 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 # End of Temporary Workaround
                 ############################################################################################################################################################################
 
-                $secureCertPwd = ConvertTo-SecureString $certPwd -AsPlainText -Force
                 Write-Host "Starting deployment of $dbrp Resource Provider"
                 if ($dbrp -eq "MySQL") {
                     if ($deploymentMode -eq "Online") {

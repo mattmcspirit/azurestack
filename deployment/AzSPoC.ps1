@@ -3005,12 +3005,12 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $AddAppServicePreReqs = {
         Start-Job -Name AddAppServicePreReqs -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $downloadPath, $deploymentMode, $authenticationType, `
             $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $branch, $azsCreds, $pepAdminCreds, $ScriptLocation, $skipAppService, `
-            $sqlServerInstance, $databaseName, $tableName, $certPath, $certPwd, $multiNode -ScriptBlock {
+            $sqlServerInstance, $databaseName, $tableName, $certPath, $secureCertPwd, $multiNode -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\AddAppServicePreReqs.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix `
                 -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -authenticationType $Using:authenticationType `
                 -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -secureVMpwd $Using:secureVMpwd -ERCSip $Using:ERCSip -branch $Using:branch `
                 -azsCreds $Using:azsCreds -pepAdminCreds $Using:pepAdminCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService `
-                -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -certPath $Using:certPath -certPwd $Using:certPwd `
+                -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -certPath $Using:certPath -secureCertPwd $Using:secureCertPwd `
                 -multiNode $Using:multiNode
         } -Verbose -ErrorAction Stop
     }

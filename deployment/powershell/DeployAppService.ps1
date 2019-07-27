@@ -183,7 +183,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Write-Host "SQL for App Service is at: $sqlAppServerFqdn"
             Write-Host "Identity Application ID is: $identityApplicationID"
 
-            if (!$multiNode) {
+            if ($multiNode -eq $false) {
                 $certPwd = $VMpwd
             }
 

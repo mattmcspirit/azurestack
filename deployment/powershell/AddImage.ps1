@@ -118,14 +118,14 @@ if (!$([System.IO.Directory]::Exists("$azsPath\images\$image"))) {
     New-Item -Path "$azsPath\images\$image" -ItemType Directory -Force | Out-Null
 }
 
-if (!$multiNode) {
+if ($multiNode -eq $false) {
     $imageRootPath = "C:\ClusterStorage\Volume1"
 }
 else {
     $imageRootPath = $azsPath
 }
 
-if (!$multiNode) {
+if ($multiNode -eq $false) {
     if (!$([System.IO.Directory]::Exists("$imageRootPath\images"))) {
         New-Item -Path "$imageRootPath\images" -ItemType Directory -Force | Out-Null
     }
@@ -287,10 +287,10 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 }
             }
             if ($multiNode) {
-                $windowsVhdSize = 60
+                $windowsVhdSize = 60GB
             }
             else {
-                $windowsVhdSize = 40
+                $windowsVhdSize = 40GB
             }
             
             Set-Location "$azsPath\images"
@@ -640,7 +640,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             else {
                                 $v = "2016"
                             }
-                            if (!$multiNode) {
+                            if ($multiNode -eq $false) {
                                 Copy-Item -Path "$azsPath\images\$v\*" -Destination "$imageRootPath\images\$image\" -Recurse -Force -Verbose -ErrorAction Stop
                             }
                             $target = "$imageRootPath\images\$image\SSU"
@@ -652,11 +652,11 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                 try {
                                     Write-Host "Starting image creation process. Creation attempt: $imageRetries"
                                     if ($image -eq "ServerCore$($v)") {
-                                        .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes "$($windowsVhdSize)GB" -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
+                                        .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes "$($windowsVhdSize)"GB -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
                                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                                     }
                                     elseif ($image -eq "ServerFull$($v)") {
-                                        .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes "$($windowsVhdSize)GB" -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
+                                        .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes "$($windowsVhdSize)"GB -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
                                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                                     }
                                     if (!$(Get-ChildItem -Path "$imageRootPath\images\$image\$blobName" -ErrorAction SilentlyContinue)) {
