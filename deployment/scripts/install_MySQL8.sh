@@ -32,7 +32,9 @@ echo "deb http://repo.mysql.com/apt/ubuntu $(lsb_release -sc) mysql-8.0" | sudo 
 # Update
 echo Running apt-get update -y...
 sudo apt-get update -y
+sudo apt-mark hold walinuxagent
 # apt-get upgrade -y
+sudo apt-mark unhold walinuxagent
 
 # Install MySQL 8.0
 echo "mysql-community-server mysql-community-server/root-pass password root" | sudo debconf-set-selections
