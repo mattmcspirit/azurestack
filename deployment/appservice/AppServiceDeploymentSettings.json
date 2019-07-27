@@ -88,7 +88,7 @@
     "SQLSysAdminLogin": "<<SQLServerUser>>",
     "SQLSysAdminPassword": "<<Password>>",
     "SelectedControllerInstances": "<<instances>>",
-    "SelectedManagementRoleInstances": "<<instance>>",
+    "SelectedManagementRoleInstances": "<<instances>>",
     "SelectedPublisherRoleInstances": "<<instances>>",
     "SelectedFrontEndRoleInstances": "<<instances>>",
     "SelectedWorkerInstances": "<<instances>>",
