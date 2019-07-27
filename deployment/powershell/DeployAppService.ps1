@@ -265,7 +265,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $JsonConfig = $JsonConfig.Replace("<<publisherSkuSize>>", "Standard_F2s")
                 $JsonConfig = $JsonConfig.Replace("<<frontendSkuSize>>", "Standard_F2s")
                 $JsonConfig = $JsonConfig.Replace("<<workerSkuSize>>", "Standard_F2s")
-                $JsonConfig = $JsonConfig.Replace("<<instances>>", "2")
+                $JsonConfig = $JsonConfig.Replace('"<<instances>>"', 2)
             }
             else {
                 $JsonConfig = $JsonConfig.Replace("<<controllerSkuSize>>", "Standard_A2")
@@ -273,7 +273,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $JsonConfig = $JsonConfig.Replace("<<publisherSkuSize>>", "Standard_A2")
                 $JsonConfig = $JsonConfig.Replace("<<frontendSkuSize>>", "Standard_A2")
                 $JsonConfig = $JsonConfig.Replace("<<workerSkuSize>>", "Standard_A2")
-                $JsonConfig = $JsonConfig.Replace("<<instances>>", "1")
+                $JsonConfig = $JsonConfig.Replace('"<<instances>>"', 1)
             }
             $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $fileServerFqdn)
             $JsonConfig = $JsonConfig.Replace("<<Password>>", $VMpwd)
@@ -359,6 +359,12 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
                     throw "$($appServiceFailCheck.DeploymentName) has $($appServiceFailCheck.ProvisioningState), however the logs show a failure. Please check the App Service logs at $appServiceLogPath for full details. You should be able to rerun the script and it complete successfully."
                 }
+                elseif ($null -eq $appServiceFailCheck) {
+                    Write-Output "There is evidence of a failed App Service deployment in the log file, and the App Service Resource Group looks incomplete. Starting cleanup..."
+                    Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
+                    throw "There is evidence of a failed App Service deployment in the log file, and the App Service Resource Group looks incomplete. This will be cleaned up ahead of a rerun. Please check the App Service logs at $appServiceLogPath for full details. You should be able to rerun the script and it complete successfully."
+                }
+
                 throw "App Service install failed with $appServiceErrorCode. Please check the App Service logs at $appServiceLogPath"
             }
             else {
