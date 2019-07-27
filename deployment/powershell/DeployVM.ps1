@@ -101,7 +101,7 @@ elseif ($vmType -eq "AppServiceDB") {
     }
 }
 
-if ($multinode) {
+if ($multinode -eq $true) {
     $dbVmSize = "Standard_F2s"
     $fsVmSize = "Standard_F4s"
 }

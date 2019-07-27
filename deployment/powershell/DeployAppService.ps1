@@ -259,7 +259,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             elseif ($authenticationType.ToString() -like "ADFS") {
                 $JsonConfig = $JsonConfig.Replace("<<AzureDirectoryTenantName>>", "adfs")
             }
-            if ($multiNode) {
+            if ($multinode -eq $true) {
                 $JsonConfig = $JsonConfig.Replace("<<controllerSkuSize>>", "Standard_F4s")
                 $JsonConfig = $JsonConfig.Replace("<<managementSkuSize>>", "Standard_F4s")
                 $JsonConfig = $JsonConfig.Replace("<<publisherSkuSize>>", "Standard_F2s")
@@ -278,7 +278,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $fileServerFqdn)
             $JsonConfig = $JsonConfig.Replace("<<Password>>", $VMpwd)
             $JsonConfig = $JsonConfig.Replace("<<certPassword>>", $certPwd)
-            if ($multiNode) {
+            if ($multinode -eq $true) {
                 $CertPathDoubleSlash = $certPath.Replace("\", "\\")
             }
             else {

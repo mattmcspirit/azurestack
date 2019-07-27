@@ -280,7 +280,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Starting deployment of $dbrp Resource Provider"
                 if ($dbrp -eq "MySQL") {
                     if ($deploymentMode -eq "Online") {
-                        if ($multiNode) {
+                        if ($multinode -eq $true) {
                             $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
                             $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                             Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose

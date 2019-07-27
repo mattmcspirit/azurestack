@@ -636,7 +636,7 @@ try {
     ### ASDK MEMORY CHECK ########################################################################################################################################
     ##############################################################################################################################################################
 
-    if (!$multiNode) {
+    if (($multinode -eq $false)) {
         Write-CustomVerbose -Message "Validating ASDK host memory to ensure you can deploy the additional resource providers on this system"
         Write-CustomVerbose -Message "Calculating ASDK host memory"
         [INT]$totalPhysicalMemory = Get-CimInstance win32_ComputerSystem -Verbose:$false | ForEach-Object { [math]::round($_.TotalPhysicalMemory / 1GB) }
@@ -862,7 +862,7 @@ try {
     ### ASDK CRED VALIDATION ####################################################################################################################################
     #############################################################################################################################################################
 
-    if (!$multiNode) {
+    if (($multinode -eq $false)) {
         ### Validate Azure Stack Development Kit Deployment Credentials ###
         if ([string]::IsNullOrEmpty($asdkHostPwd)) {
             Write-CustomVerbose -Message "You didn't enter the ASDK Host password." 
@@ -1058,15 +1058,15 @@ try {
 
     Write-Host "Validating whether this is an ASDK or a multinode deployment..."
 
-    if ($multiNode -and ($pepIP -and $pepPwd -and $customDomainSuffix -and $certPath -and $azsInternalDomain -and $certPwd)) {
+    if (($multiNode -eq $true) -and ($pepIP -and $pepPwd -and $customDomainSuffix -and $certPath -and $azsInternalDomain -and $certPwd)) {
         Write-Host "All multinode parameters have been defined - we will now validate the parameters to ensure accuracy."
     }
-    if (!$multiNode -and ($pepIP -and $pepPwd -and $customDomainSuffix -and $certPath -and $azsInternalDomain -and $certPwd)) {
+    if (($multinode -eq $false) -and ($pepIP -and $pepPwd -and $customDomainSuffix -and $certPath -and $azsInternalDomain -and $certPwd)) {
         Set-Location $ScriptLocation
         Write-Host "All multinode parameters have been defined - but you didn't use the -multiNode switch - please use this to confirm this is a multinode." -ForegroundColor Red
         Break
     }
-    if ($multiNode -and (!$pepIP -or !$pepPwd -or !$customDomainSuffix -or !$certPath -or !$azsInternalDomain -or $certPwd)) {
+    if (($multiNode -eq $true) -and (!$pepIP -or !$pepPwd -or !$customDomainSuffix -or !$certPath -or !$azsInternalDomain -or $certPwd)) {
         Write-Host "You've specified a multinode deployment, yet you've not provided all related parameters"
         if (!$pepIP) {
             Set-Location $ScriptLocation
@@ -1099,32 +1099,32 @@ try {
             Break
         }
     }
-    if ($pepIP -and !$multiNode) {
+    if ($pepIP -and ($multinode -eq $false)) {
         Set-Location $ScriptLocation
         Write-Host "You've specified the -pepIP parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -pepIP if this is an ASDK." -ForegroundColor Red
         Break
     }
-    if ($pepPwd -and !$multiNode) {
+    if ($pepPwd -and ($multinode -eq $false)) {
         Set-Location $ScriptLocation
         Write-Host "You've specified the -pepPwd parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -pepPwd if this is an ASDK." -ForegroundColor Red
         Break
     }
-    if (($customDomainSuffix -ne "local.azurestack.external") -and !$multiNode) {
+    if (($customDomainSuffix -ne "local.azurestack.external") -and ($multinode -eq $false)) {
         Set-Location $ScriptLocation
         Write-Host "You've specified the -customDomainSuffix parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -customDomainSuffix if this is an ASDK." -ForegroundColor Red
         Break
     }
-    if ($certPath -and !$multiNode) {
+    if ($certPath -and ($multinode -eq $false)) {
         Set-Location $ScriptLocation
         Write-Host "You've specified the -certPath parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, , or remove the -certPath if this is an ASDK." -ForegroundColor Red
         Break
     }
-    if ($certPwd -and !$multiNode) {
+    if ($certPwd -and ($multinode -eq $false)) {
         Set-Location $ScriptLocation
         Write-Host "You've specified the -certPwd parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, , or remove the -certPwd if this is an ASDK." -ForegroundColor Red
         Break
     }
-    if ($azsInternalDomain -and !$multiNode) {
+    if ($azsInternalDomain -and ($multinode -eq $false)) {
         Set-Location $ScriptLocation
         Write-Host "You've specified the -azsInternalDomain parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -azsInternalDomain if this is an ASDK." -ForegroundColor Red
         Break
@@ -1137,7 +1137,7 @@ try {
 
     ### By this point, you should either know whether this is a multinode deployment, and all parameters should exist, or not
 
-    if ($multiNode) {
+    if ($multinode -eq $true) {
         # Validate internal domain entry and set the pepAdminUsername
         if ([string]::IsNullOrEmpty($azsInternalDomain)) {
             Write-CustomVerbose -Message "You specified this is a multinode deployment, but didn't provide a valid internal domain for your deployment" 
@@ -1712,7 +1712,7 @@ try {
         else {
             Write-CustomVerbose -Message "The Windows Server $buildVersion does equal 14393, which is a valid build number and the process will continue"
         }
-        if ($multiNode) {
+        if ($multinode -eq $true) {
             if ($edition -like "*Eval*") {
                 Write-Host "This Windows Server 2016 ISO is evaluation media, which should not be used on a multinode Azure Stack system." -ForegroundColor Red
                 Write-Host "Instead of this media, you should use media downloaded from MSDN/Visual Studio, or Volume License media. This will ensure correct activation on the Azure Stack system" -ForegroundColor Red
@@ -1779,7 +1779,7 @@ try {
             else {
                 Write-CustomVerbose -Message "The Windows Server $buildVersion does equal 17763, which is a valid build number and the process will continue"
             }
-            if ($multiNode) {
+            if ($multinode -eq $true) {
                 if ($edition -like "*Eval*") {
                     Write-Host "This Windows Server 2019 ISO is evaluation media, which should not be used on a multinode Azure Stack system." -ForegroundColor Red
                     Write-Host "Instead of this media, you should use media downloaded from MSDN/Visual Studio, or Volume License media. This will ensure correct activation on the Azure Stack system" -ForegroundColor Red
@@ -2091,7 +2091,7 @@ try {
     # Establish a session with the PEP to ensure everything is working correctly
     Write-Host "Validating access to the Privileged Endpoint..."
     Write-Host "Targeting $ERCSip..."
-    if ($multiNode) {
+    if ($multinode -eq $true) {
         Remove-Variable -Name currentWinRm -ErrorAction SilentlyContinue
         $currentWinRm = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
         if ($currentWinRm -eq '*') {
@@ -2195,7 +2195,7 @@ try {
     $progressCheck = CheckProgress -progressStage $progressStage
     $scriptStep = $progressStage.ToUpper()
 
-    if ($multiNode) {
+    if ($multinode -eq $true) {
         Write-Host "This is a multinode deployment - this step will discover and organize your certificates."
         if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             try {
@@ -2293,7 +2293,7 @@ try {
     $progressCheck = CheckProgress -progressStage $progressStage
     $scriptStep = $progressStage.ToUpper()
 
-    if (!$multiNode) {
+    if (($multinode -eq $false)) {
         if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             try {
                 # Set password expiration to 180 days
@@ -2377,7 +2377,7 @@ try {
                 # Import the registration module that was downloaded with the GitHub tools
                 Import-Module $modulePath\Registration\RegisterWithAzure.psm1 -Force -Verbose
                 #Register Azure Stack
-                if (!$multiNode) {
+                if (($multinode -eq $false)) {
                     $asdkHostName = ($env:computername).ToLower()
                     $azsRegName = "azsreg-$asdkHostName-$runTime"
                     $billingModel = "Development"
@@ -2639,7 +2639,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
 
     $scriptStep = "LAUNCHJOBS"
     # Get current free space on the drive used to hold the Azure Stack images
-    if (!$multiNode) {
+    if (($multinode -eq $false)) {
         Write-CustomVerbose -Message "Calculating free disk space on ASDK Cluster Shared Volume, to plan image upload concurrency"
         Start-Sleep 5
         $freeDiskSpace = [int](((Get-ClusterSharedVolume | Select-Object -Property Name -ExpandProperty SharedVolumeInfo).Partition.FreeSpace) / 1GB)
@@ -2653,7 +2653,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         Write-CustomVerbose -Message "Free space on local system volume = $($freeDiskSpace)GB"
         Start-Sleep 3
     }
-    if ($multiNode) {
+    if ($multinode -eq $true) {
         if ($null -eq $ISOPath2019) {
             $sm = 45
             $med = 135
@@ -3216,7 +3216,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $progressCheck = CheckProgress -progressStage $progressStage
     $scriptStep = $progressStage.ToUpper()
 
-    if (!$multiNode) {
+    if (($multinode -eq $false)) {
         if ($progressCheck -eq "Complete") {
             Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
         }
@@ -3444,7 +3444,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             Write-Output "Your ASDK admin account and the Azure Stack portal use the following account for login: $pepAdminUsername" >> $txtPath
         }
         elseif ($authenticationType.ToString() -like "AzureAD") {
-            if (!$multiNode) {
+            if (($multinode -eq $false)) {
                 Write-Output "Use the following username to login to your ASDK host: $asdkAdminUsername" >> $txtPath
             }
             Write-Output "Use the following username to login to the Azure Stack portal: $azureAdUsername" >> $txtPath
@@ -3521,7 +3521,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             Write-Output "File Share User: fileshareuser" >> $txtPath
             Write-Output "File Share User Password: $VMpwd" >> $txtPath
             Write-Output "Identity Application ID: $identityApplicationID" >> $txtPath
-            if (!$multiNode) {
+            if (($multinode -eq $false)) {
                 Write-Output "Identity Application Certificate file (*.pfx): $AppServicePath\sso.appservice.$customDomainSuffix.pfx" >> $txtPath
                 Write-Output "Azure Resource Manager (ARM) root certificate file (*.cer): $AppServicePath\AzureStackCertificationAuthority.cer" >> $txtPath
                 Write-Output "App Service default SSL certificate file (*.pfx): $AppServicePath\_.appservice.$customDomainSuffix.pfx" >> $txtPath
@@ -3595,7 +3595,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         if ([bool](Get-ChildItem -Path "$AppServicePath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose)) {
             Get-ChildItem -Path "$AppServicePath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ "$completedPath\AppServiceCerts" -Force -ErrorAction SilentlyContinue -Verbose }
         }
-        elseif ($multiNode) {
+        elseif ($multinode -eq $true) {
             if ([bool](Get-ChildItem -Path "$certPath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose)) {
                 Get-ChildItem -Path "$certPath\*" -Include "*.cer", "*.pfx" -ErrorAction SilentlyContinue -Verbose | ForEach-Object { Copy-Item -Path $_ "$completedPath\AppServiceCerts" -Force -ErrorAction SilentlyContinue -Verbose }
             }

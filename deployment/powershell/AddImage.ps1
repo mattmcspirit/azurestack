@@ -286,7 +286,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     }
                 }
             }
-            if ($multiNode) {
+            if ($multinode -eq $true) {
                 $windowsVhd = 60
                 $windowsVhdSize = [bigint]60GB
             }
