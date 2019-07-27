@@ -287,10 +287,12 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 }
             }
             if ($multiNode) {
-                $windowsVhdSize = 60GB
+                $windowsVhd = 60
+                $windowsVhdSize = [bigint]60GB
             }
             else {
-                $windowsVhdSize = 40GB
+                $windowsVhd = 40
+                $windowsVhdSize = [bigint]40GB
             }
             
             Set-Location "$azsPath\images"
@@ -301,7 +303,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 $onlinePackage = "*Microsoft.WindowsServer2016DatacenterServerCore-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
-                $vhdVersion = "2016.$windowsVhdSize.$date"
+                $vhdVersion = "2016.$windowsVhd.$date"
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
@@ -314,7 +316,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 $onlinePackage = "*Microsoft.WindowsServer2016Datacenter-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
-                $vhdVersion = "2016.$windowsVhdSize.$date"
+                $vhdVersion = "2016.$windowsVhd.$date"
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
@@ -327,7 +329,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 $onlinePackage = "*Microsoft.WindowsServer2019DatacenterServerCore-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
-                $vhdVersion = "2019.$windowsVhdSize.$date"
+                $vhdVersion = "2019.$windowsVhd.$date"
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
@@ -340,7 +342,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 $onlinePackage = "*Microsoft.WindowsServer2019Datacenter-ARM-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019Datacenter-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
-                $vhdVersion = "2019.$windowsVhdSize.$date"
+                $vhdVersion = "2019.$windowsVhd.$date"
                 $publisher = "MicrosoftWindowsServer"
                 $offer = "WindowsServer"
                 $osVersion = "Windows"
@@ -652,11 +654,11 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                 try {
                                     Write-Host "Starting image creation process. Creation attempt: $imageRetries"
                                     if ($image -eq "ServerCore$($v)") {
-                                        .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes "$($windowsVhdSize)"GB -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
+                                        .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes $windowsVhdSize -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
                                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                                     }
                                     elseif ($image -eq "ServerFull$($v)") {
-                                        .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes "$($windowsVhdSize)"GB -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
+                                        .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes $windowsVhdSize -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
                                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
                                     }
                                     if (!$(Get-ChildItem -Path "$imageRootPath\images\$image\$blobName" -ErrorAction SilentlyContinue)) {
