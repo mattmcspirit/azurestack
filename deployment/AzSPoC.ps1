@@ -1228,6 +1228,7 @@ try {
         [System.Security.SecureString]$pepPwd = $secureAsdkHostPwd
         $ERCSip = "AzS-ERCS01"
         $certPwd = $VMpwd
+        $certPath = $null
         [System.Security.SecureString]$secureCertPwd = $secureVMpwd
     }
 
@@ -2408,6 +2409,7 @@ try {
                 Write-Output '$pepAdminCreds = Get-Credential -UserName "$azsInternalDomain\cloudadmin" -Message "Enter the credentials to access the privileged endpoint."' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 # Perform Removal
                 Write-Output 'Remove-AzsRegistration -PrivilegedEndpoint "$ERCSip" -PrivilegedEndpointCredential $pepAdminCreds -RegistrationName "$azsRegName"' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
+                $azsRegName = (((Get-Content -Path "$downloadPath\AzSRegCleanUp.ps1") | Select-String "azsRegName = `"") -split '"')[1]
                 StageComplete -progressStage $progressStage
             }
             catch {
@@ -2417,10 +2419,12 @@ try {
             }
         }
         elseif ($progressCheck -eq "Complete") {
+            $azsRegName = (((Get-Content -Path "$downloadPath\AzSRegCleanUp.ps1") | Select-String "azsRegName = `"") -split '"')[1]
             Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
         }
     }
     elseif (!$registerAzS) {
+        $azsRegName = "Skipped"
         Write-CustomVerbose -Message "Skipping Azure Stack registration to Azure"
         StageSkipped -progressStage $progressStage
     }
@@ -2843,8 +2847,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -pepAdminCreds $Using:pepAdminCreds `
                 -certPath $Using:certPath -certPwd $Using:certPwd -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
-                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode `
-                -certPwd $Using:certPwd -certPath $Using:certPath
+                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddMySQLRP -Verbose
@@ -2857,8 +2860,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -pepAdminCreds $Using:pepAdminCreds `
                 -certPath $Using:certPath -certPwd $Using:certPwd -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
-                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode `
-                -certPwd $Using:certPwd -certPath $Using:certPath
+                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddSQLServerRP -Verbose
@@ -2992,10 +2994,9 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $jobName = "DownloadAppService"
     $DownloadAppService = {
         Start-Job -Name DownloadAppService -InitializationScript $export_functions -ArgumentList $azsPath, $deploymentMode, $ScriptLocation, $skipAppService, `
-            $sqlServerInstance, $databaseName, $tableName, $certPath, $certPwd, $multiNode -ScriptBlock {
+            $sqlServerInstance, $databaseName, $tableName, $multiNode -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DownloadAppService.ps1 -AzSPath $Using:azsPath -deploymentMode $Using:deploymentMode -ScriptLocation $Using:ScriptLocation `
-                -skipAppService $Using:skipAppService -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName `
-                -certPwd $Using:certPwd -certPath $Using:certPath -multiNode $Using:multiNode
+                -skipAppService $Using:skipAppService -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $DownloadAppService -Verbose
