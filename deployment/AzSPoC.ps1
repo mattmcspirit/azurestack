@@ -1228,7 +1228,7 @@ try {
         [System.Security.SecureString]$pepPwd = $secureAsdkHostPwd
         $ERCSip = "AzS-ERCS01"
         $certPwd = $VMpwd
-        $certPath = $azsPath
+        $certPath = $downloadPath
         [System.Security.SecureString]$secureCertPwd = $secureVMpwd
     }
 
