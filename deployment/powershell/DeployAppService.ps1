@@ -95,7 +95,11 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
         StageReset -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
     }
-    if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
+    $rpAttempt = 0
+    $rpSuccess = $false
+    while ((($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) -and ($rpAttempt -lt 3)) {
+        $rpAttempt++ # Increment the attempt
+        Write-Host "This is deployment attempt $rpAttempt for the deployment of the $dbrp Resource Provider."
         try {
             if ($progressCheck -eq "Failed") {
                 # Clean up previous attempt - RG
@@ -112,7 +116,6 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
-
             Write-Host "Clearing previous Azure/Azure Stack logins"
             Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
             Clear-AzureRmContext -Scope CurrentUser -Force
@@ -364,7 +367,6 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
                     throw "There is evidence of a failed App Service deployment in the log file, and the App Service Resource Group looks incomplete. This will be cleaned up ahead of a rerun. Please check the App Service logs at $appServiceLogPath for full details. You should be able to rerun the script and it complete successfully."
                 }
-
                 throw "App Service install failed with $appServiceErrorCode. Please check the App Service logs at $appServiceLogPath"
             }
             else {
@@ -383,17 +385,23 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             else {
                 Write-Host "App Service deployment with name: $($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState)"
             }
-
             # Update the AzSPoC database with successful completion
             $progressStage = $progressName
             StageComplete -progressStage $progressStage
         }
         catch {
-            StageFailed -progressStage $progressStage
+            Write-Host "Attempt #$rpAttempt failed with $_.Exception.Message."
+            Write-Host "This will be retried a maximum of 3 times"
             Set-Location $ScriptLocation
-            throw $_.Exception.Message
-            return
         }
+    }
+    if (($rpSuccess -eq $false) -and ($rpAttempt -ge 3)) {
+        Write-Host "Deploying the App Service Resource Provider failed after 3 attempts. Check the logs and rerun the script"
+        $progressStage = $progressName
+        StageFailed -progressStage $progressStage
+        $progressCheck = CheckProgress -progressStage $progressStage
+        Set-Location $ScriptLocation
+        throw $_.Exception.Message
     }
 }
 elseif ($skipAppService -and ($progressCheck -ne "Complete")) {
