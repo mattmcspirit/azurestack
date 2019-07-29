@@ -99,7 +99,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
     $rpSuccess = $false
     while ((($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) -and ($rpAttempt -lt 3)) {
         $rpAttempt++ # Increment the attempt
-        Write-Host "This is deployment attempt $rpAttempt for the deployment of the $dbrp Resource Provider."
+        Write-Host "This is deployment attempt $rpAttempt for the deployment of the App Service Resource Provider."
         try {
             if ($progressCheck -eq "Failed") {
                 # Clean up previous attempt - RG
@@ -268,7 +268,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $JsonConfig = $JsonConfig.Replace("<<publisherSkuSize>>", "Standard_F2s")
                 $JsonConfig = $JsonConfig.Replace("<<frontendSkuSize>>", "Standard_F2s")
                 $JsonConfig = $JsonConfig.Replace("<<workerSkuSize>>", "Standard_F2s")
-                $JsonConfig = $JsonConfig.Replace("<<instances>>", 2)
+                $JsonConfig = $JsonConfig.Replace('"<<instances>>"', 2)
             }
             else {
                 $JsonConfig = $JsonConfig.Replace("<<controllerSkuSize>>", "Standard_A2")
@@ -276,7 +276,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $JsonConfig = $JsonConfig.Replace("<<publisherSkuSize>>", "Standard_A2")
                 $JsonConfig = $JsonConfig.Replace("<<frontendSkuSize>>", "Standard_A2")
                 $JsonConfig = $JsonConfig.Replace("<<workerSkuSize>>", "Standard_A2")
-                $JsonConfig = $JsonConfig.Replace("<<instances>>", 1)
+                $JsonConfig = $JsonConfig.Replace('"<<instances>>"', 1)
             }
             $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $fileServerFqdn)
             $JsonConfig = $JsonConfig.Replace("<<Password>>", $VMpwd)
@@ -401,7 +401,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
         StageFailed -progressStage $progressStage
         $progressCheck = CheckProgress -progressStage $progressStage
         Set-Location $ScriptLocation
-        throw $_.Exception.Message
+        throw "Deploying the App Service Resource Provider failed after 3 attempts. Check the logs and rerun the script"
     }
 }
 elseif ($skipAppService -and ($progressCheck -ne "Complete")) {
