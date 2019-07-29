@@ -268,7 +268,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $JsonConfig = $JsonConfig.Replace("<<publisherSkuSize>>", "Standard_F2s")
                 $JsonConfig = $JsonConfig.Replace("<<frontendSkuSize>>", "Standard_F2s")
                 $JsonConfig = $JsonConfig.Replace("<<workerSkuSize>>", "Standard_F2s")
-                $JsonConfig = $JsonConfig.Replace('"<<instances>>"', 2)
+                $JsonConfig = $JsonConfig.Replace("<<instances>>", 2)
             }
             else {
                 $JsonConfig = $JsonConfig.Replace("<<controllerSkuSize>>", "Standard_A2")
@@ -276,7 +276,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $JsonConfig = $JsonConfig.Replace("<<publisherSkuSize>>", "Standard_A2")
                 $JsonConfig = $JsonConfig.Replace("<<frontendSkuSize>>", "Standard_A2")
                 $JsonConfig = $JsonConfig.Replace("<<workerSkuSize>>", "Standard_A2")
-                $JsonConfig = $JsonConfig.Replace('"<<instances>>"', 1)
+                $JsonConfig = $JsonConfig.Replace("<<instances>>", 1)
             }
             $JsonConfig = $JsonConfig.Replace("<<FileServerDNSLabel>>", $fileServerFqdn)
             $JsonConfig = $JsonConfig.Replace("<<Password>>", $VMpwd)
