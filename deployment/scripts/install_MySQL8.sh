@@ -26,12 +26,15 @@ ufw allow 3306
 sudo apt install -y dirmngr
 sudo apt-key adv --keyserver pool.sks-keyservers.net --recv-keys 5072E1F5
 
-    # Retrieve the latest APT repo for MySQL and save it
-    echo "deb http://repo.mysql.com/apt/ubuntu $(lsb_release -sc) mysql-8.0" | sudo tee /etc/apt/sources.list.d/mysql80.list
+# Retrieve the latest APT repo for MySQL and save it
+echo "deb http://repo.mysql.com/apt/ubuntu $(lsb_release -sc) mysql-8.0" | sudo tee /etc/apt/sources.list.d/mysql80.list
 
 # Update
-sudo apt update -y
-apt-get upgrade -y
+echo Running apt-get update -y...
+sudo apt-get update -y
+sudo apt-mark hold walinuxagent
+# apt-get upgrade -y
+sudo apt-mark unhold walinuxagent
 
 # Install MySQL 8.0
 echo "mysql-community-server mysql-community-server/root-pass password root" | sudo debconf-set-selections
