@@ -387,7 +387,11 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             # Update the AzSPoC database with successful completion
             $progressStage = $progressName
+            # Update the AzSPoC database with successful completion
+            $progressCheck = CheckProgress -progressStage $progressStage
             StageComplete -progressStage $progressStage
+            $progressCheck = CheckProgress -progressStage $progressStage
+            $rpSuccess = $true
         }
         catch {
             Write-Host "Attempt #$rpAttempt failed with $_.Exception.Message."
