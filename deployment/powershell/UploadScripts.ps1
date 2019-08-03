@@ -118,8 +118,8 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         #$subID = $azureContext.Subscription.Id
         Write-Host "Current subscription ID is: $subID"
 
-        Write-Host "Delaying 30 seconds for creation of subscription"
-        Start-Sleep -Seconds 30
+        Write-Host "Delaying 2 minutes for creation of subscription"
+        Start-Sleep -Seconds 120
 
         # Register all the RPs for that user subscription
         foreach ($s in (Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN OFFLINE SCRIPTS' } )) {
