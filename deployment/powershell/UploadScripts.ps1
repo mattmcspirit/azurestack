@@ -133,10 +133,23 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         }
         # Test/Create Storage
         $azsOfflineStorageAccount = Get-AzureRmStorageAccount -Name $azsOfflineStorageAccountName -ResourceGroupName $azsOfflineRGName -ErrorAction SilentlyContinue
+        $createAttempt = 1
+        while (-not ($azsOfflineStorageAccount) -and ($createAttempt -lt 6)) {
+            Write-Host "Creating storage account for storing scripts. This is attempt $createAttempt."
+            $createAttempt++
+            $azsOfflineStorageAccount = New-AzureRmStorageAccount -Name $azsOfflineStorageAccountName -Location $azsLocation -ResourceGroupName $azsOfflineRGName -Type Standard_LRS -ErrorAction SilentlyContinue
+            if ($azsOfflineStorageAccount) {
+                Write-Host "Storage account has been created"
+            }
+            else {
+                Write-Host "Storage account creation failed. Waiting 30 seconds before retry"
+                Start-Sleep 30
+            }
+        }
+        $azsOfflineStorageAccount = Get-AzureRmStorageAccount -Name $azsOfflineStorageAccountName -ResourceGroupName $azsOfflineRGName -ErrorAction SilentlyContinue
         if (-not ($azsOfflineStorageAccount)) {
-            Write-Host "Creating storage account for storing scripts"
-            $azsOfflineStorageAccount = New-AzureRmStorageAccount -Name $azsOfflineStorageAccountName -Location $azsLocation -ResourceGroupName $azsOfflineRGName -Type Standard_LRS -ErrorAction Stop
-            Write-Host "Storage account has been created"
+            Write-Host "Storage account creation failed after $createAttempt attempts."
+            throw "Storage account creation failed after $createAttempt attempts. Check the logs and rerun the script."
         }
         Write-Host "Setting current storage account for storing scripts"
         Set-AzureRmCurrentStorageAccount -StorageAccountName $azsOfflineStorageAccountName -ResourceGroupName $azsOfflineRGName
