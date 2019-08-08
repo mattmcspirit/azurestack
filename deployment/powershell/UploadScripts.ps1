@@ -94,19 +94,6 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         $azsOfflineRGName = "azurestack-offlinescripts"
         $azsOfflineStorageAccountName = "offlinestor"
         $azsOfflineContainerName = "offlinecontainer"
-        Write-Host "Logging into Azure Stack"
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-        $azsLocation = (Get-AzureRmLocation).DisplayName
-        $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
-        $subUserName = (Get-AzureRmContext).Account.Id
-        if (!(Get-AzsUserSubscription -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*ADMIN OFFLINE SCRIPTS' } )) {
-            Write-Host "Creating the *ADMIN OFFLINE SCRIPTS subscription for deployment of offline resources"
-            New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN OFFLINE SCRIPTS'
-        }
-
-        # Log the user out of the current environment
-        Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-        Clear-AzureRmContext -Scope CurrentUser -Force
         
         # Log the user into the "AzureStackUser" environment
         Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
@@ -118,15 +105,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         #$subID = $azureContext.Subscription.Id
         Write-Host "Current subscription ID is: $subID"
 
-        Write-Host "Delaying 2 minutes for creation of subscription"
-        Start-Sleep -Seconds 120
-
-        # Register all the RPs for that user subscription
-        foreach ($s in (Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN OFFLINE SCRIPTS' } )) {
-            Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
-            Write-Host "$($s.Name) : $($s.SubscriptionId)"
-            Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider -Confirm:$false -Verbose
-        }
+        # Create Resource Group
         if (-not (Get-AzureRmResourceGroup -Name $azsOfflineRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
             Write-Host "Creating resource group for storing scripts"
             New-AzureRmResourceGroup -Name $azsOfflineRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
@@ -153,6 +132,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         }
         Write-Host "Setting current storage account for storing scripts"
         Set-AzureRmCurrentStorageAccount -StorageAccountName $azsOfflineStorageAccountName -ResourceGroupName $azsOfflineRGName
+        
         # Test/Create Container
         $azsOfflineContainer = Get-AzureStorageContainer -Name $azsOfflineContainerName -ErrorAction SilentlyContinue
         if (-not ($azsOfflineContainer)) {

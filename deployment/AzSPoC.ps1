@@ -2594,6 +2594,16 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                     New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN DB HOSTS'
                 }
             }
+            
+            # Create a subscription in the tenant space for storing scripts and artifacts
+            if (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+                $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
+                $subUserName = (Get-AzureRmContext).Account.Id
+                if (!(Get-AzsUserSubscription -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*ADMIN OFFLINE SCRIPTS' } )) {
+                    Write-Host "Creating the *ADMIN OFFLINE SCRIPTS subscription for deployment of offline resources"
+                    New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN OFFLINE SCRIPTS'
+                }
+            }
 
             # No longer required as App Service backend should be deployed into Default Provider Sub (even for Production)
             <#if (!$skipAppService) {
