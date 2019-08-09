@@ -105,6 +105,8 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         #$subID = $azureContext.Subscription.Id
         Write-Host "Current subscription ID is: $subID"
 
+        $azsLocation = (Get-AzureRmLocation).DisplayName
+
         # Create Resource Group
         if (-not (Get-AzureRmResourceGroup -Name $azsOfflineRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
             Write-Host "Creating resource group for storing scripts"
