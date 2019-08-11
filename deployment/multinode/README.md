@@ -1,7 +1,8 @@
 Azure Stack POC Configurator 1907 - Multi-Node Guidance
+EXPERIMENTAL ONLY - NOT FULLY TESTED
 ==============
 
-If you are using an ASDK and not a multinode deployment, **STOP** and **[go back to the main readme.](</deployment/README.md>)**
+If you are using an ASDK and **not** a multinode deployment, **STOP** and **[go back to the main readme.](</deployment/README.md>)**
 
 Version Compatibility
 -----------
