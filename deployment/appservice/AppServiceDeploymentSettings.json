@@ -44,19 +44,19 @@
         }
     },
     "SelectedControllerSKUs": {
-        "name": "Standard_A2"
+        "name": "<<controllerSkuSize>>"
     },
     "SelectedManagementRoleSKUs": {
-        "name": "Standard_A2"
+        "name": "<<managementSkuSize>>"
     },
     "SelectedPublisherRoleSKUs": {
-        "name": "Standard_A2"
+        "name": "<<publisherSkuSize>>"
     },
     "SelectedFrontEndRoleSKUs": {
-        "name": "Standard_A2"
+        "name": "<<frontendSkuSize>>"
     },
     "SelectedWorkerSKUs": {
-        "name": "Standard_A2"
+        "name": "<<workerSkuSize>>"
     },
     "SelectedSmallWorkerSKUs": {
         "name": "Standard_A1_v2"
@@ -76,22 +76,22 @@
     "ResourceGroupName": "appservice-infra",
     "StorageAccountName": "appsvclocalstor",
     "IdentityPfxCertPath": "<<CertPathDoubleSlash>>\\sso.appservice.<<customDomainSuffix>>.pfx",
-    "IdentityPfxCertPassword": "<<Password>>",
+    "IdentityPfxCertPassword": "<<certPassword>>",
     "RootCertPath": "<<CertPathDoubleSlash>>\\AzureStackCertificationAuthority.cer",
     "DefaultPfxCertPath": "<<CertPathDoubleSlash>>\\_.appservice.<<customDomainSuffix>>.pfx",
-    "DefaultPfxCertPassword": "<<Password>>",
+    "DefaultPfxCertPassword": "<<certPassword>>",
     "ResourceProviderPfxCertPath": "<<CertPathDoubleSlash>>\\api.appservice.<<customDomainSuffix>>.pfx",
-    "ResourceProviderPfxCertPassword": "<<Password>>",
+    "ResourceProviderPfxCertPassword": "<<certPassword>>",
     "PublisherPfxCertPath": "<<CertPathDoubleSlash>>\\ftp.appservice.<<customDomainSuffix>>.pfx",
-    "PublisherPfxCertPassword": "<<Password>>",
+    "PublisherPfxCertPassword": "<<certPassword>>",
     "SQLServerName": "<<SQLServerName>>",
     "SQLSysAdminLogin": "<<SQLServerUser>>",
     "SQLSysAdminPassword": "<<Password>>",
-    "SelectedControllerInstances": 1,
-    "SelectedManagementRoleInstances": 1,
-    "SelectedPublisherRoleInstances": 1,
-    "SelectedFrontEndRoleInstances": 1,
-    "SelectedWorkerInstances": 1,
+    "SelectedControllerInstances": "<<instances>>",
+    "SelectedManagementRoleInstances": "<<instances>>",
+    "SelectedPublisherRoleInstances": "<<instances>>",
+    "SelectedFrontEndRoleInstances": "<<instances>>",
+    "SelectedWorkerInstances": "<<instances>>",
     "PlatformImage": {
         "Publisher": "MicrosoftWindowsServer",
         "Offer": "WindowsServer",

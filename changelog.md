@@ -1,9 +1,15 @@
-Azure Stack Development Kit Configurator Changelog
+Azure Stack POC Configurator Changelog
 ==============
 
 Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
+
+### What's new in version 1907?
+* Updated to support ASDK 1.1907.0.20
+* Initial support for MultiNode deployments for POC purposes only
+* Rebranding and versioning to reflect multinode support
+* Minor bug fixes
 
 ### What's new in version 1906.3?
 * Minor bug fixes and cleanup

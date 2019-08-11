@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [String] $ASDKpath,
+    [String] $azsPath,
 
     [Parameter(Mandatory = $true)]
     [String] $customDomainSuffix,
@@ -17,7 +17,7 @@ param (
     [String] $tenantID,
 
     [parameter(Mandatory = $true)]
-    [pscredential] $asdkCreds,
+    [pscredential] $azsCreds,
     
     [parameter(Mandatory = $true)]
     [String] $ScriptLocation,
@@ -67,7 +67,7 @@ $progressCheck = CheckProgress -progressStage $progressStage
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
         if ($progressCheck -eq "Failed") {
-            # Update the ConfigASDK database back to incomplete status if previously failed
+            # Update the AzSPoC database back to incomplete status if previously failed
             StageReset -progressStage $progressStage
             $progressCheck = CheckProgress -progressStage $progressStage
             Write-Host "Clearing up any failed attempts to deploy the gallery items"
@@ -87,14 +87,14 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Write-Host "Logging into Azure Stack"
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $asdkCreds -ErrorAction Stop | Out-Null
+        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
         # Set Storage Variables
         Write-Host "Setting storage variables for resource group, storage account and container"
-        $asdkImagesRGName = "azurestack-adminimages"
-        $asdkImagesStorageAccountName = "asdkimagesstor"
-        $asdkImagesContainerName = "asdkimagescontainer"
+        $azsImagesRGName = "azurestack-adminimages"
+        $azsImagesStorageAccountName = "azsimagesstor"
+        $azsImagesContainerName = "azsimagescontainer"
         $azsLocation = (Get-AzureRmLocation).DisplayName
-        Write-Host "Resource Group = $asdkImagesRGName, Storage Account = $asdkImagesStorageAccountName and Container = $asdkImagesContainerName"
+        Write-Host "Resource Group = $azsImagesRGName, Storage Account = $azsImagesStorageAccountName and Container = $azsImagesContainerName"
         Write-Host "Setting AZPKG Package Name"
         if ($azpkg -eq "MySQL57") {
             $azpkgPackageName = "AzureStackPOC.MySQL.1.0.0"
@@ -112,23 +112,23 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Start-Sleep -Seconds 120
 
         # Test/Create RG
-        if (-not (Get-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
-            Write-Host "Creating the resource group: $asdkImagesRGName"
-            New-AzureRmResourceGroup -Name $asdkImagesRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop 
+        if (-not (Get-AzureRmResourceGroup -Name $azsImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
+            Write-Host "Creating the resource group: $azsImagesRGName"
+            New-AzureRmResourceGroup -Name $azsImagesRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop 
         }
         # Test/Create Storage
-        $asdkStorageAccount = Get-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName -ErrorAction SilentlyContinue
-        if (-not ($asdkStorageAccount)) {
-            Write-Host "Creating the storage account: $asdkImagesStorageAccountName"
-            $asdkStorageAccount = New-AzureRmStorageAccount -Name $asdkImagesStorageAccountName -Location $azsLocation -ResourceGroupName $asdkImagesRGName -Type Standard_LRS -ErrorAction Stop
+        $azsStorageAccount = Get-AzureRmStorageAccount -Name $azsImagesStorageAccountName -ResourceGroupName $azsImagesRGName -ErrorAction SilentlyContinue
+        if (-not ($azsStorageAccount)) {
+            Write-Host "Creating the storage account: $azsImagesStorageAccountName"
+            $azsStorageAccount = New-AzureRmStorageAccount -Name $azsImagesStorageAccountName -Location $azsLocation -ResourceGroupName $azsImagesRGName -Type Standard_LRS -ErrorAction Stop
         }
         Write-Host "Setting the storage context"
-        Set-AzureRmCurrentStorageAccount -StorageAccountName $asdkImagesStorageAccountName -ResourceGroupName $asdkImagesRGName | Out-Null
+        Set-AzureRmCurrentStorageAccount -StorageAccountName $azsImagesStorageAccountName -ResourceGroupName $azsImagesRGName | Out-Null
         # Test/Create Container
-        $asdkContainer = Get-AzureStorageContainer -Name $asdkImagesContainerName -ErrorAction SilentlyContinue
-        if (-not ($asdkContainer)) {
-            Write-Host "Creating the storage container: $asdkImagesContainerName"
-            $asdkContainer = New-AzureStorageContainer -Name $asdkImagesContainerName -Permission Blob -Context $asdkStorageAccount.Context -ErrorAction Stop
+        $azsContainer = Get-AzureStorageContainer -Name $azsImagesContainerName -ErrorAction SilentlyContinue
+        if (-not ($azsContainer)) {
+            Write-Host "Creating the storage container: $azsImagesContainerName"
+            $azsContainer = New-AzureStorageContainer -Name $azsImagesContainerName -Permission Blob -Context $azsStorageAccount.Context -ErrorAction Stop
         }
         
         Write-Host "Checking for the $azpkg gallery item"
@@ -179,7 +179,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 return
             }
         }
-        # Update the ConfigASDK database with successful completion
+        # Update the AzSPoC database with successful completion
         $progressStage = $progressName
         StageComplete -progressStage $progressStage
     }
@@ -191,7 +191,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     }
 }
 elseif ($progressCheck -eq "Complete") {
-    Write-Host "ASDK Configurator Stage: $progressStage previously completed successfully"
+    Write-Host "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
 }
 Set-Location $ScriptLocation
 $endTime = $(Get-Date).ToString("MMdd-HHmmss")
