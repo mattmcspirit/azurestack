@@ -1,4 +1,4 @@
-ASDK Configurator 1906.3 | Offline Mode
+ASDK Configurator 1907 | Offline Mode
 ==============
 
 Who is this for?
@@ -11,7 +11,7 @@ If you answered **Yes** to either of those questions, read on....
 Version Compatibility
 -----------
 The current version of the AzSPoCDependencies.ps1 script has been **tested with the following versions**:
-* Azure Stack POC Configurator (AzSPoC.ps1) **1906.2**
+* Azure Stack POC Configurator (AzSPoC.ps1) **1907**
 
 Description
 -----------
@@ -58,7 +58,7 @@ Set-Location "C:\AzSPoCfiles"
 
 # Download the AzSPoC Script.
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-Webrequest http://bit.ly/asdkoffline -UseBasicParsing -OutFile AzSPoCdependencies.ps1
+Invoke-Webrequest http://bit.ly/AzSPoCdependencies -UseBasicParsing -OutFile AzSPoCdependencies.ps1
 ```
 
 Once you've downloaded the script, you can run it using the following guidance. The length of time the script takes to execute will depend on your internet connection speed, and the speed of you local storage. In my lab, on relatively modern hardware, with an 88Mbps internet connection (according to Fast.com), it took 31 minutes to complete the process. The script will download the required dependencies, such as an Ubuntu image, Database resource providers, App Service binaries and more. It will also grab your Windows Server 2016 ISO file (and optionally, Windows Server 2019), and zip them all up into a convenient zip file.
