@@ -2222,11 +2222,19 @@ try {
                     foreach ($p in $PFX) {
                         if ($p.DnsNameList.Unicode -like '*.appservice.*') {
                             if ($p.DnsNameList.Unicode.Count -gt 1) {
-                                if ($p.DnsNameList.Unicode -like '`*.appservice.*') {
+                                Write-Host "Gathering information on the App Service certificates"
+                                foreach ($item in $p.DnsNameList.Unicode) {
+                                    if ($item -like '`*.appservice.*') {
+                                        $newCertName = (($item) -replace '\*', "_") + ".pfx"
+                                        Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode | Select-Object -First 1)"
+                                    }
+                                }
+
+                                <#if ($p.DnsNameList.Unicode -like '`*.appservice.*') {
                                     Write-Host "Gathering information on the App Service certificates"
                                     $newCertName = (($p.DnsNameList.Unicode | Select-Object -First 1) -replace '\*', "_") + ".pfx"
                                     Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode | Select-Object -First 1)"
-                                }
+                                }#>
                             }
                             else {
                                 Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode)"
