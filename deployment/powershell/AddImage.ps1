@@ -642,9 +642,9 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             else {
                                 $v = "2016"
                             }
-                            if ($multiNode -eq $false) {
+                            #if ($multiNode -eq $false) {
                                 Copy-Item -Path "$azsPath\images\$v\*" -Destination "$imageRootPath\images\$image\" -Recurse -Force -Verbose -ErrorAction Stop
-                            }
+                            #}
                             $target = "$imageRootPath\images\$image\SSU"
 
                             $imageCreationSuccess = $false

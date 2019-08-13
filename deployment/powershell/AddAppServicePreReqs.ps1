@@ -182,7 +182,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                     else {
                         $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -TenantArmEndpoint "management.$customDomainSuffix" `
-                            -CertificateFilePath "$certPath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $certPwd -AzureStackAdminCredential $azsCreds -Verbose
+                            -CertificateFilePath "$certPath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureCertPwd -AzureStackAdminCredential $azsCreds -Verbose
                     }
                     $identityApplicationID = $applicationId
                     Write-Host "Application ID is $identityApplicationID"

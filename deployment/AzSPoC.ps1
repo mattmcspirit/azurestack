@@ -1225,7 +1225,7 @@ try {
     else {
         $azsInternalDomain = "azurestack"
         $pepAdminUsername = "$azsInternalDomain\cloudadmin"
-        [System.Security.SecureString]$pepPwd = $secureAsdkHostPwd
+        [System.Security.SecureString]$securePepPwd = $secureAsdkHostPwd
         $ERCSip = "AzS-ERCS01"
         $certPwd = $VMpwd
         $certPath = $downloadPath
@@ -1234,7 +1234,7 @@ try {
 
     ### Create PeP Admin Creds ###
     Write-Host "Creating Privileged Endpoint Credentials..."
-    $pepAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $pepAdminUsername, $pepPwd -ErrorAction Stop
+    $pepAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $pepAdminUsername, $securePepPwd -ErrorAction Stop
 
     ### Credentials Recap ###
     # $azureRegUsername | Used for Azure AD authentication to register the Azure Stack POC System if NOT using same Azure AD Creds as deployment
@@ -2387,7 +2387,7 @@ try {
                     $azsRegName = "azsreg-$randomGuid-$runTime"
                     $billingModel = "PayAsYouUse"
                 }
-                Set-AzsRegistration -PrivilegedEndpointCredential $pepAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "$azsRegName" -BillingModel $billingModel -ErrorAction Stop
+                Set-AzsRegistration -PrivilegedEndpointCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -RegistrationName "$azsRegName" -BillingModel $billingModel -ErrorAction Stop
                 # Create Cleanup Doc - First Create File
                 $CleanUpRegPS1Path = "$downloadPath\AzSRegCleanUp.ps1"
                 Remove-Item -Path $CleanUpRegPS1Path -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
