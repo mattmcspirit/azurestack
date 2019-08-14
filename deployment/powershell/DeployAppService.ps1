@@ -190,6 +190,16 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $certPwd = $VMpwd
             }
 
+            if ($multiNode -eq $true) {
+                # Need to clean up old Cert folders to avoid conflicts with deployments
+                if ($([System.IO.Directory]::Exists("${Env:ProgramFiles(x86)}\ARM\AppService"))) {
+                    Remove-Item -Path "${Env:ProgramFiles(x86)}\ARM\AppService" -Recurse -Force -ErrorAction SilentlyContinue -Verbose
+                }
+                if ($([System.IO.Directory]::Exists("${Env:ProgramFiles(x86)}\ARM\AppServiceCerts"))) {
+                    Remove-Item -Path "${Env:ProgramFiles(x86)}\ARM\AppServiceCerts" -Recurse -Force -ErrorAction SilentlyContinue -Verbose
+                }
+            }
+
             Write-Host "Checking variables are present before creating JSON"
             # Check Variables #
             if (($authenticationType.ToString() -like "AzureAd") -and ($azureDirectoryTenantName)) {
