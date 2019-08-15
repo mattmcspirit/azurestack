@@ -209,6 +209,15 @@ Post-Script Actions
 -------------------
 This script can take many hours to finish, depending on your hardware and download speeds. There are no specific post-script actions to perform after the script has finished.
 
+If you wish to use the same Windows machine to run the AzsPoC.ps1 script against more than 1 multi-node system, you will need to clean up the progress database ahead of a fresh run in the future.  In order to do this, you can run the following PowerShell commands:
+
+```powershell
+$sqlServerInstance = '(localdb)\MSSQLLocalDB'
+Invoke-Sqlcmd -Server $sqlServerInstance -Query "DROP DATABASE [AzSPoC]"
+```
+
+These commands should remove the AzSPoC database from the local SQLLocalDB instance, and ensure that any future runs of the script, against a different multi-node system, should execute correctly.
+
 ### Known Issues
 * A Windows Server 2016 ISO is required.  This should be build 1607 (The RTM release) and not any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809). These have not been validated for support with the database and App Service resource providers, so don't use those builds at this time. The script will block their usage.
 * If you wish to upload Windows Server 2019 images for testing, please use the 17763 build, which is the Windows Server 2019 RTM. All ISOs should be the MSDN/Visual Studio/Volume License media and **NOT** evaluation media.
