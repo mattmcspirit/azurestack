@@ -156,21 +156,40 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     New-Item -Path "$AppServicePath\CertsCreated.txt" -ItemType file -Force
                 }
                 else {
-                    Write-Host "Certs have been previously successfully created"
+                    Write-Host "ASDK Certs have been previously successfully created"
                 }
             }
             else {
                 Write-Host "This is a multinode deployment, and therefore the required certificates should already be located at $certPath"
             }
 
-                if (!$([System.IO.File]::Exists("$AppServicePath\RootCertGenerated.txt"))) {
-                    Write-Host "Gathering the root certificate from the Azure Stack system"
-                    .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $pepAdminCreds
-                    New-Item -Path "$AppServicePath\RootCertGenerated.txt" -ItemType file -Force
+            if (!$([System.IO.File]::Exists("$AppServicePath\RootCertGenerated.txt"))) {
+                Write-Host "Gathering the root certificate from the Azure Stack system"
+                .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $pepAdminCreds
+                if ($multiNode -eq $true) {
+                    $multiNodeRootCert = Get-ChildItem -Path "$AppServicePath\*" -Recurse -Filter "*.cer" -ErrorAction Stop
+                    if ($multiNodeRootCert) {
+                        Write-Host "Found a certificate at $($multiNodeRootCert.FullName)"
+                        Write-Host "Copying the located certificate to the originally supplied certificate path..."
+                        Copy-Item -Path $multiNodeRootCert.FullName -Destination $certPath -Force -Confirm:$false -ErrorAction Stop
+                        $multiNodeRootCert = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.cer" -ErrorAction Stop
+                        if ($multiNodeRootCert) {
+                            Write-Host "Root cert now located at $($multiNodeRootCert.FullName)"
+                        }
+                        else {
+                            throw "Error copying the generated root certificate to the target $certPath - please check permissions and logs for details"
+                        }
+                    }
+                    else {
+                        Write-Host "Could not locate any .cer files - it appears that the generation of the root certificate failed, so please check the logs then rerun the script." -ForegroundColor Red
+                        Break
+                    }
                 }
-                else {
-                    Write-Host "Root Cert has been previously successfully retrieved"
-                }
+                New-Item -Path "$AppServicePath\RootCertGenerated.txt" -ItemType file -Force
+            }
+            else {
+                Write-Host "Root Cert has been previously successfully retrieved"
+            }
 
             #### AD Service Principal ####
             if (!$([System.IO.File]::Exists("$downloadPath\ApplicationIDBackup.txt"))) {
