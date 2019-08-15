@@ -150,6 +150,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
 
             if ($multiNode -eq $false) {
                 if (!$([System.IO.File]::Exists("$AppServicePath\CertsCreated.txt"))) {
+                    Write-Host "Starting with the ASDK specific certs"
                     .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName $customDomainSuffix
                     .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $pepAdminCreds
                     New-Item -Path "$AppServicePath\CertsCreated.txt" -ItemType file -Force
@@ -161,6 +162,15 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             else {
                 Write-Host "This is a multinode deployment, and therefore the required certificates should already be located at $certPath"
             }
+
+                if (!$([System.IO.File]::Exists("$AppServicePath\RootCertGenerated.txt"))) {
+                    Write-Host "Gathering the root certificate from the Azure Stack system"
+                    .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $pepAdminCreds
+                    New-Item -Path "$AppServicePath\RootCertGenerated.txt" -ItemType file -Force
+                }
+                else {
+                    Write-Host "Root Cert has been previously successfully retrieved"
+                }
 
             #### AD Service Principal ####
             if (!$([System.IO.File]::Exists("$downloadPath\ApplicationIDBackup.txt"))) {
