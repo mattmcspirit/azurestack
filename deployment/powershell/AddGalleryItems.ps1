@@ -68,7 +68,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-
         if ($progressCheck -eq "Failed") {
             # Update the AzSPoC database back to incomplete status if previously failed
             StageReset -progressStage $progressStage
