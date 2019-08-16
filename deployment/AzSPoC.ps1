@@ -2199,6 +2199,7 @@ try {
         Write-Host "This is a multinode deployment - this step will discover and organize your certificates."
         if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             try {
+                <#
                 Write-Host "Looking for your root certificate, which should be in the certificate path that you provided..."
                 $multiNodeRootCert = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.cer" -ErrorAction Stop
                 if ($multiNodeRootCert) {
@@ -2211,7 +2212,7 @@ try {
                 else {
                     Write-Host "Could not locate any .cer files - please ensure you have your Azure Stack root certificate in your certificate path folder, then rerun the script." -ForegroundColor Red
                     Break
-                }
+                } #>
                 $multiNodePFXCerts = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.pfx" -ErrorAction Stop
                 foreach ($cert in $multiNodePFXCerts) {
                     $PFXPath = $cert.FullName
