@@ -88,6 +88,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
         # Set Storage Variables
         Write-Host "Setting storage variables for resource group, storage account and container"
         $azsImagesRGName = "azurestack-adminimages"

@@ -176,6 +176,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
 
             Write-Host "Logging into Azure Stack into the admin space to complete the process"
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             $azsLocation = (Get-AzureRmLocation).DisplayName
             $adminDbRg = "azurestack-admindbhosting"
 
