@@ -66,11 +66,18 @@ $progressCheck = CheckProgress -progressStage $progressStage
 
 if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
     try {
+        $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
+        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+
         if ($progressCheck -eq "Failed") {
             # Update the AzSPoC database back to incomplete status if previously failed
             StageReset -progressStage $progressStage
             $progressCheck = CheckProgress -progressStage $progressStage
             Write-Host "Clearing up any failed attempts to deploy the gallery items"
+            Write-Host "Logging into Azure Stack"
+            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             Get-AzsGalleryItem | Where-Object { $_.Name -like "*AzureStackPOC*" } | Remove-AzsGalleryItem -Force -ErrorAction SilentlyContinue
         }
         Write-Host "Clearing previous Azure/Azure Stack logins"
@@ -85,8 +92,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
         ### Login to Azure Stack, then confirm if the MySQL Gallery Item is already present ###
         Write-Host "Logging into Azure Stack"
-        $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
         $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
         $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
