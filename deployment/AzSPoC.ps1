@@ -40,6 +40,7 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1907.1  MultiNode fixes and testing
     1907    Updated to support ASDK 1.1907.0.20
             Initial support for MultiNode deployments for POC purposes only
             Rebranding and versioning to reflect multinode support
@@ -1225,7 +1226,7 @@ try {
     else {
         $azsInternalDomain = "azurestack"
         $pepAdminUsername = "$azsInternalDomain\cloudadmin"
-        [System.Security.SecureString]$pepPwd = $secureAsdkHostPwd
+        [System.Security.SecureString]$securePepPwd = $secureAsdkHostPwd
         $ERCSip = "AzS-ERCS01"
         $certPwd = $VMpwd
         $certPath = $downloadPath
@@ -1234,7 +1235,7 @@ try {
 
     ### Create PeP Admin Creds ###
     Write-Host "Creating Privileged Endpoint Credentials..."
-    $pepAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $pepAdminUsername, $pepPwd -ErrorAction Stop
+    $pepAdminCreds = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $pepAdminUsername, $securePepPwd -ErrorAction Stop
 
     ### Credentials Recap ###
     # $azureRegUsername | Used for Azure AD authentication to register the Azure Stack POC System if NOT using same Azure AD Creds as deployment
@@ -2012,6 +2013,8 @@ try {
             Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             Write-CustomVerbose -Message "Current Azure Stack Subscription information:"
             Get-AzureRmContext | Format-Table -AutoSize
             Start-Sleep -Seconds 5
@@ -2041,6 +2044,8 @@ try {
             Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             Write-CustomVerbose -Message "Current Azure Stack Subscription information:"
             Get-AzureRmContext | Format-Table -AutoSize
         }
@@ -2199,6 +2204,7 @@ try {
         Write-Host "This is a multinode deployment - this step will discover and organize your certificates."
         if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             try {
+                <#
                 Write-Host "Looking for your root certificate, which should be in the certificate path that you provided..."
                 $multiNodeRootCert = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.cer" -ErrorAction Stop
                 if ($multiNodeRootCert) {
@@ -2211,7 +2217,7 @@ try {
                 else {
                     Write-Host "Could not locate any .cer files - please ensure you have your Azure Stack root certificate in your certificate path folder, then rerun the script." -ForegroundColor Red
                     Break
-                }
+                } #>
                 $multiNodePFXCerts = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.pfx" -ErrorAction Stop
                 foreach ($cert in $multiNodePFXCerts) {
                     $PFXPath = $cert.FullName
@@ -2222,11 +2228,19 @@ try {
                     foreach ($p in $PFX) {
                         if ($p.DnsNameList.Unicode -like '*.appservice.*') {
                             if ($p.DnsNameList.Unicode.Count -gt 1) {
-                                if ($p.DnsNameList.Unicode -like '`*.appservice.*') {
+                                Write-Host "Gathering information on the App Service certificates"
+                                foreach ($item in $p.DnsNameList.Unicode) {
+                                    if ($item -like '`*.appservice.*') {
+                                        $newCertName = (($item) -replace '\*', "_") + ".pfx"
+                                        Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode | Select-Object -First 1)"
+                                    }
+                                }
+
+                                <#if ($p.DnsNameList.Unicode -like '`*.appservice.*') {
                                     Write-Host "Gathering information on the App Service certificates"
                                     $newCertName = (($p.DnsNameList.Unicode | Select-Object -First 1) -replace '\*', "_") + ".pfx"
                                     Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode | Select-Object -First 1)"
-                                }
+                                }#>
                             }
                             else {
                                 Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode)"
@@ -2371,6 +2385,8 @@ try {
                     $tenantId = (invoke-restmethod -Verbose:$false "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
                 }
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
+                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
                 Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
                 # Register the Azure Stack resource provider in your Azure subscription
                 Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
@@ -2387,7 +2403,7 @@ try {
                     $azsRegName = "azsreg-$randomGuid-$runTime"
                     $billingModel = "PayAsYouUse"
                 }
-                Set-AzsRegistration -PrivilegedEndpointCredential $pepAdminCreds -PrivilegedEndpoint AzS-ERCS01 -RegistrationName "$azsRegName" -BillingModel $billingModel -ErrorAction Stop
+                Set-AzsRegistration -PrivilegedEndpointCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -RegistrationName "$azsRegName" -BillingModel $billingModel -ErrorAction Stop
                 # Create Cleanup Doc - First Create File
                 $CleanUpRegPS1Path = "$downloadPath\AzSRegCleanUp.ps1"
                 Remove-Item -Path $CleanUpRegPS1Path -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
@@ -2443,6 +2459,8 @@ try {
         $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
+        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
     }
     elseif ($authenticationType.ToString() -like "ADFS") {
         # Clear old Azure login
@@ -2451,6 +2469,8 @@ try {
         Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
+        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
     }
     else {
         Write-CustomVerbose -Message ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
@@ -3056,6 +3076,8 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
     Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+    $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+    $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
     $progressStage = "RegisterNewRPs"
     $progressCheck = CheckProgress -progressStage $progressStage
     $scriptStep = $progressStage.ToUpper()
@@ -3384,6 +3406,8 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                                         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
                                         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                                         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                                        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                                        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
                                         Set-AzureStorageBlobContent -File "$itemFullPath" -Container $azsOfflineContainerName -Blob $itemName -Context $azsOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
                                     }
                                     catch {
@@ -3509,6 +3533,8 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         }
         if (!$skipAppService) {
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             Write-Host "Getting File Server and SQL App Server FQDN"
             $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
             $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
@@ -3638,6 +3664,8 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
         Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
         Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
         $azsImagesRGName = "azurestack-adminimages"
         Get-AzureRmResourceGroup -Name $azsImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
 

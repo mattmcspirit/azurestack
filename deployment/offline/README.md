@@ -1,4 +1,4 @@
-ASDK Configurator 1907 | Offline Mode
+ASDK Configurator 1907.1 | Offline Mode
 ==============
 
 Who is this for?
@@ -11,7 +11,7 @@ If you answered **Yes** to either of those questions, read on....
 Version Compatibility
 -----------
 The current version of the AzSPoCDependencies.ps1 script has been **tested with the following versions**:
-* Azure Stack POC Configurator (AzSPoC.ps1) **1907**
+* Azure Stack POC Configurator (AzSPoC.ps1) **1907.1**
 
 Description
 -----------

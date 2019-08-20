@@ -150,16 +150,45 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
 
             if ($multiNode -eq $false) {
                 if (!$([System.IO.File]::Exists("$AppServicePath\CertsCreated.txt"))) {
+                    Write-Host "Starting with the ASDK specific certs"
                     .\Create-AppServiceCerts.ps1 -PfxPassword $secureVMpwd -DomainName $customDomainSuffix
                     .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $pepAdminCreds
                     New-Item -Path "$AppServicePath\CertsCreated.txt" -ItemType file -Force
                 }
                 else {
-                    Write-Host "Certs have been previously successfully created"
+                    Write-Host "ASDK Certs have been previously successfully created"
                 }
             }
             else {
                 Write-Host "This is a multinode deployment, and therefore the required certificates should already be located at $certPath"
+            }
+
+            if (!$([System.IO.File]::Exists("$AppServicePath\RootCertGenerated.txt"))) {
+                Write-Host "Gathering the root certificate from the Azure Stack system"
+                .\Get-AzureStackRootCert.ps1 -PrivilegedEndpoint $ERCSip -CloudAdminCredential $pepAdminCreds
+                if ($multiNode -eq $true) {
+                    $multiNodeRootCert = Get-ChildItem -Path "$AppServicePath\*" -Recurse -Filter "*.cer" -ErrorAction Stop
+                    if ($multiNodeRootCert) {
+                        Write-Host "Found a certificate at $($multiNodeRootCert.FullName)"
+                        Write-Host "Copying the located certificate to the originally supplied certificate path..."
+                        Copy-Item -Path $multiNodeRootCert.FullName -Destination $certPath -Force -Confirm:$false -ErrorAction Stop
+                        $multiNodeRootCert = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.cer" -ErrorAction Stop
+                        if ($multiNodeRootCert) {
+                            Write-Host "Root cert now located at $($multiNodeRootCert.FullName)"
+                        }
+                        else {
+                            throw "Error copying the generated root certificate to the target $certPath - please check permissions and logs for details"
+                        }
+                    }
+                    else {
+                        Write-Host "Could not locate any .cer files - it appears that the generation of the root certificate failed, so please check the logs then rerun the script." -ForegroundColor Red
+                        Break
+                    }
+                }
+                New-Item -Path "$AppServicePath\RootCertGenerated.txt" -ItemType file -Force
+            }
+            else {
+                Write-Host "Root Cert has been previously successfully retrieved"
             }
 
             #### AD Service Principal ####
@@ -182,7 +211,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                     else {
                         $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -TenantArmEndpoint "management.$customDomainSuffix" `
-                            -CertificateFilePath "$certPath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $certPwd -AzureStackAdminCredential $azsCreds -Verbose
+                            -CertificateFilePath "$certPath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureCertPwd -AzureStackAdminCredential $azsCreds -Verbose
                     }
                     $identityApplicationID = $applicationId
                     Write-Host "Application ID is $identityApplicationID"
@@ -224,6 +253,8 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
                     Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                    $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                    $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
                     Set-Location "$AppServicePath" -Verbose
                     Write-Host "Generating the application ID for the App Service installation"
                     if ($multiNode -eq $false) {
@@ -332,6 +363,8 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
 
             Write-Host "Logging into Azure Stack for further checks on the AddVMExtension stage"
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             if ((Get-AzsVMExtension -Publisher Microsoft.Compute -Verbose:$false) | Where-Object { ($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded") }) {
                 Write-Verbose -Message "You already have a valid Custom Script Extension (1.9.x) within your Azure Stack environment. App Service deployment can continue."
             }
@@ -404,6 +437,8 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                             # Log back into Azure Stack to ensure login hasn't timed out
                             Write-Host "$itemName not found. Upload Attempt: $uploadItemAttempt"
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
                             #Set-AzureStorageBlobContent -File "$itemFullPath" -Container $azsExtensionContainerName -Blob "$itemName" -Context $azsExtensionStorageAccount.Context -ErrorAction Stop -Verbose | Out-Null
                             ################## AzCopy Testing ##############################################
                             $containerDestination = '{0}{1}' -f $azsStorageAccount.PrimaryEndpoints.Blob, $azsExtensionContainerName
@@ -432,6 +467,8 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                             try {
                                 # Log back into Azure Stack to ensure login hasn't timed out
                                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
                                 Write-Host -Message "Adding Custom Script Extension (ZIP) to your environment. Attempt: $sideloadCSEZipAttempt"
                                 $URI = '{0}{1}/{2}' -f $azsStorageAccount.PrimaryEndpoints.Blob, $azsExtensionContainerName, $itemName
                                 $version = "1.9.3"

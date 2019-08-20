@@ -297,6 +297,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     ### Login to Azure Stack ###
                     Write-Host "Logging into Azure Stack into the admin space, to grab information"
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                    $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                    $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
                     $azsLocation = (Get-AzureRmLocation).DisplayName
                     $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "AzureStackPOC.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
                     $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/"
@@ -328,6 +330,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Host "Getting the URIs for all AZPKG files for deployment of resources"
                     Write-Host "Logging into Azure Stack into the admin space, to grab information"
                     Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                    $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                    $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
                     $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "AzureStackPOC.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
                 }
                 $scriptBaseURI = ('{0}{1}/' -f $azsOfflineStorageAccount.PrimaryEndpoints.Blob, $azsOfflineContainerName) -replace "https", "http"
@@ -352,6 +356,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             elseif (($vmType -eq "AppServiceDB") -or ($vmType -eq "AppServiceFS")) {
                 Write-Host "Logging into Azure Stack into the admin space, to create the backend resources"
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
                 $azsLocation = (Get-AzureRmLocation).DisplayName
             }
                         

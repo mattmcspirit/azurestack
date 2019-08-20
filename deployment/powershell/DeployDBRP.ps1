@@ -128,6 +128,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
                 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
                 # Get Azure Stack location
                 $azsLocation = (Get-AzureRmLocation).DisplayName
                 # Perform a cleanup of the failed deployment - RG, Files
@@ -158,6 +160,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
                 Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
 
                 # Get Azure Stack location
                 $azsLocation = (Get-AzureRmLocation).DisplayName
@@ -298,8 +302,16 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                 }
                 elseif ($dbrp -eq "SQLServer") {
-                    .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd
-                }
+                    if ($multinode -eq $true) {
+                        $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
+                        $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
+                        Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
+                        .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd
+                    }
+                    else {
+                        .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd
+                    }
+                    }
                 # Update the AzSPoC database with successful completion
                 $progressCheck = CheckProgress -progressStage $progressStage
                 StageComplete -progressStage $progressStage

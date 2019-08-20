@@ -373,6 +373,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             $azsLocation = (Get-AzureRmLocation).DisplayName
             if (($registerAzS -eq $true) -and ($deploymentMode -eq "Online")) {
                 #if ($image -notlike "*2019") {
@@ -486,6 +488,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
 
             ### Log back into Azure Stack to check for existing images and push new ones if required ###
             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
             Write-Host "Checking to see if the image is present in your Azure Stack Platform Image Repository"
             Write-Host "We first want to check if there is a failed or canceled upload from a previous attempt"
             if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed" }) {
@@ -642,9 +646,9 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             else {
                                 $v = "2016"
                             }
-                            if ($multiNode -eq $false) {
-                                Copy-Item -Path "$azsPath\images\$v\*" -Destination "$imageRootPath\images\$image\" -Recurse -Force -Verbose -ErrorAction Stop
-                            }
+                            #if ($multiNode -eq $false) {
+                            Copy-Item -Path "$azsPath\images\$v\*" -Destination "$imageRootPath\images\$image\" -Recurse -Force -Verbose -ErrorAction Stop
+                            #}
                             $target = "$imageRootPath\images\$image\SSU"
 
                             $imageCreationSuccess = $false
@@ -752,6 +756,8 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             # Log back into Azure Stack to ensure login hasn't timed out
                             Write-Host "Upload Attempt: $uploadVhdAttempt"
                             Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
                             #Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $azsImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             ################## AzCopy Testing ##############################################
                             $serverVHDDirectory = ($serverVHD).DirectoryName
