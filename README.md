@@ -1,4 +1,4 @@
-Azure Stack POC Configurator 1907
+Azure Stack POC Configurator 1907.1
 ==============
 
 Version Compatibility
