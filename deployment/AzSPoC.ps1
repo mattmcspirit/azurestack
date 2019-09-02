@@ -3650,7 +3650,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                 Remove-Item -Path "$AppServicePath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Item "$AppServicePath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
             }
-            $csvPath = "C:\ClusterStorage\Volume1\images"
+            $csvPath = "C:\ClusterStorage\SU1_Volume\images"
             if ($([System.IO.Directory]::Exists("$csvPath"))) {
                 Remove-Item -Path "$csvPath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Item "$csvPath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
