@@ -1110,11 +1110,11 @@ try {
         Write-Host "You've specified the -pepPwd parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -pepPwd if this is an ASDK." -ForegroundColor Red
         Break
     }
-    if (($customDomainSuffix -ne "local.azurestack.external") -and ($multinode -eq $false)) {
+    <#if (($customDomainSuffix -ne "local.azurestack.external") -and ($multinode -eq $false)) {
         Set-Location $ScriptLocation
         Write-Host "You've specified the -customDomainSuffix parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, or remove the -customDomainSuffix if this is an ASDK." -ForegroundColor Red
         Break
-    }
+    }#>
     if ($certPath -and ($multinode -eq $false)) {
         Set-Location $ScriptLocation
         Write-Host "You've specified the -certPath parameter but not the -multiNode switch. Please rerun the script and provide the -multiNode switch, , or remove the -certPath if this is an ASDK." -ForegroundColor Red
