@@ -124,7 +124,7 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
+-downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
@@ -133,7 +133,7 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
+-downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
@@ -143,14 +143,14 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\ASDKfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
+-downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!'
 ```
 
 **Scenario 4** - Using ADFS for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you will have to use a different set of Azure AD credentials as your ASDK was deployed with ADFS. You have provided a valid -AzSPoCOfflineZipPath:
 
 ```powershell
-.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" `
+.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" `
 -azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerASDK `
 -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
@@ -159,7 +159,7 @@ Usage Examples:
 **Scenario 5** - Using ADFS for authentication. You choose **not** to register the ASDK to Azure as part of the automated process. You have provided a valid -AzSPoCOfflineZipPath:
 
 ```powershell
-.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" `
+.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" `
 -azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
 ```
 
@@ -168,7 +168,7 @@ Usage Examples:
 **Scenario 6** - This is a **disconnected scenario**. You **cannot** use Azure AD, so you are using ADFS for authentication. You **cannot** register the ASDK to Azure as part of the automated process as you have no internet connection. You have provided a valid -AzSPoCOfflineZipPath.
 
 ```powershell
-.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\ASDKfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" `
+.\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" `
 -azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
 ```
 
