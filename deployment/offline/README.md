@@ -124,7 +124,7 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
+-downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -asdkHostPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
@@ -133,7 +133,7 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
+-downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -asdkHostPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
 -registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
@@ -143,7 +143,7 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
--downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -azureStackAdminPwd 'Passw0rd123!' `
+-downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -asdkHostPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!'
 ```
 
@@ -151,7 +151,7 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" `
--azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerASDK `
+-asdkHostPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerASDK `
 -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
@@ -160,7 +160,7 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" `
--azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
+-asdkHostPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
 ```
 
 ### Offline Scenarios
@@ -169,7 +169,7 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" `
--azureStackAdminPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
+-asdkHostPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!'
 ```
 
 ### Optional Actions
