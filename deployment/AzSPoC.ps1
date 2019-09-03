@@ -40,6 +40,8 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1908    Windows Server 2019 Host OS Fixes - Cluster Shared Volume path
+            SQL Server on Linux VM Size increase
     1907.1  MultiNode fixes and testing
     1907    Updated to support ASDK 1.1907.0.20
             Initial support for MultiNode deployments for POC purposes only
@@ -3650,7 +3652,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                 Remove-Item -Path "$AppServicePath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Item "$AppServicePath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
             }
-            $csvPath = "C:\ClusterStorage\Volume1\images"
+            $csvPath = "C:\ClusterStorage\SU1_Volume\images"
             if ($([System.IO.Directory]::Exists("$csvPath"))) {
                 Remove-Item -Path "$csvPath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Item "$csvPath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
