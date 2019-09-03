@@ -106,7 +106,12 @@ if ($multinode -eq $true) {
     $fsVmSize = "Standard_F4s"
 }
 else {
-    $dbvmSize = "Standard_F1s"
+    if (($vmType -eq "SQLServer") -or ($vmType -eq "AppServiceDB")) {
+        $dbvmSize = "Standard_F2s"
+    }
+    else {
+        $dbvmSize = "Standard_F1s"
+    }
     $fsVmSize = "Standard_F2s"
 }
 
