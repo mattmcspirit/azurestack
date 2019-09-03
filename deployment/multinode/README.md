@@ -1,4 +1,4 @@
-Azure Stack POC Configurator 1907.1 - Multi-Node Guidance
+Azure Stack POC Configurator 1908 - Multi-Node Guidance
 Experimental Support Only - Limited Testing Performed
 ==============
 
