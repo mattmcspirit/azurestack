@@ -119,7 +119,14 @@ if (!$([System.IO.Directory]::Exists("$azsPath\images\$image"))) {
 }
 
 if ($multiNode -eq $false) {
-    $imageRootPath = "C:\ClusterStorage\SU1_Volume"
+    if ($([System.IO.Directory]::Exists("C:\ClusterStorage\SU1_Volume"))) {
+        Write-Host "This is a Windows Server 2019 ASDK host - setting imageRootPath to C:\ClusterStorage\SU1_Volume"
+        $imageRootPath = "C:\ClusterStorage\SU1_Volume"
+    }
+    elseif ($([System.IO.Directory]::Exists("C:\ClusterStorage\Volume1"))) {
+        Write-Host "This is a Windows Server 2016 ASDK host - setting imageRootPath to C:\ClusterStorage\Volume1"
+        $imageRootPath = "C:\ClusterStorage\Volume1"
+    }
 }
 else {
     $imageRootPath = $azsPath
