@@ -730,6 +730,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                                 }
                                                 catch {
                                                     Write-Host "With current Windows Server 2019 builds, it appears that the key cannot be updated."
+                                                    Write-Host "$_.Exception.Message"
                                                     Write-Host "Using MSDN/VL media doesn't seem to work any longer. You 2019 images will have a 180 day expiration, which should be fine for POC purposes."
                                                 }
                                             }
