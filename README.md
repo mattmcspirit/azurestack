@@ -1,4 +1,4 @@
-Azure Stack POC Configurator 1908
+Azure Stack POC Configurator 1908.1
 ==============
 
 Version Compatibility
