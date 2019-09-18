@@ -5,6 +5,10 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1908.1?
+* CSV 2016/2019 fixes
+* Fixes for WS2019 Image Creation/Activation
+
 ### What's new in version 1908?
 * Windows Server 2019 Host OS Fixes - Cluster Shared Volume path
 * SQL Server on Linux VM Size increase

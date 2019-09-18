@@ -286,8 +286,8 @@ try {
             try {
                 Write-Host "Downloading: $downloadURI"
                 $download = Measure-Command { (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation) }
-                "Download took $($download.Minutes) minutes $($download.Seconds) seconds at an average speed of {0:N2} Mbit/sec" `
-                    -f ((10 / (Measure-Command { (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation) }).TotalSeconds) * 8)
+                Write-Host ("Download took $($download.Minutes) minutes $($download.Seconds) seconds at an average speed of {0:N2} Mbit/sec" `
+                    -f ((10 / (Measure-Command { (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation) }).TotalSeconds) * 8))
                 break
             }
             catch {
@@ -3652,7 +3652,15 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                 Remove-Item -Path "$AppServicePath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Item "$AppServicePath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
             }
-            $csvPath = "C:\ClusterStorage\SU1_Volume\images"
+
+            if ($([System.IO.Directory]::Exists("C:\ClusterStorage\SU1_Volume"))) {
+                Write-Host "This is a Windows Server 2019 ASDK host - setting csvPath to C:\ClusterStorage\SU1_Volume\images"
+                $csvPath = "C:\ClusterStorage\SU1_Volume\images"
+            }
+            elseif ($([System.IO.Directory]::Exists("C:\ClusterStorage\Volume1"))) {
+                Write-Host "This is a Windows Server 2016 ASDK host - setting csvPath to C:\ClusterStorage\Volume1\images"
+                $csvPath = "C:\ClusterStorage\Volume1\images"
+            }
             if ($([System.IO.Directory]::Exists("$csvPath"))) {
                 Remove-Item -Path "$csvPath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Item "$csvPath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
