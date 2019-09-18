@@ -1,4 +1,4 @@
-Azure Stack POC Configurator 1908 - Multi-Node Guidance
+Azure Stack POC Configurator 1908.1 - Multi-Node Guidance
 Experimental Support Only - Limited Testing Performed
 ==============
 
@@ -227,7 +227,7 @@ These commands should remove the AzSPoC database from the local SQLLocalDB insta
 
 ### Known Issues
 * A Windows Server 2016 ISO is required.  This should be build 1607 (The RTM release) and not any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809). These have not been validated for support with the database and App Service resource providers, so don't use those builds at this time. The script will block their usage.
-* If you wish to upload Windows Server 2019 images for testing, please use the 17763 build, which is the Windows Server 2019 RTM. All ISOs should be the MSDN/Visual Studio/Volume License media and **NOT** evaluation media.
+* If you wish to upload Windows Server 2019 images for testing, please use the 17763 build, which is the Windows Server 2019 RTM. All ISOs should be the MSDN/Visual Studio/Volume License media and **NOT** evaluation media, although currently, neither the eval, VL or MSDN media can be converted offline to use Auto VM Activation, so images will expire in 180 days. If this is an issue, **Do not include a 2019 path** and instead, once deployment is complete, download the Windows Server 2019 images from the Marketplace.
 * Do not use a mapped drive for your -downloadPath on your workstation. There are known issues which are yet to be resolved. Please use a local drive.
 
 ### Troubleshooting & Improvements
