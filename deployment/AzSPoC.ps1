@@ -40,6 +40,11 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1908.2  Alternative AzureCloud support
+            MySQL8 fixes
+            Updated Ubuntu image
+    1908.1  CSV 2016/2019 fixes
+            Fixes for WS2019 Image Creation/Activation
     1908    Windows Server 2019 Host OS Fixes - Cluster Shared Volume path
             SQL Server on Linux VM Size increase
     1907.1  MultiNode fixes and testing
@@ -266,7 +271,11 @@ param (
 
     # Custom domain suffix - will be mandatory for a multiNode, but can be hacked for ASDK
     [Parameter(Mandatory = $false)]
-    [string]$customDomainSuffix = "local.azurestack.external"
+    [string]$customDomainSuffix = "local.azurestack.external",
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet("AzureChinaCloud", "AzureCloud", "AzureGermanCloud", "AzureUSGovernment")]
+    [String] $azureEnvironment
 )
 
 try {
@@ -775,6 +784,10 @@ try {
 
     if (!$branch) {
         $branch = "master"
+    }
+
+    if (!$azureEnvironment) {
+        $azureEnvironment = "AzureCloud"
     }
 
     # Validate Github branch exists - usually reserved for testing purposes
@@ -2005,7 +2018,7 @@ try {
             ### TEST AZURE LOGIN - Login to Azure Cloud
             Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r"
             $tenantId = (Invoke-RestMethod -Verbose:$false "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-            Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Add-AzureRmAccount -EnvironmentName $azureEnvironment -TenantId $tenantId -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
             Write-CustomVerbose -Message "Current Azure Subscription information:"
             Get-AzureRmContext | Format-Table -AutoSize
             Start-Sleep -Seconds 5
@@ -2061,7 +2074,7 @@ try {
         try {
             ### OPTIONAL - TEST AZURE REGISTRATION CREDS
             Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory"
-            Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Add-AzureRmAccount -EnvironmentName $azureEnvironment -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop -Verbose:$false | Out-Null
             $azureRegTenantID = (Get-AzureRmSubscription -SubscriptionId $azureRegSubId -Verbose:$false).TenantId
             Write-CustomVerbose -Message "Selected Azure Subscription used for registration info:"
             Get-AzureRmContext | Format-Table -AutoSize
@@ -2389,7 +2402,7 @@ try {
                 Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
                 $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
                 $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-                Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+                Add-AzureRmAccount -EnvironmentName $azureEnvironment -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
                 # Register the Azure Stack resource provider in your Azure subscription
                 Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
                 # Import the registration module that was downloaded with the GitHub tools
@@ -2738,12 +2751,13 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $AddUbuntuImage = {
         Start-Job -Name AddUbuntuImage -InitializationScript $export_functions -ArgumentList $ISOpath, $ISOPath2019, $azsPath, $customDomainSuffix, $registerAzS, $deploymentMode, $modulePath, `
             $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $azsCreds, $ScriptLocation, $branch, $sqlServerInstance, $databaseName, $tableName, `
-            $runMode, $multiNode, $azsRegName -ScriptBlock {
+            $runMode, $multiNode, $azsRegName, $azureEnvironment -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -AzSPath $Using:azsPath `
                 -customDomainSuffix $Using:customDomainSuffix -registerAzS $Using:registerAzS -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
                 -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 -image "UbuntuServer" -branch $Using:branch -runMode $Using:runMode `
-                -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -multiNode $Using:multiNode -azsRegName $Using:azsRegName
+                -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -multiNode $Using:multiNode -azsRegName $Using:azsRegName `
+                -azureEnvironment $Using:azureEnvironment
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddUbuntuImage -Verbose
@@ -2763,12 +2777,12 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $AddServerCore2016Image = {
         Start-Job -Name AddServerCore2016Image -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $registerAzS, $deploymentMode, `
             $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $azsCreds, $ScriptLocation, $runMode, $ISOpath, $ISOPath2019, $branch, `
-            $sqlServerInstance, $databaseName, $tableName, $multiNode, $azsRegName -ScriptBlock {
+            $sqlServerInstance, $databaseName, $tableName, $multiNode, $azsRegName, $azureEnvironment -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -registerAzS $Using:registerAzS `
                 -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID `
                 -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 `
                 -image "ServerCore2016" -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName `
-                -tableName $Using:tableName -runMode $Using:runMode -multiNode $Using:multiNode -azsRegName $Using:azsRegName
+                -tableName $Using:tableName -runMode $Using:runMode -multiNode $Using:multiNode -azsRegName $Using:azsRegName -azureEnvironment $Using:azureEnvironment
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddServerCore2016Image -Verbose
@@ -2777,13 +2791,13 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $AddServerFull2016Image = {
         Start-Job -Name AddServerFull2016Image -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, `
             $registerAzS, $deploymentMode, $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $azsCreds, $ScriptLocation, `
-            $runMode, $ISOpath, $ISOPath2019, $branch, $sqlServerInstance, $databaseName, $tableName, $multiNode, $azsRegName -ScriptBlock {
+            $runMode, $ISOpath, $ISOPath2019, $branch, $sqlServerInstance, $databaseName, $tableName, $multiNode, $azsRegName, $azureEnvironment -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -AzSPath $Using:azsPath `
                 -customDomainSuffix $Using:customDomainSuffix -registerAzS $Using:registerAzS -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
                 -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 -image "ServerFull2016" -branch $Using:branch `
                 -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode `
-                -multiNode $Using:multiNode -azsRegName $Using:azsRegName
+                -multiNode $Using:multiNode -azsRegName $Using:azsRegName -azureEnvironment $Using:azureEnvironment
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddServerFull2016Image -Verbose
@@ -2792,12 +2806,12 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $AddServerCore2019Image = {
         Start-Job -Name AddServerCore2019Image -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $registerAzS, $deploymentMode, `
             $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $azsCreds, $ScriptLocation, $runMode, $ISOpath, $ISOPath2019, $branch, `
-            $sqlServerInstance, $databaseName, $tableName, $multiNode, $azsRegName -ScriptBlock {
+            $sqlServerInstance, $databaseName, $tableName, $multiNode, $azsRegName, $azureEnvironment -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -registerAzS $Using:registerAzS `
                 -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID `
                 -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 `
                 -image "ServerCore2019" -branch $Using:branch -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName `
-                -tableName $Using:tableName -runMode $Using:runMode -multiNode $Using:multiNode -azsRegName $Using:azsRegName
+                -tableName $Using:tableName -runMode $Using:runMode -multiNode $Using:multiNode -azsRegName $Using:azsRegName -azureEnvironment $Using:azureEnvironment
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddServerCore2019Image -Verbose
@@ -2806,13 +2820,13 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $AddServerFull2019Image = {
         Start-Job -Name AddServerFull2019Image -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, `
             $registerAzS, $deploymentMode, $modulePath, $azureRegSubId, $azureRegTenantID, $tenantID, $azureRegCreds, $azsCreds, $ScriptLocation, `
-            $runMode, $ISOpath, $ISOPath2019, $branch, $sqlServerInstance, $databaseName, $tableName, $multiNode, $azsRegName -ScriptBlock {
+            $runMode, $ISOpath, $ISOPath2019, $branch, $sqlServerInstance, $databaseName, $tableName, $multiNode, $azsRegName, $azureEnvironment -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\AddImage.ps1 -AzSPath $Using:azsPath `
                 -customDomainSuffix $Using:customDomainSuffix -registerAzS $Using:registerAzS -deploymentMode $Using:deploymentMode -modulePath $Using:modulePath `
                 -azureRegSubId $Using:azureRegSubId -azureRegTenantID $Using:azureRegTenantID -tenantID $Using:TenantID -azureRegCreds $Using:azureRegCreds `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -ISOpath $Using:ISOpath -ISOPath2019 $Using:ISOPath2019 -image "ServerFull2019" -branch $Using:branch `
                 -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -runMode $Using:runMode `
-                -multiNode $Using:multiNode -azsRegName $Using:azsRegName
+                -multiNode $Using:multiNode -azsRegName $Using:azsRegName -azureEnvironment $Using:azureEnvironment
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddServerFull2019Image -Verbose
@@ -3037,13 +3051,13 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $AddAppServicePreReqs = {
         Start-Job -Name AddAppServicePreReqs -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $downloadPath, $deploymentMode, $authenticationType, `
             $azureDirectoryTenantName, $tenantID, $secureVMpwd, $ERCSip, $branch, $azsCreds, $pepAdminCreds, $ScriptLocation, $skipAppService, `
-            $sqlServerInstance, $databaseName, $tableName, $certPath, $secureCertPwd, $multiNode -ScriptBlock {
+            $sqlServerInstance, $databaseName, $tableName, $certPath, $secureCertPwd, $multiNode, $azureEnvironment -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\AddAppServicePreReqs.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix `
                 -downloadPath $Using:downloadPath -deploymentMode $Using:deploymentMode -authenticationType $Using:authenticationType `
                 -azureDirectoryTenantName $Using:azureDirectoryTenantName -tenantID $Using:tenantID -secureVMpwd $Using:secureVMpwd -ERCSip $Using:ERCSip -branch $Using:branch `
                 -azsCreds $Using:azsCreds -pepAdminCreds $Using:pepAdminCreds -ScriptLocation $Using:ScriptLocation -skipAppService $Using:skipAppService `
                 -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName -tableName $Using:tableName -certPath $Using:certPath -secureCertPwd $Using:secureCertPwd `
-                -multiNode $Using:multiNode
+                -multiNode $Using:multiNode -azureEnvironment $Using:azureEnvironment
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddAppServicePreReqs -Verbose

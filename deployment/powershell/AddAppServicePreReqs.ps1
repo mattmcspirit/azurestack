@@ -59,7 +59,11 @@ param (
     [securestring] $secureCertPwd,
 
     [parameter(Mandatory = $false)]
-    [String] $multiNode
+    [String] $multiNode,
+
+    [Parameter(Mandatory = $true)]
+    [ValidateSet("AzureChinaCloud", "AzureCloud", "AzureGermanCloud", "AzureUSGovernment")]
+    [String] $azureEnvironment
 )
 
 $Global:VerbosePreference = "Continue"
@@ -202,7 +206,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
                     Write-Host "Tenant ID is $tenantId"
                     Write-Host "Logging into Azure Cloud"
-                    Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $azsCreds -ErrorAction Stop
+                    Add-AzureRmAccount -EnvironmentName $azureEnvironment -TenantId $tenantId -Credential $azsCreds -ErrorAction Stop
                     Set-Location "$AppServicePath" -Verbose
                     Write-Host "Generating the application ID for the App Service installation"
                     if ($multiNode -eq $false) {
@@ -295,7 +299,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
                         Write-Host "Tenant ID is $tenantId"
                         Write-Host "Logging into Azure Cloud"
-                        Add-AzureRmAccount -EnvironmentName "AzureCloud" -TenantId $tenantId -Credential $azsCreds -ErrorAction Stop
+                        Add-AzureRmAccount -EnvironmentName $azureEnvironment -TenantId $tenantId -Credential $azsCreds -ErrorAction Stop
                         Write-Host "Obtaining tokens"
                         $refreshToken = @([Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems() | Where-Object { $_.tenantId -eq $tenantId -and $_.ExpiresOn -gt (Get-Date) })[0].RefreshToken
                         $refreshtoken = $refreshtoken.Split("`n")[0]

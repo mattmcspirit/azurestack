@@ -63,7 +63,11 @@ param (
     [String] $multiNode,
 
     [parameter(Mandatory = $false)]
-    [String] $azsRegName
+    [String] $azsRegName,
+
+    [Parameter(Mandatory = $true)]
+    [ValidateSet("AzureChinaCloud", "AzureCloud", "AzureGermanCloud", "AzureUSGovernment")]
+    [String] $azureEnvironment
 )
 
 $Global:VerbosePreference = "Continue"
@@ -392,7 +396,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     Clear-AzureRmContext -Scope CurrentUser -Force
                     ### Login to Azure to get all the details about the syndicated marketplace offering ###
                     Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
-                    Add-AzureRmAccount -EnvironmentName "AzureCloud" -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+                    Add-AzureRmAccount -EnvironmentName $azureEnvironment -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
                     $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
                     Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
                     $Registration = (Get-AzureRmResource | Where-Object { ($_.ResourceType -eq "Microsoft.AzureStack/registrations") `
