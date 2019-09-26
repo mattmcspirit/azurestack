@@ -1,4 +1,4 @@
-Azure Stack POC Configurator 1908.1
+Azure Stack POC Configurator 1908.2
 ==============
 
 Version Compatibility
@@ -7,7 +7,7 @@ The current version of the AzSPoC.ps1 script has been **tested with the followin
 * ASDK build **1.1908.0.20 (1908)**
 * Azure Stack PowerShell Module **1.7.2**
 
-**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 1908, Azure Stack PowerShell 1.7.2. and the new AzureRM PowerShell 2.5.0.  It should also work with more recent previous versions, such as 1907 and 1906, but ideally, you should be upgrading to the latest release of the ASDK.
+**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 1908, Azure Stack PowerShell 1.7.2. and the new AzureRM PowerShell 2.5.0.  It should also work with more recent previous versions, such as 1907, but ideally, you should be upgrading to the latest release of the ASDK.
 
 Description
 -----------
@@ -131,6 +131,7 @@ With the script downloaded successfully, you can move on to running the script. 
 * If you specify -registerAzS but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials.
 * If you are using older hardware, or lower performance hardware with no SSD storage, and are experiencing VM deployment errors, use **-serialMode** to set the script to deploy VMs one at a time, rather than in parallel. This can help with reliability on older, lower performance hardware.
 * If you chose to customize the initial deployment of your ASDK by changing the region (default = "local") or the domain suffix (default = "azurestack.external"), you can use the flag **-customDomainSuffix** along with a correctly formed region and domain suffix, such as "west.contoso.com"
+* If you wish to authenticate/register to an alternative cloud, such as AzureUSGovernment, AzureGermanCloud etc, use **-azureEnvironment** and the name of the cloud. This name can be retrieved using Get-AzureRmEnvironment.
 
 Usage Examples:
 -------------

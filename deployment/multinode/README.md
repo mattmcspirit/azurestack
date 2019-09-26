@@ -1,4 +1,4 @@
-Azure Stack POC Configurator 1908.1 - Multi-Node Guidance
+Azure Stack POC Configurator 1908.2 - Multi-Node Guidance
 Experimental Support Only - Limited Testing Performed
 ==============
 
@@ -143,6 +143,7 @@ Optional Parameters | Explanation
 **skipMySQL** | **Do not** install the MySQL Resource Provider, Hosting Server and SKU/Quotas.
 **skipMSSQL** | **Do not** install the Microsoft SQL Server Resource Provider, Hosting Server and SKU/Quotas.
 **skipAppService** | **Do not** install the App Service pre-requisites and App Service Resource Provider.
+**azureEnvironment** | If you wish to authenticate/register to an alternative cloud, such as AzureUSGovernment, AzureGermanCloud etc, use **-azureEnvironment** and the name of the cloud. This name can be retrieved using Get-AzureRmEnvironment.
 
 Usage Examples:
 -------------

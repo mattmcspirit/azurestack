@@ -1,4 +1,4 @@
-ASDK Configurator 1908.1 | Offline Mode
+ASDK Configurator 1908.2 | Offline Mode
 ==============
 
 Who is this for?
@@ -117,6 +117,7 @@ Usage Examples:
 **General Guidance**
 * For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files.
 * If you chose to customize the initial deployment of your ASDK by changing the region (default = "local") or the domain suffix (default = "azurestack.external"), you can use the flag **-customDomainSuffix** along with a correctly formed region and domain suffix, such as "west.contoto.com"
+* If you wish to authenticate/register to an alternative cloud, such as AzureUSGovernment, AzureGermanCloud etc, use **-azureEnvironment** and the name of the cloud. This name can be retrieved using Get-AzureRmEnvironment.
 
 ### PartialOnline Scenarios
 
