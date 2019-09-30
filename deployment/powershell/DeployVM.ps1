@@ -67,7 +67,7 @@ $Global:ProgressPreference = 'SilentlyContinue'
 $skipRP = $false
 if ($vmType -eq "MySQL") {
     $logFolder = "$($vmType)DBVM"
-    $azpkg = "MySQL."
+    $azpkg = "MySQL8"
     $deploymentName = "DeployMySQLHost"
     $rg = "azurestack-dbhosting"
     if ($skipMySQL -eq $true) {
