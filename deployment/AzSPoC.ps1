@@ -2889,11 +2889,11 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $AddMySQLRP = {
         Start-Job -Name AddMySQLRP -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $secureVMpwd, $deploymentMode, $serialMode, `
             $tenantID, $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $pepAdminCreds, $certPath, $secureCertPwd, $sqlServerInstance, $databaseName, `
-            $tableName, $multiNode -ScriptBlock {
+            $tableName, $multiNode, $azureEnvironment -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -pepAdminCreds $Using:pepAdminCreds `
                 -certPath $Using:certPath -secureCertPwd $Using:secureCertPwd -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
-                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode
+                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode -azureEnvironment $Using:azureEnvironment
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddMySQLRP -Verbose
@@ -2902,11 +2902,11 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     $AddSQLServerRP = {
         Start-Job -Name AddSQLServerRP -InitializationScript $export_functions -ArgumentList $azsPath, $customDomainSuffix, $secureVMpwd, $deploymentMode, $serialMode, `
             $tenantID, $azsCreds, $ScriptLocation, $skipMySQL, $skipMSSQL, $ERCSip, $pepAdminCreds, $certPath, $secureCertPwd, $sqlServerInstance, $databaseName, `
-            $tableName, $multiNode -ScriptBlock {
+            $tableName, $multiNode, $azureEnvironment -ScriptBlock {
             Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -pepAdminCreds $Using:pepAdminCreds `
                 -certPath $Using:certPath -secureCertPwd $Using:secureCertPwd -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
-                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode
+                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode -azureEnvironment $Using:azureEnvironment
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddSQLServerRP -Verbose

@@ -56,7 +56,11 @@ param (
     [securestring] $secureCertPwd,
 
     [Parameter(Mandatory = $false)]
-    [String] $multiNode
+    [String] $multiNode,
+
+    [Parameter(Mandatory = $true)]
+    [ValidateSet("AzureChinaCloud", "AzureCloud", "AzureGermanCloud", "AzureUSGovernment")]
+    [String] $azureEnvironment
 )
 
 $Global:VerbosePreference = "Continue"
@@ -288,17 +292,22 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
                             $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                             Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
-                            .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd -AcceptLicense
+                            .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
+                                -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd `
+                                -AzureEnvironment $azureEnvironment -AcceptLicense
                         }
                         else {
-                            .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -AcceptLicense
+                            .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
+                                -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -AzureEnvironment $azureEnvironment -AcceptLicense
                         }
                     }
                     elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
-                        .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -DependencyFilesLocalPath $dependencyFilePath -AcceptLicense
+                        .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
+                            -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -DependencyFilesLocalPath $dependencyFilePath `
+                            -AzureEnvironment $azureEnvironment -AcceptLicense
                     }
                 }
                 elseif ($dbrp -eq "SQLServer") {
@@ -306,12 +315,15 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
-                        .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd
+                        .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
+                            -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd `
+                            -AzureEnvironment $azureEnvironment
                     }
                     else {
-                        .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd
+                        .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
+                            -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -AzureEnvironment $azureEnvironment
                     }
-                    }
+                }
                 # Update the AzSPoC database with successful completion
                 $progressCheck = CheckProgress -progressStage $progressStage
                 StageComplete -progressStage $progressStage
