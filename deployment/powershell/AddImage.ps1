@@ -397,7 +397,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     ### Login to Azure to get all the details about the syndicated marketplace offering ###
                     Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
                     Add-AzureRmAccount -EnvironmentName $azureEnvironment -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
-                    $azureEnvironment = Get-AzureRmEnvironment -Name AzureCloud
+                    $azureEnv = Get-AzureRmEnvironment -Name $azureEnvironment
                     Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
                     $Registration = (Get-AzureRmResource | Where-Object { ($_.ResourceType -eq "Microsoft.AzureStack/registrations") `
                                 -and (($_.Name -like "*$azsRegName*") -or ($_.Name -like "AzureStack*")) } | Select-Object -First 1 -ErrorAction SilentlyContinue).Name
@@ -410,7 +410,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     $token = $null
                     $tokens = $null
                     $tokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-                    $token = $tokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object TenantId -EQ $azureRegTenantID | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+                    $token = $tokens | Where-Object Resource -EQ $azureEnv.ActiveDirectoryServiceEndpointResourceId | Where-Object TenantId -EQ $azureRegTenantID | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
 
                     # Define variables and create an array to store all information
                     $package = "$onlinePackage"
@@ -428,7 +428,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     }
 
                     ### Get the package information ###
-                    $uri1 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
+                    $uri1 = "$($azureEnv.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products?api-version=2016-01-01"
                     $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)" } 
                     $productList = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object { $_.name -like "$package" } | Sort-Object -Property @{Expression = { $_.properties.offerVersion }; Ascending = $false } -ErrorAction Stop
                     foreach ($product in $productList) {
@@ -446,13 +446,13 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     $azpkg.offer = $product.properties.offer
 
                     # Get product info
-                    $uri2 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
+                    $uri2 = "$($azureEnv.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)?api-version=2016-01-01"
                     $Headers = @{ 'authorization' = "Bearer $($Token.AccessToken)" } 
                     $productDetails = Invoke-RestMethod -Method GET -Uri $uri2 -Headers $Headers
                     $azpkg.name = $productDetails.properties.galleryItemIdentity
 
                     # Get download location for AZPKG file
-                    $uri3 = "$($azureEnvironment.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
+                    $uri3 = "$($azureEnv.ResourceManagerUrl.ToString().TrimEnd('/'))/subscriptions/$($azureRegSubId.ToString())/resourceGroups/azurestack/providers/Microsoft.AzureStack/registrations/$Registration/products/$($azpkg.id)/listDetails?api-version=2016-01-01"
                     $downloadDetails = Invoke-RestMethod -Method POST -Uri $uri3 -Headers $Headers
                     $azpkg.azpkgPath = $downloadDetails.galleryPackageBlobSasUri
                     $azpkg.osVersion = $downloadDetails.properties.osDiskImage.operatingSystem
