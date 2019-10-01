@@ -180,7 +180,7 @@ Use the following switches to skip deployment of additional Resource Providers, 
 * Use **-skipMySQL** to **not** install the MySQL Resource Provider, Hosting Server and SKU/Quotas.
 * Use **-skipMSSQL** to **not** install the Microsoft SQL Server Resource Provider, Hosting Server and SKU/Quotas.
 * Use **-skipAppService** to **not** install the App Service pre-requisites and App Service Resource Provider.
-* Use **-skipCustomizeHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
+* Use **-skipCustomizeAsdkHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
 
 In addition, you can choose to skip a particular resource provider deployment, such as -skipMySQL, but later, re-run the Configurator (using the same launch command) and **not** specify the -skipMySQL switch, and the Configurator will add that particular functionality.
 
