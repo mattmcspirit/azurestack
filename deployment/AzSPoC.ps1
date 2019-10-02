@@ -2434,7 +2434,7 @@ try {
                 $azureUsername = $azureRegCreds.Username
                 Write-Output "`$azureRegCreds = Get-Credential -UserName `"$azureUsername`" -Message `"Enter the credentials you used to register this Azure Stack POC for username:$azureUsername.`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 Write-Output "`$azureRegSubId = `"$azureRegSubId`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
-                Write-Output "`$azureRegSub = Add-AzureRmAccount -EnvironmentName `"AzureCloud`" -SubscriptionId `"$azureRegSubId`" -Credential `$azureRegCreds" -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
+                Write-Output "`$azureRegSub = Add-AzureRmAccount -EnvironmentName `"$azureEnvironment`" -SubscriptionId `"$azureRegSubId`" -Credential `$azureRegCreds" -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 # Get Azure Stack POC Privileged Endpoint Creds
                 Write-Output "`n# Get Azure Stack POC Privileged Endpoint Creds" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 Write-Output '$pepAdminCreds = Get-Credential -UserName "$azsInternalDomain\cloudadmin" -Message "Enter the credentials to access the privileged endpoint."' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append

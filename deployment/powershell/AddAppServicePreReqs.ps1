@@ -240,7 +240,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Output "`$azureUsername = `"$azureUsername`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
                     Write-Output "`$azureTenantID = `"$tenantID`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
                     Write-Output "`$azureCreds = Get-Credential -UserName `"$azureUsername`" -Message `"Enter the AAD password you used when deploying this Azure Stack POC with the username: $azureUsername.`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
-                    Write-Output "`$azureLogin = Add-AzureRmAccount -EnvironmentName `"AzureCloud`" -tenantId `"$tenantId`" -Credential `$azureCreds" -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
+                    Write-Output "`$azureLogin = Add-AzureRmAccount -EnvironmentName `"$azureEnvironment`" -tenantId `"$tenantId`" -Credential `$azureCreds" -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
                     # Remove the App from Azure AD
                     Write-Output "`n# Remove the App from Azure AD" -Verbose -ErrorAction Stop | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
                     Write-Output "`$appToRemove = Get-AzureRmADApplication | Where-Object {`$_.ApplicationId -eq `"$identityApplicationID`"} -ErrorAction SilentlyContinue -Verbose" | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
