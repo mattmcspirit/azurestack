@@ -79,7 +79,7 @@ Alternatively, if you would like to include Windows Server 2019:
 
 **General Guidance**
 
-* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 20GB of files
+* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to **20GB** of files
 * **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time**
 * **-ISOPath2019** is optional, and should point to the Windows Server 2019 Evaluation media that you can download from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images**
 
