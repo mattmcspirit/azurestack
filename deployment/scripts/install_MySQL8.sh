@@ -24,7 +24,8 @@ ufw allow 3306
 
 # Install dirmngr (certs)
 sudo apt install -y dirmngr
-sudo apt-key adv --keyserver pool.sks-keyservers.net --recv-keys 5072E1F5
+# sudo apt-key adv --keyserver pool.sks-keyservers.net --recv-keys 5072E1F5
+sudo apt-key adv --keyserver keys.gnupg.net --recv-keys 5072E1F5
 
 # Retrieve the latest APT repo for MySQL and save it
 echo "deb http://repo.mysql.com/apt/ubuntu $(lsb_release -sc) mysql-8.0" | sudo tee /etc/apt/sources.list.d/mysql80.list

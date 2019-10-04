@@ -1,4 +1,4 @@
-ASDK Configurator 1908.1 | Offline Mode
+ASDK Configurator 1908.2 | Offline Mode
 ==============
 
 Who is this for?
@@ -79,7 +79,7 @@ Alternatively, if you would like to include Windows Server 2019:
 
 **General Guidance**
 
-* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 20GB of files
+* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to **20GB** of files
 * **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time**
 * **-ISOPath2019** is optional, and should point to the Windows Server 2019 Evaluation media that you can download from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images**
 
@@ -117,6 +117,7 @@ Usage Examples:
 **General Guidance**
 * For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files.
 * If you chose to customize the initial deployment of your ASDK by changing the region (default = "local") or the domain suffix (default = "azurestack.external"), you can use the flag **-customDomainSuffix** along with a correctly formed region and domain suffix, such as "west.contoto.com"
+* If you wish to authenticate/register to an alternative cloud, such as AzureUSGovernment, AzureGermanCloud etc, use **-azureEnvironment** and the name of the cloud. This name can be retrieved using Get-AzureRmEnvironment.
 
 ### PartialOnline Scenarios
 
@@ -179,7 +180,7 @@ Use the following switches to skip deployment of additional Resource Providers, 
 * Use **-skipMySQL** to **not** install the MySQL Resource Provider, Hosting Server and SKU/Quotas.
 * Use **-skipMSSQL** to **not** install the Microsoft SQL Server Resource Provider, Hosting Server and SKU/Quotas.
 * Use **-skipAppService** to **not** install the App Service pre-requisites and App Service Resource Provider.
-* Use **-skipCustomizeHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
+* Use **-skipCustomizeAsdkHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
 
 In addition, you can choose to skip a particular resource provider deployment, such as -skipMySQL, but later, re-run the Configurator (using the same launch command) and **not** specify the -skipMySQL switch, and the Configurator will add that particular functionality.
 

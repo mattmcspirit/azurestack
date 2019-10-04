@@ -1,4 +1,4 @@
-Azure Stack POC Configurator 1908.1
+Azure Stack POC Configurator 1908.2
 ==============
 
 Version Compatibility
@@ -7,7 +7,7 @@ The current version of the AzSPoC.ps1 script has been **tested with the followin
 * ASDK build **1.1908.0.20 (1908)**
 * Azure Stack PowerShell Module **1.7.2**
 
-**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 1908, Azure Stack PowerShell 1.7.2. and the new AzureRM PowerShell 2.5.0.  It should also work with more recent previous versions, such as 1907 and 1906, but ideally, you should be upgrading to the latest release of the ASDK.
+**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 1908, Azure Stack PowerShell 1.7.2. and the new AzureRM PowerShell 2.5.0.  It should also work with more recent previous versions, such as 1907, but ideally, you should be upgrading to the latest release of the ASDK.
 
 Description
 -----------
@@ -120,7 +120,7 @@ With the script downloaded successfully, you can move on to running the script. 
 
 **General Guidance**
 * For the **-azureDirectoryTenantName**, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
-* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your ASDK host, NOT a mapped drive - known issues exist with mapped drives at this time**
+* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to **3GB** of files for an *Online* installation and up to **20GB** for an *Offline* installation (providing the ZIP file). **This should be a path that is local to your ASDK host, NOT a mapped drive, NOT a USB drive, NOT on the Cluster Shared Volume - known issues exist with mapped drives, USB and CSV and mounting VHDs at this time**
 * **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time**
 * **-ISOPath2019** is optional, and should point to the Windows Server 2019 Evaluation media that you can download from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images**
 * **-asdkHostPwd** is the password you used when deploying your ASDK (for ASDK deployments only)
@@ -131,6 +131,7 @@ With the script downloaded successfully, you can move on to running the script. 
 * If you specify -registerAzS but forget to use -useAzureCredsForRegistration, you will be prompted for alternative credentials.
 * If you are using older hardware, or lower performance hardware with no SSD storage, and are experiencing VM deployment errors, use **-serialMode** to set the script to deploy VMs one at a time, rather than in parallel. This can help with reliability on older, lower performance hardware.
 * If you chose to customize the initial deployment of your ASDK by changing the region (default = "local") or the domain suffix (default = "azurestack.external"), you can use the flag **-customDomainSuffix** along with a correctly formed region and domain suffix, such as "west.contoso.com"
+* If you wish to authenticate/register to an alternative cloud, such as AzureUSGovernment, AzureGermanCloud etc, use **-azureEnvironment** and the name of the cloud. This name can be retrieved using Get-AzureRmEnvironment.
 
 Usage Examples:
 -------------
@@ -192,7 +193,7 @@ Use the following switches to skip deployment of additional Resource Providers, 
 * Use **-skipMySQL** to **not** install the MySQL Resource Provider, Hosting Server and SKU/Quotas.
 * Use **-skipMSSQL** to **not** install the Microsoft SQL Server Resource Provider, Hosting Server and SKU/Quotas.
 * Use **-skipAppService** to **not** install the App Service pre-requisites and App Service Resource Provider.
-* Use **-skipCustomizeHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
+* Use **-skipCustomizeAsdkHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
 
 In addition, you can choose to skip a particular resource provider deployment, such as -skipMySQL, but later, re-run the Configurator (using the same launch command) and **not** specify the -skipMySQL switch, and the Configurator will add that particular functionality.
 
