@@ -117,7 +117,7 @@ With the script downloaded successfully, you can move on to running the script. 
 Mandatory Parameters | Explanation
 :------------ | :-------------
 **azureDirectoryTenantName** | You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
-**downloadPath** | Ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your workstation, NOT a mapped drive - known issues exist with mapped drives at this time**
+**downloadPath** | Ensure the folder exists, and you have enough space to hold at least 60-70GB of files. **This should be a path that is local to your workstation, NOT a mapped drive or USB drive - known issues exist with mapped drives/USB drives at this time**
 **ISOPath** | Should point to the Windows Server 2016 **MSDN/Visual Studio/VL** media. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time. Evaluation media will not be supported with multinode systems**
 **VMpwd** | is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
 **azureAdUsername** | *Service Administrator* username you used when you deployed your Azure Stack system (in Azure AD connected mode).

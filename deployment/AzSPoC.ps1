@@ -2700,25 +2700,25 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     }
     if ($multinode -eq $true) {
         if ($null -eq $ISOPath2019) {
-            $sm = 45
-            $med = 135
+            $sm = 70
+            $md = 130
             $lg = 165
         }
         else {
-            $sm = 45
-            $med = 135
+            $sm = 70
+            $md = 130
             $lg = 285
         }
     }
     else {
         if ($null -eq $ISOPath2019) {
             $sm = 45
-            $med = 85
+            $md = 85
             $lg = 120
         }
         else {
             $sm = 45
-            $med = 85
+            $md = 85
             $lg = 200
         }
     }
@@ -2733,7 +2733,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core 3. Windows Server Full (+ 4. WS 2019 Core, + 5. WS 2019 Full Optionally)
         $runMode = "serial"
     }
-    elseif ($freeDiskSpace -ge $med -and $freeDiskSpace -lt $lg) {
+    elseif ($freeDiskSpace -ge $md -and $freeDiskSpace -lt $lg) {
         Write-CustomVerbose -Message "Free space is less than $($lg)GB - you don't have enough room on the drive to create all Ubuntu Server and Windows Server images in parallel"
         Write-CustomVerbose -Message "Your Ubuntu Server will be created first, then Windows Server images will be created in parallel.  This could take some time."
         # Create images: 1. Ubuntu + Windows Update in parallel 2. Windows Server Core and Windows Server Full in parallel after both prior jobs have finished 3. (+ WS 2019 Core, + WS 2019 Full Optionally)
