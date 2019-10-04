@@ -120,7 +120,7 @@ With the script downloaded successfully, you can move on to running the script. 
 
 **General Guidance**
 * For the **-azureDirectoryTenantName**, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
-* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to 40GB of files. **This should be a path that is local to your ASDK host, NOT a mapped drive - known issues exist with mapped drives at this time**
+* For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to **3GB** of files (for an *Online* installation). **This should be a path that is local to your ASDK host, NOT a mapped drive, NOT a USB drive, NOT on the Cluster Shared Volume - known issues exist with mapped drives, USB and CSV and mounting VHDs at this time**
 * **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time**
 * **-ISOPath2019** is optional, and should point to the Windows Server 2019 Evaluation media that you can download from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images**
 * **-asdkHostPwd** is the password you used when deploying your ASDK (for ASDK deployments only)
