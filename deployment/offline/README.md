@@ -127,7 +127,7 @@ Usage Examples:
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -asdkHostPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
--registerASDK -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
+-registerAzS -useAzureCredsForRegistration -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
 **Scenario 2** - Using Azure AD for authentication. You wish to register the ASDK to Azure as part of the automated process. For registration, you wish to use a different set of Azure AD credentials from the set you used when you deployed your ASDK. You have provided a valid -AzSPoCOfflineZipPath:
@@ -136,7 +136,7 @@ Usage Examples:
 .\AzSPoC.ps1 -azureDirectoryTenantName "contoso.onmicrosoft.com" -authenticationType AzureAD `
 -downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" -asdkHostPwd 'Passw0rd123!' `
 -VMpwd 'Passw0rd123!' -azureAdUsername "admin@contoso.onmicrosoft.com" -azureAdPwd 'Passw0rd123!' `
--registerASDK -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
+-registerAzS -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
 
@@ -152,7 +152,7 @@ Usage Examples:
 
 ```powershell
 .\AzSPoC.ps1 -authenticationType ADFS -downloadPath "D:\AzSPoCfiles" -AzSPoCOfflineZipPath "D:\AzSPoCfiles.zip" `
--asdkHostPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerASDK `
+-asdkHostPwd 'Passw0rd123!' -VMpwd 'Passw0rd123!' -registerAzS `
 -azureRegUsername "admin@fabrikam.onmicrosoft.com" -azureRegPwd 'Passw0rd123!' `
 -azureRegSubId "01234567-abcd-8901-234a-bcde5678fghi"
 ```
