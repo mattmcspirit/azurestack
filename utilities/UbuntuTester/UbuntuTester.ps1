@@ -13,11 +13,11 @@ See the current example CSV file here: https://github.com/mattmcspirit/azurestac
 .NOTES
 File Name : UbuntuTester.ps1
 Author    : Matt McSpirit
-Version   : 1.0
+Version   : 1.1
 Date      : 03-March-2019
-Update    : 03-March-2019
+Update    : 15-November-2019
 Requires  : PowerShell Version 5.0 or above
-Module    : Tested with AzureRM 2.4.0 and Azure Stack 1.7.0 already installed
+Module    : Tested with AzureRM 2.5.0 and Azure Stack 1.7.2 already installed
 Product   : Requires AzCopy for Azure Stack installed (https://docs.microsoft.com/en-us/azure/azure-stack/user/azure-stack-storage-transfer#azcopy)
 
 .EXAMPLE
@@ -64,6 +64,29 @@ function DownloadWithRetry([string] $downloadURI, [string] $downloadLocation, [i
         }
     }
 }
+
+Function ExtractGZ {
+    Param(
+        $infile,
+        $outfile = ($infile -replace '\.gz$', '')
+    )
+
+    $input = New-Object System.IO.FileStream $inFile, ([IO.FileMode]::Open), ([IO.FileAccess]::Read), ([IO.FileShare]::Read)
+    $output = New-Object System.IO.FileStream $outFile, ([IO.FileMode]::Create), ([IO.FileAccess]::Write), ([IO.FileShare]::None)
+    $gzipStream = New-Object System.IO.Compression.GzipStream $input, ([IO.Compression.CompressionMode]::Decompress)
+
+    $buffer = New-Object byte[](1024)
+    while ($true) {
+        $read = $gzipstream.Read($buffer, 0, 1024)
+        if ($read -le 0) { break }
+        $output.Write($buffer, 0, $read)
+    }
+
+    $gzipStream.Close()
+    $output.Close()
+    $input.Close()
+}
+
 ####################################
 
 $Global:VerbosePreference = "SilentlyContinue"
@@ -100,15 +123,18 @@ Foreach ($Entry in $CSVData) {
     $shortVhdVersion = $vhdVersion.substring(0, 14)
     $ubuntuBuild = $vhdVersion.split(".", 3)[2]
     $osVersion = "Linux"
-    if ($($Entry.UbuntuSku) -eq "14.04") {
+    <#if ($($Entry.UbuntuSku) -eq "14.04") {
         $filter = "*trusty*.vhd"
+        $releaseName = "trusty"
     }
     elseif ($($Entry.UbuntuSku) -eq "16.04") {
         $filter = "*xenial*.vhd"
+        $releaseName = "xenial"
     }
     elseif ($($Entry.UbuntuSku) -eq "18.04") {
         $filter = "*bionic*.vhd"
-    }
+        $releaseName = "bionic"
+    }#>
 
     # Set Storage Variables
     $asdkImagesRGName = "azurestack-images"
@@ -178,44 +204,89 @@ Foreach ($Entry in $CSVData) {
         }
         else {
             Write-Host "There is no suitable $blobName image within your Storage Account. We'll need to upload a new one."
-            $validDownloadPathVHD = [System.IO.File]::Exists("$imagePath\$blobName")
+            $validDownloadPathVHD = [System.IO.File]::Exists("$imagePath\$blobName\$blobname")
             Write-Host "Checking for a local copy first..."
             # If there's no local VHD, create one.
             if ($validDownloadPathVHD -eq $true) {
                 Write-Host "Located suitable VHD in this folder. No need to download again..."
-                $serverVHD = Get-ChildItem -Path "$imagePath\$blobName"
+                $serverVHD = Get-ChildItem -Path "$imagePath\$blobName\$blobname"
                 Write-Host "VHD located at $serverVHD"
             }
             else {
                 # Split for Ubuntu Image
-                $validDownloadPathZIP = $(Get-ChildItem -Path "$imagePath\$($offer)$($vhdVersion).zip" -ErrorAction SilentlyContinue)
-                if ($validDownloadPathZIP) {
+                $validDownloadPathGZ = $(Get-ChildItem -Path "$imagePath\$($offer)$($vhdVersion).tar.gz" -ErrorAction SilentlyContinue)
+                if ($validDownloadPathGZ) {
                     Write-Host "Cannot find a previously extracted Ubuntu Server VHD with name $blobName"
-                    Write-Host "Checking to see if the Ubuntu Server ZIP already exists in $imagePath folder"
-                    $UbuntuServerZIP = Get-ChildItem -Path "$imagePath\$($offer)$($vhdVersion).zip"
-                    Write-Host "Ubuntu Server ZIP located at $UbuntuServerZIP"
-                    Write-Host "Expanding ZIP found at $UbuntuServerZIP"
-                    Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$imagePath\" -Force -ErrorAction Stop
-                    $serverVHD = Get-ChildItem -Path "$imagePath\" -Filter "$filter" | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                    Write-Host "Checking to see if the Ubuntu Server GZ already exists in $imagePath folder"
+                    $UbuntuServerGZ = Get-ChildItem -Path "$imagePath\$($offer)$($vhdVersion).tar.gz"
+                    Write-Host "Ubuntu Server GZ located at $UbuntuServerGZ"
+                    try {
+                        $session = New-PSSession -Name ExtractTar -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                        Write-Host "Expanding GZ found at $UbuntuServerGZ"
+                        ExtractGZ $($UbuntuServerGZ.FullName) "$imagePath\$($offer)$($vhdVersion).tar"
+                        $UbuntuServerTar = (Get-ChildItem -Path "$imagePath\$($offer)$($vhdVersion).tar").FullName
+                        Invoke-Command -Session $session -ArgumentList $UbuntuServerTar, $imagePath, $blobName -ScriptBlock {
+                            Install-Module -Name 7Zip4PowerShell -Verbose -Force
+                            Write-Host "Expanding Tar found at $Using:UbuntuServerTar"
+                            Expand-7Zip -ArchiveFileName "$Using:UbuntuServerTar" -TargetPath "$Using:imagePath\$Using:blobname"
+                            Get-ChildItem -Path "$Using:imagePath\$Using:blobname\" -Filter "*.vhd" | Rename-Item -NewName "$Using:blobName" -PassThru -Force -ErrorAction Stop
+                            Remove-Module -Name 7Zip4PowerShell -Verbose -Force
+                        }
+                        Remove-PSSession -Name ExtractTar -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                        Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
+                        Uninstall-Module -Name 7Zip4PowerShell -Force -Confirm:$false -Verbose
+                    }
+                    catch {
+                        Write-Host "$_.Exception.Message" -ErrorAction Stop
+                        Set-Location $ScriptLocation
+                        return
+                    }
+
+                    #Expand-Archive -Path $UbuntuServerGZ -DestinationPath "$imagePath\" -Force -ErrorAction Stop
+                    $serverVHD = Get-ChildItem -Path "$imagePath\$blobname\$blobname"
                 }
                 else {
                     # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
                     # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
                     Write-Host "Cannot find a previously extracted Ubuntu Server download or ZIP file"
                     Write-Host "Begin download of correct Ubuntu Server ZIP to $imagePath"
-                    if ($($Entry.UbuntuSku) -eq "18.04") {
-                        $ubuntuURI = "https://cloud-images.ubuntu.com/releases/$($Entry.UbuntuSku)/release-$ubuntuBuild/ubuntu-$($Entry.UbuntuSku)-server-cloudimg-amd64.vhd.zip"
+                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/$($Entry.UbuntuSku)/release-$ubuntuBuild/ubuntu-$($Entry.UbuntuSku)-server-cloudimg-amd64-azure.vhd.tar.gz"
+                    <#if ($($Entry.UbuntuSku) -eq "18.04") {
+                        $ubuntuURI = "https://cloud-images.ubuntu.com/releases/$($Entry.UbuntuSku)/release-$ubuntuBuild/ubuntu-$($Entry.UbuntuSku)-server-cloudimg-amd64.vhd.tar.gz"
                     }
                     else {
-                        $ubuntuURI = "https://cloud-images.ubuntu.com/releases/$($Entry.UbuntuSku)/release-$ubuntuBuild/ubuntu-$($Entry.UbuntuSku)-server-cloudimg-amd64-disk1.vhd.zip"
-                    }
-                    $ubuntuDownloadLocation = "$imagePath\$($offer)$($vhdVersion).zip"
+                        $ubuntuURI = "https://cloud-images.ubuntu.com/releases/$($Entry.UbuntuSku)/release-$ubuntuBuild/ubuntu-$($Entry.UbuntuSku)-server-cloudimg-amd64-disk1.vhd.tar.gz"
+                    } #>
+                    $ubuntuDownloadLocation = "$imagePath\$($offer)$($vhdVersion).tar.gz"
                     DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
-                    $UbuntuServerZIP = Get-ChildItem -Path "$imagePath\$($offer)$($vhdVersion).zip"
-                    Write-Host "Expanding ZIP found at $UbuntuServerZIP"
-                    Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$imagePath\" -Force -ErrorAction Stop
-                    Write-Host "Renaming VHD to $blobname"
-                    $serverVHD = Get-ChildItem -Path "$imagePath\" -Filter "$filter" | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                    $UbuntuServerGZ = Get-ChildItem -Path "$imagePath\$($offer)$($vhdVersion).tar.gz"
+                    Write-Host "Ubuntu Server GZ located at $UbuntuServerGZ"
+                    try {
+                        $session = New-PSSession -Name ExtractTar -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                        Write-Host "Expanding GZ found at $UbuntuServerGZ"
+                        ExtractGZ $($UbuntuServerGZ.FullName) "$imagePath\$($offer)$($vhdVersion).tar"
+                        $UbuntuServerTar = (Get-ChildItem -Path "$imagePath\$($offer)$($vhdVersion).tar").FullName
+                        Invoke-Command -Session $session -ArgumentList $UbuntuServerTar, $imagePath, $blobName -ScriptBlock {
+                            Install-Module -Name 7Zip4PowerShell -Verbose -Force
+                            Write-Host "Expanding Tar found at $Using:UbuntuServerTar"
+                            Expand-7Zip -ArchiveFileName "$Using:UbuntuServerTar" -TargetPath "$Using:imagePath\$Using:blobname"
+                            Get-ChildItem -Path "$Using:imagePath\$Using:blobname\" -Filter "*.vhd" | Rename-Item -NewName "$Using:blobName" -PassThru -Force -ErrorAction Stop
+                            Remove-Module -Name 7Zip4PowerShell -Verbose -Force
+                        }
+                        Remove-PSSession -Name ExtractTar -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                        Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
+                        Uninstall-Module -Name 7Zip4PowerShell -Force -Confirm:$false -Verbose
+                    }
+                    catch {
+                        Write-Host "$_.Exception.Message" -ErrorAction Stop
+                        Set-Location $ScriptLocation
+                        return
+                    }
+                    #Write-Host "Expanding ZIP found at $UbuntuServerGZ"
+                    #Expand-Archive -Path $UbuntuServerGZ -DestinationPath "$imagePath\" -Force -ErrorAction Stop
+                    #Write-Host "Renaming VHD to $blobname"
+                    $serverVHD = Get-ChildItem -Path "$imagePath\$blobname\$blobname"
+                    #$serverVHD = Get-ChildItem -Path "$imagePath\" -Filter "$filter" | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
                 }
             }
             # At this point, there is a local image (either existing or new, that needs uploading, first to a Storage Account
@@ -303,8 +374,8 @@ Foreach ($Entry in $CSVData) {
         if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $publisher -Offer $offer -Sku $sku -Version $shortVhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
             Write-Host ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $publisher, $offer, $sku, $vhdVersion) -ErrorAction SilentlyContinue
             Write-Host "Cleaning up local hard drive space within $imagePath"
-            Get-ChildItem -Path "$imagePath\" -Filter "$($offer)$($vhdVersion).vhd" | Remove-Item -Force
-            #Get-ChildItem -Path "$imagePath\" -Filter "$($offer)$($vhdVersion).zip" | Remove-Item -Force
+            Get-ChildItem -Path "$imagePath\" -Filter "$($offer)$($vhdVersion).vhd" | Remove-Item -Force -Recurse
+            Get-ChildItem -Path "$imagePath\" -Filter "*.tar*" | Remove-Item -Force -Recurse
             Write-Host "Cleaning up VHD from storage account"
             Remove-AzureStorageBlob -Blob $blobName -Container $asdkImagesContainerName -Context $asdkStorageAccount.Context -Force
         }
