@@ -601,7 +601,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                     $UbuntuServerGZ = Get-ChildItem -Path "$azsPath\images\$image\$($azpkg.offer)*.tar.gz"
                                     Write-Host "Ubuntu Server GZ located at $UbuntuServerGZ"
                                     if (!$(Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion)*.tar.gz" -ErrorAction SilentlyContinue)) {
-                                        Copy-Item -Path "$azsPath\images\$image\$($azpkg.offer)*.tar.gz" -Destination "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion)*.tar.gz" -Force -Verbose -ErrorAction Stop
+                                        Copy-Item -Path "$azsPath\images\$image\$($azpkg.offer)*.tar.gz" -Destination "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar.gz" -Force -Verbose -ErrorAction Stop
                                         $UbuntuServerGZ = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion)*.tar.gz"
                                     }
                                     else {
@@ -610,7 +610,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                     Write-Host "Ubuntu Server GZ now located at $UbuntuServerGZ"
                                     Write-Host "Extracting GZ file to retrieve Tar file"
                                     try {
-                                        ExtractGZ $($UbuntuServerGZ.FullName) "$imageRootPath\images\$image\$($offer)$($vhdVersion).tar"
+                                        ExtractGZ $($UbuntuServerGZ.FullName) "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar"
                                     }
                                     catch {
                                         Write-Host "$_.Exception.Message" -ErrorAction Stop
@@ -649,18 +649,6 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                         $session = New-PSSession -Name ExtractTar -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                                         Write-Host "Expanding GZ found at $UbuntuServerGZ"
                                         ExtractGZ $($UbuntuServerGZ.FullName) "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar"
-                                        $UbuntuServerTar = (Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar").FullName
-                                        $UbuntuServerTarDirectory = (Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar").DirectoryName
-                                        Invoke-Command -Session $session -ArgumentList $UbuntuServerTar, $UbuntuServerTarDirectory, $imageRootPath, $blobName -ScriptBlock {
-                                            Install-Module -Name 7Zip4PowerShell -Verbose -Force
-                                            Write-Host "Expanding Tar found at $Using:UbuntuServerTar"
-                                            Expand-7Zip -ArchiveFileName "$Using:UbuntuServerTar" -TargetPath "$Using:UbuntuServerTarDirectory"
-                                            Get-ChildItem -Path "$Using:UbuntuServerTarDirectory" -Filter "*.vhd" | Rename-Item -NewName "$Using:blobName" -PassThru -Force -ErrorAction Stop
-                                            Remove-Module -Name 7Zip4PowerShell -Verbose -Force
-                                        }
-                                        Remove-PSSession -Name ExtractTar -Confirm:$false -ErrorAction SilentlyContinue -Verbose
-                                        Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
-                                        Uninstall-Module -Name 7Zip4PowerShell -Force -Confirm:$false -Verbose
                                     }
                                     catch {
                                         Write-Host "$_.Exception.Message" -ErrorAction Stop
@@ -675,6 +663,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             try {
                                 $UbuntuServerTar = (Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar").FullName
                                 $UbuntuServerTarDirectory = (Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar").DirectoryName
+                                $session = New-PSSession -Name ExtractTar -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                                 Invoke-Command -Session $session -ArgumentList $UbuntuServerTar, $UbuntuServerTarDirectory, $imageRootPath, $blobName -ScriptBlock {
                                     Install-Module -Name 7Zip4PowerShell -Verbose -Force
                                     Write-Host "Expanding Tar found at $Using:UbuntuServerTar"
