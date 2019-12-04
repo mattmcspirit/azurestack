@@ -664,8 +664,18 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                 $UbuntuServerTar = (Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar").FullName
                                 $UbuntuServerTarDirectory = (Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar").DirectoryName
                                 $session = New-PSSession -Name ExtractTar -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
-                                Invoke-Command -Session $session -ArgumentList $UbuntuServerTar, $UbuntuServerTarDirectory, $imageRootPath, $blobName -ScriptBlock {
-                                    Install-Module -Name 7Zip4PowerShell -Verbose -Force
+                                Invoke-Command -Session $session -ArgumentList $deploymentMode, $azsPath, $UbuntuServerTar, $UbuntuServerTarDirectory, $imageRootPath, $blobName -ScriptBlock {
+                                    if ($Using:deploymentMode -eq "Online") {
+                                        Install-Module -Name 7Zip4PowerShell -Verbose -Force
+                                    }
+                                    elseif ($Using:deploymentMode -ne "Online") {
+                                        $SourceLocation = "$Using:azsPath\PowerShell"
+                                        $RepoName = "AzSPoCRepo"
+                                        if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
+                                            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+                                        }
+                                        Install-Module 7Zip4PowerShell -Repository $RepoName -Force -ErrorAction Stop -Verbose
+                                    }
                                     Write-Host "Expanding Tar found at $Using:UbuntuServerTar"
                                     Expand-7Zip -ArchiveFileName "$Using:UbuntuServerTar" -TargetPath "$Using:UbuntuServerTarDirectory"
                                     Get-ChildItem -Path "$Using:UbuntuServerTarDirectory" -Filter "*.vhd" | Rename-Item -NewName "$Using:blobName" -PassThru -Force -ErrorAction Stop
@@ -756,6 +766,9 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                         catch {
                                             Write-Host "One of the packages didn't install correctly, but process can continue."
                                         }
+
+                                        <# Disabling AVMA / Product Key changes
+
                                         Write-Host "Getting current Windows Server edition from the image ahead of potential AVMA configuration"
                                         $edition = (Get-WindowsEdition -Path $mountPath).Edition
                                         # If the user has supplied eval media, this should run
@@ -797,7 +810,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                                     Write-Host "Using MSDN/VL media doesn't seem to work any longer. You 2019 images will have a 180 day expiration, which should be fine for POC purposes."
                                                 }
                                             }
-                                        }
+                                        } #>
 
                                         Write-Host "Saving the image"
                                         Dismount-WindowsImage -Path "$mountPath" -Save `
