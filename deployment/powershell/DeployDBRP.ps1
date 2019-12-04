@@ -253,7 +253,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                     # Download and Expand the RP files
                     Write-Host "Downloading the database RP files"
-                    $rpURI = "https://aka.ms/azurestack$($rp)rp11330"
+                    $rpURI = "https://aka.ms/azurestack$($rp)rp11470"
                     $rpDownloadLocation = "$azsPath\databases\$($dbrp).zip"
                     DownloadWithRetry -downloadURI "$rpURI" -downloadLocation "$rpDownloadLocation" -retries 10
                 }
