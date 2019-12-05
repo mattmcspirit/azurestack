@@ -887,10 +887,10 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                     Write-Host ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                     if ($image -eq "UbuntuServer") {
-                        Write-Host "Cleaning up local hard drive space - deleting VHD file and ZIP from Cluster Shared Volume"
+                        Write-Host "Cleaning up local hard drive space - deleting VHD file, along with tar and GZ file from Cluster Shared Volume"
                         Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).vhd" | Remove-Item -Force
-                        Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).ZIP" | Remove-Item -Force
-                        Get-ChildItem -Path "$imageRootPath\images\$image\*" -Include "*.msu" | Remove-Item -Force
+                        Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).tar" | Remove-Item -Force
+                        Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).tar.gz" | Remove-Item -Force
                         Write-Host "Cleaning up VHD from storage account"
                         Remove-AzureStorageBlob -Blob $blobName -Container $azsImagesContainerName -Context $azsStorageAccount.Context -Force
                     }
