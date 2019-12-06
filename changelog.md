@@ -5,6 +5,12 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1910?
+* Updated to support ASDK 1.1910.0.58
+* Updated PowerShell to 1.8.0
+* Updated Ubuntu Server image - November 2019, included support for tar.gz extraction
+* Updated to support MySQL/SQL 1.1.47.0 release
+
 ### What's new in version 1908.2?
 * Alternative AzureCloud support
 * MySQL8 fixes

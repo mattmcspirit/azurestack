@@ -40,6 +40,9 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1910    Updated PowerShell to 1.8.0
+            Updated Ubuntu image, included support for tar.gz extraction
+            Updated to support MySQL/SQL 1.1.47.0 release
     1908.2  Alternative AzureCloud support
             MySQL8 fixes
             Updated Ubuntu image

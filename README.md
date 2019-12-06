@@ -1,13 +1,13 @@
-Azure Stack POC Configurator 1908.2
+Azure Stack POC Configurator 1910
 ==============
 
 Version Compatibility
 -----------
 The current version of the AzSPoC.ps1 script has been **tested with the following versions**:
-* ASDK build **1.1908.0.20 (1908)**
-* Azure Stack PowerShell Module **1.7.2**
+* ASDK build **1.1910.0.58 (1910)**
+* Azure Stack PowerShell Module **1.8.0**
 
-**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 1908, Azure Stack PowerShell 1.7.2. and the new AzureRM PowerShell 2.5.0.  It should also work with more recent previous versions, such as 1907, but ideally, you should be upgrading to the latest release of the ASDK.
+**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 1910, Azure Stack PowerShell 1.8.0. and the new AzureRM PowerShell 2.5.0.
 
 Description
 -----------
