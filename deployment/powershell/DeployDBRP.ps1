@@ -75,6 +75,7 @@ $skipRP = $false
 if ($dbrp -eq "MySQL") {
     $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
     $rp = "mysql"
+    $rpAdapter = "MySQLAdapter"
     if ($skipMySQL -eq $true) {
         $skipRP = $true
     }
@@ -82,6 +83,7 @@ if ($dbrp -eq "MySQL") {
 elseif ($dbrp -eq "SQLServer") {
     $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
     $rp = "sql"
+    $rpAdapter = "SQLAdapter"
     if ($skipMSSQL -eq $true) {
         $skipRP = $true
     }
@@ -356,6 +358,20 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
                     }
                 }
+
+                # Need to check the log file to confirm successful deployment
+                Set-Location "$finalDbPath\Logs"
+                # Get Log File
+                $getLogFile = (Get-ChildItem -Path "$finalDbPath\Logs" -Recurse -Include "*.txt" -ErrorAction Stop).FullName
+                $successString = "*$rpAdapter Installation was successful."
+                $pattern1 = [RegEx]::Escape($successString)
+                if ((Get-Content $getLogFile) | Select-String $pattern1) {
+                    Write-Host "$rpAdapter log file shows a successful completion"
+                }
+                else {
+                    throw "$rpAdapter log file shows a failure - review the log file in the $finalDbPath\Logs folder"
+                }
+
                 # Update the AzSPoC database with successful completion
                 $progressCheck = CheckProgress -progressStage $progressStage
                 StageComplete -progressStage $progressStage
