@@ -75,6 +75,7 @@ $skipRP = $false
 if ($dbrp -eq "MySQL") {
     $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
     $rp = "mysql"
+    $rpAdapter = "MySQLAdapter"
     if ($skipMySQL -eq $true) {
         $skipRP = $true
     }
@@ -82,6 +83,7 @@ if ($dbrp -eq "MySQL") {
 elseif ($dbrp -eq "SQLServer") {
     $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
     $rp = "sql"
+    $rpAdapter = "SQLAdapter"
     if ($skipMSSQL -eq $true) {
         $skipRP = $true
     }
@@ -253,7 +255,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                     # Download and Expand the RP files
                     Write-Host "Downloading the database RP files"
-                    $rpURI = "https://aka.ms/azurestack$($rp)rp11330"
+                    $rpURI = "https://aka.ms/azurestack$($rp)rp11470"
                     $rpDownloadLocation = "$azsPath\databases\$($dbrp).zip"
                     DownloadWithRetry -downloadURI "$rpURI" -downloadLocation "$rpDownloadLocation" -retries 10
                 }
@@ -264,11 +266,12 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
                 Set-Location "$azsPath\databases"
                 Expand-Archive "$azsPath\databases\$($dbrp).zip" -DestinationPath ".\$dbrpPath" -Force -ErrorAction Stop
-                Set-Location "$azsPath\databases\$dbrpPath"
-                Get-ChildItem -Path "$azsPath\databases\$dbrpPath\*" -Recurse | Unblock-File -Verbose
+                $finalDbPath = "$azsPath\databases\$dbrpPath"
+                Set-Location "$finalDbPath"
+                Get-ChildItem -Path "$finalDbPath\*" -Recurse | Unblock-File -Verbose
 
                 ############################################################################################################################################################################
-                # Temporary Workaround to installing DB RP with PS 1.7.0 and newer AzureRM 2.4.0
+                <# Temporary Workaround to installing DB RP with PS 1.7.0 and newer AzureRM 2.4.0
                 $getCommonModule = (Get-ChildItem -Path "$azsPath\databases\$dbrpPath\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
                 $old = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -eq "3") -and ($azureRMModule.Version.Build -ge "0"))'
                 $new = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -ge "3") -and ($azureRMModule.Version.Build -ge "0"))'
@@ -282,7 +285,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         Write-Host "Editing completed."
                     }
                 }
-                # End of Temporary Workaround
+                # End of Temporary Workaround #>
                 ############################################################################################################################################################################
 
                 Write-Host "Starting deployment of $dbrp Resource Provider"
@@ -292,22 +295,41 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
                             $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                             Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
-                            .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
-                                -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd `
-                                -AzureEnvironment $azureEnvironment -AcceptLicense
+                            # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
+                            $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                            Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment -ScriptBlock {
+                                Set-Location $Using:finalDbPath
+                                .\DeployMySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
+                                    -PrivilegedEndpoint $Using:ERCSip -DependencyFilesLocalPath $Using:dependencyFilePath -DefaultSSLCertificatePassword $Using:secureCertPwd `
+                                    -AzureEnvironment $Using:azureEnvironment -AcceptLicense
+                            }
+                            Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                            Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
                         }
                         else {
-                            .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
-                                -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -AzureEnvironment $azureEnvironment -AcceptLicense
+                            $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                            Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
+                                Set-Location $Using:finalDbPath
+                                .\DeployMySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
+                                    -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureCertPwd -AzureEnvironment $Using:azureEnvironment -AcceptLicense
+                            }
+                            Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                            Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
                         }
                     }
                     elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
-                        .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
-                            -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -DependencyFilesLocalPath $dependencyFilePath `
-                            -AzureEnvironment $azureEnvironment -AcceptLicense
+                        $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                        Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment -ScriptBlock {
+                            Set-Location $Using:finalDbPath
+                            .\DeployMySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
+                                -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureCertPwd -DependencyFilesLocalPath $Using:dependencyFilePath `
+                                -AzureEnvironment $Using:azureEnvironment -AcceptLicense
+                        }
+                        Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                        Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
                     }
                 }
                 elseif ($dbrp -eq "SQLServer") {
@@ -315,15 +337,41 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
-                        .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
-                            -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd `
-                            -AzureEnvironment $azureEnvironment
+                        $SQLsession = New-PSSession -Name SQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                        Invoke-Command -Session $SQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment -ScriptBlock {
+                            Set-Location $Using:finalDbPath
+                            .\DeploySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
+                                -PrivilegedEndpoint $Using:ERCSip -DependencyFilesLocalPath $Using:dependencyFilePath -DefaultSSLCertificatePassword $Using:secureCertPwd `
+                                -AzureEnvironment $Using:azureEnvironment
+                        }
+                        Remove-PSSession -Name SQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                        Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
                     }
                     else {
-                        .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
-                            -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -AzureEnvironment $azureEnvironment
+                        $SQLsession = New-PSSession -Name SQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                        Invoke-Command -Session $SQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
+                            Set-Location $Using:finalDbPath
+                            .\DeploySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
+                                -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureCertPwd -AzureEnvironment $Using:azureEnvironment
+                        }
+                        Remove-PSSession -Name SQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                        Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
                     }
                 }
+
+                # Need to check the log file to confirm successful deployment
+                Set-Location "$finalDbPath\Logs"
+                # Get Log File
+                $getLogFile = (Get-ChildItem -Path "$finalDbPath\Logs" -Recurse -Include "*.txt" -ErrorAction Stop).FullName
+                $successString = "*$rpAdapter Installation was successful."
+                $pattern1 = [RegEx]::Escape($successString)
+                if ((Get-Content $getLogFile) | Select-String $pattern1) {
+                    Write-Host "$rpAdapter log file shows a successful completion"
+                }
+                else {
+                    throw "$rpAdapter log file shows a failure - review the log file in the $finalDbPath\Logs folder"
+                }
+
                 # Update the AzSPoC database with successful completion
                 $progressCheck = CheckProgress -progressStage $progressStage
                 StageComplete -progressStage $progressStage

@@ -70,6 +70,31 @@ param (
     [String] $azureEnvironment
 )
 
+######################
+Function ExtractGZ {
+    Param(
+        $infile,
+        $outfile = ($infile -replace '\.gz$', '')
+    )
+
+    $input = New-Object System.IO.FileStream $inFile, ([IO.FileMode]::Open), ([IO.FileAccess]::Read), ([IO.FileShare]::Read)
+    $output = New-Object System.IO.FileStream $outFile, ([IO.FileMode]::Create), ([IO.FileAccess]::Write), ([IO.FileShare]::None)
+    $gzipStream = New-Object System.IO.Compression.GzipStream $input, ([IO.Compression.CompressionMode]::Decompress)
+
+    $buffer = New-Object byte[](1024)
+    while ($true) {
+        $read = $gzipstream.Read($buffer, 0, 1024)
+        if ($read -le 0) { break }
+        $output.Write($buffer, 0, $read)
+    }
+
+    $gzipStream.Close()
+    $output.Close()
+    $input.Close()
+}
+
+#####################
+
 $Global:VerbosePreference = "Continue"
 $Global:ErrorActionPreference = 'Stop'
 $Global:ProgressPreference = 'SilentlyContinue'
@@ -370,7 +395,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     $date = Get-Date -Format FileDate
                     # Temporarily hard coding to newest known working version
                     #$vhdVersion = "16.04.$date"
-                    $vhdVersion = "16.04.20190814"
+                    $vhdVersion = "16.04.20191114"
                 }
                 else {
                     $vhdVersion = ""
@@ -467,7 +492,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         $azpkg.vhdPath = $downloadDetails.properties.osDiskImage.sourceBlobSasUri
                         # Temporarily hard coding to newest known working Ubuntu image
                         #$azpkg.vhdVersion = $downloadDetails.properties.version
-                        $azpkg.vhdVersion = "16.04.20190814"
+                        $azpkg.vhdVersion = "16.04.20191114"
                     }
                 }
                 <#
@@ -561,68 +586,112 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     }
                     else {
                         if ($image -eq "UbuntuServer") {
-                            # Split for Ubuntu Image
-                            $validDownloadPathZIP = $(Get-ChildItem -Path "$azsPath\images\$image\$($azpkg.offer)*.zip" -ErrorAction SilentlyContinue)
-                            if ($validDownloadPathZIP) {
-                                Write-Host "Cannot find a previously extracted Ubuntu Server VHD with name $blobName"
-                                Write-Host "Checking to see if the Ubuntu Server ZIP already exists in Azure Stack POC Configurator folder"
-                                $UbuntuServerZIP = Get-ChildItem -Path "$azsPath\images\$image\$($azpkg.offer)*.zip"
-                                Write-Host "Ubuntu Server ZIP located at $UbuntuServerZIP"
-                                if (!$(Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -ErrorAction SilentlyContinue)) {
-                                    Copy-Item -Path "$azsPath\images\$image\$($azpkg.offer)*.zip" -Destination "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
-                                    $UbuntuServerZIP = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
-                                }
-                                else {
-                                    $UbuntuServerZIP = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
-                                }
-                                Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$imageRootPath\images\$image\" -Force -ErrorAction Stop
-                                $serverVHD = Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
+                            # At this stage there is no VHD
+                            # Firstly check if the Tar has been created on the CSV
+                            $validDownloadPathTar = $(Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar" -ErrorAction SilentlyContinue)
+                            if ($validDownloadPathTar) {
+                                # Now have a Tar file ready for extraction to a VHD
+                                Write-Host "Tar located at $validDownloadPathTar"
                             }
                             else {
-                                # No existing Ubuntu Server VHD or Zip exists that matches the name (i.e. that has previously been extracted and renamed) so a fresh one will be
-                                # downloaded, extracted and the variable $UbuntuServerVHD updated accordingly.
-                                Write-Host "Cannot find a previously extracted Ubuntu Server download or ZIP file"
-                                Write-Host "Begin download of correct Ubuntu Server ZIP to $azsPath"
-
-                                $ubuntuBuild = $azpkg.vhdVersion
-                                if (($ubuntuBuild).Length -gt 14) {
-                                    $ubuntuBuild = $ubuntuBuild.substring(0, 14)
-                                }
-                                $ubuntuBuild = $ubuntuBuild.split('.')[2]
-                                $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-                                
-                                <# Temp removal to unify Ubuntu image
-                                    if (($registerAzS -eq $true) -and ($deploymentMode -eq "Online")) {
-                                    $ubuntuBuild = $azpkg.vhdVersion
-                                    if (($ubuntuBuild).Length -gt 14) {
-                                        $ubuntuBuild = $ubuntuBuild.substring(0, 14)
+                                # Check the $imageRootPath for the GZ file
+                                $validDownloadPathGZ = $(Get-ChildItem -Path "$azsPath\images\$image\$($azpkg.offer)*.tar.gz" -ErrorAction SilentlyContinue)
+                                if ($validDownloadPathGZ) {
+                                    # If there is a GZ file, we need to extract it to get a Tar file
+                                    $UbuntuServerGZ = Get-ChildItem -Path "$azsPath\images\$image\$($azpkg.offer)*.tar.gz"
+                                    Write-Host "Ubuntu Server GZ located at $UbuntuServerGZ"
+                                    if (!$(Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion)*.tar.gz" -ErrorAction SilentlyContinue)) {
+                                        Copy-Item -Path "$azsPath\images\$image\$($azpkg.offer)*.tar.gz" -Destination "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar.gz" -Force -Verbose -ErrorAction Stop
+                                        $UbuntuServerGZ = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion)*.tar.gz"
                                     }
-                                    $ubuntuBuild = $ubuntuBuild.split('.')[2]
-                                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-                                }
-                                elseif (($registerAzS -eq $false) -and ($deploymentMode -eq "Online")) {
-                                    #$ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-                                    #Hard coding to a known working Azure Stack image.
-                                    $ubuntuBuild = $azpkg.vhdVersion
-                                    if (($ubuntuBuild).Length -gt 14) {
-                                        $ubuntuBuild = $ubuntuBuild.substring(0, 14)
+                                    else {
+                                        $UbuntuServerGZ = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion)*.tar.gz"
                                     }
-                                    $ubuntuBuild = $ubuntuBuild.split('.')[2]
-                                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/16.04/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-                                } 
-                                    #>
-                                $ubuntuDownloadLocation = "$azsPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
-                                DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
-                                if (!([System.IO.File]::Exists("$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"))) {
-                                    Copy-Item -Path "$azsPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Destination "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip" -Force -Verbose -ErrorAction Stop
-                                    $UbuntuServerZIP = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                                    Write-Host "Ubuntu Server GZ now located at $UbuntuServerGZ"
+                                    Write-Host "Extracting GZ file to retrieve Tar file"
+                                    try {
+                                        ExtractGZ $($UbuntuServerGZ.FullName) "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar"
+                                    }
+                                    catch {
+                                        Write-Host "$_.Exception.Message" -ErrorAction Stop
+                                        Set-Location $ScriptLocation
+                                        return
+                                    }
+                                    $UbuntuServerTar = (Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar").FullName
+                                    # Should now have a Tar which is ready to be extracted to a VHD
+                                    Write-Host "Ubuntu Server Tar now located at $UbuntuServerTar"
                                 }
                                 else {
-                                    $UbuntuServerZIP = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).zip"
+                                    # If there is no GZ file, we'll have to download one
+                                    # Need to bring download logic into this section
+                                    Write-Host "There is no Ubuntu Server GZ file, so one will have to be downloaded."
+                                    Write-Host "Cannot find a previously extracted Ubuntu Server VHD, Tar or GZ file"
+                                    Write-Host "Begin download of correct Ubuntu Server GZ to $azsPath"
+    
+                                    $ubuntuBuild = $azpkg.vhdVersion
+                                    if (($ubuntuBuild).Length -gt 14) {
+                                        $ubuntuBuild = $ubuntuBuild.substring(0, 14)
+                                    }
+                                    $ubuntuBuild = $ubuntuBuild.split('.')[2]
+                                    $ubuntuURI = "https://cloud-images.ubuntu.com/releases/xenial/release-$ubuntuBuild/ubuntu-16.04-server-cloudimg-amd64-azure.vhd.tar.gz"
+                                    $ubuntuDownloadLocation = "$azsPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar.gz"
+                                    DownloadWithRetry -downloadURI "$ubuntuURI" -downloadLocation "$ubuntuDownloadLocation" -retries 10
+                                    if (!([System.IO.File]::Exists("$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar.gz"))) {
+                                        Copy-Item -Path "$azsPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar.gz" -Destination "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar.gz" -Force -Verbose -ErrorAction Stop
+                                        $UbuntuServerGZ = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar.gz"
+                                    }
+                                    else {
+                                        $UbuntuServerGZ = Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar.gz"
+                                    }
+                                    Write-Host "Ubuntu Server GZ now located at $UbuntuServerGZ"
+                                    # Now extract the GZ file to get the Tar
+                                    try {
+                                        $session = New-PSSession -Name ExtractTar -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                                        Write-Host "Expanding GZ found at $UbuntuServerGZ"
+                                        ExtractGZ $($UbuntuServerGZ.FullName) "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar"
+                                    }
+                                    catch {
+                                        Write-Host "$_.Exception.Message" -ErrorAction Stop
+                                        Set-Location $ScriptLocation
+                                        return
+                                    }
                                 }
-                                Expand-Archive -Path $UbuntuServerZIP -DestinationPath "$imageRootPath\images\$image\" -Force -ErrorAction Stop
-                                $serverVHD = Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter *disk1.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
                             }
+                            # Need Tar extract logic here
+                            $UbuntuServerTar = (Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar").FullName
+                            Write-Host "Ubuntu Server Tar now located at $UbuntuServerTar"
+                            try {
+                                $UbuntuServerTar = (Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar").FullName
+                                $UbuntuServerTarDirectory = (Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar").DirectoryName
+                                $session = New-PSSession -Name ExtractTar -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                                Invoke-Command -Session $session -ArgumentList $deploymentMode, $azsPath, $UbuntuServerTar, $UbuntuServerTarDirectory, $imageRootPath, $blobName -ScriptBlock {
+                                    if ($Using:deploymentMode -eq "Online") {
+                                        Install-Module -Name 7Zip4PowerShell -Verbose -Force
+                                    }
+                                    elseif ($Using:deploymentMode -ne "Online") {
+                                        $SourceLocation = "$Using:azsPath\PowerShell"
+                                        $RepoName = "AzSPoCRepo"
+                                        if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
+                                            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+                                        }
+                                        Install-Module 7Zip4PowerShell -Repository $RepoName -Force -ErrorAction Stop -Verbose
+                                    }
+                                    Write-Host "Expanding Tar found at $Using:UbuntuServerTar"
+                                    Expand-7Zip -ArchiveFileName "$Using:UbuntuServerTar" -TargetPath "$Using:UbuntuServerTarDirectory"
+                                    Get-ChildItem -Path "$Using:UbuntuServerTarDirectory" -Filter "*.vhd" | Rename-Item -NewName "$Using:blobName" -PassThru -Force -ErrorAction Stop
+                                    Remove-Module -Name 7Zip4PowerShell -Verbose -Force
+                                }
+                                Remove-PSSession -Name ExtractTar -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                                Remove-Variable -Name session -Force -ErrorAction SilentlyContinue -Verbose
+                                Uninstall-Module -Name 7Zip4PowerShell -Force -Confirm:$false -Verbose
+                            }
+                            catch {
+                                Write-Host "$_.Exception.Message" -ErrorAction Stop
+                                Set-Location $ScriptLocation
+                                return
+                            }
+                            # Now get VHD path
+                            $serverVHD = Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter *.vhd | Rename-Item -NewName "$blobName" -PassThru -Force -ErrorAction Stop
                         }
                         elseif ($image -ne "UbuntuServer") {
                             # Split for Windows Server Images
@@ -697,6 +766,9 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                         catch {
                                             Write-Host "One of the packages didn't install correctly, but process can continue."
                                         }
+
+                                        <# Disabling AVMA / Product Key changes
+
                                         Write-Host "Getting current Windows Server edition from the image ahead of potential AVMA configuration"
                                         $edition = (Get-WindowsEdition -Path $mountPath).Edition
                                         # If the user has supplied eval media, this should run
@@ -738,7 +810,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                                     Write-Host "Using MSDN/VL media doesn't seem to work any longer. You 2019 images will have a 180 day expiration, which should be fine for POC purposes."
                                                 }
                                             }
-                                        }
+                                        } #>
 
                                         Write-Host "Saving the image"
                                         Dismount-WindowsImage -Path "$mountPath" -Save `
@@ -815,10 +887,10 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 if ($(Get-AzsPlatformImage -Location $azsLocation -Publisher $azpkg.publisher -Offer $azpkg.offer -Sku $azpkg.sku -Version $azpkg.vhdVersion -ErrorAction SilentlyContinue).ProvisioningState -eq 'Succeeded') {
                     Write-Host ('VM Image with publisher "{0}", offer "{1}", sku "{2}", version "{3}" successfully uploaded.' -f $azpkg.publisher, $azpkg.offer, $azpkg.sku, $azpkg.vhdVersion) -ErrorAction SilentlyContinue
                     if ($image -eq "UbuntuServer") {
-                        Write-Host "Cleaning up local hard drive space - deleting VHD file and ZIP from Cluster Shared Volume"
+                        Write-Host "Cleaning up local hard drive space - deleting VHD file, along with tar and GZ file from Cluster Shared Volume"
                         Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).vhd" | Remove-Item -Force
-                        Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).ZIP" | Remove-Item -Force
-                        Get-ChildItem -Path "$imageRootPath\images\$image\*" -Include "*.msu" | Remove-Item -Force
+                        Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).tar" | Remove-Item -Force
+                        Get-ChildItem -Path "$imageRootPath\images\$image\" -Filter "$($azpkg.offer)$($azpkg.vhdVersion).tar.gz" | Remove-Item -Force
                         Write-Host "Cleaning up VHD from storage account"
                         Remove-AzureStorageBlob -Blob $blobName -Container $azsImagesContainerName -Context $azsStorageAccount.Context -Force
                     }

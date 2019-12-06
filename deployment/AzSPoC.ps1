@@ -40,6 +40,9 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1910    Updated PowerShell to 1.8.0
+            Updated Ubuntu image, included support for tar.gz extraction
+            Updated to support MySQL/SQL 1.1.47.0 release
     1908.2  Alternative AzureCloud support
             MySQL8 fixes
             Updated Ubuntu image
@@ -1966,17 +1969,17 @@ try {
                 Get-PSRepository -Name "PSGallery"
                 Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
                 Get-PSRepository -Name "PSGallery"
-                # For 1904 and later
+                # For 1910 and later
                 Install-Module -Name AzureRM.BootStrapper
                 Use-AzureRmProfile -Profile 2019-03-01-hybrid -Force
-                Install-Module -Name AzureStack -RequiredVersion 1.7.2 -Force -ErrorAction Stop
+                Install-Module -Name AzureStack -RequiredVersion 1.8.0 -Force -ErrorAction Stop
                 #Install-Module AzureRM -RequiredVersion 2.5.0 -Force -ErrorAction Stop 
                 # Install the Azure.Storage module version 4.5.0
-                Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
+                #Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
                 # Install the AzureRm.Storage module version 5.0.4
-                Install-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Force -AllowClobber -Verbose
+                #Install-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Force -AllowClobber -Verbose
                 # Remove incompatible storage module installed by AzureRM.Storage
-                Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
+                #Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
             }
             elseif ($deploymentMode -ne "Online") {
                 $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
@@ -1986,7 +1989,7 @@ try {
                 }
                 # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
                 Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop -Verbose
-                Install-Module AzureRM -Repository $RepoName -Force -ErrorAction Stop -Verbose
+                Install-Module AzureRM -Repository $RepoName -RequiredVersion 2.5.0 -Force -ErrorAction Stop -Verbose
                 Install-Module Azure.Storage -Repository $RepoName -RequiredVersion 4.5.0 -Force -AllowClobber -ErrorAction Stop -Verbose
                 Install-Module AzureRM.Storage -Repository $RepoName -RequiredVersion 5.0.4 -Force -AllowClobber -ErrorAction Stop -Verbose
                 Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
