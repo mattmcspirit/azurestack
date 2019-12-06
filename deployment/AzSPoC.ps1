@@ -1972,11 +1972,11 @@ try {
                 Install-Module -Name AzureStack -RequiredVersion 1.8.0 -Force -ErrorAction Stop
                 #Install-Module AzureRM -RequiredVersion 2.5.0 -Force -ErrorAction Stop 
                 # Install the Azure.Storage module version 4.5.0
-                Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
+                #Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
                 # Install the AzureRm.Storage module version 5.0.4
-                Install-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Force -AllowClobber -Verbose
+                #Install-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Force -AllowClobber -Verbose
                 # Remove incompatible storage module installed by AzureRM.Storage
-                Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
+                #Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
             }
             elseif ($deploymentMode -ne "Online") {
                 $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
