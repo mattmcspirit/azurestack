@@ -1966,7 +1966,7 @@ try {
                 Get-PSRepository -Name "PSGallery"
                 Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
                 Get-PSRepository -Name "PSGallery"
-                # For 1904 and later
+                # For 1910 and later
                 Install-Module -Name AzureRM.BootStrapper
                 Use-AzureRmProfile -Profile 2019-03-01-hybrid -Force
                 Install-Module -Name AzureStack -RequiredVersion 1.8.0 -Force -ErrorAction Stop
