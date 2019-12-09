@@ -3298,9 +3298,12 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                         # WinSCP
                         Write-CustomVerbose -Message "Installing WinSCP with Chocolatey"
                         choco install winscp.install
+                        #Edge Insider Beta
+                        Write-CustomVerbose -Message "Installing Edge Insider Preview"
+                        choco install microsoft-edge-insider
                         # Chrome
-                        Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
-                        choco install googlechrome
+                        #Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
+                        #choco install googlechrome
                         # WinDirStat
                         Write-CustomVerbose -Message "Installing WinDirStat with Chocolatey"
                         choco install windirstat
