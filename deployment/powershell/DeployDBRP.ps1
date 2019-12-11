@@ -292,7 +292,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 if ($dbrp -eq "MySQL") {
                     if ($deploymentMode -eq "Online") {
                         if ($multinode -eq $true) {
-                            $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
+                            $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
                             $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                             Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
                             # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
@@ -318,7 +318,12 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         }
                     }
                     elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                        $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
+                        if ($deploymentMode -eq "Offline") {
+                            if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\SqlMySqlPsh"))) {
+                                New-Item -Path "$Env:ProgramFiles\SqlMySqlPsh" -ItemType Directory -Force | Out-Null
+                            }
+                        }
+                        $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
                         $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
