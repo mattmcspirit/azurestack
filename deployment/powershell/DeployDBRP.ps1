@@ -317,11 +317,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
                         }
                     }
-                    elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+                    elseif ($deploymentMode -ne "Online") {
                         #if ($deploymentMode -eq "Offline") {
-                            if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\SqlMySqlPsh"))) {
-                                New-Item -Path "$Env:ProgramFiles\SqlMySqlPsh" -ItemType Directory -Force | Out-Null
-                            }
+                        if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\SqlMySqlPsh"))) {
+                            New-Item -Path "$Env:ProgramFiles\SqlMySqlPsh" -ItemType Directory -Force | Out-Null
+                        }
                         #}
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
