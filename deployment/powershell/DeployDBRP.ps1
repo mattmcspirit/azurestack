@@ -318,11 +318,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         }
                     }
                     elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                        if ($deploymentMode -eq "Offline") {
+                        #if ($deploymentMode -eq "Offline") {
                             if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\SqlMySqlPsh"))) {
                                 New-Item -Path "$Env:ProgramFiles\SqlMySqlPsh" -ItemType Directory -Force | Out-Null
                             }
-                        }
+                        #}
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
@@ -338,6 +338,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                 }
                 elseif ($dbrp -eq "SQLServer") {
+                    if ($deploymentMode -ne "Online") {
+                        if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\SqlMySqlPsh"))) {
+                            New-Item -Path "$Env:ProgramFiles\SqlMySqlPsh" -ItemType Directory -Force | Out-Null
+                        }
+                    }
                     if ($multinode -eq $true) {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
