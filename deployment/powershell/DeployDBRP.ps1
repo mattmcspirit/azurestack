@@ -318,17 +318,23 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         }
                     }
                     elseif ($deploymentMode -ne "Online") {
-                        #if ($deploymentMode -eq "Offline") {
-                        if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\SqlMySqlPsh"))) {
-                            New-Item -Path "$Env:ProgramFiles\SqlMySqlPsh" -ItemType Directory -Force | Out-Null
-                        }
-                        #}
+                        $AzPshInstallLocation = "$Env:ProgramFiles\SqlMySqlPsh"
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
                         $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
-                        Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment -ScriptBlock {
+                        Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment, $AzPshInstallLocation -ScriptBlock {
                             Set-Location $Using:finalDbPath
+                            Write-Host "Importing PowerShell modules"
+                            Import-Module $Using:AzPshInstallLocation\AzureRm.Profile -Scope Global
+                            Import-Module $Using:AzPshInstallLocation\AzureRm.Resources -Scope Global
+                            Import-Module $Using:AzPshInstallLocation\Azure.Storage -Scope Global
+                            # A bug in the older version tries to load the Azure.Storage dependency always from the global location, ignoring that error
+                            Import-Module $Using:AzPshInstallLocation\AzureRm.Storage -Scope Global -ErrorAction SilentlyContinue 2>&1 | Out-Null
+                            Import-Module $Using:AzPshInstallLocation\AzureRm.Keyvault -Scope Global
+                            Import-Module $Using:AzPshInstallLocation\AzureRm.Compute -Scope Global
+                            Import-Module $Using:AzPshInstallLocation\AzureRm.Network -Scope Global
+                            Import-Module $Using:AzPshInstallLocation\AzureRm.Dns -Scope Global
                             .\DeployMySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
                                 -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureCertPwd -DependencyFilesLocalPath $Using:dependencyFilePath `
                                 -AzureEnvironment $Using:azureEnvironment -AcceptLicense
@@ -338,11 +344,6 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                 }
                 elseif ($dbrp -eq "SQLServer") {
-                    if ($deploymentMode -ne "Online") {
-                        if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\SqlMySqlPsh"))) {
-                            New-Item -Path "$Env:ProgramFiles\SqlMySqlPsh" -ItemType Directory -Force | Out-Null
-                        }
-                    }
                     if ($multinode -eq $true) {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
@@ -359,8 +360,21 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                     else {
                         $SQLsession = New-PSSession -Name SQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
-                        Invoke-Command -Session $SQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
+                        Invoke-Command -Session $SQLsession -ArgumentList $deploymentMode, $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
                             Set-Location $Using:finalDbPath
+                            if ($Using:deploymentMode -ne "Online") {
+                                $AzPshInstallLocation = "$Env:ProgramFiles\SqlMySqlPsh"
+                                Write-Host "Importing PowerShell modules"
+                                Import-Module $AzPshInstallLocation\AzureRm.Profile -Scope Global
+                                Import-Module $AzPshInstallLocation\AzureRm.Resources -Scope Global
+                                Import-Module $AzPshInstallLocation\Azure.Storage -Scope Global
+                                # A bug in the older version tries to load the Azure.Storage dependency always from the global location, ignoring that error
+                                Import-Module $AzPshInstallLocation\AzureRm.Storage -Scope Global -ErrorAction SilentlyContinue 2>&1 | Out-Null
+                                Import-Module $AzPshInstallLocation\AzureRm.Keyvault -Scope Global
+                                Import-Module $AzPshInstallLocation\AzureRm.Compute -Scope Global
+                                Import-Module $AzPshInstallLocation\AzureRm.Network -Scope Global
+                                Import-Module $AzPshInstallLocation\AzureRm.Dns -Scope Global
+                            }
                             .\DeploySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
                                 -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureCertPwd -AzureEnvironment $Using:azureEnvironment
                         }
