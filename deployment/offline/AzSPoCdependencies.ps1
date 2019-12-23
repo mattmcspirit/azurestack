@@ -6,7 +6,7 @@
 
 .VERSION
 
-    1910  Latest version, to align with current Azure Stack POC Configurator version.
+    1910.1  Latest version, to align with current Azure Stack POC Configurator version.
 
 .AUTHOR
 
