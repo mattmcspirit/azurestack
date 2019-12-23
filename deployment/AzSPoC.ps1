@@ -40,6 +40,7 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    1910.1  DBRP Fixes for Partial Offline Deployment
     1910    Updated PowerShell to 1.8.0
             Updated Ubuntu image, included support for tar.gz extraction
             Updated to support MySQL/SQL 1.1.47.0 release
@@ -1990,9 +1991,13 @@ try {
                 # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
                 Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop -Verbose
                 Install-Module AzureRM -Repository $RepoName -RequiredVersion 2.5.0 -Force -ErrorAction Stop -Verbose
-                Install-Module Azure.Storage -Repository $RepoName -RequiredVersion 4.5.0 -Force -AllowClobber -ErrorAction Stop -Verbose
-                Install-Module AzureRM.Storage -Repository $RepoName -RequiredVersion 5.0.4 -Force -AllowClobber -ErrorAction Stop -Verbose
-                Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
+                if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\SqlMySqlPsh"))) {
+                    New-Item -Path "$Env:ProgramFiles\SqlMySqlPsh" -ItemType Directory -Force | Out-Null
+                }
+                Save-Module -Name AzureRM -RequiredVersion 2.3.0 -Repository $RepoName -Path "$Env:ProgramFiles\SqlMySqlPsh" -Force -ErrorAction Stop
+                #Install-Module Azure.Storage -Repository $RepoName -RequiredVersion 4.5.0 -Force -AllowClobber -ErrorAction Stop -Verbose
+                #Install-Module AzureRM.Storage -Repository $RepoName -RequiredVersion 5.0.4 -Force -AllowClobber -ErrorAction Stop -Verbose
+                #Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
             }
             StageComplete -progressStage $progressStage
         }

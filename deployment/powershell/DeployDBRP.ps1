@@ -317,21 +317,22 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
                         }
                     }
-                    elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                        if ($deploymentMode -eq "Offline") {
-                            if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\SqlMySqlPsh"))) {
-                                New-Item -Path "$Env:ProgramFiles\SqlMySqlPsh" -ItemType Directory -Force | Out-Null
-                            }
-                        }
+                    elseif ($deploymentMode -ne "Online") {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
-                        $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Recurse -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
+                        $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
                         $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                         Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment -ScriptBlock {
                             Set-Location $Using:finalDbPath
+                            $runTime = $(Get-Date).ToString("MMdd-HHmmss")
+                            $sessionLogPath = "$Using:finalDbPath\MySQLSession$($runTime).txt"
+                            Start-Transcript -Path "$sessionLogPath" -Append
+                            Set-Location $Using:finalDbPath
+                            Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue -Verbose
                             .\DeployMySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
                                 -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureCertPwd -DependencyFilesLocalPath $Using:dependencyFilePath `
                                 -AzureEnvironment $Using:azureEnvironment -AcceptLicense
+                            Stop-Transcript
                         }
                         Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                         Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
@@ -354,10 +355,17 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                     else {
                         $SQLsession = New-PSSession -Name SQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
-                        Invoke-Command -Session $SQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
+                        Invoke-Command -Session $SQLsession -ArgumentList $deploymentMode, $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
+                            $runTime = $(Get-Date).ToString("MMdd-HHmmss")
+                            $sessionLogPath = "$Using:finalDbPath\MySQLSession$($runTime).txt"
+                            Start-Transcript -Path "$sessionLogPath" -Append
                             Set-Location $Using:finalDbPath
+                            if ($Using:deploymentMode -ne "Online") {
+                                Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue -Verbose
+                            }
                             .\DeploySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
                                 -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureCertPwd -AzureEnvironment $Using:azureEnvironment
+                            Stop-Transcript
                         }
                         Remove-PSSession -Name SQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                         Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose

@@ -5,6 +5,9 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 1910.1?
+* Fixes for DBRP installation in partial offline mode
+
 ### What's new in version 1910?
 * Updated to support ASDK 1.1910.0.58
 * Updated PowerShell to 1.8.0
