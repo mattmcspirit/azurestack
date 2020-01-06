@@ -395,7 +395,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     $date = Get-Date -Format FileDate
                     # Temporarily hard coding to newest known working version
                     #$vhdVersion = "16.04.$date"
-                    $vhdVersion = "16.04.20191114"
+                    $vhdVersion = "16.04.20191217"
                 }
                 else {
                     $vhdVersion = ""
@@ -492,7 +492,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                         $azpkg.vhdPath = $downloadDetails.properties.osDiskImage.sourceBlobSasUri
                         # Temporarily hard coding to newest known working Ubuntu image
                         #$azpkg.vhdVersion = $downloadDetails.properties.version
-                        $azpkg.vhdVersion = "16.04.20191114"
+                        $azpkg.vhdVersion = "16.04.20191217"
                     }
                 }
                 <#

@@ -1,4 +1,4 @@
-Azure Stack POC Configurator 1910.1
+Azure Stack POC Configurator 1910.2
 ==============
 
 Version Compatibility

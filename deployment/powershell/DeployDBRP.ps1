@@ -75,7 +75,7 @@ $skipRP = $false
 if ($dbrp -eq "MySQL") {
     $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("mysqlrpadmin", $secureVMpwd)
     $rp = "mysql"
-    $rpAdapter = "MySQLAdapter"
+    #$rpAdapter = "MySQLAdapter"
     if ($skipMySQL -eq $true) {
         $skipRP = $true
     }
@@ -83,7 +83,7 @@ if ($dbrp -eq "MySQL") {
 elseif ($dbrp -eq "SQLServer") {
     $vmLocalAdminCreds = New-Object System.Management.Automation.PSCredential ("sqlrpadmin", $secureVMpwd)
     $rp = "sql"
-    $rpAdapter = "SQLAdapter"
+    #$rpAdapter = "SQLAdapter"
     if ($skipMSSQL -eq $true) {
         $skipRP = $true
     }
@@ -271,21 +271,57 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Get-ChildItem -Path "$finalDbPath\*" -Recurse | Unblock-File -Verbose
 
                 ############################################################################################################################################################################
-                <# Temporary Workaround to installing DB RP with PS 1.7.0 and newer AzureRM 2.4.0
+                # Temporary Workaround to installing DB RP with PS 1.8.0 and newer AzureRM 2.5.0
                 $getCommonModule = (Get-ChildItem -Path "$azsPath\databases\$dbrpPath\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
-                $old = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -eq "3") -and ($azureRMModule.Version.Build -ge "0"))'
-                $new = 'elseif (($azureRMModule.Version.Major -eq "2") -and ($azureRMModule.Version.Minor -ge "3") -and ($azureRMModule.Version.Build -ge "0"))'
-                $pattern1 = [RegEx]::Escape($old)
-                $pattern2 = [RegEx]::Escape($new)
+                $old1 = '$AzPshInstallFolder = "SqlMySqlPsh"'
+                $new1 = '$AzPshInstallFolder = "WindowsPowerShell\Modules"'
+                $old2 = '$AzureRMVersion = "2.3.0"'
+                $new2 = '$AzureRMVersion = "5.8.3"'
+                $old3 = '$isModuleInstalled = Test-Path -Path $AzPshInstallLocation\AzureRm -PathType Container'
+                $new3 = '$isModuleInstalled = Test-Path -Path $AzPshInstallLocation\AzureRm.Profile -PathType Container'
+                $old4 = '$isCorrectVersion = Test-Path -Path $AzPshInstallLocation\AzureRm\$AzureRMVersion -PathType Container'
+                $new4 = '$isCorrectVersion = Test-Path -Path $AzPshInstallLocation\AzureRm.Profile\$AzureRMVersion -PathType Container'
+                $pattern1 = [RegEx]::Escape($old1)
+                $pattern2 = [RegEx]::Escape($new1)
+                $pattern3 = [RegEx]::Escape($old2)
+                $pattern4 = [RegEx]::Escape($new2)
+                $pattern5 = [RegEx]::Escape($old3)
+                $pattern6 = [RegEx]::Escape($new3)
+                $pattern7 = [RegEx]::Escape($old4)
+                $pattern8 = [RegEx]::Escape($new4)
                 if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
                     if ((Get-Content $getCommonModule) | Select-String $pattern1) {
-                        Write-Host "Known issue with AzureRM 2.4.0 and DB RPs - editing Common.psm1"
-                        Write-Host "Editing file"
-                        (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
+                        Write-Host "Known issues with Azure PowerShell and DB RPs - editing Common.psm1"
+                        Write-Host "Editing Azure PowerShell Module Path"
+                        (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new1 } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
                         Write-Host "Editing completed."
                     }
                 }
-                # End of Temporary Workaround #>
+                if (!((Get-Content $getCommonModule) | Select-String $pattern4)) {
+                    if ((Get-Content $getCommonModule) | Select-String $pattern3) {
+                        Write-Host "Known issues with Azure PowerShell and DB RPs - editing Common.psm1"
+                        Write-Host "Editing Azure RM Version"
+                        (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern3, $new2 } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
+                        Write-Host "Editing completed."
+                    }
+                }
+                if (!((Get-Content $getCommonModule) | Select-String $pattern6)) {
+                    if ((Get-Content $getCommonModule) | Select-String $pattern5) {
+                        Write-Host "Known issues with Azure PowerShell and DB RPs - editing Common.psm1"
+                        Write-Host "Editing AzureRM.Profile Path"
+                        (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern5, $new3 } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
+                        Write-Host "Editing completed."
+                    }
+                }
+                if (!((Get-Content $getCommonModule) | Select-String $pattern8)) {
+                    if ((Get-Content $getCommonModule) | Select-String $pattern7) {
+                        Write-Host "Known issues with Azure PowerShell and DB RPs - editing Common.psm1"
+                        Write-Host "Editing AzureRM.Profile Version"
+                        (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern7, $new4 } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
+                        Write-Host "Editing completed."
+                    }
+                }
+                # End of Temporary Workaround
                 ############################################################################################################################################################################
 
                 Write-Host "Starting deployment of $dbrp Resource Provider"
@@ -295,7 +331,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
                             $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                             Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
-                            # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
+                            <# Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
                             $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                             Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment -ScriptBlock {
                                 Set-Location $Using:finalDbPath
@@ -305,8 +341,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             }
                             Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                             Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
+                            #>
+                            .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
+                                -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd `
+                                -AzureEnvironment $azureEnvironment -AcceptLicense
                         }
                         else {
+                            <# Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
                             $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                             Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
                                 Set-Location $Using:finalDbPath
@@ -315,12 +356,16 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             }
                             Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                             Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
+                            #>
+                            .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
+                                -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -AzureEnvironment $azureEnvironment -AcceptLicense
                         }
                     }
                     elseif ($deploymentMode -ne "Online") {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
+                        <# Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
                         $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                         Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment -ScriptBlock {
                             Set-Location $Using:finalDbPath
@@ -336,6 +381,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         }
                         Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                         Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
+                        #>
+                        .\DeployMySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
+                            -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -DependencyFilesLocalPath $dependencyFilePath `
+                            -AzureEnvironment $azureEnvironment -AcceptLicense
                     }
                 }
                 elseif ($dbrp -eq "SQLServer") {
@@ -343,6 +392,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrp\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
+                        <# Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
                         $SQLsession = New-PSSession -Name SQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                         Invoke-Command -Session $SQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment -ScriptBlock {
                             Set-Location $Using:finalDbPath
@@ -352,8 +402,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         }
                         Remove-PSSession -Name SQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                         Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
+                        #>
+                        .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
+                            -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd `
+                            -AzureEnvironment $azureEnvironment
                     }
                     else {
+                        <# Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
                         $SQLsession = New-PSSession -Name SQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                         Invoke-Command -Session $SQLsession -ArgumentList $deploymentMode, $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
                             $runTime = $(Get-Date).ToString("MMdd-HHmmss")
@@ -369,10 +424,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         }
                         Remove-PSSession -Name SQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                         Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
+                        #>
+                        .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
+                            -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -AzureEnvironment $azureEnvironment
                     }
                 }
 
-                # Need to check the log file to confirm successful deployment
+                <# Need to check the log file to confirm successful deployment - only for PS Session Version
                 Set-Location "$finalDbPath\Logs"
                 # Get Log File
                 $getLogFile = (Get-ChildItem -Path "$finalDbPath\Logs" -Recurse -Include "*.txt" -ErrorAction Stop).FullName
@@ -384,6 +442,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 else {
                     throw "$rpAdapter log file shows a failure - review the log file in the $finalDbPath\Logs folder"
                 }
+                #>
 
                 # Update the AzSPoC database with successful completion
                 $progressCheck = CheckProgress -progressStage $progressStage
