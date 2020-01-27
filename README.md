@@ -195,8 +195,6 @@ Use the following switches to skip deployment of additional Resource Providers, 
 * Use **-skipAppService** to **not** install the App Service pre-requisites and App Service Resource Provider.
 * Use **-skipCustomizeAsdkHost** to **not** customize your ASDK host with useful apps such as Putty, Visual Studio Code, Google Chrome and more.
 
-In addition, you can choose to skip a particular resource provider deployment, such as -skipMySQL, but later, re-run the Configurator (using the same launch command) and **not** specify the -skipMySQL switch, and the Configurator will add that particular functionality.
-
 Post-Script Actions
 -------------------
 This script can take many hours to finish, depending on your hardware and download speeds. There are no specific post-script actions to perform after the script has finished.
@@ -205,6 +203,7 @@ This script can take many hours to finish, depending on your hardware and downlo
 * A Windows Server 2016 ISO is required.  This should be build 1607 (The RTM release) and not any of the Windows Server Semi-Annual Channel releases (1709, 1803, 1809). These have not been validated for support with the database and App Service resource providers, so don't use those builds at this time. The script will block their usage.
 * If you wish to upload Windows Server 2019 images for testing, please use the 17763 build, which is the Windows Server 2019 RTM and can be downloaded from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019
 * Do not use a mapped drive for your -downloadPath on your ASDK host. There are known issues which are yet to be resolved. Please use a local drive.
+* If you are running the script on a large number of ASDK Hosts simultaneously, and start them at the same time, you may find that certain steps fail. One example is the ASDK Host Customization step, which downloads certain components from the internet. If all of your ASDK Hosts are using the same Public IP (visible to the internet), you may receive errors such as "The remote server returned an error: (429) Too Many Requests" - if this happens, wait a few mins, then restart the script.
 
 ### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
