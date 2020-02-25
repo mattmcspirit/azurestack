@@ -107,7 +107,11 @@ The following table describes the endpoints and certificates required for the SQ
 
 <sup>2</sup> A &#42;.appservice.*&lt;region>.&lt;fqdn>* wild card certificate cannot be used in place of these three certificates (api.appservice.*&lt;region>.&lt;fqdn>*, ftp.appservice.*&lt;region>.&lt;fqdn>*, and sso.appservice.*&lt;region>.&lt;fqdn>*. App Service explicitly requires the use of separate certificates for these endpoints.
 
-**Once you have those certificates, place them into a single folder on your workstation. The script requires you to rename the files correctly, as shown in the following image.  If you wish to use a single wildcard certificate, that contains all the subject alternative names, please make 4 additional copies of the certificate in the same folder, and rename the copies correctly. You only need certificates in this folder, if you are installing the App Service or the Database resource providers.  If you are not installing those services, you do not need any .pfx files in this folder.**
+**Once you have those certificates, place them into a single folder on your workstation**
+
+**The script requires you to rename the files correctly.  If you wish to use a single wildcard certificate, that contains all the subject alternative names, please make *4 additional copies of the .pfx certificate in the same folder, and rename the copies correctly*. You only need certificates in this folder, if you are installing the App Service or the Database resource providers.  If you are not installing those services, you do not need any .pfx files in this folder.**
+
+**The image below shows a correctly configured certificate folder, where both the App Service and Database resource providers will be deployed:**
 
 ![Existing files](../offline/media/Certs.png)
 
