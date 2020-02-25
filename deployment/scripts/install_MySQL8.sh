@@ -46,7 +46,7 @@ sudo apt-get upgrade -y
 sudo apt-mark unhold walinuxagent
 
 # Install MySQL 8.0
-sudo DEBIAN_FRONTEND=noninteractive apt install mysql-server mysql-client -y
+sudo -E DEBIAN_FRONTEND=noninteractive apt install mysql-server mysql-client -y
 
 # Reset MySQL Password to match supplied parameter
 mysql -u root -proot -e "use mysql; ALTER USER 'root'@'localhost' IDENTIFIED BY '$MySQLPassword'; flush privileges;"
