@@ -2234,81 +2234,59 @@ try {
         Write-Host "This is a multinode deployment - this step will discover and organize your certificates."
         if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             try {
-                <#
-                Write-Host "Looking for your root certificate, which should be in the certificate path that you provided..."
-                $multiNodeRootCert = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.cer" -ErrorAction Stop
-                if ($multiNodeRootCert) {
-                    Write-Host "Found a certificate at $($multiNodeRootCert.FullName)"
-                    Write-Host "Renaming the located certificate..."
-                    Rename-Item -Path $multiNodeRootCert.FullName -NewName "AzureStackCertificationAuthority.cer" -ErrorAction Stop
-                    $multiNodeRootCert = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.cer" -ErrorAction Stop
-                    Write-Host "Root cert located at $($multiNodeRootCert.FullName)"
+                # Set up missing cert variable
+                $missingAppCert = $false
+                $missingDBCert = $false
+
+                # Check that at last one of the RPs is being installed and if so, proceed through the else statement
+                if (($skipAppService) -and ($skipMySQL) -and ($skipMSSQL)) {
+                    Write-Host "Both the App Service and Database Resource Provider installations have been skipped."
+                    Write-Host "Marking this stage as complete - no further actions"
                 }
                 else {
-                    Write-Host "Could not locate any .cer files - please ensure you have your Azure Stack root certificate in your certificate path folder, then rerun the script." -ForegroundColor Red
-                    Break
-                } #>
-                $multiNodePFXCerts = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*.pfx" -ErrorAction Stop
-                foreach ($cert in $multiNodePFXCerts) {
-                    $PFXPath = $cert.FullName
-                    Write-Host "Found a valid certificate at $PFXPath`n"
-                    $PFX = New-Object -TypeName 'System.Security.Cryptography.X509Certificates.X509Certificate2Collection' -ErrorAction Stop
-                    Write-Host "Importing certificate..."
-                    $PFX.Import($PFXPath, $certPwd, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet)
-                    foreach ($p in $PFX) {
-                        if ($p.DnsNameList.Unicode -like '*.appservice.*') {
-                            if ($p.DnsNameList.Unicode.Count -gt 1) {
-                                Write-Host "Gathering information on the App Service certificates"
-                                foreach ($item in $p.DnsNameList.Unicode) {
-                                    if ($item -like '`*.appservice.*') {
-                                        $newCertName = (($item) -replace '\*', "_") + ".pfx"
-                                        Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode | Select-Object -First 1)"
-                                    }
-                                }
-
-                                <#if ($p.DnsNameList.Unicode -like '`*.appservice.*') {
-                                    Write-Host "Gathering information on the App Service certificates"
-                                    $newCertName = (($p.DnsNameList.Unicode | Select-Object -First 1) -replace '\*', "_") + ".pfx"
-                                    Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode | Select-Object -First 1)"
-                                }#>
+                    if (!$skipAppService) {
+                        Write-Host "You have chosen to install the App Service Resource Provider - checking for correct certificates..."
+                        Write-Host "Certificate folder should contain 4 certificates, with the following file names:"
+                        Write-Host "_.appservice.$customdomainSuffix.pfx`napi.appservice.$customdomainSuffix.pfx`nftp.appservice.$customdomainSuffix.pfx`nsso.appservice.$customdomainSuffix.pfx"
+                        Write-Host "Checking..."
+                        $appServiceCertArray = @("_.appservice.$customdomainSuffix.pfx",
+                            "api.appservice.$customdomainSuffix.pfx",
+                            "ftp.appservice.$customdomainSuffix.pfx",
+                            "sso.appservice.$customdomainSuffix.pfx")
+                        foreach ($cert in $appServiceCertArray) {
+                            $certCheck = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "$cert"
+                            if ($certCheck) {
+                                Write-Host "Successfully located App Service certificate at $($certCheck.FullName)" -ForegroundColor Green
                             }
                             else {
-                                Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode)"
-                                $newCertName = ($p.DnsNameList.Unicode) + ".pfx"
+                                Write-Host "Cannot locate App Service certificate with file name: $cert" -ForegroundColor Red
+                                $missingAppCert = $true
                             }
                         }
-                        elseif ($p.DnsNameList.Unicode -like '`*.dbadapter.*') {
-                            Write-Host "Gathering information on the Database certificates"
-                            Write-Host "This certificate will be renamed: $($p.DnsNameList.Unicode)"
-                            $newCertName = (($p.DnsNameList.Unicode) -replace '\*', "_") + ".pfx"
+                    }
+                    if ((!$skipMySQL) -or (!$skipMSSQL)) {
+                        Write-Host "You have chosen to install at least one of the Database Resource Providers - checking for correct certificate..."
+                        Write-Host "Certificate folder should contain 1 certificate for the Database Resource Provider, with the following file name:"
+                        Write-Host "_.dbadapter.$customdomainSuffix.pfx"
+                        Write-Host "Checking..."
+                        $dbAdapterCheck = "_.dbadapter.$customdomainSuffix.pfx"
+                        $certCheck = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "$dbAdapterCheck"
+                        if ($certCheck) {
+                            Write-Host "Successfully located Database Resource Provider certificate at $($certCheck.FullName)" -ForegroundColor Green
+                        }
+                        else {
+                            Write-Host "Cannot locate Database Resource Provider certificate with file name: $dbAdapterCheck" -ForegroundColor Red
+                            Write-Host "Please review the documentation on GitHub to ensure certificates are correct" -ForegroundColor Red
+                            $missingDBCert = $true
                         }
                     }
-                    Write-Host "Renaming certificate for simplified management..."
-                    Rename-Item -Path $PFXPath -NewName $newCertName -ErrorAction Stop
-                    Write-Host "Done. New cert name is $newCertName."
-                }
-                Write-Host "Getting updated names for certificates..."
-                # Checking for App Service Certs
-                $appServiceCerts = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*appservice*.pfx" -ErrorAction Stop
-                if (!$skipAppService -and ($appServiceCerts.Count -ge 4)) {
-                    Write-Host "`nIt appears you have the correct number of certificates for the App Service deployment:`n"
-                    $appServiceCerts.Name
-                }
-                else {
-                    Write-Host "`nIt looks as if you do not have the correct number of certificates for the App Service deployment" -ForegroundColor Red
-                    Write-Host "You should have at least 4 separate certificates - please check the documentation for details" -ForegroundColor Red
-                    Break
-                }
-                # Checking for Database RP Cert
-                $dbCerts = Get-ChildItem -Path "$certPath\*" -Recurse -Filter "*dbadapter*.pfx" -ErrorAction Stop
-                if (!$skipAppService -and ($dbCerts.Count -ge 1)) {
-                    Write-Host "`nIt appears you have the correct number of certificates for the Database RP (SQL or MySQL) deployment:`n"
-                    $dbCerts.Name
-                }
-                else {
-                    Write-Host "`nIt looks as if you do not have the correct number of certificates for the Database RP deployment" -ForegroundColor Red
-                    Write-Host "You should have at least 1 wildcard certificate - please check the documentation for details" -ForegroundColor Red
-                    Break
+                    if (($missingAppCert -eq $true) -or ($missingDBCert -eq $true)) {
+                        Write-Host "You are missing at least 1 certificate that is required for successful deployment. Please review the logs and documentation, then rerun" -ForegroundColor Red
+                        throw "Missing certificate - Exiting process"
+                    }
+                    else {
+                        Write-Host "All certficates appear to be present and correct." -ForegroundColor Green
+                    }
                 }
                 StageComplete -progressStage $progressStage
             }
