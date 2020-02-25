@@ -107,7 +107,11 @@ The following table describes the endpoints and certificates required for the SQ
 
 <sup>2</sup> A &#42;.appservice.*&lt;region>.&lt;fqdn>* wild card certificate cannot be used in place of these three certificates (api.appservice.*&lt;region>.&lt;fqdn>*, ftp.appservice.*&lt;region>.&lt;fqdn>*, and sso.appservice.*&lt;region>.&lt;fqdn>*. Appservice explicitly requires the use of separate certificates for these endpoints.
 
-**Once you have those certificates, place them into a single folder on your workstation. Don't worry about the file names, the script will handle renaming the certs.**
+**Once you have those certificates, place them into a single folder on your workstation. The script requires you to rename the files correctly, as shown in the following image:**
+
+![Existing files](../offline/media/Certs.png)
+
+
 
 ### Step 4 - Run the AzSPoC.ps1 script ###
 With the script downloaded successfully, you can move on to running the script. Below, you will find a number of examples to help you run the script, depending on your scenario. Before you use the examples, please read the general guidance below:
