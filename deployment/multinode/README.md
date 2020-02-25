@@ -105,11 +105,13 @@ The following table describes the endpoints and certificates required for the SQ
 
 <sup>1</sup> Requires one certificate with multiple wildcard subject alternative names. Multiple wildcard SANs on a single certificate might not be supported by all Public Certificate Authorities
 
-<sup>2</sup> A &#42;.appservice.*&lt;region>.&lt;fqdn>* wild card certificate cannot be used in place of these three certificates (api.appservice.*&lt;region>.&lt;fqdn>*, ftp.appservice.*&lt;region>.&lt;fqdn>*, and sso.appservice.*&lt;region>.&lt;fqdn>*. Appservice explicitly requires the use of separate certificates for these endpoints.
+<sup>2</sup> A &#42;.appservice.*&lt;region>.&lt;fqdn>* wild card certificate cannot be used in place of these three certificates (api.appservice.*&lt;region>.&lt;fqdn>*, ftp.appservice.*&lt;region>.&lt;fqdn>*, and sso.appservice.*&lt;region>.&lt;fqdn>*. App Service explicitly requires the use of separate certificates for these endpoints.
 
-**Once you have those certificates, place them into a single folder on your workstation. The script requires you to rename the files correctly, as shown in the following image:**
+**Once you have those certificates, place them into a single folder on your workstation. The script requires you to rename the files correctly, as shown in the following image.  If you wish to use a single wildcard certificate, that contains all the subject alternative names, please make 4 additional copies of the certificate in the same folder, and rename the copies correctly.**
 
 ![Existing files](../offline/media/Certs.png)
+
+So, if you are installing the App Service, you should have 4 .pfx files in this folder.  If you are installing either MySQL or SQL Server, you should have an additional 1 .pfx file, for a total of 5.
 
 
 
