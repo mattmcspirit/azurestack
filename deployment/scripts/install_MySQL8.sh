@@ -30,23 +30,24 @@ ufw allow 3306
 # Retrieve the latest APT repo for MySQL and save it
 #echo "deb http://repo.mysql.com/apt/ubuntu $(lsb_release -sc) mysql-8.0" | sudo tee /etc/apt/sources.list.d/mysql80.list
 
+
+
 # Prep for Install of MySQL 8.0
 wget https://dev.mysql.com/get/mysql-apt-config_0.8.14-1_all.deb
+export DEBIAN_FRONTEND=noninteractive
 echo "mysql-community-server mysql-community-server/root-pass password root" | sudo debconf-set-selections
 echo "mysql-community-server mysql-community-server/re-root-pass password root" | sudo debconf-set-selections
 echo "mysql-community-server mysql-server/default-auth-override select Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)" | sudo debconf-set-selections
 echo "mysql-apt-config mysql-apt-config/enable-repo select mysql-8.0" | sudo debconf-set-selections
-sudo DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config_0.8.14-1_all.deb
+sudo -E dpkg -i mysql-apt-config*
 
 # Update
 echo Running apt-get update -y...
 sudo apt-get update -y
-sudo apt-mark hold walinuxagent
-sudo apt-get upgrade -y
-sudo apt-mark unhold walinuxagent
 
 # Install MySQL 8.0
-sudo -E DEBIAN_FRONTEND=noninteractive apt install mysql-server mysql-client -y
+export DEBIAN_FRONTEND=noninteractive
+sudo -E apt install mysql-server mysql-client -y
 
 # Reset MySQL Password to match supplied parameter
 mysql -u root -proot -e "use mysql; ALTER USER 'root'@'localhost' IDENTIFIED BY '$MySQLPassword'; flush privileges;"
@@ -59,6 +60,17 @@ then
     # Edit the MySQL Configuration File to allow Remote Connectivity
     sed -i "s/.*bind-address.*/bind-address = 0.0.0.0/" /etc/mysql/mysql.conf.d/mysqld.cnf
 fi
+
+# Restart MySQL
+sudo service mysql restart
+
+# Update
+echo Running apt-get update -y...
+sudo -E apt-get update -y
+sudo apt-mark hold walinuxagent
+echo "mysql-apt-config mysql-apt-config/enable-repo select mysql-8.0" | sudo debconf-set-selections
+sudo -E apt-get upgrade -y
+sudo apt-mark unhold walinuxagent
 
 # Restart MySQL
 sudo service mysql restart
