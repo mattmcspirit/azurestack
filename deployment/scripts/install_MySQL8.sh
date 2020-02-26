@@ -11,9 +11,6 @@ fi
 MySQLPassword=$1
 AllowRemoteConnections=$(echo "$2" | tr '[:upper:]' '[:lower:]')
 
-# Download and Install the Latest Updates for the OS
-#sudo apt-get update -y
-
 # Set hostname in etc/hosts
 sudo echo "127.0.0.1  $HOSTNAME" >> /etc/hosts
 
@@ -21,14 +18,6 @@ sudo echo "127.0.0.1  $HOSTNAME" >> /etc/hosts
 ufw --force enable
 ufw allow 22
 ufw allow 3306
-
-# Install dirmngr (certs)
-#sudo apt install -y dirmngr
-# sudo apt-key adv --keyserver pool.sks-keyservers.net --recv-keys 5072E1F5
-#sudo apt-key adv --keyserver keys.gnupg.net --recv-keys 5072E1F5
-
-# Retrieve the latest APT repo for MySQL and save it
-#echo "deb http://repo.mysql.com/apt/ubuntu $(lsb_release -sc) mysql-8.0" | sudo tee /etc/apt/sources.list.d/mysql80.list
 
 # Prep for Install of MySQL 8.0
 wget https://dev.mysql.com/get/mysql-apt-config_0.8.15-1_all.deb
