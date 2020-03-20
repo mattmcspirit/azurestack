@@ -1026,12 +1026,27 @@ try {
             # Defined a KB array to hold the NETkbIDs
             $kbDownloads += "$NETkbIDs"
         }
-                        
+        <#       
         foreach ( $kbID in $kbDownloads ) {
             Write-Host "Need to download the following update file with KB ID: $kbID"
             $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
             $PostBody = @{ updateIDs = "[$Post]" } 
             $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
+        } #>
+
+        foreach ( $kbID in $kbDownloads ) {
+            Write-Host "Need to download the following update file with KB ID: $kbID"
+            $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
+            $PostBody = @{ updateIDs = "[$Post]" }
+            $U = $null
+            $U = Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
+            While (!$U) {
+                Write-Host "There doesn't seem to be a corresponding download link - this may be a transient issue.  Waiting for 30 seconds before trying again"
+                Start-Sleep -Seconds 30
+                Write-Host "Attempting again to download the following update file with KB ID: $kbID"
+                $U = Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
+            }
+            $Urls += $U
         }
     
         # Download the corresponding Windows Server Cumulative Update (and possibly, Servicing Stack Updates)
