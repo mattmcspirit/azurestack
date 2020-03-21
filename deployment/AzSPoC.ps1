@@ -2621,7 +2621,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             }
             
             $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
-            New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
+            New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation -Confirm:$false
 
             # Create a new subscription for that offer, for the currently logged in user
             # 1 subscription will be for the DB hosts and one will be for the App Service
@@ -3225,10 +3225,10 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                 $quotaIDs += $appServiceQuotaId
             }
             # Create the Plan and Offer
-            New-AzureRmResourceGroup -Name $RGName -Location $azsLocation
+            New-AzureRmResourceGroup -Name $RGName -Location $azsLocation -Force -Confirm:$false
             $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
-            New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
-            Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation
+            New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation -Confirm:$false
+            Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation -Confirm:$false
 
             # Create a new subscription for that offer, for the currently logged in user
             $Offer = Get-AzsManagedOffer | Where-Object name -eq "BaseOffer"
