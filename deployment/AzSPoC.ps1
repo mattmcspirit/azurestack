@@ -1986,6 +1986,8 @@ try {
                 #Install-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Force -AllowClobber -Verbose
                 # Remove incompatible storage module installed by AzureRM.Storage
                 #Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
+                #Install the kbupdate module
+                Install-Module -Name kbupdate -Force -ErrorAction Stop
             }
             elseif ($deploymentMode -ne "Online") {
                 $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
