@@ -272,6 +272,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
 
                 ############################################################################################################################################################################
                 # Temporary Workaround to installing DB RP with PS 1.8.0 and newer AzureRM 2.5.0
+                Write-Host "Editing the Common Module file to ensure process completes..."
                 $getCommonModule = (Get-ChildItem -Path "$azsPath\databases\$dbrpPath\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
                 $old1 = '$AzPshInstallFolder = "SqlMySqlPsh"'
                 $new1 = '$AzPshInstallFolder = "WindowsPowerShell\Modules"'
