@@ -885,6 +885,9 @@ try {
     else {
         $versionArray = @("2016")
     }
+    # Install kbupdate to download update files
+    Write-Host "Installing kbupdate module to obtain Windows Updates"
+    Install-Module -Name kbupdate -Force -ErrorAction Stop -Verbose
     foreach ($v in $versionArray) {
         # Mount the ISO, check the image for the version, then dismount
         Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
@@ -995,10 +998,6 @@ try {
             }
         }
 
-        # Install kbupdate to download update files
-        Write-Host "Installing kbupdate module to obtain Windows Updates"
-        Install-Module -Name kbupdate -Force -ErrorAction Stop -Verbose
-
         Write-Host "List of KBs to download is as follows:"
         $kbDisplay = $KBs -join "`r`n"
         Write-Host "$kbDisplay"
@@ -1049,16 +1048,15 @@ try {
         New-Item -ItemType Directory -Path "$azsPath\images\$v\CU" -Force | Out-Null
         Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*ssu*" } | Move-Item -Destination "$azsPath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
         Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notlike "*ssu*" } | Move-Item -Destination "$azsPath\images\$v\CU" -Force -ErrorAction Stop -Verbose
-
-        Write-Host "Removing kbupdate module"
-        Remove-Module -Name kbupdate -Verbose -Force -ErrorAction SilentlyContinue
-        Uninstall-Module -Name kbupdate -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
-        Remove-Module kbupdate-library -Verbose -Force -ErrorAction SilentlyContinue
-        Uninstall-Module -Name kbupdate-library -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
-        Remove-Module PSSQLite -Verbose -Force -ErrorAction SilentlyContinue
-        Uninstall-Module -Name kbupdate-library -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
-        Uninstall-Module -Name PSSQLite -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
     }
+    Write-Host "Removing kbupdate module"
+    Remove-Module -Name kbupdate -Verbose -Force -ErrorAction SilentlyContinue
+    Uninstall-Module -Name kbupdate -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
+    Remove-Module kbupdate-library -Verbose -Force -ErrorAction SilentlyContinue
+    Uninstall-Module -Name kbupdate-library -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
+    Remove-Module PSSQLite -Verbose -Force -ErrorAction SilentlyContinue
+    Uninstall-Module -Name kbupdate-library -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
+    Uninstall-Module -Name PSSQLite -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
 }
 catch {
     Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
