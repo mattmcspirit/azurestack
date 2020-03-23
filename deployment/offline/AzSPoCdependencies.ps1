@@ -1051,8 +1051,13 @@ try {
         Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notlike "*ssu*" } | Move-Item -Destination "$azsPath\images\$v\CU" -Force -ErrorAction Stop -Verbose
 
         Write-Host "Removing kbupdate module"
-        Remove-Module -Name kbupdate -Verbose -Force
-        Uninstall-Module -Name kbupdate -Force -Confirm:$false -Verbose
+        Remove-Module -Name kbupdate -Verbose -Force -ErrorAction SilentlyContinue
+        Uninstall-Module -Name kbupdate -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
+        Remove-Module kbupdate-library -Verbose -Force -ErrorAction SilentlyContinue
+        Uninstall-Module -Name kbupdate-library -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
+        Remove-Module PSSQLite -Verbose -Force -ErrorAction SilentlyContinue
+        Uninstall-Module -Name kbupdate-library -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
+        Uninstall-Module -Name PSSQLite -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
     }
 }
 catch {
