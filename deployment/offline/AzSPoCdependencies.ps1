@@ -6,7 +6,7 @@
 
 .VERSION
 
-    1910.2  Latest version, to align with current Azure Stack POC Configurator version.
+    2002  Latest version, to align with current Azure Stack POC Configurator version.
 
 .AUTHOR
 
@@ -388,7 +388,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         #hard coding to a known working VHD
         #$row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/16.04/release-20190628/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
         #$row.filename = "UbuntuServer1.0.0.zip"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS zip file"; $Table.Rows.Add($row)
-        $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release-20191217/ubuntu-16.04-server-cloudimg-amd64-azure.vhd.tar.gz"
+        $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release-20200318/ubuntu-16.04-server-cloudimg-amd64-azure.vhd.tar.gz"
         $row.filename = "UbuntuServer16.04.20191217.tar.gz"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS TAR GZ file"; $Table.Rows.Add($row)
         # Ubuntu Server AZPKG
         $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
@@ -906,148 +906,116 @@ try {
             $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
         }
         $SearchString = 'Cumulative.*Server.*x64'
+        Write-Host "StartKB is: $StartKB and Search String is: $SearchString"
         # Define the arrays that will be used later
-        $kbDownloads = @()
-        $Urls = @()
+        $KBs = @()
     
         ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
+        Write-Host "Checking build number to determine Servicing Stack Updates"
         if ($buildVersion -eq "14393") {
-            # Test for dynamically building the SSU array
             $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
             $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
             $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
-            $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link)
-            $ssuArray = @()
-            foreach ($update in $feed) {
-                # trim down the URL to just get the KB
-                $ssuItem = ($update.link).Split('/')[4]
-                $ssuArray += "$ssuItem"
-            }
-            # Old ssuArray accurate as of July 2019
-            #$ssuArray = @("4132216", "4465659", "4485447", "4498947", "4503537")
-            $updateArray = @("4091664")
-            $ssuSearchString = 'Windows Server 2016'
-            $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2016 for x64-based Systems'
+            $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+            $ssuKB = "KB" + ($feed.link).Split('/')[4]
+            $microCodeKB = "KB4091664"
         }
         elseif ($buildVersion -eq "17763") {
             $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
             $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
             $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
-            $feed = ($feed | Where-Object { $_.title -like "*1809*" } | Select-Object -Property Link | Sort-Object link)
-            $ssuArray = @()
-            foreach ($update in $feed) {
-                # trim down the URL to just get the KB
-                $ssuItem = ($update.link).Split('/')[4]
-                $ssuArray += "$ssuItem"
-            }
-            # Old ssuArray accurate as of July 2019
-            #$ssuArray = @("4470788", "4493510", "4499728", "4504369")
-            $updateArray = @("4465065")
-            $ssuSearchString = 'Windows Server 2019'
-            $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2019 for x64-based Systems'
+            $feed = ($feed | Where-Object { $_.title -like "*1809*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+            $ssuKB = "KB" + ($feed.link).Split('/')[4]
+            $microCodeKB = "KB4465065"
         }
 
-        foreach ($ssu in $ssuArray) {
-            Write-Host "Build is $buildVersion - Need to download: KB$($ssu) to update Servicing Stack before adding future Cumulative Updates"
-            $ssuKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$ssu" -UseBasicParsing
-            $ssuAvailable_kbIDs = $ssuKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-            #$ssuAvailable_kbIDs | Out-String | Write-Host
-            $ssuKbIDs = $ssuKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ssuSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $ssuAvailable_kbIDs }
-    
-            # If innerHTML is empty or does not exist, use outerHTML instead
-            if (!$ssuKbIDs) {
-                $ssuKbIDs = $ssuKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ssuSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $ssuAvailable_kbIDs }
-            }
-            $kbDownloads += "$ssuKbIDs"
-        }
-                        
-        foreach ($update in $updateArray) {
-            Write-Host "Build is $buildVersion - Need to download: KB$($update) to ensure image is fully updated at first run"
-            $updateKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$update%20x64%20$v" -UseBasicParsing
-            $updateAvailable_kbIDs = $updateKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID | Select-Object -First 1
-            #$updateAvailable_kbIDs | Out-String | Write-Host
-            $kbDownloads += "$updateAvailable_kbIDs"
-        }
+        $KBs += "$ssuKB"
+        $KBs += "$microCodeKB"
 
-        # Find the KB Article for the latest Adobe Flash Security Update
         Write-Host "Getting info for latest Adobe Flash Security Update"
-        $flashKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=$flashSearchString" -UseBasicParsing
-        $Available_flashKbIDs = $flashKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-        $flashKbIDs = $flashKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $flashSearchString | Select-Object -First 1 | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_flashKbIDs }
-        # Defined a KB array to hold the NETkbIDs
-        $kbDownloads += "$flashKbIDs"
-                        
+        $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
+        $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Security Update for Adobe Flash Player*" }
+        $feed = ($feed | Select-Object -Property Link | Sort-Object link -Descending) | Select-Object -First 1
+        $flashKB = "KB" + ($feed.link).Split('/')[4]
+        $KBs += $flashKB
+
         # Find the KB Article Number for the latest Windows Server Cumulative Update
         Write-Host "Accessing $StartKB to retrieve the list of updates."
-        $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
-        $kbID = ($kbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
-        $kbID = ((($kbID -split "KB", 2)[1]) -split "\s", 2)[0]
-    
-        if (!$kbID) {
+        $cumulativekbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
+        $cumulativekbID = ($cumulativekbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
+        $cumulativekbID = "KB" + ((($cumulativekbID -split "KB", 2)[1]) -split "\s", 2)[0]
+
+        if (!$cumulativekbID) {
             Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
         }
-    
-        # Get Download Link for the corresponding Cumulative Update
-        Write-Host "Found latest Cumulative Update: KB$kbID"
-        $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$kbID" -UseBasicParsing
-        $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-        #$Available_kbIDs | Out-String | Write-Host
-        $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
-    
-        # If innerHTML is empty or does not exist, use outerHTML instead
-        if (!$kbIDs) {
-            $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+        else {
+            $KBs += "$cumulativekbID"
         }
-        # Defined a KB array to hold the kbIDs and if the build is 14393, add the corresponding KBID to it
-        $kbDownloads += "$kbIDs"
     
         if ($v -eq "2019") {
+            # Bypass Internet Explorer Setup Popup
+            $keyPath = 'Registry::HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Main'
+            if (!(Test-Path $keyPath)) { New-Item $keyPath -Force }
+            Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1
+
             ## .NET CU Download ####
             # Find the KB Article Number for the latest .NET on Windows Server 2019 (Build 17763) Cumulative Update
-            $ie = New-Object -ComObject "InternetExplorer.Application"
+            Write-Host "This is a Windows Server 2019 image, so we will download the latest .NET update for the image"
+            Write-Host "Creating COM Object"
+            $ie = New-Object -ComObject "InternetExplorer.Application" -Verbose -ErrorAction Stop
+            Write-Host "Setting IE to silent"
             $ie.silent = $true
+            Write-Host "Navigating to https://support.microsoft.com/en-us/help/4466961"
             $ie.Navigate("https://support.microsoft.com/en-us/help/4466961")
+            Write-Host "Waiting for IE to be ready..."
             while ($ie.ReadyState -ne 4) { start-sleep -m 100 }
+            Write-Host "Getting KB ID"
             $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object { $_.textContent -like "*KB*" }).innerHTML | Select-Object -First 1
+            Write-Host "Splitting KB ID"
             $NETkbID = ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
-            [System.Runtime.Interopservices.Marshal]::ReleaseComObject($ie)
-            Remove-Variable ie -ErrorAction SilentlyContinue
-    
-            if (!$NETkbID) {
-                Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will not have the latest .NET update"
+            Write-Host "KB ID for the latest .NET update for the image is KB$NETkbID"
+            while (!$null -eq $ie) {
+                Write-Host "Releasing ComObject"
+                [System.Runtime.Interopservices.Marshal]::FinalReleaseComObject($ie)
+                Write-Host "Removing IE Variable"
+                Remove-Variable ie -ErrorAction Stop
             }
-    
-            # Get Download Link for the corresponding Cumulative Update
+            # Get ID for the corresponding Cumulative Update
             Write-Host "Found latest .NET Framework update: KB$NETkbID"
             $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$NETkbID" -UseBasicParsing
             $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
             #$Available_kbIDs | Out-String | Write-Host
             $NETkbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
-            # Defined a KB array to hold the NETkbIDs
-            $kbDownloads += "$NETkbIDs"
-        }
-        <#       
-        foreach ( $kbID in $kbDownloads ) {
-            Write-Host "Need to download the following update file with KB ID: $kbID"
-            $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
-            $PostBody = @{ updateIDs = "[$Post]" } 
-            $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
-        } #>
 
-        foreach ( $kbID in $kbDownloads ) {
-            Write-Host "Need to download the following update file with KB ID: $kbID"
-            $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
-            $PostBody = @{ updateIDs = "[$Post]" }
-            $U = $null
-            $U = Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
-            While (!$U) {
-                Write-Host "There doesn't seem to be a corresponding download link - this may be a transient issue.  Waiting for 30 seconds before trying again"
-                Start-Sleep -Seconds 30
-                Write-Host "Attempting again to download the following update file with KB ID: $kbID"
-                $U = Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
+            if (!$NETkbIDs) {
+                Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will not have the latest .NET update"
             }
-            $Urls += $U
+            else {
+                $KBs += "$NETkbIDs"
+            }
         }
+
+        # Install kbupdate to download update files
+        Write-Host "Installing kbupdate module to obtain Windows Updates"
+        Install-Module -Name kbupdate -Force -ErrorAction Stop -Verbose
+
+        Write-Host "List of KBs to download is as follows:"
+        $kbDisplay = $KBs -join "`r`n"
+        Write-Host "$kbDisplay"
+        $Urls = @()
+        foreach ($KB in $KBs) {
+            $link = $null
+            $link = (Get-KbUpdate -Architecture x64 -OperatingSystem "Windows Server $v" -Latest -Pattern $KB -ErrorAction SilentlyContinue -Verbose:$false).Link | Select-Object -First 1
+            while (!$link) {
+                Write-Host "Failed to get the URL for $KB - retrying in 30 seconds"
+                Start-Sleep -Seconds 30
+                $link = (Get-KbUpdate -Architecture x64 -OperatingSystem "Windows Server $v" -Latest -Pattern $KB -ErrorAction SilentlyContinue -Verbose:$false).Link | Select-Object -First 1
+            }
+            $Urls += $link
+        }
+        Write-Host "List of URLs that will be used for downloading files:"
+        $urlDisplay = $Urls -join "`r`n"
+        Write-Host "$urlDisplay"
     
         # Download the corresponding Windows Server Cumulative Update (and possibly, Servicing Stack Updates)
         foreach ( $Url in $Urls ) {
@@ -1055,10 +1023,8 @@ try {
             $filename = $filename -replace "_.*\.", "."
             $target = "$((Get-Item $azsPath).FullName)\images\$v\$filename"
             if (!(Test-Path -Path $target)) {
-                foreach ($ssu in $ssuArray) {
-                    if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
-                        Remove-Item -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu" -Force -Verbose -ErrorAction Stop
-                    }
+                if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_$($ssuKB).msu")) {
+                    Remove-Item -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_$($ssuKB).msu" -Force -Verbose -ErrorAction Stop
                 }
                 Write-Host "Update will be stored at $target"
                 Write-Host "These can be larger than 1GB, so may take a few minutes."
@@ -1069,21 +1035,24 @@ try {
             }
         }
     
-        # Rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
-        foreach ($ssu in $ssuArray) {
-            if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
-                Write-Host "The $buildVersion Servicing Stack Update already exists within the target folder"
-            }
-            else {
-                Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
-                Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu | Where-Object { $_.FullName -like "*$($ssu)*" } | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
-            }
+        # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
+                    
+        if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_$($ssuKB).msu")) {
+            Write-Host "The $buildVersion Servicing Stack Update already exists within the target folder"
+        }
+        else {
+            Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
+            Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu | Where-Object { $_.FullName -like "*$($ssuKB)*" } | Rename-Item -NewName "$($buildVersion)_ssu_$($ssuKB).msu" -Force -ErrorAction Stop -Verbose
         }
         # All updates should now be downloaded - time to distribute them into correct folders.
         New-Item -ItemType Directory -Path "$azsPath\images\$v\SSU" -Force | Out-Null
         New-Item -ItemType Directory -Path "$azsPath\images\$v\CU" -Force | Out-Null
         Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*ssu*" } | Move-Item -Destination "$azsPath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
         Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notlike "*ssu*" } | Move-Item -Destination "$azsPath\images\$v\CU" -Force -ErrorAction Stop -Verbose
+
+        Write-Host "Removing kbupdate module"
+        Remove-Module -Name kbupdate -Verbose -Force
+        Uninstall-Module -Name kbupdate -Force -Confirm:$false -Verbose
     }
 }
 catch {
