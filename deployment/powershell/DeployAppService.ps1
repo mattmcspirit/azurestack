@@ -319,7 +319,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 Invoke-Sqlcmd -Server $sqlAppServerFqdn -Credential $dbCreds -Query "$cleanupQuery" -Verbose 
             }
 
-            $appServiceLoginCheck = Get-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -Verbose: $false | Where-Object { $_.Name -like "*appservice*" }
+            $appServiceLoginCheck = Get-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -Verbose: $false | Where-Object { ($_.Name -like "*appservice*") -or ($_.Name -like "*WebWorker*") }
             foreach ($appServiceLogin in $appServiceLoginCheck) {
                 Write-Host "$($appServiceLogin.Name) login found. Cleaning up"
                 Remove-SqlLogin -ServerInstance $sqlAppServerFqdn -Credential $dbCreds -LoginName $appServiceLogin.Name -Force -Verbose
