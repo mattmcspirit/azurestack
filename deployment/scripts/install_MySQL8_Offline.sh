@@ -22,29 +22,29 @@ ufw --force enable
 ufw allow 22
 ufw allow 3306
 
+# Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
+wget ${STORAGE_URI}mysql-{apt-config}.deb
+wget ${STORAGE_URI}mysql8-{libaio,libmecab,mecab-utils,mecab-ipadic,mecab-ipadic-utf,common,community-client-core,community-client,client,community-server-core,community-server,server}.deb
+
 # Install MySQL 8.0
+export DEBIAN_FRONTEND=noninteractive
 echo "mysql-community-server mysql-community-server/root-pass password root" | sudo debconf-set-selections
 echo "mysql-community-server mysql-community-server/re-root-pass password root" | sudo debconf-set-selections
 echo "mysql-community-server mysql-server/default-auth-override select Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)" | sudo debconf-set-selections
-
-export DEBIAN_FRONTEND=noninteractive
-
-# Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
-wget ${STORAGE_URI}mysql-{libaio,libevent-core,libmecab,mecab-utils,mecab-ipadic,mecab-ipadic-utf,server-core,server}.deb
-wget ${STORAGE_URI}mysql8-{common,community-client-core,community-client,client,community-server-core,community-server,server}.deb
+echo "mysql-apt-config mysql-apt-config/enable-repo select mysql-8.0" | sudo debconf-set-selections
+sudo DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config*
+sudo rm mysql-apt-config*
 
 # Install the files
-dpkg -i mysql-libaio.deb
+dpkg -i mysql8-libaio.deb
 sleep 3
-dpkg -i mysql-libevent-core.deb
+dpkg -i mysql8-libmecab.deb
 sleep 3
-dpkg -i mysql-libmecab.deb
+dpkg -i mysql8-mecab-utils.deb
 sleep 3
-dpkg -i mysql-mecab-utils.deb
+dpkg -i mysql8-mecab-ipadic.deb
 sleep 3
-dpkg -i mysql-mecab-ipadic.deb
-sleep 3
-dpkg -i mysql-mecab-ipadic-utf.deb
+dpkg -i mysql8-mecab-ipadic-utf.deb
 sleep 3
 dpkg -i mysql8-common.deb
 sleep 3
