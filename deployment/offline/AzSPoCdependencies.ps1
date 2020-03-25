@@ -493,7 +493,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         foreach ($url in $mysql8URLs) {
             $row = $table.NewRow(); $row.Uri = "$url"
             $productname = (($url.Substring($url.LastIndexOf("/") + 1)).Split("_", 2)[0])
-            $filename = $productname + ".deb"
+            $filename = $productname + "_8_.deb"
             $row.filename = "$filename"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 $productname dependency"; $Table.Rows.Add($row)
         }
 
