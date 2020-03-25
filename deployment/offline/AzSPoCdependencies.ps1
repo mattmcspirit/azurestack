@@ -442,127 +442,128 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         ### The MySQL script would usually install MySQL via apt-get, however in an offline mode, this isn't possible, hence
         ### we download them here, and upload them to local Azure Stack storage as part of the Azure Stack POC Configurator
 
-        # MySQL 5.7 & 8 Offline Dependency #1
+        ### MySQL 5.7 ### (Simplified - correct as of 3/25/2020)
+        $mysqlURLs = @()
+        $mysqlURLs.Clear()
+        $mysqlURLs = "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/libaio1_0.3.110-2_amd64.deb", 
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhtml-tagset-perl/libhtml-tagset-perl_3.20-2_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libu/liburi-perl/liburi-perl_1.71-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhtml-parser-perl/libhtml-parser-perl_3.72-1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libl/liblwp-mediatypes-perl/liblwp-mediatypes-perl_6.02-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libc/libcgi-pm-perl/libcgi-pm-perl_4.26-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libf/libfcgi-perl/libfcgi-perl_0.77-1build1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libc/libcgi-fast-perl/libcgi-fast-perl_2.10-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libt/libtimedate-perl/libtimedate-perl_2.3000-2_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libi/libio-html-perl/libio-html-perl_1.001-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhtml-template-perl/libhtml-template-perl_2.95-2_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libe/libencode-locale-perl/libencode-locale-perl_1.05-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhttp-date-perl/libhttp-date-perl_6.02-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhttp-message-perl/libhttp-message-perl_6.11-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libe/libevent/libevent-core-2.0-5_2.0.21-stable-2ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-common_5.7.29-0ubuntu0.16.04.1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-core-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-core-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb"
+            
+
+        foreach ($url in $mysqlURLs) {
+            $row = $table.NewRow(); $row.Uri = "$url"
+            $productname = (($url.Substring($url.LastIndexOf("/") + 1)).Split("_", 2)[0])
+            $filename = $productname + ".deb"
+            $row.filename = "$filename"; $row.path = "$binaryPath"; $row.productName = "MySQL $productname dependency"; $Table.Rows.Add($row)
+        }
+
+        ### MYSQL 8 ######################################################################################################################
+
+        # MySQL 8 Offline Dependency #1
         $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/" -UseBasicParsing
         $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "libaio*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") -and ($_.href -notlike "*dbg*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-libaio.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libaio dependency"; $Table.Rows.Add($row)
+        $row.filename = "mysql8-libaio.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libaio dependency"; $Table.Rows.Add($row)
 
         # MySQL 5.7 & 8 Offline Dependency #2
-        $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "libevent-core*16*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-libevent-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libevent dependency"; $Table.Rows.Add($row)
-
-        # MySQL 5.7 & 8 Offline Dependency #3
         $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "libmecab*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
+        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "libmecab2*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-libmecab.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libmecab dependency"; $Table.Rows.Add($row)
+        $row.filename = "mysql8-libmecab.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libmecab dependency"; $Table.Rows.Add($row)
 
-        # MySQL 5.7 Offline Dependency #4
-        $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-client*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-client.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client dependency"; $Table.Rows.Add($row)
-
-        # MySQL 5.7 Offline Dependency #5
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-client-core*16*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-client-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client core dependency"; $Table.Rows.Add($row)
-
-        # MySQL 5.7 Offline Dependency #6
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-common*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-common.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL common dependency"; $Table.Rows.Add($row)
-
-        # MySQL 5.7 Offline Dependency #7
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-server-core*16*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-server-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server Core dependency"; $Table.Rows.Add($row)
-
-        # MySQL 5.7 Offline Dependency #8
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-server*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server dependency"; $Table.Rows.Add($row)
-
-        # MySQL 8 Offline Dependency #9
+        # MySQL 8 Offline Dependency #3
         $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/" -UseBasicParsing
         $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mecab-utils*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-mecab-utils.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL mecab-utils dependency"; $Table.Rows.Add($row)
+        $row.filename = "mysql8-mecab-utils.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL mecab-utils dependency"; $Table.Rows.Add($row)
 
-        # MySQL 8 Offline Dependency #10
+        # MySQL 8 Offline Dependency #4
         $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/" -UseBasicParsing
         $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mecab-ipadic_*.deb") -and ($_.href -notlike "*dev*.deb") } | Sort-Object href | Select-Object -First 1).href.ToString()
         $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-mecab-ipadic.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL mecab-ipadic dependency"; $Table.Rows.Add($row)
+        $row.filename = "mysql8-mecab-ipadic.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL mecab-ipadic dependency"; $Table.Rows.Add($row)
 
-        # MySQL 8 Offline Dependency #11
+        # MySQL 8 Offline Dependency #5
         $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/" -UseBasicParsing
         $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mecab-ipadic-utf*.deb") -and ($_.href -notlike "*dev*.deb") } | Sort-Object href | Select-Object -First 1).href.ToString()
         $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-mecab-ipadic-utf.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL mecab-ipadic-utf dependency"; $Table.Rows.Add($row)
+        $row.filename = "mysql8-mecab-ipadic-utf.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL mecab-ipadic-utf dependency"; $Table.Rows.Add($row)
 
-        # MySQL 8 Offline Dependency #12
+        # MySQL 8 Offline Dependency #6
         $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
         $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-common*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql8-common.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 common dependency"; $Table.Rows.Add($row)
 
-        # MySQL 8 Offline Dependency #13
+        # MySQL 8 Offline Dependency #7
         $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
         $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-community-client-core*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql8-community-client-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 community client core dependency"; $Table.Rows.Add($row)
 
-        # MySQL 8 Offline Dependency #14
+        # MySQL 8 Offline Dependency #8
         $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
         $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-community-client_*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql8-community-client.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 community client dependency"; $Table.Rows.Add($row)
 
-        # MySQL 8 Offline Dependency #15
+        # MySQL 8 Offline Dependency #9
         $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
         $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-client_*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql8-client.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 client dependency"; $Table.Rows.Add($row)
 
-        # MySQL 8 Offline Dependency #16
+        # MySQL 8 Offline Dependency #10
         $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
         $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-community-server-core*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql8-community-server-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 community server core dependency"; $Table.Rows.Add($row)
 
-        # MySQL 8 Offline Dependency #17
+        # MySQL 8 Offline Dependency #11
         $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
         $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-community-server_*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql8-community-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 community server dependency"; $Table.Rows.Add($row)
 
-        # MySQL 8 Offline Dependency #17
+        # MySQL 8 Offline Dependency #12
         $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
         $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-server_*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
         $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mysql8-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 server dependency"; $Table.Rows.Add($row)
+
+        # MySQL 8 Offline Dependency #13
+        $downloadFileURL = "https://dev.mysql.com/get/mysql-apt-config_0.8.15-1_all.deb"
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mysql-apt-config.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 Apt Config"; $Table.Rows.Add($row)
 
         # SQL Server Install Script
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MSSQL_Offline.sh"
