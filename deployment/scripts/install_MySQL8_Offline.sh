@@ -23,8 +23,8 @@ ufw allow 22
 ufw allow 3306
 
 # Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
-wget ${STORAGE_URI}mysql-{apt-config}.deb
-wget ${STORAGE_URI}mysql8-{libaio,libmecab,mecab-utils,mecab-ipadic,mecab-ipadic-utf,common,community-client-core,community-client,client,community-server-core,community-server,server}.deb
+wget ${STORAGE_URI}mysql-{apt-config_8,common_8,community-client-core_8,community-client_8,client_8,community-server-core_8,community-server_8,server_8}_.deb
+wget ${STORAGE_URI}{libaio1,libmecab2_8,mecab-utils_8,mecab-ipadic_8,mecab-ipadic-utf8_8}_.deb
 
 # Install MySQL 8.0
 export DEBIAN_FRONTEND=noninteractive
@@ -36,29 +36,29 @@ sudo DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config*
 sudo rm mysql-apt-config*
 
 # Install the files
-dpkg -i mysql8-libaio.deb
+dpkg -i libaio1.deb
 sleep 3
-dpkg -i mysql8-libmecab.deb
+dpkg -i libmecab2_8_.deb
 sleep 3
-dpkg -i mysql8-mecab-utils.deb
+dpkg -i mecab-utils_8_.deb
 sleep 3
-dpkg -i mysql8-mecab-ipadic.deb
+dpkg -i mecab-ipadic_8_.deb
 sleep 3
-dpkg -i mysql8-mecab-ipadic-utf.deb
+dpkg -i mecab-ipadic-utf8_8_.deb
 sleep 3
-dpkg -i mysql8-common.deb
+dpkg -i mysql-common_8_.deb
 sleep 3
-dpkg -i mysql8-community-client-core.deb
+dpkg -i mysql-community-client-core_8_.deb
 sleep 3
-dpkg -i mysql8-community-client.deb
+dpkg -i mysql-community-client_8_.deb
 sleep 3
-dpkg -i mysql8-client.deb
+dpkg -i mysql-client_8_.deb
 sleep 3
-dpkg -i mysql8-community-server-core.deb
+dpkg -i mysql-community-server-core.deb
 sleep 3
-dpkg -i mysql8-community-server.deb
+dpkg -i mysql-community-server_8_.deb
 sleep 3
-dpkg -i mysql8-server.deb
+dpkg -i mysql-server_8_.deb
 sleep 3
 
 # Reset MySQL Password to match supplied parameter
