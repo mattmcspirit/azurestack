@@ -24,7 +24,8 @@ ufw allow 3306
 
 # Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
 wget ${STORAGE_URI}mysql-{apt-config_8,common_8,community-client-core_8,community-client_8,client_8,community-server-core_8,community-server_8,server_8}_.deb
-wget ${STORAGE_URI}{libaio1,libmecab2_8,mecab-utils_8,mecab-ipadic_8,mecab-ipadic-utf8_8}_.deb
+wget ${STORAGE_URI}{libmecab2_8,mecab-utils_8,mecab-ipadic_8,mecab-ipadic-utf8_8}_.deb
+wget ${STORAGE_URI}libaio1.deb
 
 # Install MySQL 8.0
 export DEBIAN_FRONTEND=noninteractive
@@ -54,7 +55,7 @@ dpkg -i mysql-community-client_8_.deb
 sleep 3
 dpkg -i mysql-client_8_.deb
 sleep 3
-dpkg -i mysql-community-server-core.deb
+dpkg -i mysql-community-server-core_8_.deb
 sleep 3
 dpkg -i mysql-community-server_8_.deb
 sleep 3
