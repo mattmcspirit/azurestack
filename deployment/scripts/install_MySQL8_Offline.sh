@@ -22,43 +22,44 @@ ufw --force enable
 ufw allow 22
 ufw allow 3306
 
+# Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
+wget ${STORAGE_URI}mysql-{apt-config_8,common_8,community-client-core_8,community-client_8,client_8,community-server-core_8,community-server_8,server_8}_.deb
+wget ${STORAGE_URI}{libmecab2_8,mecab-utils_8,mecab-ipadic_8,mecab-ipadic-utf8_8}_.deb
+wget ${STORAGE_URI}libaio1.deb
+
 # Install MySQL 8.0
+export DEBIAN_FRONTEND=noninteractive
 echo "mysql-community-server mysql-community-server/root-pass password root" | sudo debconf-set-selections
 echo "mysql-community-server mysql-community-server/re-root-pass password root" | sudo debconf-set-selections
 echo "mysql-community-server mysql-server/default-auth-override select Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)" | sudo debconf-set-selections
-
-export DEBIAN_FRONTEND=noninteractive
-
-# Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
-wget ${STORAGE_URI}mysql-{libaio,libevent-core,libmecab,mecab-utils,mecab-ipadic,mecab-ipadic-utf,server-core,server}.deb
-wget ${STORAGE_URI}mysql8-{common,community-client-core,community-client,client,community-server-core,community-server,server}.deb
+echo "mysql-apt-config mysql-apt-config/enable-repo select mysql-8.0" | sudo debconf-set-selections
+sudo DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config*
+sudo rm mysql-apt-config*
 
 # Install the files
-dpkg -i mysql-libaio.deb
+dpkg -i libaio1.deb
 sleep 3
-dpkg -i mysql-libevent-core.deb
+dpkg -i libmecab2_8_.deb
 sleep 3
-dpkg -i mysql-libmecab.deb
+dpkg -i mecab-utils_8_.deb
 sleep 3
-dpkg -i mysql-mecab-utils.deb
+dpkg -i mecab-ipadic_8_.deb
 sleep 3
-dpkg -i mysql-mecab-ipadic.deb
+dpkg -i mecab-ipadic-utf8_8_.deb
 sleep 3
-dpkg -i mysql-mecab-ipadic-utf.deb
+dpkg -i mysql-common_8_.deb
 sleep 3
-dpkg -i mysql8-common.deb
+dpkg -i mysql-community-client-core_8_.deb
 sleep 3
-dpkg -i mysql8-community-client-core.deb
+dpkg -i mysql-community-client_8_.deb
 sleep 3
-dpkg -i mysql8-community-client.deb
+dpkg -i mysql-client_8_.deb
 sleep 3
-dpkg -i mysql8-client.deb
+dpkg -i mysql-community-server-core_8_.deb
 sleep 3
-dpkg -i mysql8-community-server-core.deb
+dpkg -i mysql-community-server_8_.deb
 sleep 3
-dpkg -i mysql8-community-server.deb
-sleep 3
-dpkg -i mysql8-server.deb
+dpkg -i mysql-server_8_.deb
 sleep 3
 
 # Reset MySQL Password to match supplied parameter

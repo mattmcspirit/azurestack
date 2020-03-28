@@ -105,9 +105,21 @@ The following table describes the endpoints and certificates required for the SQ
 
 <sup>1</sup> Requires one certificate with multiple wildcard subject alternative names. Multiple wildcard SANs on a single certificate might not be supported by all Public Certificate Authorities
 
-<sup>2</sup> A &#42;.appservice.*&lt;region>.&lt;fqdn>* wild card certificate cannot be used in place of these three certificates (api.appservice.*&lt;region>.&lt;fqdn>*, ftp.appservice.*&lt;region>.&lt;fqdn>*, and sso.appservice.*&lt;region>.&lt;fqdn>*. Appservice explicitly requires the use of separate certificates for these endpoints.
+<sup>2</sup> A &#42;.appservice.*&lt;region>.&lt;fqdn>* wild card certificate cannot be used in place of these three certificates (api.appservice.*&lt;region>.&lt;fqdn>*, ftp.appservice.*&lt;region>.&lt;fqdn>*, and sso.appservice.*&lt;region>.&lt;fqdn>*. App Service explicitly requires the use of separate certificates for these endpoints.
 
-**Once you have those certificates, place them into a single folder on your workstation. Don't worry about the file names, the script will handle renaming the certs.**
+Once you have those certificates, place them into a single folder on your workstation.  The script requires you to rename the files correctly.  Please use an underscore _ to represent the * for a wildcard.
+
+**If you wish to use a single wildcard certificate, that contains all the subject alternative names, please make *4 additional copies of the .pfx certificate in the same folder, and rename the copies correctly*.**
+
+You only need certificates in this folder, if you are installing the App Service or the Database resource providers.  If you are not installing those services, you do not need any .pfx files in this folder.
+
+The image below shows a correctly configured certificate folder, where both the App Service and Database resource providers will be deployed:
+
+![Existing files](../offline/media/Certs.png)
+
+So, if you are installing the App Service, you should have 4 .pfx files in this folder.  If you are installing either MySQL or SQL Server, you should have an additional 1 .pfx file, for a total of 5.
+
+
 
 ### Step 4 - Run the AzSPoC.ps1 script ###
 With the script downloaded successfully, you can move on to running the script. Below, you will find a number of examples to help you run the script, depending on your scenario. Before you use the examples, please read the general guidance below:

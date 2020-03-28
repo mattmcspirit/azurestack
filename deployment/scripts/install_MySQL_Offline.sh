@@ -29,25 +29,52 @@ echo "mysql-server-5.7 mysql-server/root_password_again password root" | sudo de
 export DEBIAN_FRONTEND=noninteractive
 
 # Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
-wget ${STORAGE_URI}mysql-{libaio,libevent-core,libmecab,common,client-core,client,server-core,server}.deb
+wget ${STORAGE_URI}{libaio1,libhtml-tagset-perl,liburi-perl,libhtml-parser-perl,liblwp-mediatypes-perl,libcgi-pm-perl,libfcgi-perl,\
+libcgi-fast-perl,libtimedate-perl,libio-html-perl,libhtml-template-perl,libencode-locale-perl,libhttp-date-perl,libhttp-message-perl,\
+libevent-core-2.0-5,mysql-common,mysql-client-core-5.7,mysql-client-5.7,mysql-server-core-5.7,mysql-server-5.7}.deb
 
 # Install the files
-dpkg -i mysql-libaio.deb
+dpkg -i libaio1.deb
 sleep 3
-dpkg -i mysql-libevent-core.deb
+dpkg -i libhtml-tagset-perl.deb
 sleep 3
-dpkg -i mysql-libmecab.deb
+dpkg -i liburi-perl.deb
+sleep 3
+dpkg -i libhtml-parser-perl.deb
+sleep 3
+dpkg -i liblwp-mediatypes-perl.deb
+sleep 3
+dpkg -i libcgi-pm-perl.deb
+sleep 3
+dpkg -i libfcgi-perl.deb
+sleep 3
+dpkg -i libcgi-fast-perl.deb
+sleep 3
+dpkg -i libtimedate-perl.deb
+sleep 3
+dpkg -i libio-html-perl.deb
+sleep 3
+dpkg -i libhtml-template-perl.deb
+sleep 3
+dpkg -i libencode-locale-perl.deb
+sleep 3
+dpkg -i libhttp-date-perl.deb
+sleep 3
+dpkg -i libhttp-message-perl.deb
+sleep 3
+dpkg -i libevent-core-2.0-5.deb
 sleep 3
 dpkg -i mysql-common.deb
 sleep 3
-dpkg -i mysql-client-core.deb
+dpkg -i mysql-client-core-5.7.deb
 sleep 3
-dpkg -i mysql-client.deb
+dpkg -i mysql-client-5.7.deb
 sleep 3
-dpkg -i mysql-server-core.deb
+dpkg -i mysql-server-core-5.7.deb
 sleep 3
-dpkg -i mysql-server.deb
+dpkg -i mysql-server-5.7.deb
 sleep 3
+
 
 # Reset MySQL Password to match supplied parameter
 mysql -u root -proot -e "use mysql; UPDATE user SET authentication_string=PASSWORD('$MySQLPassword') WHERE User='root'; flush privileges;"

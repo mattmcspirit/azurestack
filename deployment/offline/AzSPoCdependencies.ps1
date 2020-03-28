@@ -6,7 +6,7 @@
 
 .VERSION
 
-    1910.2  Latest version, to align with current Azure Stack POC Configurator version.
+    2002  Latest version, to align with current Azure Stack POC Configurator version.
 
 .AUTHOR
 
@@ -388,8 +388,8 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         #hard coding to a known working VHD
         #$row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/16.04/release-20190628/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
         #$row.filename = "UbuntuServer1.0.0.zip"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS zip file"; $Table.Rows.Add($row)
-        $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release-20191217/ubuntu-16.04-server-cloudimg-amd64-azure.vhd.tar.gz"
-        $row.filename = "UbuntuServer16.04.20191217.tar.gz"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS TAR GZ file"; $Table.Rows.Add($row)
+        $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release-20200318/ubuntu-16.04-server-cloudimg-amd64-azure.vhd.tar.gz"
+        $row.filename = "UbuntuServer16.04.20200318.tar.gz"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS TAR GZ file"; $Table.Rows.Add($row)
         # Ubuntu Server AZPKG
         $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
         $row.filename = "Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Ubuntu Server Marketplace Package"; $Table.Rows.Add($row)
@@ -442,127 +442,62 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         ### The MySQL script would usually install MySQL via apt-get, however in an offline mode, this isn't possible, hence
         ### we download them here, and upload them to local Azure Stack storage as part of the Azure Stack POC Configurator
 
-        # MySQL 5.7 & 8 Offline Dependency #1
-        $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "libaio*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") -and ($_.href -notlike "*dbg*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-libaio.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libaio dependency"; $Table.Rows.Add($row)
+        ### MySQL 5.7 ### (Simplified - correct as of 3/25/2020)
+        $mysqlURLs = @()
+        $mysqlURLs.Clear()
+        $mysqlURLs = "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/libaio1_0.3.110-2_amd64.deb", 
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhtml-tagset-perl/libhtml-tagset-perl_3.20-2_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libu/liburi-perl/liburi-perl_1.71-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhtml-parser-perl/libhtml-parser-perl_3.72-1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libl/liblwp-mediatypes-perl/liblwp-mediatypes-perl_6.02-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libc/libcgi-pm-perl/libcgi-pm-perl_4.26-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libf/libfcgi-perl/libfcgi-perl_0.77-1build1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libc/libcgi-fast-perl/libcgi-fast-perl_2.10-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libt/libtimedate-perl/libtimedate-perl_2.3000-2_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libi/libio-html-perl/libio-html-perl_1.001-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhtml-template-perl/libhtml-template-perl_2.95-2_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libe/libencode-locale-perl/libencode-locale-perl_1.05-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhttp-date-perl/libhttp-date-perl_6.02-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhttp-message-perl/libhttp-message-perl_6.11-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/libe/libevent/libevent-core-2.0-5_2.0.21-stable-2ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-common_5.7.29-0ubuntu0.16.04.1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-core-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-core-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb"
+            
 
-        # MySQL 5.7 & 8 Offline Dependency #2
-        $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "libevent-core*16*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/libe/libevent/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-libevent-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libevent dependency"; $Table.Rows.Add($row)
+        foreach ($url in $mysqlURLs) {
+            $row = $table.NewRow(); $row.Uri = "$url"
+            $productname = (($url.Substring($url.LastIndexOf("/") + 1)).Split("_", 2)[0])
+            $filename = $productname + ".deb"
+            $row.filename = "$filename"; $row.path = "$binaryPath"; $row.productName = "MySQL $productname dependency"; $Table.Rows.Add($row)
+        }
 
-        # MySQL 5.7 & 8 Offline Dependency #3
-        $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "libmecab*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-libmecab.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL libmecab dependency"; $Table.Rows.Add($row)
+        ### MySQL 8 ### (Simplified - correct as of 3/25/2020)
+        $mysql8URLs = @()
+        $mysql8URLs.Clear()
+        $mysql8URLs = "https://dev.mysql.com/get/mysql-apt-config_0.8.15-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/libmecab2_0.996-1.2ubuntu1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/mecab-utils_0.996-1.2ubuntu1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/mecab-ipadic_2.7.0-20070801+main-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/mecab-ipadic-utf8_2.7.0-20070801+main-1_all.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-common_8.0.19-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client-core_8.0.19-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client_8.0.19-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-client_8.0.19-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-server-core_8.0.19-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-server_8.0.19-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-server_8.0.19-1ubuntu16.04_amd64.deb"
+        
+        foreach ($url in $mysql8URLs) {
+            $row = $table.NewRow(); $row.Uri = "$url"
+            $productname = (($url.Substring($url.LastIndexOf("/") + 1)).Split("_", 2)[0])
+            $filename = $productname + "_8_.deb"
+            $row.filename = "$filename"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 $productname dependency"; $Table.Rows.Add($row)
+        }
 
-        # MySQL 5.7 Offline Dependency #4
-        $WebResponse = Invoke-WebRequest "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-client*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-client.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client dependency"; $Table.Rows.Add($row)
-
-        # MySQL 5.7 Offline Dependency #5
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-client-core*16*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-client-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL client core dependency"; $Table.Rows.Add($row)
-
-        # MySQL 5.7 Offline Dependency #6
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-common*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-common.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL common dependency"; $Table.Rows.Add($row)
-
-        # MySQL 5.7 Offline Dependency #7
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-server-core*16*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-server-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server Core dependency"; $Table.Rows.Add($row)
-
-        # MySQL 5.7 Offline Dependency #8
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-server*16*amd64.deb") -and ($_.href -notlike "*core*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://security.ubuntu.com/ubuntu/pool/main/m/mysql-5.7/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL Server dependency"; $Table.Rows.Add($row)
-
-        # MySQL 8 Offline Dependency #9
-        $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mecab-utils*amd64.deb") -and ($_.href -notlike "*dev*amd64.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-mecab-utils.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL mecab-utils dependency"; $Table.Rows.Add($row)
-
-        # MySQL 8 Offline Dependency #10
-        $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mecab-ipadic_*.deb") -and ($_.href -notlike "*dev*.deb") } | Sort-Object href | Select-Object -First 1).href.ToString()
-        $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-mecab-ipadic.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL mecab-ipadic dependency"; $Table.Rows.Add($row)
-
-        # MySQL 8 Offline Dependency #11
-        $WebResponse = Invoke-WebRequest "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mecab-ipadic-utf*.deb") -and ($_.href -notlike "*dev*.deb") } | Sort-Object href | Select-Object -First 1).href.ToString()
-        $downloadFileURL = "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql-mecab-ipadic-utf.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL mecab-ipadic-utf dependency"; $Table.Rows.Add($row)
-
-        # MySQL 8 Offline Dependency #12
-        $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-common*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql8-common.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 common dependency"; $Table.Rows.Add($row)
-
-        # MySQL 8 Offline Dependency #13
-        $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-community-client-core*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql8-community-client-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 community client core dependency"; $Table.Rows.Add($row)
-
-        # MySQL 8 Offline Dependency #14
-        $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-community-client_*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql8-community-client.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 community client dependency"; $Table.Rows.Add($row)
-
-        # MySQL 8 Offline Dependency #15
-        $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-client_*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql8-client.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 client dependency"; $Table.Rows.Add($row)
-
-        # MySQL 8 Offline Dependency #16
-        $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-community-server-core*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql8-community-server-core.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 community server core dependency"; $Table.Rows.Add($row)
-
-        # MySQL 8 Offline Dependency #17
-        $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-community-server_*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql8-community-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 community server dependency"; $Table.Rows.Add($row)
-
-        # MySQL 8 Offline Dependency #17
-        $WebResponse = Invoke-WebRequest "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/" -UseBasicParsing
-        $fileToDownload = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "mysql-server_*ubuntu16.04_amd64.deb") -and ($_.href -notlike "*dmr*.deb") -and ($_.href -notlike "*rc*.deb") -and ($_.href -notlike "*dbgsym*.deb") } | Sort-Object href | Select-Object -Last 1).href.ToString()
-        $downloadFileURL = "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/$fileToDownload"
-        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
-        $row.filename = "mysql8-server.deb"; $row.path = "$binaryPath"; $row.productName = "MySQL 8 server dependency"; $Table.Rows.Add($row)
+        ### SQL Server ###
 
         # SQL Server Install Script
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MSSQL_Offline.sh"
@@ -885,6 +820,9 @@ try {
     else {
         $versionArray = @("2016")
     }
+    # Install kbupdate to download update files
+    Write-Host "Installing kbupdate module to obtain Windows Updates"
+    Install-Module -Name kbupdate -Force -ErrorAction Stop -Verbose
     foreach ($v in $versionArray) {
         # Mount the ISO, check the image for the version, then dismount
         Remove-Variable -Name buildVersion -ErrorAction SilentlyContinue
@@ -906,133 +844,112 @@ try {
             $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
         }
         $SearchString = 'Cumulative.*Server.*x64'
+        Write-Host "StartKB is: $StartKB and Search String is: $SearchString"
         # Define the arrays that will be used later
-        $kbDownloads = @()
-        $Urls = @()
+        $KBs = @()
     
         ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
+        Write-Host "Checking build number to determine Servicing Stack Updates"
         if ($buildVersion -eq "14393") {
-            # Test for dynamically building the SSU array
             $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
             $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
             $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
-            $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link)
-            $ssuArray = @()
-            foreach ($update in $feed) {
-                # trim down the URL to just get the KB
-                $ssuItem = ($update.link).Split('/')[4]
-                $ssuArray += "$ssuItem"
-            }
-            # Old ssuArray accurate as of July 2019
-            #$ssuArray = @("4132216", "4465659", "4485447", "4498947", "4503537")
-            $updateArray = @("4091664")
-            $ssuSearchString = 'Windows Server 2016'
-            $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2016 for x64-based Systems'
+            $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+            $ssuKB = "KB" + ($feed.link).Split('/')[4]
+            $microCodeKB = "KB4091664"
         }
         elseif ($buildVersion -eq "17763") {
             $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
             $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
             $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
-            $feed = ($feed | Where-Object { $_.title -like "*1809*" } | Select-Object -Property Link | Sort-Object link)
-            $ssuArray = @()
-            foreach ($update in $feed) {
-                # trim down the URL to just get the KB
-                $ssuItem = ($update.link).Split('/')[4]
-                $ssuArray += "$ssuItem"
-            }
-            # Old ssuArray accurate as of July 2019
-            #$ssuArray = @("4470788", "4493510", "4499728", "4504369")
-            $updateArray = @("4465065")
-            $ssuSearchString = 'Windows Server 2019'
-            $flashSearchString = 'Security Update for Adobe Flash Player for Windows Server 2019 for x64-based Systems'
+            $feed = ($feed | Where-Object { $_.title -like "*1809*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+            $ssuKB = "KB" + ($feed.link).Split('/')[4]
+            $microCodeKB = "KB4465065"
         }
 
-        foreach ($ssu in $ssuArray) {
-            Write-Host "Build is $buildVersion - Need to download: KB$($ssu) to update Servicing Stack before adding future Cumulative Updates"
-            $ssuKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$ssu" -UseBasicParsing
-            $ssuAvailable_kbIDs = $ssuKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-            #$ssuAvailable_kbIDs | Out-String | Write-Host
-            $ssuKbIDs = $ssuKbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $ssuSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $ssuAvailable_kbIDs }
-    
-            # If innerHTML is empty or does not exist, use outerHTML instead
-            if (!$ssuKbIDs) {
-                $ssuKbIDs = $ssuKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $ssuSearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $ssuAvailable_kbIDs }
-            }
-            $kbDownloads += "$ssuKbIDs"
-        }
-                        
-        foreach ($update in $updateArray) {
-            Write-Host "Build is $buildVersion - Need to download: KB$($update) to ensure image is fully updated at first run"
-            $updateKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$update%20x64%20$v" -UseBasicParsing
-            $updateAvailable_kbIDs = $updateKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID | Select-Object -First 1
-            #$updateAvailable_kbIDs | Out-String | Write-Host
-            $kbDownloads += "$updateAvailable_kbIDs"
-        }
+        $KBs += "$ssuKB"
+        $KBs += "$microCodeKB"
 
-        # Find the KB Article for the latest Adobe Flash Security Update
         Write-Host "Getting info for latest Adobe Flash Security Update"
-        $flashKbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=$flashSearchString" -UseBasicParsing
-        $Available_flashKbIDs = $flashKbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-        $flashKbIDs = $flashKbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $flashSearchString | Select-Object -First 1 | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_flashKbIDs }
-        # Defined a KB array to hold the NETkbIDs
-        $kbDownloads += "$flashKbIDs"
-                        
+        $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
+        $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Security Update for Adobe Flash Player*" }
+        $feed = ($feed | Select-Object -Property Link | Sort-Object link -Descending) | Select-Object -First 1
+        $flashKB = "KB" + ($feed.link).Split('/')[4]
+        $KBs += $flashKB
+
         # Find the KB Article Number for the latest Windows Server Cumulative Update
         Write-Host "Accessing $StartKB to retrieve the list of updates."
-        $kbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
-        $kbID = ($kbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
-        $kbID = ((($kbID -split "KB", 2)[1]) -split "\s", 2)[0]
-    
-        if (!$kbID) {
+        $cumulativekbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
+        $cumulativekbID = ($cumulativekbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
+        $cumulativekbID = "KB" + ((($cumulativekbID -split "KB", 2)[1]) -split "\s", 2)[0]
+
+        if (!$cumulativekbID) {
             Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
         }
-    
-        # Get Download Link for the corresponding Cumulative Update
-        Write-Host "Found latest Cumulative Update: KB$kbID"
-        $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$kbID" -UseBasicParsing
-        $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-        #$Available_kbIDs | Out-String | Write-Host
-        $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object innerText -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
-    
-        # If innerHTML is empty or does not exist, use outerHTML instead
-        if (!$kbIDs) {
-            $kbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+        else {
+            $KBs += "$cumulativekbID"
         }
-        # Defined a KB array to hold the kbIDs and if the build is 14393, add the corresponding KBID to it
-        $kbDownloads += "$kbIDs"
     
         if ($v -eq "2019") {
+            # Bypass Internet Explorer Setup Popup
+            $keyPath = 'Registry::HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Main'
+            if (!(Test-Path $keyPath)) { New-Item $keyPath -Force }
+            Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1
+
             ## .NET CU Download ####
             # Find the KB Article Number for the latest .NET on Windows Server 2019 (Build 17763) Cumulative Update
-            $ie = New-Object -ComObject "InternetExplorer.Application"
+            Write-Host "This is a Windows Server 2019 image, so we will download the latest .NET update for the image"
+            Write-Host "Creating COM Object"
+            $ie = New-Object -ComObject "InternetExplorer.Application" -Verbose -ErrorAction Stop
+            Write-Host "Setting IE to silent"
             $ie.silent = $true
+            Write-Host "Navigating to https://support.microsoft.com/en-us/help/4466961"
             $ie.Navigate("https://support.microsoft.com/en-us/help/4466961")
+            Write-Host "Waiting for IE to be ready..."
             while ($ie.ReadyState -ne 4) { start-sleep -m 100 }
+            Write-Host "Getting KB ID"
             $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object { $_.textContent -like "*KB*" }).innerHTML | Select-Object -First 1
+            Write-Host "Splitting KB ID"
             $NETkbID = ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
-            [System.Runtime.Interopservices.Marshal]::ReleaseComObject($ie)
-            Remove-Variable ie -ErrorAction SilentlyContinue
-    
-            if (!$NETkbID) {
-                Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will not have the latest .NET update"
+            Write-Host "KB ID for the latest .NET update for the image is KB$NETkbID"
+            while (!$null -eq $ie) {
+                Write-Host "Releasing ComObject"
+                [System.Runtime.Interopservices.Marshal]::FinalReleaseComObject($ie)
+                Write-Host "Removing IE Variable"
+                Remove-Variable ie -ErrorAction Stop
             }
-    
-            # Get Download Link for the corresponding Cumulative Update
+            # Get ID for the corresponding Cumulative Update
             Write-Host "Found latest .NET Framework update: KB$NETkbID"
             $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$NETkbID" -UseBasicParsing
             $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
             #$Available_kbIDs | Out-String | Write-Host
             $NETkbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
-            # Defined a KB array to hold the NETkbIDs
-            $kbDownloads += "$NETkbIDs"
+
+            if (!$NETkbIDs) {
+                Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will not have the latest .NET update"
+            }
+            else {
+                $KBs += "$NETkbIDs"
+            }
         }
-                        
-        foreach ( $kbID in $kbDownloads ) {
-            Write-Host "Need to download the following update file with KB ID: $kbID"
-            $Post = @{ size = 0; updateID = $kbID; uidInfo = $kbID } | ConvertTo-Json -Compress
-            $PostBody = @{ updateIDs = "[$Post]" } 
-            $Urls += Invoke-WebRequest -Uri 'http://www.catalog.update.microsoft.com/DownloadDialog.aspx' -UseBasicParsing -Method Post -Body $postBody | Select-Object -ExpandProperty Content | Select-String -AllMatches -Pattern "(http[s]?\://download\.windowsupdate\.com\/[^\'\""]*)" | ForEach-Object { $_.matches.value }
+
+        Write-Host "List of KBs to download is as follows:"
+        $kbDisplay = $KBs -join "`r`n"
+        Write-Host "$kbDisplay"
+        $Urls = @()
+        foreach ($KB in $KBs) {
+            $link = $null
+            $link = (Get-KbUpdate -Architecture x64 -OperatingSystem "Windows Server $v" -Latest -Pattern $KB -ErrorAction SilentlyContinue -Verbose:$false).Link | Select-Object -First 1
+            while (!$link) {
+                Write-Host "Failed to get the URL for $KB - retrying in 30 seconds"
+                Start-Sleep -Seconds 30
+                $link = (Get-KbUpdate -Architecture x64 -OperatingSystem "Windows Server $v" -Latest -Pattern $KB -ErrorAction SilentlyContinue -Verbose:$false).Link | Select-Object -First 1
+            }
+            $Urls += $link
         }
+        Write-Host "List of URLs that will be used for downloading files:"
+        $urlDisplay = $Urls -join "`r`n"
+        Write-Host "$urlDisplay"
     
         # Download the corresponding Windows Server Cumulative Update (and possibly, Servicing Stack Updates)
         foreach ( $Url in $Urls ) {
@@ -1040,10 +957,8 @@ try {
             $filename = $filename -replace "_.*\.", "."
             $target = "$((Get-Item $azsPath).FullName)\images\$v\$filename"
             if (!(Test-Path -Path $target)) {
-                foreach ($ssu in $ssuArray) {
-                    if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
-                        Remove-Item -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu" -Force -Verbose -ErrorAction Stop
-                    }
+                if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_$($ssuKB).msu")) {
+                    Remove-Item -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_$($ssuKB).msu" -Force -Verbose -ErrorAction Stop
                 }
                 Write-Host "Update will be stored at $target"
                 Write-Host "These can be larger than 1GB, so may take a few minutes."
@@ -1054,15 +969,14 @@ try {
             }
         }
     
-        # Rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
-        foreach ($ssu in $ssuArray) {
-            if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_kb$($ssu).msu")) {
-                Write-Host "The $buildVersion Servicing Stack Update already exists within the target folder"
-            }
-            else {
-                Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
-                Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu | Where-Object { $_.FullName -like "*$($ssu)*" } | Rename-Item -NewName "$($buildVersion)_ssu_kb$($ssu).msu" -Force -ErrorAction Stop -Verbose
-            }
+        # If this is for Build 14393, rename the .msu for the servicing stack update, to ensure it gets applied in the correct order when patching the WIM file.
+                    
+        if ((Test-Path -Path "$((Get-Item $azsPath).FullName)\images\$v\$($buildVersion)_ssu_$($ssuKB).msu")) {
+            Write-Host "The $buildVersion Servicing Stack Update already exists within the target folder"
+        }
+        else {
+            Write-Host "Renaming the Servicing Stack Update to ensure it is applied in the correct order"
+            Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu | Where-Object { $_.FullName -like "*$($ssuKB)*" } | Rename-Item -NewName "$($buildVersion)_ssu_$($ssuKB).msu" -Force -ErrorAction Stop -Verbose
         }
         # All updates should now be downloaded - time to distribute them into correct folders.
         New-Item -ItemType Directory -Path "$azsPath\images\$v\SSU" -Force | Out-Null
@@ -1070,6 +984,14 @@ try {
         Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*ssu*" } | Move-Item -Destination "$azsPath\images\$v\SSU" -Force -ErrorAction Stop -Verbose
         Get-ChildItem -Path "$azsPath\images\$v\" -Filter *.msu -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notlike "*ssu*" } | Move-Item -Destination "$azsPath\images\$v\CU" -Force -ErrorAction Stop -Verbose
     }
+    Write-Host "Removing kbupdate module"
+    Remove-Module -Name kbupdate -Verbose -Force -ErrorAction SilentlyContinue
+    Uninstall-Module -Name kbupdate -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
+    Remove-Module kbupdate-library -Verbose -Force -ErrorAction SilentlyContinue
+    Uninstall-Module -Name kbupdate-library -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
+    Remove-Module PSSQLite -Verbose -Force -ErrorAction SilentlyContinue
+    Uninstall-Module -Name kbupdate-library -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
+    Uninstall-Module -Name PSSQLite -Force -Confirm:$false -Verbose -ErrorAction SilentlyContinue
 }
 catch {
     Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
