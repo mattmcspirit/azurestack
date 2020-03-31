@@ -767,7 +767,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                             Write-Host "One of the packages didn't install correctly, but process can continue."
                                         }
 
-                                        <# Disabling AVMA / Product Key changes
+                                        # Disabling AVMA / Product Key changes
 
                                         Write-Host "Getting current Windows Server edition from the image ahead of potential AVMA configuration"
                                         $edition = (Get-WindowsEdition -Path $mountPath).Edition
@@ -810,7 +810,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                                     Write-Host "Using MSDN/VL media doesn't seem to work any longer. You 2019 images will have a 180 day expiration, which should be fine for POC purposes."
                                                 }
                                             }
-                                        } #>
+                                        }
 
                                         Write-Host "Saving the image"
                                         Dismount-WindowsImage -Path "$mountPath" -Save `
