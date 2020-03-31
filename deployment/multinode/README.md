@@ -2,7 +2,7 @@ Azure Stack POC Configurator 1910 - Multi-Node Guidance
 Experimental Support Only - Limited Testing Performed
 ==============
 
-If you are using an ASDK and **not** a multinode deployment, **STOP** and **[go back to the main readme.](</deployment/README.md>)**
+If you are using an ASDK and **not** a multinode deployment, **STOP** and **[go back to the main readme.](</README.md>)**
 
 Version Compatibility
 -----------
