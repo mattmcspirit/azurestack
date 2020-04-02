@@ -767,47 +767,48 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                             Write-Host "One of the packages didn't install correctly, but process can continue."
                                         }
 
-                                        # Disabling AVMA / Product Key changes
-
-                                        Write-Host "Getting current Windows Server edition from the image ahead of potential AVMA configuration"
-                                        $edition = (Get-WindowsEdition -Path $mountPath).Edition
-                                        # If the user has supplied eval media, this should run
-                                        if ($edition -eq "ServerDatacenterEval") {
-                                            Write-Host "Your image currently has the $edition Edition. We need to first update this to ServerDatacenter"
-                                            if ($image -like "*2016") {
-                                                Write-Host "This image will also be updated with the Automatic VM Activation Key"
-                                                Write-Host "Updating the Windows Server Edition and AVMA product key. This may take a while."
-                                                Write-Host "This is a $edition image, and will now be updated to the correct edition and key. Please be patient."
-                                                dism /image:$mountPath /set-edition:ServerDatacenter /ProductKey:TMJ3Y-NTRTM-FJYXT-T22BY-CWG3J /AcceptEula /LogPath:"$imageRootPath\images\$image\$($image)Dism.log"
+                                        if ($multinode -eq $true) {
+                                            # Product Key changes / Edition Updates
+                                            Write-Host "Getting current Windows Server edition from the image ahead of potential AVMA configuration"
+                                            $edition = (Get-WindowsEdition -Path $mountPath).Edition
+                                            # If the user has supplied eval media, this should run
+                                            if ($edition -eq "ServerDatacenterEval") {
+                                                Write-Host "Your image currently has the $edition Edition. We need to first update this to ServerDatacenter"
+                                                if ($image -like "*2016") {
+                                                    Write-Host "This image will also be updated with the Automatic VM Activation Key"
+                                                    Write-Host "Updating the Windows Server Edition and AVMA product key. This may take a while."
+                                                    Write-Host "This is a $edition image, and will now be updated to the correct edition and key. Please be patient."
+                                                    dism /image:$mountPath /set-edition:ServerDatacenter /ProductKey:TMJ3Y-NTRTM-FJYXT-T22BY-CWG3J /AcceptEula /LogPath:"$imageRootPath\images\$image\$($image)Dism.log"
+                                                }
+                                                elseif ($image -like "*2019") {
+                                                    #Write-Host "This is a $edition image, and will now be updated to the correct edition and key. Please be patient."
+                                                    #dism /image:$mountPath /set-edition:ServerDatacenter /ProductKey:H3RNG-8C32Q-Q8FRX-6TDXV-WMBMW /AcceptEula /LogPath:"$azsPath\images\$image\$($image)Dism.log"
+                                                    Write-Host "Your image currently has the $edition Edition. This cannot be updated to use the Automatic VM Activation service"
+                                                    Write-Host "Any VM deployed from this image will not be activated by Azure Stack, and will stop working after 180 days."
+                                                }
                                             }
-                                            elseif ($image -like "*2019") {
-                                                #Write-Host "This is a $edition image, and will now be updated to the correct edition and key. Please be patient."
-                                                #dism /image:$mountPath /set-edition:ServerDatacenter /ProductKey:H3RNG-8C32Q-Q8FRX-6TDXV-WMBMW /AcceptEula /LogPath:"$azsPath\images\$image\$($image)Dism.log"
-                                                Write-Host "Your image currently has the $edition Edition. This cannot be updated to use the Automatic VM Activation service"
+                                            elseif ($edition -eq "ServerDatacenterEvalCor") {
+                                                Write-Host "Your image currently has the $edition Edition. This cannot be updated to a different edition"
                                                 Write-Host "Any VM deployed from this image will not be activated by Azure Stack, and will stop working after 180 days."
                                             }
-                                        }
-                                        elseif ($edition -eq "ServerDatacenterEvalCor") {
-                                            Write-Host "Your image currently has the $edition Edition. This cannot be updated to a different edition"
-                                            Write-Host "Any VM deployed from this image will not be activated by Azure Stack, and will stop working after 180 days."
-                                        }
-                                        # If the user has supplied MSDN/VL media - this should run but as of 9/17, doesn't seem to be working
-                                        elseif (($edition -eq "ServerDatacenter") -or ($edition -eq "ServerDatacenterCor")) {
-                                            Write-Host "Your image currently has the $edition Edition. This is the correct edition for automatic activation, however we will now update the product key for AVMA"
-                                            if ($image -like "*2016") {
-                                                Write-Host "This is a $edition image, and will now be updated to the correct AVMA key. Please be patient."
-                                                dism /image:$mountPath /Set-ProductKey:TMJ3Y-NTRTM-FJYXT-T22BY-CWG3J /LogPath:"$imageRootPath\images\$image\$($image)Dism.log"
-                                            }
-                                            elseif ($image -like "*2019") {
-                                                try {
+                                            # If the user has supplied MSDN/VL media - this should run but as of 9/17, doesn't seem to be working
+                                            elseif (($edition -eq "ServerDatacenter") -or ($edition -eq "ServerDatacenterCor")) {
+                                                Write-Host "Your image currently has the $edition Edition. This is the correct edition for automatic activation, however we will now update the product key for AVMA"
+                                                if ($image -like "*2016") {
                                                     Write-Host "This is a $edition image, and will now be updated to the correct AVMA key. Please be patient."
-                                                    #dism /image:$mountPath /Set-ProductKey:H3RNG-8C32Q-Q8FRX-6TDXV-WMBMW /LogPath:"$imageRootPath\images\$image\$($image)Dism.log"
-                                                    Set-WindowsProductKey -Path $mountPath -ProductKey 'H3RNG-8C32Q-Q8FRX-6TDXV-WMBMW' -LogPath "$imageRootPath\images\$image\$($image)Dism.log" -Verbose -ErrorAction SilentlyContinue
+                                                    dism /image:$mountPath /Set-ProductKey:TMJ3Y-NTRTM-FJYXT-T22BY-CWG3J /LogPath:"$imageRootPath\images\$image\$($image)Dism.log"
                                                 }
-                                                catch {
-                                                    Write-Host "With current Windows Server 2019 builds, it appears that the key cannot be updated."
-                                                    Write-Host "$_.Exception.Message"
-                                                    Write-Host "Using MSDN/VL media doesn't seem to work any longer. You 2019 images will have a 180 day expiration, which should be fine for POC purposes."
+                                                elseif ($image -like "*2019") {
+                                                    try {
+                                                        Write-Host "This is a $edition image, and will now be updated to the correct AVMA key. Please be patient."
+                                                        dism /image:$mountPath /Set-ProductKey:H3RNG-8C32Q-Q8FRX-6TDXV-WMBMW /LogPath:"$imageRootPath\images\$image\$($image)Dism.log"
+                                                        #Set-WindowsProductKey -Path $mountPath -ProductKey 'H3RNG-8C32Q-Q8FRX-6TDXV-WMBMW' -LogPath "$imageRootPath\images\$image\$($image)Dism.log" -Verbose -ErrorAction SilentlyContinue
+                                                    }
+                                                    catch {
+                                                        Write-Host "With current Windows Server 2019 builds, it appears that the key cannot be updated."
+                                                        Write-Host "$_.Exception.Message"
+                                                        Write-Host "Using MSDN/VL media doesn't seem to work any longer. You 2019 images will have a 180 day expiration, which should be fine for POC purposes."
+                                                    }
                                                 }
                                             }
                                         }
