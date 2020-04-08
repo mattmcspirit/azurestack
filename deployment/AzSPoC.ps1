@@ -40,6 +40,10 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    2002.1  AVMA fix
+            Database Timeout RP fix
+    2002    Improved Windows Update download process
+            Updated Ubuntu Server 16.04 build
     1910.2  More DBRP Fixes
             Updated Ubuntu 16.04 Build
     1910.1  DBRP Fixes for Partial Offline Deployment

@@ -1,4 +1,4 @@
-Azure Stack POC Configurator 1910 - Multi-Node Guidance
+Azure Stack POC Configurator 2002.1 - Multi-Node Guidance
 Experimental Support Only - Limited Testing Performed
 ==============
 
@@ -7,10 +7,10 @@ If you are using an ASDK and **not** a multinode deployment, **STOP** and **[go 
 Version Compatibility
 -----------
 The current version of the AzSPoC.ps1 script has been **tested with the following versions**:
-* Azure Stack build **1.1910.0.58 (1910)**
+* Azure Stack build **1.1910.0.58 (1910), 1.2002.0.35 (2002)**
 * Azure Stack PowerShell Module **1.8.0**
 
-**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with Azure Stack build 1910, Azure Stack PowerShell 1.8.0. and the new AzureRM PowerShell 2.5.0.
+**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with Azure Stack build 1910 and 2002, Azure Stack PowerShell 1.8.0. and the new AzureRM PowerShell 2.5.0.
 
 Description
 -----------
