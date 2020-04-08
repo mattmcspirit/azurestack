@@ -86,7 +86,7 @@ foreach ($e in $environments) {
         Select-AzureRmSubscription -Subscription $s.SubscriptionId | Out-Null
 
         # Get Native Virtual Machine memory first
-        $VM = Get-AzureRmVM -Status | Where-Object {$_.powerstate -eq "VM Running"}
+        $VM = Get-AzureRmVM -Status -ErrorAction SilentlyContinue | Where-Object {$_.powerstate -eq "VM Running"}
         $location = (Get-AzureRmLocation).Location
 
         foreach ($v in $vm) {

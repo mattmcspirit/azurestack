@@ -325,6 +325,38 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 # End of Temporary Workaround
                 ############################################################################################################################################################################
 
+                ############################################################################################################################################################################
+                # Temporary Workaround to installing DB RP on ASDK 2002 with longer RP Timeout
+                Write-Host "Editing the DeployMySQLProvider.ps1 file to ensure process completes..."
+                $getProviderFile = (Get-ChildItem -Path "$azsPath\databases\$dbrpPath\" -Recurse -Include "Deploy*SQLProvider.ps1" -ErrorAction Stop).FullName
+                $old1 = 'MaxRetryCount 10'
+                $new1 = 'MaxRetryCount 24'
+                $old2 = 'RetryDuration 60'
+                $new2 = 'RetryDuration 300'
+                $pattern1 = [RegEx]::Escape($old1)
+                $pattern2 = [RegEx]::Escape($new1)
+                $pattern3 = [RegEx]::Escape($old2)
+                $pattern4 = [RegEx]::Escape($new2)
+                if (!((Get-Content $getProviderFile) | Select-String $pattern2)) {
+                    if ((Get-Content $getProviderFile) | Select-String $pattern1) {
+                        Write-Host "Known issues with Azure PowerShell and DB RPs - editing Provider file"
+                        Write-Host "Editing MaxRetryCount"
+                        (Get-Content $getProviderFile) | ForEach-Object { $_ -replace $pattern1, $new1 } -Verbose -ErrorAction Stop | Set-Content $getProviderFile -Verbose -ErrorAction Stop
+                        Write-Host "Editing completed."
+                    }
+                }
+                if (!((Get-Content $getProviderFile) | Select-String $pattern4)) {
+                    if ((Get-Content $getProviderFile) | Select-String $pattern3) {
+                        Write-Host "Known issues with Azure PowerShell and DB RPs - editing Provider file"
+                        Write-Host "Editing RetryDuration"
+                        (Get-Content $getProviderFile) | ForEach-Object { $_ -replace $pattern3, $new2 } -Verbose -ErrorAction Stop | Set-Content $getProviderFile -Verbose -ErrorAction Stop
+                        Write-Host "Editing completed."
+                    }
+                }
+                # End of Temporary Workaround
+                ############################################################################################################################################################################
+
+
                 Write-Host "Starting deployment of $dbrp Resource Provider"
                 if ($dbrp -eq "MySQL") {
                     if ($deploymentMode -eq "Online") {

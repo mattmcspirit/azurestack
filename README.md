@@ -1,4 +1,4 @@
-Azure Stack POC Configurator 2002
+Azure Stack POC Configurator 2002.1
 ==============
 
 Version Compatibility
