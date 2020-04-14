@@ -327,7 +327,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
 
                 ############################################################################################################################################################################
                 # Temporary Workaround to installing DB RP on ASDK 2002 with longer RP Timeout
-                Write-Host "Editing the DeployMySQLProvider.ps1 file to ensure process completes..."
+                Write-Host "Editing the Deploy_X_Provider.ps1 file to ensure process completes..."
                 $getProviderFile = (Get-ChildItem -Path "$azsPath\databases\$dbrpPath\" -Recurse -Include "Deploy*SQLProvider.ps1" -ErrorAction Stop).FullName
                 $old1 = 'MaxRetryCount 10'
                 $new1 = 'MaxRetryCount 24'
@@ -355,7 +355,6 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
                 # End of Temporary Workaround
                 ############################################################################################################################################################################
-
 
                 Write-Host "Starting deployment of $dbrp Resource Provider"
                 if ($dbrp -eq "MySQL") {
