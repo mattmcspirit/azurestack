@@ -420,7 +420,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
                     Clear-AzureRmContext -Scope CurrentUser -Force
                     ### Login to Azure to get all the details about the syndicated marketplace offering ###
-                    Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
+                    #Import-Module "$modulePath\Syndication\AzureStack.MarketplaceSyndication.psm1"
                     Add-AzureRmAccount -EnvironmentName $azureEnvironment -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
                     $azureEnv = Get-AzureRmEnvironment -Name $azureEnvironment
                     Remove-Variable -Name Registration -Force -Confirm:$false -ErrorAction SilentlyContinue
