@@ -1982,7 +1982,7 @@ try {
                 # For 1910 and later
                 Install-Module -Name AzureRM.BootStrapper
                 Use-AzureRmProfile -Profile 2019-03-01-hybrid -Force
-                Install-Module -Name AzureStack -RequiredVersion 1.8.0 -Force -ErrorAction Stop
+                Install-Module -Name AzureStack -RequiredVersion 1.8.2 -Force -ErrorAction Stop
                 #Install-Module AzureRM -RequiredVersion 2.5.0 -Force -ErrorAction Stop 
                 # Install the Azure.Storage module version 4.5.0
                 #Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
