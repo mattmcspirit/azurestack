@@ -461,10 +461,10 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhttp-message-perl/libhttp-message-perl_6.11-1_all.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/main/libe/libevent/libevent-core-2.0-5_2.0.21-stable-2ubuntu0.16.04.1_amd64.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-common_5.7.32-0ubuntu0.16.04.1_all.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-core-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-core-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-5.7_5.7.29-0ubuntu0.16.04.1_amd64.deb"
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-core-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-core-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb"
             
 
         foreach ($url in $mysqlURLs) {
