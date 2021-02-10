@@ -1982,7 +1982,7 @@ try {
                 # For 1910 and later
                 Install-Module -Name AzureRM.BootStrapper
                 Use-AzureRmProfile -Profile 2019-03-01-hybrid -Force
-                Install-Module -Name AzureStack -RequiredVersion 1.8.0 -Force -ErrorAction Stop
+                Install-Module -Name AzureStack -RequiredVersion 1.8.2 -Force -ErrorAction Stop
                 #Install-Module AzureRM -RequiredVersion 2.5.0 -Force -ErrorAction Stop 
                 # Install the Azure.Storage module version 4.5.0
                 #Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
@@ -2602,18 +2602,20 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             if ($(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
                 $quotaIDs += (Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation).ID
             }
-            while (!$(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
+            #NOT working with 1.8.2 --> Workaround for -ErrorAction issue
+            <# while (!$(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
                 New-AzsStorageQuota @storageParams -ErrorAction Stop -Verbose
             }
+            #>
             #Workaround for -ErrorAction issue with 1.8.1
-            <# try {
+            try {
                 Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose
             }
             catch {
                 $error.Clear()
                 New-AzsStorageQuota @storageParams -ErrorAction Stop -Verbose
             }
-            #>
+            
             if ($(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
                 $quotaIDs += (Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation).ID
             }

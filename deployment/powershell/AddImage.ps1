@@ -336,7 +336,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             if ($image -eq "ServerCore2016") {
                 $sku = "2016-Datacenter-Server-Core"
                 $edition = 'Windows Server 2016 SERVERDATACENTERCORE'
-                $onlinePackage = "*Microsoft.WindowsServer2016DatacenterServerCore-ARM-payg*"
+                $onlinePackage = "*microsoft.windowsserver2016-datacenter-server-core-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
                 $vhdVersion = "2016.$windowsVhd.$date"
@@ -349,7 +349,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             elseif ($image -eq "ServerFull2016") {
                 $sku = "2016-Datacenter"
                 $edition = 'Windows Server 2016 SERVERDATACENTER'
-                $onlinePackage = "*Microsoft.WindowsServer2016Datacenter-ARM-payg*"
+                $onlinePackage = "*microsoft.windowsserver2016-datacenter-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
                 $vhdVersion = "2016.$windowsVhd.$date"
@@ -362,7 +362,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             if ($image -eq "ServerCore2019") {
                 $sku = "2019-Datacenter-Core"
                 $edition = 'Windows Server 2019 SERVERDATACENTERCORE'
-                $onlinePackage = "*Microsoft.WindowsServer2019DatacenterServerCore-ARM-payg*"
+                $onlinePackage = "*microsoft.windowsserver2019-datacenter-core-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
                 $vhdVersion = "2019.$windowsVhd.$date"
@@ -375,7 +375,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             elseif ($image -eq "ServerFull2019") {
                 $sku = "2019-Datacenter"
                 $edition = 'Windows Server 2019 SERVERDATACENTER'
-                $onlinePackage = "*Microsoft.WindowsServer2019Datacenter-ARM-payg*"
+                $onlinePackage = "*microsoft.windowsserver2019-datacenter-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019Datacenter-ARM.1.0.0"
                 $date = Get-Date -Format FileDate
                 $vhdVersion = "2019.$windowsVhd.$date"
@@ -463,6 +463,12 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                     }
                     $product = $productList | Sort-Object -Property @{Expression = { $_.properties.productProperties.version }; Ascending = $true } | Select-Object -Last 1 -ErrorAction Stop
                     #$product = (Invoke-RestMethod -Method GET -Uri $uri1 -Headers $Headers).value | Where-Object {$_.name -like "$package"} | Sort-Object -Property @{Expression = {$_.properties.offerVersion}; Ascending = $true} | Select-Object -Last 1 -ErrorAction Stop
+
+                    if (!$product) {
+                        throw "No product found for Package: $package that matches selected Image: $image"
+                        Set-Location $ScriptLocation
+                        return
+                    }
 
                     $azpkg.id = $product.name.Split('/')[-1]
                     $azpkg.type = $product.properties.productKind
