@@ -7,7 +7,7 @@ The current version of the AzSPoC.ps1 script has been **tested with the followin
 * ASDK build **1.2008.0.59 (2008)**
 * Azure Stack PowerShell Module **1.8.2**
 
-**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 2002, Azure Stack PowerShell 1.8.0. and AzureRM PowerShell 2.5.0.
+**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 2008, Azure Stack PowerShell 1.8.2. and AzureRM PowerShell 2.5.0.
 
 Description
 -----------
