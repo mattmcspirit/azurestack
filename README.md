@@ -1,11 +1,11 @@
-Azure Stack POC Configurator 2002.1
+Azure Stack POC Configurator 2008.0
 ==============
 
 Version Compatibility
 -----------
 The current version of the AzSPoC.ps1 script has been **tested with the following versions**:
-* ASDK build **1.2002.0.35 (2002)**
-* Azure Stack PowerShell Module **1.8.0**
+* ASDK build **1.2008.0.59 (2008)**
+* Azure Stack PowerShell Module **1.8.2**
 
 **IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 2002, Azure Stack PowerShell 1.8.0. and AzureRM PowerShell 2.5.0.
 
