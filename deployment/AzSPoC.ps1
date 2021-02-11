@@ -40,6 +40,8 @@
     * Supports usage in offline/disconnected environments
 
 .VERSION
+    2008    PSH, Windows Images
+            AdminPlanOffer with updated New-AzsStorageQuota section
     2002.1  AVMA fix
             Database Timeout RP fix
     2002    Improved Windows Update download process
