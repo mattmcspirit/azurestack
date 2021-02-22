@@ -158,7 +158,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
                         $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
                         $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
-                        $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+                        $feed = ($feed | Where-Object { $_.title -like "*1809*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
                         $ssuKB = "KB" + ($feed.link).Split('/')[4]
                         $microCodeKB = "KB4091664"
                     }
@@ -177,9 +177,12 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     Write-Host "Getting info for latest Adobe Flash Security Update"
                     $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
                     $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Security Update for Adobe Flash Player*" }
-                    $feed = ($feed | Select-Object -Property Link | Sort-Object link -Descending) | Select-Object -First 1
-                    $flashKB = "KB" + ($feed.link).Split('/')[4]
-                    $KBs += $flashKB
+                    if (feed)
+                    {
+                        $feed = ($feed | Select-Object -Property Link | Sort-Object link -Descending) | Select-Object -First 1
+                        $flashKB = "KB" + ($feed.link).Split('/')[4]
+                        $KBs += $flashKB
+                    }
 
                     # Find the KB Article Number for the latest Windows Server Cumulative Update
                     Write-Host "Accessing $StartKB to retrieve the list of updates."
