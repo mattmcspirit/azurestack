@@ -140,15 +140,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     Write-Host "You're missing at least one of the Windows Server $v Datacenter images, so we'll first download the latest Cumulative Update."
                     
                     # Define parameters
-                    Write-Host "Defining StartKB"
-                    if ($v -eq "2019") {
-                        $StartKB = 'https://support.microsoft.com/en-us/help/4464619'
-                    }
-                    else {
-                        $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
-                    }
-                    $SearchString = 'Cumulative.*Server.*x64'
-                    Write-Host "StartKB is: $StartKB and Search String is: $SearchString"
                     # Define the arrays that will be used later
                     $KBs = @()
 
@@ -182,10 +173,13 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     $KBs += $flashKB
 
                     # Find the KB Article Number for the latest Windows Server Cumulative Update
-                    Write-Host "Accessing $StartKB to retrieve the list of updates."
-                    $cumulativekbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
-                    $cumulativekbID = ($cumulativekbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
-                    $cumulativekbID = "KB" + ((($cumulativekbID -split "KB", 2)[1]) -split "\s", 2)[0]
+                    if ($buildVersion -eq "14393") {
+                        $update = Get-LatestCumulativeUpdate -OperatingSystem WindowsServer -Version 1607
+                    }
+                    elseif ($buildVersion -eq "17763") {
+                        $update = Get-LatestCumulativeUpdate -OperatingSystem WindowsServer -Version 1809
+                    }
+                    $cumulativekbID = $update.KB
 
                     if (!$cumulativekbID) {
                         Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
@@ -227,6 +221,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$NETkbID" -UseBasicParsing
                         $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
                         #$Available_kbIDs | Out-String | Write-Host
+                        $SearchString = 'Cumulative.*Server.*x64'
                         $NETkbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
 
                         if (!$NETkbIDs) {

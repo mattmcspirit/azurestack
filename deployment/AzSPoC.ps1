@@ -1994,6 +1994,7 @@ try {
                 #Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
                 #Install the kbupdate module
                 Install-Module -Name kbupdate -Force -ErrorAction Stop
+                Install-Module -Name LatestUpdate -Force -ErrorAction Stop
             }
             elseif ($deploymentMode -ne "Online") {
                 $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
