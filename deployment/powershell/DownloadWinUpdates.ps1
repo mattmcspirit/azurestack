@@ -66,11 +66,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
         Clear-AzureRmContext -Scope CurrentUser -Force
         Disable-AzureRMContextAutosave -Scope CurrentUser
-
-        <#Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
-        Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
-        Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
-        #>
         
         # Log into Azure Stack to check for existing images and push new ones if required ###
         Write-Host "Logging into Azure Stack to check if images are required, and therefore if updates need downloading"
@@ -89,6 +84,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         }
 
         foreach ($v in $versionArray) {
+            <#
             # Pre-validate that the Windows Server Server Core VM Image is not already available
             Write-Host "Checking to see if a Windows Server $v image is present in your Azure Stack Platform Image Repository"
             Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
@@ -121,7 +117,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             if (($serverCoreVMImageAlreadyAvailable -eq $true) -and ($serverFullVMImageAlreadyAvailable -eq $true)) {
                 $downloadCURequired = $false
                 Write-Host "Windows Server $v Datacenter Full and Core Images already exist in your Platform Image Repository"
-            }        
+            }
+            #>   
 
             ### Download the latest Cumulative Update for Windows Server - Existing Azure Stack Tools module doesn't work ###
             if ($downloadCURequired -eq $true) {
@@ -143,6 +140,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     Write-Host "Defining StartKB"
                     if ($v -eq "2019") {
                         $StartKB = 'https://support.microsoft.com/en-us/help/4464619'
+                        $netKB = 'https://support.microsoft.com/en-us/help/4466961'
                     }
                     else {
                         $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
@@ -160,7 +158,9 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
                         $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
                         $ssuKB = "KB" + ($feed.link).Split('/')[4]
-                        $microCodeKB = "KB4091664"
+                        $microCodeFeed = $rssFeed.rss.channel.item | Where-Object { $_.description -like "*microcode updates from Intel*version 1607*" }
+                        $microCodeFeed = ($microCodeFeed | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+                        $microCodeKB = "KB" + ($microCodeFeed.link).Split('/')[4]
                     }
                     elseif ($buildVersion -eq "17763") {
                         $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
@@ -168,15 +168,17 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
                         $feed = ($feed | Where-Object { $_.title -like "*1809*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
                         $ssuKB = "KB" + ($feed.link).Split('/')[4]
-                        $microCodeKB = "KB4465065"
+                        $microCodeFeed = $rssFeed.rss.channel.item | Where-Object { $_.description -like "*microcode updates from Intel*version 1809*" }
+                        $microCodeFeed = ($microCodeFeed | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+                        $microCodeKB = "KB" + ($microCodeFeed.link).Split('/')[4]
                     }
 
                     $KBs += "$ssuKB"
                     $KBs += "$microCodeKB"
 
-                    Write-Host "Getting info for latest Adobe Flash Security Update"
+                    Write-Host "Getting info for removal of Adobe Flash Player"
                     $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
-                    $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Security Update for Adobe Flash Player*" }
+                    $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Adobe Flash Player*" }
                     $feed = ($feed | Select-Object -Property Link | Sort-Object link -Descending) | Select-Object -First 1
                     $flashKB = "KB" + ($feed.link).Split('/')[4]
                     $KBs += $flashKB
@@ -184,7 +186,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     # Find the KB Article Number for the latest Windows Server Cumulative Update
                     Write-Host "Accessing $StartKB to retrieve the list of updates."
                     $cumulativekbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
-                    $cumulativekbID = ($cumulativekbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
+                    $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
                     $cumulativekbID = "KB" + ((($cumulativekbID -split "KB", 2)[1]) -split "\s", 2)[0]
 
                     if (!$cumulativekbID) {
@@ -195,45 +197,18 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     }
 
                     if ($v -eq "2019") {
-                        # Bypass Internet Explorer Setup Popup
-                        $keyPath = 'Registry::HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Main'
-                        if (!(Test-Path $keyPath)) { New-Item $keyPath -Force }
-                        Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1
 
-                        ## .NET CU Download ####
-                        # Find the KB Article Number for the latest .NET on Windows Server 2019 (Build 17763) Cumulative Update
-                        Write-Host "This is a Windows Server 2019 image, so we will download the latest .NET update for the image"
-                        Write-Host "Creating COM Object"
-                        $ie = New-Object -ComObject "InternetExplorer.Application" -Verbose -ErrorAction Stop
-                        Write-Host "Setting IE to silent"
-                        $ie.silent = $true
-                        Write-Host "Navigating to https://support.microsoft.com/en-us/help/4466961"
-                        $ie.Navigate("https://support.microsoft.com/en-us/help/4466961")
-                        Write-Host "Waiting for IE to be ready..."
-                        while ($ie.ReadyState -ne 4) { start-sleep -m 100 }
-                        Write-Host "Getting KB ID"
-                        $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object { $_.textContent -like "*KB*" }).innerHTML | Select-Object -First 1
-                        Write-Host "Splitting KB ID"
-                        $NETkbID = ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
-                        Write-Host "KB ID for the latest .NET update for the image is KB$NETkbID"
-                        while (!$null -eq $ie) {
-                            Write-Host "Releasing ComObject"
-                            [System.Runtime.Interopservices.Marshal]::FinalReleaseComObject($ie)
-                            Write-Host "Removing IE Variable"
-                            Remove-Variable ie -ErrorAction Stop
-                        }
-                        # Get ID for the corresponding Cumulative Update
-                        Write-Host "Found latest .NET Framework update: KB$NETkbID"
-                        $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$NETkbID" -UseBasicParsing
-                        $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-                        #$Available_kbIDs | Out-String | Write-Host
-                        $NETkbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+                        # Find the KB Article Number for the latest Cumulative Update for .NET Framework
+                        Write-Host "Accessing $netKB to retrieve the list of updates."
+                        $NETkbID = (Invoke-WebRequest -Uri $netKB -UseBasicParsing).RawContent -split "`n"
+                        $NETkbID = ($NETkbID | Where-Object { ($_ -like "*a class=*Cumulative Update for .NET Framework*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
+                        $NETkbID = "KB" + ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
 
-                        if (!$NETkbIDs) {
+                        if (!$NETkbID) {
                             Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will not have the latest .NET update"
                         }
                         else {
-                            $KBs += "$NETkbIDs"
+                            $KBs += "$NETkbID"
                         }
                     }
 
