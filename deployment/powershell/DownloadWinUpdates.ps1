@@ -84,7 +84,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         }
 
         foreach ($v in $versionArray) {
-            <#
             # Pre-validate that the Windows Server Server Core VM Image is not already available
             Write-Host "Checking to see if a Windows Server $v image is present in your Azure Stack Platform Image Repository"
             Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
@@ -118,7 +117,6 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 $downloadCURequired = $false
                 Write-Host "Windows Server $v Datacenter Full and Core Images already exist in your Platform Image Repository"
             }
-            #>   
 
             ### Download the latest Cumulative Update for Windows Server - Existing Azure Stack Tools module doesn't work ###
             if ($downloadCURequired -eq $true) {
