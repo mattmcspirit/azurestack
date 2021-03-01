@@ -89,14 +89,9 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
             Write-Host "Clearing previous Azure/Azure Stack logins"
-            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
-            Disable-AzureRMContextAutosave -Scope CurrentUser
-
-            <#Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
-            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
-            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
-            #>
+            Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+            Clear-AzContext -Scope CurrentUser -Force
+            Disable-AzContextAutosave -Scope CurrentUser
 
             # Need to ensure this stage doesn't start before the DBRP stage has finished
             $dbJobCheck = CheckProgress -progressStage "$($dbsku)RP"
@@ -117,16 +112,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             ### Login to Azure Stack ###
             Write-Host "Logging into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-            $azsLocation = (Get-AzureRmLocation).DisplayName
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
+            Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+            # Get Azure Stack location
+            $azsLocation = (Get-AzLocation).DisplayName
             $subID = $sub.SubscriptionId
-            $azureContext = (Get-AzureRmContext).Account.Id
-            #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            #$subID = $azureContext.Subscription.Id
-            $azureEnvironment = Get-AzureRmEnvironment -Name AzureStackAdmin
 
             Write-Host "Setting variables for creating the SKU and Quota"
             # Set the variables and gather token for creating the SKU & Quota
@@ -155,11 +147,18 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             Write-Host "Fetching tokens for login"
-            # Fetch the tokens
+            # Retrieve the access token
             $dbToken = $null
-            $dbTokens = $null
-            $dbTokens = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems()
-            $dbToken = $dbTokens | Where-Object Resource -EQ $azureEnvironment.ActiveDirectoryServiceEndpointResourceId | Where-Object DisplayableId -EQ $azureContext | Sort-Object ExpiresOn | Select-Object -Last 1 -ErrorAction Stop
+            $AzContext = Get-AzContext
+            $dbToken = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory.Authenticate(
+                $AzContext.'Account',
+                $AzContext.'Environment',
+                $AzContext.'Tenant'.'Id',
+                $null,
+                [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never,
+                $null,
+                'https://management.azure.com/'
+            )
 
             # Build the header for authorization
             Write-Host "Building the headers"

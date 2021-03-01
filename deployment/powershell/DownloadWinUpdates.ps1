@@ -63,18 +63,18 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         }
 
         Write-Host "Clearing previous Azure/Azure Stack logins"
-        Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-        Clear-AzureRmContext -Scope CurrentUser -Force
-        Disable-AzureRMContextAutosave -Scope CurrentUser
+        Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+        Clear-AzContext -Scope CurrentUser -Force
+        Disable-AzContextAutosave -Scope CurrentUser
         
         # Log into Azure Stack to check for existing images and push new ones if required ###
         Write-Host "Logging into Azure Stack to check if images are required, and therefore if updates need downloading"
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-        $azsLocation = (Get-AzureRmLocation).DisplayName
+        Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+        Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+        $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+        Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+        $azsLocation = (Get-AzLocation).DisplayName
         Write-Host "Determine if a Windows Server 2019 ISO has been provided"
         if ($ISOPath2019) {
             $versionArray = @("2016", "2019")
@@ -88,17 +88,16 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Write-Host "Checking to see if a Windows Server $v image is present in your Azure Stack Platform Image Repository"
             Remove-Variable -Name platformImageCore -Force -ErrorAction SilentlyContinue
             $sku = "$v-Datacenter-Server-Core"
-            $platformImageCore = Get-AzsPlatformImage -Location $azsLocation -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
+            $platformImageCore = Get-AzsPlatformImage | Where-Object {$_.Id -like "*$azsLocation*MicrosoftWindowsServer*windowsserver*$sku*" } -ErrorAction SilentlyContinue
             $serverCoreVMImageAlreadyAvailable = $false
             if ($platformImageCore -and $platformImageCore.ProvisioningState -eq 'Succeeded') {
                 Write-Host "There appears to be at least 1 suitable Windows Server $v Datacenter Server Core image within your Platform Image Repository which we will use for the Azure Stack POC Configurator." 
                 $serverCoreVMImageAlreadyAvailable = $true
             }
-
             # Pre-validate that the Windows Server Full Image is not already available
             Remove-Variable -Name platformImageFull -Force -ErrorAction SilentlyContinue
             $sku = "$v-Datacenter"
-            $platformImageFull = Get-AzsPlatformImage -Location $azsLocation -Publisher MicrosoftWindowsServer -Offer WindowsServer -Sku "$sku" -ErrorAction SilentlyContinue
+            $platformImageFull = Get-AzsPlatformImage | Where-Object {$_.Id -like "*$azsLocation*MicrosoftWindowsServer*windowsserver*$sku*" } -ErrorAction SilentlyContinue
             $serverFullVMImageAlreadyAvailable = $false
 
             if ($platformImageFull -and $platformImageFull.ProvisioningState -eq 'Succeeded') {

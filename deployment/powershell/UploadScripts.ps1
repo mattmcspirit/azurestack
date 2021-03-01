@@ -76,17 +76,13 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         }
 
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "https://management.$customDomainSuffix"
+        Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+        Add-AzEnvironment -Name "AzureStackUser" -ARMEndpoint "https://management.$customDomainSuffix" -ErrorAction Stop
 
         Write-Host "Clearing previous Azure logins for this session"
-        Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-        Clear-AzureRmContext -Scope CurrentUser -Force
-        Disable-AzureRMContextAutosave -Scope CurrentUser
-
-        #Write-Host "Importing storage modules for Azure.Storage and AzureRM.Storage."
-        #Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
-        #Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
+        Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+        Clear-AzContext -Scope CurrentUser -Force
+        Disable-AzContextAutosave -Scope CurrentUser
 
         # Firstly create the appropriate RG, storage account and container
         # Scan the $azsPath\scripts folder and retrieve both files, add to an array, then upload to the storage account
@@ -96,29 +92,27 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
         $azsOfflineContainerName = "offlinecontainer"
         
         # Log the user into the "AzureStackUser" environment
-        Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+        Connect-AzAccount -Environment "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
         Write-Host "Selecting the *ADMIN OFFLINE SCRIPTS subscription"
-        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN OFFLINE SCRIPTS' }
-        Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
+        $sub = Get-AzSubscription | Where-Object { $_.Name -eq '*ADMIN OFFLINE SCRIPTS' }
+        Set-AzContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
         $subID = $sub.SubscriptionId
-        #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-        #$subID = $azureContext.Subscription.Id
         Write-Host "Current subscription ID is: $subID"
 
-        $azsLocation = (Get-AzureRmLocation).DisplayName
+        $azsLocation = (Get-AzLocation).DisplayName
 
         # Create Resource Group
-        if (-not (Get-AzureRmResourceGroup -Name $azsOfflineRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
+        if (-not (Get-AzResourceGroup -Name $azsOfflineRGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
             Write-Host "Creating resource group for storing scripts"
-            New-AzureRmResourceGroup -Name $azsOfflineRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+            New-AzResourceGroup -Name $azsOfflineRGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
         }
         # Test/Create Storage
-        $azsOfflineStorageAccount = Get-AzureRmStorageAccount -Name $azsOfflineStorageAccountName -ResourceGroupName $azsOfflineRGName -ErrorAction SilentlyContinue
+        $azsOfflineStorageAccount = Get-AzStorageAccount -Name $azsOfflineStorageAccountName -ResourceGroupName $azsOfflineRGName -ErrorAction SilentlyContinue
         $createAttempt = 1
         while (-not ($azsOfflineStorageAccount) -and ($createAttempt -lt 6)) {
             Write-Host "Creating storage account for storing scripts. This is attempt $createAttempt."
             $createAttempt++
-            $azsOfflineStorageAccount = New-AzureRmStorageAccount -Name $azsOfflineStorageAccountName -Location $azsLocation -ResourceGroupName $azsOfflineRGName -Type Standard_LRS -ErrorAction SilentlyContinue
+            $azsOfflineStorageAccount = New-AzStorageAccount -Name $azsOfflineStorageAccountName -Location $azsLocation -ResourceGroupName $azsOfflineRGName -Type Standard_LRS -ErrorAction SilentlyContinue
             if ($azsOfflineStorageAccount) {
                 Write-Host "Storage account has been created"
             }
@@ -127,19 +121,19 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                 Start-Sleep 30
             }
         }
-        $azsOfflineStorageAccount = Get-AzureRmStorageAccount -Name $azsOfflineStorageAccountName -ResourceGroupName $azsOfflineRGName -ErrorAction SilentlyContinue
+        $azsOfflineStorageAccount = Get-AzStorageAccount -Name $azsOfflineStorageAccountName -ResourceGroupName $azsOfflineRGName -ErrorAction SilentlyContinue
         if (-not ($azsOfflineStorageAccount)) {
             Write-Host "Storage account creation failed after $createAttempt attempts."
             throw "Storage account creation failed after $createAttempt attempts. Check the logs and rerun the script."
         }
         Write-Host "Setting current storage account for storing scripts"
-        Set-AzureRmCurrentStorageAccount -StorageAccountName $azsOfflineStorageAccountName -ResourceGroupName $azsOfflineRGName
+        Set-AzCurrentStorageAccount -StorageAccountName $azsOfflineStorageAccountName -ResourceGroupName $azsOfflineRGName
         
         # Test/Create Container
-        $azsOfflineContainer = Get-AzureStorageContainer -Name $azsOfflineContainerName -ErrorAction SilentlyContinue
+        $azsOfflineContainer = Get-AzStorageContainer -Name $azsOfflineContainerName -ErrorAction SilentlyContinue
         if (-not ($azsOfflineContainer)) {
             Write-Host "Creating storage container for storing scripts"
-            $azsOfflineContainer = New-AzureStorageContainer -Name $azsOfflineContainerName -Permission Blob -Context $azsOfflineStorageAccount.Context -ErrorAction Stop
+            $azsOfflineContainer = New-AzStorageContainer -Name $azsOfflineContainerName -Permission Blob -Context $azsOfflineStorageAccount.Context -ErrorAction Stop
             Write-Host "Storage container has been created"
         }
         Write-Host "Building array of scripts"
@@ -154,13 +148,13 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
             $itemDirectory = $item.DirectoryName
             $uploadItemAttempt = 1
             $uploadFailed = $false
-            while (!$(Get-AzureStorageBlob -Container $azsOfflineContainerName -Blob $itemName -Context $azsOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
+            while (!$(Get-AzStorageBlob -Container $azsOfflineContainerName -Blob $itemName -Context $azsOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
                 try {
                     # Log back into Azure Stack to ensure login hasn't timed out
                     Write-Host "$itemName not found. Upload Attempt: $uploadItemAttempt"
-                    #Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-                    #$sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN OFFLINE SCRIPTS' }
-                    #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                    #Add-AzAccount -EnvironmentName "AzureStackUser" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                    #$sub = Get-AzSubscription | Where-Object { $_.Name -eq '*ADMIN OFFLINE SCRIPTS' }
+                    #$azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Select-AzSubscription
                     #$subID = $azureContext.Subscription.Id
                     #Write-Host "Current subscription ID is: $subID"
                     #Set-AzureStorageBlobContent -File "$itemFullPath" -Container $azsOfflineContainerName -Blob "$itemName" -Context $azsOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
@@ -168,7 +162,7 @@ elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline
                     $containerDestination = '{0}{1}' -f $azsOfflineStorageAccount.PrimaryEndpoints.Blob, $azsOfflineContainerName
                     Write-Host "Container destination is: $containerDestination"
                     $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
-                    $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $azsOfflineRGName -Name $azsOfflineStorageAccountName).Value[0]
+                    $storageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $azsOfflineRGName -Name $azsOfflineStorageAccountName).Value[0]
                     $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}"" /Z:""{6}""", $azCopyPath, $itemDirectory, $containerDestination, $storageAccountKey, $itemName, $azCopyLogPath, $journalPath)
                     Write-Host "Executing the following command:`n'n$azCopyCmd"
                     $result = cmd /c $azCopyCmd

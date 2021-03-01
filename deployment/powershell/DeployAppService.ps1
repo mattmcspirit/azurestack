@@ -104,24 +104,25 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             if ($progressCheck -eq "Failed") {
                 # Clean up previous attempt - RG
                 $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-                Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-                $azsLocation = (Get-AzureRmLocation).DisplayName
-                $appServiceRGCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
+                Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+                Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+                # Get Azure Stack location
+                $azsLocation = (Get-AzLocation).DisplayName
+                $appServiceRGCheck = (Get-AzResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
                 if ($appServiceRGCheck) {
                     Write-Output "There is evidence of a previous attempted App Service deployment in the App Service Resource Group. Starting cleanup..."
-                    Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
+                    Get-AzResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
                 }
                 # Update the AzSPoC database back to incomplete status if previously failed
                 StageReset -progressStage $progressStage
                 $progressCheck = CheckProgress -progressStage $progressStage
             }
             Write-Host "Clearing previous Azure/Azure Stack logins"
-            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
-            Disable-AzureRMContextAutosave -Scope CurrentUser
+            Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+            Clear-AzContext -Scope CurrentUser -Force
+            Disable-AzContextAutosave -Scope CurrentUser
 
             # Need to ensure this stage doesn't start before the App Service components have been downloaded
             $appServicePreReqJobCheck = CheckProgress -progressStage "AddAppServicePreReqs"
@@ -165,25 +166,16 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             Write-Host "Logging into Azure Stack into the admin space to retrieve relevant info"
-            # Login to Azure Stack to grab FQDNs and also Identity App ID locally
-            <#
-            $ArmEndpoint = "https://management.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-            Write-Host "Selecting the *ADMIN APPSVC BACKEND subscription"
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN APPSVC BACKEND' }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $subID = $azureContext.Subscription.Id
-            Write-Host "Current subscription ID is: $subID"
-            #>
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+            # Get Azure Stack location
+            $azsLocation = (Get-AzLocation).DisplayName
             Write-Host "Getting File Server and SQL App Server FQDN"
-            $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
-            $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
+            $fileServerFqdn = (Get-AzPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
+            $sqlAppServerFqdn = (Get-AzRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
             Write-Host "Getting Application ID"
             $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
             Write-Host "File Server is at: $fileServerFqdn"
@@ -328,15 +320,16 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             # Check if there is a previous failure for the App Service deployment - easier to completely clean the RG and start fresh
             Write-Host "Logging back into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $azsLocation = (Get-AzureRmLocation).DisplayName
-            $appServiceFailCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
+            Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+            # Get Azure Stack location
+            $azsLocation = (Get-AzLocation).DisplayName
+            $appServiceFailCheck = (Get-AzResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
             if ($appServiceFailCheck.ProvisioningState -eq 'Failed') {
                 Write-Output "There is evidence of a previously failed App Service deployment in the App Service Resource Group. Starting cleanup..."
-                Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
+                Get-AzResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
             }
 
             # Deploy App Service EXE
@@ -370,19 +363,19 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 # Need to check if the process failed, but the Resource Group shows success
                 Write-Host "Logging back into Azure Stack to confirm the Resource Group shows as Succeeded or Failed"
                 $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-                Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-                $appServiceFailCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
+                Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+                Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+                $appServiceFailCheck = (Get-AzResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
                 if ($appServiceFailCheck.ProvisioningState -eq 'Succeeded') {
                     Write-Output "There is evidence of a failed App Service deployment in the log file, but the App Service Resource Group shows success. Starting cleanup..."
-                    Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
+                    Get-AzResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
                     throw "$($appServiceFailCheck.DeploymentName) has $($appServiceFailCheck.ProvisioningState), however the logs show a failure. Please check the App Service logs at $appServiceLogPath for full details. You should be able to rerun the script and it complete successfully."
                 }
                 elseif ($null -eq $appServiceFailCheck) {
                     Write-Output "There is evidence of a failed App Service deployment in the log file, and the App Service Resource Group looks incomplete. Starting cleanup..."
-                    Get-AzureRmResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
+                    Get-AzResourceGroup -Name "appservice-infra" -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzResourceGroup -Force -ErrorAction SilentlyContinue -Verbose
                     throw "There is evidence of a failed App Service deployment in the log file, and the App Service Resource Group looks incomplete. This will be cleaned up ahead of a rerun. Please check the App Service logs at $appServiceLogPath for full details. You should be able to rerun the script and it complete successfully."
                 }
                 throw "App Service install failed with $appServiceErrorCode. Please check the App Service logs at $appServiceLogPath"
@@ -393,11 +386,11 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Write-Host "Checking App Service resource group for successful deployment"
             # Ensure logged into Azure Stack
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $appServiceRgCheck = (Get-AzureRmResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
+            Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+            $appServiceRgCheck = (Get-AzResourceGroupDeployment -ResourceGroupName "appservice-infra" -Name "AppService.DeployCloud" -ErrorAction SilentlyContinue)
             if ($appServiceRgCheck.ProvisioningState -ne 'Succeeded') {
                 Write-Host "An error has occurred during deployment. Please check the App Service logs at $appServiceLogPath"
                 throw "$($appServiceRgCheck.DeploymentName) has $($appServiceRgCheck.ProvisioningState). Please check the App Service logs at $appServiceLogPath"
