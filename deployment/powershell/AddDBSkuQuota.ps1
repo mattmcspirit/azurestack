@@ -150,7 +150,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             # Retrieve the access token
             $dbToken = $null
             $AzContext = Get-AzContext
-            $dbToken = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory.Authenticate(
+            <# $dbToken = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory.Authenticate(
                 $AzContext.'Account',
                 $AzContext.'Environment',
                 $AzContext.'Tenant'.'Id',
@@ -159,10 +159,15 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $null,
                 'https://management.azure.com/'
             )
+            #>
+
+            $getProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile;
+            $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient($getProfile)
+            $dbToken = $profileClient.AcquireAccessToken($AzContext.Subscription.TenantId).AccessToken
 
             # Build the header for authorization
             Write-Host "Building the headers"
-            $dbHeaders = @{ 'authorization' = "Bearer $($dbToken.AccessToken)" }
+            $dbHeaders = @{ 'authorization' = "Bearer $dbToken" }
 
             # Build the URIs
             Write-Host "Building the URIs"

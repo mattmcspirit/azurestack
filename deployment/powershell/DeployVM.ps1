@@ -241,6 +241,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             while (!$(Get-AzVirtualNetwork -ResourceGroupName "azurestack-dbhosting" -Name "dbhosting_vnet" -ErrorAction SilentlyContinue | Get-AzVirtualNetworkSubnetConfig).ProvisioningState -eq "Succeeded") {
                                 Write-Host "Waiting for deployment of database virtual network and subnet before continuing with deployment of SQL Server for DB hosting. Checking again in 10 seconds."
                                 Start-Sleep 10
+                                $mySQLProgressCheck = CheckProgress -progressStage "MySQLDBVM"
+                                if ($mySQLProgressCheck -eq "Failed") {
+                                    Write-Host "MySQLDBVM deployment seems to have failed, but this doesn't affect the SQL Server VM Deployment. Process can continue."
+                                    BREAK
+                                }
                             }
                             Write-Host "To avoid deployment conflicts, delaying the SQL Server VM deployment by 2 minutes to allow initial resources to be created"
                             Start-Sleep -Seconds 120
@@ -303,7 +308,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
                     Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
                     $azsLocation = (Get-AzLocation).DisplayName
-                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "AzureStackPOC.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
+                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "AzureStackPOC.$azpkg*" }).DefinitionTemplateDeploymentTemplateFileUri.Values | Where-Object { $_ -like "*mainTemplate.json" }
                     $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/"
                 }
             }
@@ -333,7 +338,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                     $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
                     Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
-                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "AzureStackPOC.$azpkg*" }).DefinitionTemplates.DeploymentTemplateFileUris.Values | Where-Object { $_ -like "*mainTemplate.json" }
+                    $mainTemplateURI = $(Get-AzsGalleryItem | Where-Object { $_.Name -like "AzureStackPOC.$azpkg*" }).DefinitionTemplateDeploymentTemplateFileUri.Values | Where-Object { $_ -like "*mainTemplate.json" }
                 }
                 $scriptBaseURI = ('{0}{1}/' -f $azsOfflineStorageAccount.PrimaryEndpoints.Blob, $azsOfflineContainerName) -replace "https", "http"
             }

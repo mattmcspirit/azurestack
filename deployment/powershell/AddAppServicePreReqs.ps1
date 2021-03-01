@@ -296,6 +296,23 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         Write-Host "Logging into Azure Cloud"
                         Connect-AzAccount -Environment $azureEnvironment -Tenant $tenantId -Credential $azsCreds -ErrorAction Stop
                         Write-Host "Obtaining tokens"
+                        $AzContext = Get-AzContext
+                        $token = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory.Authenticate($AzContext.Account, $AzContext.Environment, $tenantId, $null, "Never", $null, "74658136-14ec-4630-ad9b-26e160ff0fc6")
+                        $headers = @{
+                            'Authorization'          = 'Bearer ' + $token.AccessToken
+                            'X-Requested-With'       = 'XMLHttpRequest'
+                            'x-ms-client-request-id' = [guid]::NewGuid()
+                            'x-ms-correlation-id'    = [guid]::NewGuid()
+                        }
+                        $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
+                        $grantPermission = Invoke-RestMethod -Uri $url -Headers $headers -Method POST -ErrorAction Stop
+
+                        <#
+                        $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
+                        Write-Host "Tenant ID is $tenantId"
+                        Write-Host "Logging into Azure Cloud"
+                        Connect-AzAccount -Environment $azureEnvironment -Tenant $tenantId -Credential $azsCreds -ErrorAction Stop
+                        Write-Host "Obtaining tokens"
                         $refreshToken = @([Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems() | Where-Object { $_.tenantId -eq $tenantId -and $_.ExpiresOn -gt (Get-Date) })[0].RefreshToken
                         $refreshtoken = $refreshtoken.Split("`n")[0]
                         Write-Host "Generating body and header information"
@@ -310,6 +327,8 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
                         Write-Host "Granting permissions"
                         $grantPermission = Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction Stop -Verbose
+                        #>
+
                         Write-Host "Creating text file to record confirmation of granting permissions successfully"
                         New-Item -Path "$AppServicePath\AzureAdPermissions.txt" -ItemType file -Force
                         Write-Output $grantPermission > "$AppServicePath\AzureAdPermissions.txt"
