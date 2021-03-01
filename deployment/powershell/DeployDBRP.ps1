@@ -272,12 +272,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     DownloadWithRetry -downloadURI "$rpURI" -downloadLocation "$rpDownloadLocation" -retries 10
                 }
                 elseif ($deploymentMode -ne "Online") {
-                    if ($dbRpVersion -eq "New") {
-                        # Rename exe to correct file name
-                    }
-                    elseif ($dbRpVersion -eq "Old") {
-                        # Rename exe to correct file name
-                    }
+                    Get-ChildItem -Path "$azsPath\databases\" -Filter "*$($dbrp)$($dbRpVersion).exe" | Rename-Item -NewName "$dbrp.exe" -Force
                     if (-not [System.IO.File]::Exists("$azsPath\databases\$($dbrp).exe")) {
                         throw "Missing Exe file in extracted dependencies folder. Please ensure this exists at $azsPath\databases\$($dbrp).exe - Exiting process"
                     }
@@ -291,10 +286,9 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Get-ChildItem -Path "$finalDbPath\*" -Recurse | Unblock-File -Verbose
 
                 ############################################################################################################################################################################
-                # Temporary Workaround to installing DB RP on ASDK 2002 with longer RP Timeout
+                # Temporary Workaround to installing old DB RP on ASDK 2008 with longer RP Timeout
 
                 if ($dbRpVersion -eq "Old") {
-
                     Write-Host "Editing the Deploy_X_Provider.ps1 file to ensure process completes..."
                     $getProviderFile = (Get-ChildItem -Path "$azsPath\databases\$dbrpPath\" -Recurse -Include "Deploy*SQLProvider.ps1" -ErrorAction Stop).FullName
                     $old1 = 'MaxRetryCount 10'
