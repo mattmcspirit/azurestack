@@ -5,21 +5,24 @@
     The purpose of this script is to automate as much as possible post deployment tasks for an Azure Stack POC for both an ASDK and MultiNode deployment.
     This includes:
     * Validates all input parameters
+    * Checks ASDK host memory for enough resources
     * Installs Azure Stack PowerShell and AzureRM modules
     * Ensures password for VMs meets complexity required for App Service installation
     * Updated password expiration (180 days)
     * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
     * Tools installation (Azure Stack Tools)
-    * Registration of the Azure Stack POC system to Azure (Optional - enables Marketplace Syndication)
-    * Windows Server 2016 Datacenter Evaluation/MSDN/VL (Full + Core) images added to the Platform Image Repository
-    * Windows Server 2019 Datacenter Evaluation/MSDN/VL (Full + Core) images added to the Platform Image Repository (Optional)
+    * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
+    * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
+    * Windows Server 2019 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository (Optional)
+    * All Windows Server images are patched with latest SSU and CUs automatically
     * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
     * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
     * Gallery item created for MySQL 5.7, 8.0 and SQL Server 2017 (all on Ubuntu Server 16.04 LTS)
-    * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered Azure Stack systems)
+    * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs)
+    * Automates adding of Microsoft AzureStack Add-on RP Windows Server image from Marketplace (for registered ASDKs)
     * MySQL Resource Provider installation
     * SQL Server Resource Provider installation
-    * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
+    * Deployment of a MySQL 8.0 hosting server on Ubuntu Server 16.04 LTS
     * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
     * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
     * App Service prerequisites installation (SQL Server PowerShell, SQL Server DB VM and Standalone File Server)
@@ -35,12 +38,16 @@
     * MySQL, SQL, App Service and Host Customization can be optionally skipped
     * Cleans up download folder to ensure clean future runs
     * Transcript Log for errors and troubleshooting
-    * Progress Tracking and rerun reliability with AzSPoC database hosted on SqlLocalDB (2019)
+    * Progress Tracking and rerun reliability with AzSPoC database hosted on SqlLocalDB (2017)
     * Stores script output in a AzSPoCOutput.txt, for future reference
     * Supports usage in offline/disconnected environments
+    * New -serialMode which excecutes VM deployments in serial, rather than parallel - better for older hardware
+    * Now supports ASDKs that have been depoyed with a custom domain suffix, e.g. https://portal.west.contoso.lab
 
 .VERSION
-    2008.1  Major PS Update
+    2008.1  Major PS Update - Support for Az Modules
+            Updated to support MySQL/SQL 1.1.93.1 release
+            Updated to support 2008 App Service Q3 release
             Windows Updates fixes
             Updated SqlLocalDB (2019)
             Added support for new DB RP Image

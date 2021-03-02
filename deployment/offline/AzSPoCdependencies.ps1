@@ -6,7 +6,7 @@
 
 .VERSION
 
-    2008  Latest version, to align with current Azure Stack POC Configurator version.
+    2008.1  Latest version, to align with current Azure Stack POC Configurator version.
 
 .AUTHOR
 
