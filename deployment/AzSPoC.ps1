@@ -3120,8 +3120,6 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     Clear-Host
     .\Scripts\GetJobStatus.ps1
 
-    BREAK
-
     #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
     ##############################################################################################################################################################
 
@@ -3260,12 +3258,23 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             }
             # Create the Plan and Offer
             New-AzResourceGroup -Name $RGName -Location $azsLocation -Force -Confirm:$false
-            $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
-            New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation -Confirm:$false
-            Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation -Confirm:$false
 
+            if (!$(Get-AzsPlan -Name $PlanName -ResourceGroupName $RGName -ErrorAction SilentlyContinue)) {
+                $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
+            }
+            else {
+                $plan = Get-AzsPlan -Name $PlanName -ResourceGroupName $RGName -ErrorAction SilentlyContinue
+            }
+
+            if (!$(Get-AzsManagedOffer -Name $OfferName -ResourceGroupName $RGName -ErrorAction SilentlyContinue)) {
+                New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation -Confirm:$false
+                $Offer = Get-AzsAdminManagedOffer | Where-Object name -eq $OfferName
+            }
+            else {
+                $Offer = Get-AzsAdminManagedOffer | Where-Object name -eq $OfferName
+            }
+            
             # Create a new subscription for that offer, for the currently logged in user
-            $Offer = Get-AzsAdminManagedOffer | Where-Object name -eq "BaseOffer"
             $subUserName = (Get-AzContext).Account.Id
             New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName "AzS PoC Subscription"
 
