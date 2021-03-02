@@ -204,15 +204,62 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Connect-AzAccount -Environment $azureEnvironment -Tenant $tenantId -Credential $azsCreds -ErrorAction Stop
                     Set-Location "$AppServicePath" -Verbose
                     Write-Host "Generating the application ID for the App Service installation"
+
                     if ($multiNode -eq $false) {
-                        $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -TenantArmEndpoint "management.$customDomainSuffix" `
-                            -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -AzureStackAdminCredential $azsCreds -Verbose
+                        $certificateFilePath = "$AppServicePath\sso.appservice.$customDomainSuffix.pfx"
                     }
                     else {
-                        $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -TenantArmEndpoint "management.$customDomainSuffix" `
-                            -CertificateFilePath "$certPath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureCertPwd -AzureStackAdminCredential $azsCreds -Verbose
+                        $certificateFilePath = "$certPath\sso.appservice.$customDomainSuffix.pfx"
                     }
-                    $identityApplicationID = $applicationId
+                    
+                    $appServiceSession = New-PSSession -Name appServiceSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                    Invoke-Command -Session $appServiceSession -ArgumentList $AppServicePath, $azureDirectoryTenantName, $azsCreds, $customDomainSuffix, `
+                        $secureVMpwd, $downloadPath, $certificateFilePath -ScriptBlock {
+
+                        $AzureRMVersion = "2.5.0"
+                        $AzPshInstallFolder = "AppSvcPsh"
+                        $AzPshInstallLocation = "$Env:ProgramFiles\$AzPshInstallFolder"
+                        $isModuleInstalled = Test-Path -Path $AzPshInstallLocation\AzureRm -PathType Container
+                        $isCorrectVersion = Test-Path -Path $AzPshInstallLocation\AzureRm\$AzureRMVersion -PathType Container
+                        if ($isModuleInstalled -and $isCorrectVersion) {
+                            Write-Host "AzureRM PS Modules for App Service version $AzureRMVersion found at $AzPshInstallLocation"
+                        }
+                        else {
+                            if ($Using:deploymentMode -eq "Online") {
+                                Write-Host "Installing the AzureRM PS Modules for App Service install at the location $AzPshInstallLocation."
+                                Save-Module -Name AzureRM -Path $AzPshInstallLocation -RequiredVersion $AzureRMVersion -Force
+                                Write-Host "Successfully installed the AzureRM PS Modules for App Service."
+                            }
+                            elseif ($Using:deploymentMode -eq "PartialOnline") {
+                                # Grab Modules from repo path
+                                $RepoName = "AzSPoCRepo"
+                                Write-Host "Installing the AzureRM modules from the regsitered repo $RepoName to the location $AzPshInstallLocation"
+                                Save-Module -Name AzureRM -RequiredVersion $AzureRMVersion -Repository $RepoName -Path $AzPshInstallLocation
+                                Write-Host "Successfully installed the AzureRM PS Modules for App Service."
+                            }
+                        }
+                        # Import PS Modules
+                        Import-Module $AzPshInstallLocation\AzureRm.Profile -Scope Global
+                        Import-Module $AzPshInstallLocation\AzureRm.Resources -Scope Global
+                        Import-Module $AzPshInstallLocation\AzureRm.Storage -Scope Global -ErrorAction SilentlyContinue 2>&1 | Out-Null
+                        Import-Module $AzPshInstallLocation\AzureRm.Keyvault -Scope Global
+                        Import-Module $AzPshInstallLocation\AzureRm.Compute -Scope Global
+                        Import-Module $AzPshInstallLocation\AzureRm.Network -Scope Global
+                        Import-Module $AzPshInstallLocation\AzureRm.Dns -Scope Global
+                        Set-Location $Using:AppServicePath
+                        $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$Using:azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$Using:customDomainSuffix" -TenantArmEndpoint "management.$Using:customDomainSuffix" `
+                            -CertificateFilePath "$Using:certificateFilePath" -CertificatePassword $Using:secureVMpwd -AzureStackAdminCredential $Using:azsCreds -Verbose
+                        $identityApplicationID = $appID
+                        Write-Host "Saving the application ID to a backup file."
+                        $appIdPath = "$Using:downloadPath\ApplicationIDBackup.txt"
+                        New-Item $appIdPath -ItemType file -Force
+                        Write-Output $identityApplicationID > $appIdPath
+                        Write-Host "Application ID backup file stored at $appIdPath"
+                    }
+                    Remove-PSSession -Name appServiceSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                    Remove-Variable -Name appServiceSession -Force -ErrorAction SilentlyContinue -Verbose
+                    
+                    $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
                     Write-Host "Application ID is $identityApplicationID"
                     Write-Host "You don't need to sign into the Azure Portal to grant permissions, Azure Stack POC Configurator will automate this for you. Please wait."
                     Write-Host "Waiting for 20 seconds to allow processes to finish."
@@ -241,11 +288,6 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Output "`$appToRemove = Get-AzADApplication | Where-Object {`$_.ApplicationId -eq `"$identityApplicationID`"} -ErrorAction SilentlyContinue -Verbose" | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
                     Write-Output "Update-AzADApplication -ObjectId `$appToRemove.ObjectId -AvailableToOtherTenants `$false -Verbose -ErrorAction Stop" | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
                     Write-Output "Remove-AzADApplication -ObjectId `$appToRemove.ObjectId -ErrorAction Stop -Verbose -Force" | Out-File -FilePath "$cleanUpAppServicePs1Path" -Force -Verbose -Append
-                    Write-Host "Saving the application ID to a backup file."
-                    $appIdPath = "$downloadPath\ApplicationIDBackup.txt"
-                    New-Item $appIdPath -ItemType file -Force
-                    Write-Output $identityApplicationID > $appIdPath
-                    Write-Host "Application ID backup file stored at $appIdPath"
                 }
                 elseif ($authenticationType.ToString() -like "ADFS") {
                     Write-Host "Logging into Azure Stack"
@@ -256,14 +298,17 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
                     Set-Location "$AppServicePath" -Verbose
                     Write-Host "Generating the application ID for the App Service installation"
+
                     if ($multiNode -eq $false) {
-                        $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -PrivilegedEndpoint $ERCSip `
-                            -CertificateFilePath "$AppServicePath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $secureVMpwd -CloudAdminCredential $azsCreds -Verbose
+                        $certificateFilePath = "$AppServicePath\sso.appservice.$customDomainSuffix.pfx"
                     }
                     else {
-                        $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -PrivilegedEndpoint $ERCSip `
-                            -CertificateFilePath "$certPath\sso.appservice.$customDomainSuffix.pfx" -CertificatePassword $certPwd -CloudAdminCredential $azsCreds -Verbose
+                        $certificateFilePath = "$certPath\sso.appservice.$customDomainSuffix.pfx"
                     }
+
+                    $appID = .\Create-ADFSIdentityApp.ps1 -AdminArmEndpoint "adminmanagement.$customDomainSuffix" -PrivilegedEndpoint $ERCSip `
+                        -CertificateFilePath "$certificateFilePath" -CertificatePassword $secureVMpwd -CloudAdminCredential $azsCreds -Verbose
+    
                     Write-Host "Saving the application ID to a backup file."
                     $appIdPath = "$downloadPath\ApplicationIDBackup.txt"
                     $identityApplicationID = $appID
@@ -306,28 +351,6 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         }
                         $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
                         $grantPermission = Invoke-RestMethod -Uri $url -Headers $headers -Method POST -ErrorAction Stop
-
-                        <#
-                        $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-                        Write-Host "Tenant ID is $tenantId"
-                        Write-Host "Logging into Azure Cloud"
-                        Connect-AzAccount -Environment $azureEnvironment -Tenant $tenantId -Credential $azsCreds -ErrorAction Stop
-                        Write-Host "Obtaining tokens"
-                        $refreshToken = @([Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.TokenCache.ReadItems() | Where-Object { $_.tenantId -eq $tenantId -and $_.ExpiresOn -gt (Get-Date) })[0].RefreshToken
-                        $refreshtoken = $refreshtoken.Split("`n")[0]
-                        Write-Host "Generating body and header information"
-                        $body = "grant_type=refresh_token&refresh_token=$($refreshToken)&resource=74658136-14ec-4630-ad9b-26e160ff0fc6"
-                        $apiToken = Invoke-RestMethod "https://login.windows.net/$tenantId/oauth2/token" -Method POST -Body $body -ContentType 'application/x-www-form-urlencoded'
-                        $header = @{
-                            'Authorization'          = 'Bearer ' + $apiToken.access_token
-                            'X-Requested-With'       = 'XMLHttpRequest'
-                            'x-ms-client-request-id' = [guid]::NewGuid()
-                            'x-ms-correlation-id'    = [guid]::NewGuid()
-                        }
-                        $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$identityApplicationID/Consent?onBehalfOfAll=true"
-                        Write-Host "Granting permissions"
-                        $grantPermission = Invoke-RestMethod –Uri $url –Headers $header –Method POST -ErrorAction Stop -Verbose
-                        #>
 
                         Write-Host "Creating text file to record confirmation of granting permissions successfully"
                         New-Item -Path "$AppServicePath\AzureAdPermissions.txt" -ItemType file -Force
@@ -383,7 +406,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
             Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
-            if ((Get-AzsVMExtension -Publisher Microsoft.Compute -Verbose:$false) | Where-Object { ($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded") }) {
+            if ((Get-AzsVMExtension -Verbose:$false) | Where-Object { ($_.Publisher -eq "Microsoft.Compute") -and ($_.ExtensionType -eq "CustomScriptExtension") -and ($_.TypeHandlerVersion -ge "1.9") -and ($_.ProvisioningState -eq "Succeeded") }) {
                 Write-Verbose -Message "You already have a valid Custom Script Extension (1.9.x) within your Azure Stack environment. App Service deployment can continue."
             }
             else {

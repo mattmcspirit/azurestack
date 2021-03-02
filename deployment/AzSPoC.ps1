@@ -3042,8 +3042,6 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     }
     JobLauncher -jobName $jobName -jobToExecute $AddSQLHosting -Verbose
 
-    <#
-
     ### APP SERVICE - JOB SETUP ##################################################################################################################################
     ##############################################################################################################################################################
 
@@ -3113,8 +3111,6 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $DeployAppService -Verbose
-
-    #>
 
     ### JOB LAUNCHER & TRACKER ###################################################################################################################################
     ##############################################################################################################################################################

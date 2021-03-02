@@ -584,7 +584,8 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
         $row.filename = "appservicehelper.zip"; $row.path = "$appServicePath"; $row.productName = "App Service Resource Provider Helper files"; $Table.Rows.Add($row)
         # App Service Installer
-        $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmasinstaller"
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvcupdateq3installer"
+        #$row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmasinstaller"
         $row.filename = "appservice.exe"; $row.path = "$appServicePath"; $row.productName = "App Service installer"; $Table.Rows.Add($row)
         # App Service PreDeployment JSON
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"

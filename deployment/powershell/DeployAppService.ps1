@@ -175,7 +175,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             $azsLocation = (Get-AzLocation).DisplayName
             Write-Host "Getting File Server and SQL App Server FQDN"
             $fileServerFqdn = (Get-AzPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
-            $sqlAppServerFqdn = (Get-AzRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
+            $sqlAppServerFqdn = (Get-AzPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
             Write-Host "Getting Application ID"
             $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
             Write-Host "File Server is at: $fileServerFqdn"

@@ -88,19 +88,12 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Downloading App Service files"
                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                 $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
-                #$appServiceHelperURI = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/appservice/appservicehelper1.4.zip"
                 $appServiceHelperDownloadLocation = "$azsPath\appservice\appservicehelper.zip"
                 DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
-                $appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
-                #$appServiceExeURI = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/appservice/appservice1.4.exe"
+                $appServiceExeURI = "https://aka.ms/appsvcupdateq3installer"
+                #$appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
                 $appServiceExeDownloadLocation = "$azsPath\appservice\appservice.exe"
                 DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
-                # Temporary download of 1.5 until silent deployment is fixed
-                #Write-Host "Downloading App Service Upgrade file"
-                #$appService15ExeURI = "https://aka.ms/appsvconmasinstaller"
-                #$DesktopPath = [Environment]::GetFolderPath("Desktop")
-                #$appService15ExeDownloadLocation = "$DesktopPath\UpgradeAppService.exe"
-                #DownloadWithRetry -downloadURI "$appService15ExeURI" -downloadLocation "$appService15ExeDownloadLocation" -retries 10
             }
             elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
                 if (-not [System.IO.File]::Exists("$azsPath\appservice\appservicehelper.zip")) {
