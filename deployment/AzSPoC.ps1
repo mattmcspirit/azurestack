@@ -2017,8 +2017,6 @@ try {
 
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
-            Import-Module -Name PowerShellGet -ErrorAction Stop
-            Import-Module -Name PackageManagement -ErrorAction Stop
             Write-CustomVerbose -Message "Uninstalling previously existing Azure Stack modules"
             Uninstall-Module AzureRM.AzureStackAdmin -Force -ErrorAction SilentlyContinue
             Uninstall-Module AzureRM.AzureStackStorage -Force -ErrorAction SilentlyContinue
@@ -2034,9 +2032,35 @@ try {
                 Get-PSRepository -Name "PSGallery"
                 Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
                 Get-PSRepository -Name "PSGallery"
-                Install-Module -Name Az.BootStrapper -Force -AllowPrerelease
-                Install-AzProfile -Profile 2019-03-01-hybrid -Force
-                Install-Module -Name AzureStack -RequiredVersion 2.0.2-preview -AllowPrerelease -ErrorAction Stop
+
+                # Need to update PS Get
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                Write-CustomVerbose -Message "Unloading PowerShellGet"
+                Remove-Module -Name PowerShellGet -Force -Verbose
+                Write-CustomVerbose -Message "Unloading PackageManagement"
+                Remove-Module -Name PackageManagement -Force -Verbose
+                Write-CustomVerbose -Message "Installing New PowerShellGet"
+                Install-Module -Name PowerShellGet -MinimumVersion 2.2.3 -Force -AllowClobber
+                Write-CustomVerbose -Message "Unloading PowerShellGet"
+                Remove-Module -Name PowerShellGet -Force -Verbose
+                Write-CustomVerbose -Message "Unloading PackageManagement"
+                Remove-Module -Name PackageManagement -Force -Verbose
+                #Write-CustomVerbose -Message "Importing PowerShellGet"
+                #Import-Module -Name PowerShellGet -MinimumVersion 2.2.3 -Force
+                #Write-CustomVerbose -Message "Importing PackageManagement"
+                #Import-Module -Name PackageManagement -MinimumVersion 1.4.7 -ErrorAction Stop
+                Write-CustomVerbose -Message "Creating a new PS Session to install the PS Modules without restarting a session"
+                $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                Invoke-Command -Session $installPsSession -ScriptBlock {
+                    Write-Host "Installing Az.Bootstrapper Module"
+                    Install-Module -Name Az.BootStrapper -Force -AllowPrerelease -Verbose
+                    Write-Host "Installing Az.Profile to load all requires modules"
+                    Install-AzProfile -Profile 2019-03-01-hybrid -Force
+                    Write-Host "Installing Azure Stack module"
+                    Install-Module -Name AzureStack -RequiredVersion 2.0.2-preview -AllowPrerelease -ErrorAction Stop -Verbose
+                }
+                Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
                 Install-Module -Name kbupdate -Force -ErrorAction Stop
             }
             elseif ($deploymentMode -ne "Online") {
@@ -2046,6 +2070,16 @@ try {
                     Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
                 }
                 # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
+                Install-Module -Name PowerShellGet -Repository $RepoName -MinimumVersion 2.2.3 -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
+                Install-Module -Name PackageManagement -Repository $RepoName -MinimumVersion 1.4.7 -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
+                Write-CustomVerbose -Message "Unloading PowerShellGet"
+                Remove-Module -Name PowerShellGet -Force -Verbose
+                Write-CustomVerbose -Message "Unloading PackageManagement"
+                Remove-Module -Name PackageManagement -Force -Verbose
+                Write-CustomVerbose -Message "Importing PowerShellGet"
+                Import-Module -Name PowerShellGet -MinimumVersion 2.2.3 -Force
+                Write-CustomVerbose -Message "Importing PackageManagement"
+                Import-Module -Name PackageManagement -MinimumVersion 1.4.7 -ErrorAction Stop
                 Install-Module AzureStack -Repository $RepoName -RequiredVersion 2.0.2-preview -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
                 Install-Module Az -Repository $RepoName -RequiredVersion 0.10.0-preview -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
             }
@@ -2060,6 +2094,8 @@ try {
     elseif ($progressCheck -eq "Complete") {
         Write-CustomVerbose -Message "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
     }
+
+    BREAK
 
     ### TEST ALL LOGINS #########################################################################################################################################
     #############################################################################################################################################################
