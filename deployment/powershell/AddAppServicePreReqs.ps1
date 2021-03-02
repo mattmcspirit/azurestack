@@ -249,7 +249,9 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         Set-Location $Using:AppServicePath
                         $appID = . .\Create-AADIdentityApp.ps1 -DirectoryTenantName "$Using:azureDirectoryTenantName" -AdminArmEndpoint "adminmanagement.$Using:customDomainSuffix" -TenantArmEndpoint "management.$Using:customDomainSuffix" `
                             -CertificateFilePath "$Using:certificateFilePath" -CertificatePassword $Using:secureVMpwd -AzureStackAdminCredential $Using:azsCreds -Verbose
-                        $identityApplicationID = $appID
+                        Write-Host "Printing appID output from running Create-AADIdentityApp.ps1: $appID"
+                        Write-Host "Printing applicationID output from running Create-AADIdentityApp.ps1: $applicationId"
+                        $identityApplicationID = $applicationId
                         Write-Host "Saving the application ID to a backup file."
                         $appIdPath = "$Using:downloadPath\ApplicationIDBackup.txt"
                         New-Item $appIdPath -ItemType file -Force
