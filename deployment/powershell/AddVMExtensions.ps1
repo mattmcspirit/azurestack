@@ -100,8 +100,13 @@ if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
             Write-Host "Checking if Azure Stack is activated and successfully registered"
             if ($(Get-AzsAzureBridgeActivation -Name $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
                 Write-Host "Adding Microsoft VM Extensions from the from the Azure Stack Marketplace"
-                $getExtensions = ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*") }).Name) -replace "default/", ""
-                foreach ($extension in $getExtensions) {
+                $getExtensions = (Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*") }).DisplayName | Sort-Object -Descending -Unique
+                $newExtensionList = @()
+                foreach ($ext in $getExtensions) {
+                    $newExtensionList += ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.DisplayName -like "*$ext*") }).Name) -replace "default/", "" | Sort-Object -Descending | Select-Object -First 1
+                }
+                #$getExtensions = ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*") }).Name) -replace "default/", ""
+                foreach ($extension in $newExtensionList) {
                     while (!$(Get-AzsAzureBridgeDownloadedProduct -Name $extension -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
                         Write-Host "Didn't find $extension in your gallery. Downloading from the Azure Stack Marketplace"
                         Invoke-AzsAzureBridgeProductDownload -ActivationName $activationName -Name $extension -ResourceGroupName $activationRG -Confirm:$false -Verbose
