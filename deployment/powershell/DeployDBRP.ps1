@@ -168,6 +168,24 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 Clear-AzContext -Scope CurrentUser -Force
                 Disable-AzContextAutosave -Scope CurrentUser
 
+                # Need to ensure this stage doesn't start before the VM extensions have been updated, or there could be a conflict
+                if ($registerAzS -eq $true) {
+                    $AddVmExtensionsJobCheck = CheckProgress -progressStage "AddVMExtensions"
+                    while ($AddVmExtensionsJobCheck -ne "Complete") {
+                        Write-Host "The AddVMExtensions stage of the process has not yet completed. Checking again in 20 seconds"
+                        Start-Sleep -Seconds 20
+                        $AddVmExtensionsJobCheck = CheckProgress -progressStage "AddVMExtensions"
+                        if ($AddVmExtensionsJobCheck -eq "Skipped") {
+                            Write-Host "The AddVMExtensions stage of the process was skipped"
+                            BREAK
+                        }
+                        elseif ($AddVmExtensionsJobCheck -eq "Failed") {
+                            Write-Host "The AddVMExtensions stage of the process failed"
+                            BREAK
+                        }
+                    }
+                }
+
                 # Need to ensure this stage doesn't start before the Windows Server images have been put into the PIR
                 $dbrpImageJobCheck = CheckProgress -progressStage "$imageProgressCheck"
                 while ($dbrpImageJobCheck -ne "Complete") {
