@@ -2052,6 +2052,7 @@ try {
                 Write-CustomVerbose -Message "Creating a new PS Session to install the PS Modules without restarting a session"
                 $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                 Invoke-Command -Session $installPsSession -ScriptBlock {
+                    $ProgressPreference = "SilentlyContinue"
                     Write-Host "Installing Az.Bootstrapper Module"
                     Install-Module -Name Az.BootStrapper -Force -AllowPrerelease -Verbose
                     Write-Host "Installing Az.Profile to load all requires modules"
