@@ -118,7 +118,7 @@ if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
                 $getDownloads = (Get-AzsAzureBridgeDownloadedProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*") })
                 Write-Host "Your Azure Stack gallery now has the following Microsoft VM Extensions for enhancing your deployments:`r`n"
                 foreach ($download in $getDownloads) {
-                    Write-Host "$($download.DisplayName) | Version: $($download.OfferVersion)"
+                    Write-Host "$($download.DisplayName) | Version: $($download.ProductProperties)"
                 }
                 # Update the AzSPoC database with successful completion
                 StageComplete -progressStage $progressStage
