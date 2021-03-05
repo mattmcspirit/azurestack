@@ -92,7 +92,7 @@ elseif ($dbrp -eq "SQLServer") {
     }
 }
 
-if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
+if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline") -and ($dbrp -eq "MySQL")) {
     $dbRpVersion = "New"
     $imageProgressCheck = "AddDBRPImage"
     $publisher = "Microsoft"
@@ -302,6 +302,31 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $finalDbPath = "$azsPath\databases\$dbrpPath"
                 Start-Process -FilePath "$azsPath\databases\$($dbrp).exe" -Argumentlist '/s' -Wait
                 Get-ChildItem -Path "$finalDbPath\*" -Recurse | Unblock-File -Verbose
+
+                ############################################################################################################################################################################
+                # Temporary Workaround to installing DB RP - separating PowerShell install locations
+                Write-Host "Editing the Common Module file to ensure process completes..."
+                $getCommonModule = (Get-ChildItem -Path "$azsPath\databases\$dbrpPath\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
+                $old1 = '$AzPshInstallFolder = "SqlMySqlPsh"'
+                if ($dbrp -eq "SQLServer") {
+                    $new1 = '$AzPshInstallFolder = "SQLServerPsh"'
+                }                
+                elseif ($dbrp -eq "MySQL") {
+                    $new1 = '$AzPshInstallFolder = "MySQLPsh"'
+                }
+                $pattern1 = [RegEx]::Escape($old1)
+                $pattern2 = [RegEx]::Escape($new1)
+                if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
+                    if ((Get-Content $getCommonModule) | Select-String $pattern1) {
+                        Write-Host "Known issues with Azure PowerShell and DB RPs - editing Common.psm1"
+                        Write-Host "Editing Azure PowerShell Module Path"
+                        (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new1 } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
+                        Write-Host "Editing completed."
+                    }
+                }
+                
+                # End of Temporary Workaround
+                ############################################################################################################################################################################
 
                 ############################################################################################################################################################################
                 # Temporary Workaround to installing old DB RP on ASDK 2008 with longer RP Timeout
