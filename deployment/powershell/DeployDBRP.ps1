@@ -93,13 +93,13 @@ elseif ($dbrp -eq "SQLServer") {
 }
 
 if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
-    if (($dbrp -eq "SQLServer") -and ($authenticationType -eq "ADFS")) {
+    <#if (($dbrp -eq "SQLServer") -and ($authenticationType -eq "ADFS")) {
         $dbRpVersion = "Old"
         $imageProgressCheck = "ServerCore2016Image"
         $publisher = "MicrosoftWindowsServer"
         $offer = "windowsserver"
         $sku = "2016-Datacenter-Server-Core"
-    }
+    } #>
     $dbRpVersion = "New"
     $imageProgressCheck = "AddDBRPImage"
     $publisher = "Microsoft"
