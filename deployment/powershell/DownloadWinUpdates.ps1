@@ -182,9 +182,15 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
                     # Find the KB Article Number for the latest Windows Server Cumulative Update
                     Write-Host "Accessing $StartKB to retrieve the list of updates."
+
+                    if ($buildVersion -eq "17763") {
                     $cumulativekbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
                     $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
                     $cumulativekbID = "KB" + ((($cumulativekbID -split "KB", 2)[1]) -split "\s", 2)[0]
+                    }
+                    else {
+                        $cumulativekbID = "KB4598243"
+                    }
 
                     if (!$cumulativekbID) {
                         Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will be out of date"
