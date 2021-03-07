@@ -2063,6 +2063,7 @@ try {
                 Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
                 Install-Module -Name kbupdate -Force -ErrorAction Stop
+                Install-Module -Name WindowsImageTools -Force -ErrorAction Stop
             }
             elseif ($deploymentMode -ne "Online") {
                 $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
@@ -2083,6 +2084,8 @@ try {
                 Import-Module -Name PackageManagement -MinimumVersion 1.4.7 -ErrorAction Stop
                 Install-Module AzureStack -Repository $RepoName -RequiredVersion 2.0.2-preview -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
                 Install-Module Az -Repository $RepoName -RequiredVersion 0.10.0-preview -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
+                Install-Module -Name kbupdate -Force -ErrorAction Stop -Repository $RepoName -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
+                Install-Module -Name WindowsImageTools -Force -ErrorAction Stop -Repository $RepoName -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
             }
             StageComplete -progressStage $progressStage
         }

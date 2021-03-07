@@ -335,6 +335,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             # Check which image is being deployed
             if ($image -eq "ServerCore2016") {
                 $sku = "2016-Datacenter-Server-Core"
+                $index = 3
                 $edition = 'Windows Server 2016 SERVERDATACENTERCORE'
                 $onlinePackage = "*microsoft.windowsserver2016-datacenter-server-core-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0"
@@ -348,6 +349,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             }
             elseif ($image -eq "ServerFull2016") {
                 $sku = "2016-Datacenter"
+                $index = 4
                 $edition = 'Windows Server 2016 SERVERDATACENTER'
                 $onlinePackage = "*microsoft.windowsserver2016-datacenter-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0"
@@ -361,6 +363,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             }
             if ($image -eq "ServerCore2019") {
                 $sku = "2019-Datacenter-Core"
+                $index = 3
                 $edition = 'Windows Server 2019 SERVERDATACENTERCORE'
                 $onlinePackage = "*microsoft.windowsserver2019-datacenter-core-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0"
@@ -374,6 +377,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             }
             elseif ($image -eq "ServerFull2019") {
                 $sku = "2019-Datacenter"
+                $index = 4
                 $edition = 'Windows Server 2019 SERVERDATACENTER'
                 $onlinePackage = "*microsoft.windowsserver2019-datacenter-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019Datacenter-ARM.1.0.0"
@@ -748,14 +752,20 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             while (($imageCreationSuccess -eq $false) -and ($imageRetries++ -lt 3)) {
                                 try {
                                     Write-Host "Starting image creation process. Creation attempt: $imageRetries"
+                                    Convert-Wim2VHD -SourcePath $ISOpath -Path "$imageRootPath\images\$image\$($blobname)" -Size $windowsVhdSize -Package $target -Feature "NetFx3" -DiskLayout BIOS -force -Index $index -Verbose
+                                    <#
                                     if ($image -eq "ServerCore$($v)") {
+                                        <#
                                         .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes $windowsVhdSize -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
                                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+                                        Convert-Wim2VHD -SourcePath $ISOpath -Path "$imageRootPath\images\$image\$($blobname)" -Size $windowsVhdSize -Package $target -Feature "NetFx3" -DiskLayout BIOS -force -Index $index -Verbose
                                     }
                                     elseif ($image -eq "ServerFull$($v)") {
                                         .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes $windowsVhdSize -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
                                             -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
+                                        Convert-Wim2VHD -SourcePath $ISOpath -Path "$imageRootPath\images\$image\$($blobname)" -Size $windowsVhdSize -Package $target -Feature "NetFx3" -DiskLayout BIOS -force -Index $index -Verbose  
                                     }
+                                    #>
                                     if (!$(Get-ChildItem -Path "$imageRootPath\images\$image\$blobName" -ErrorAction SilentlyContinue)) {
                                         Write-Host "Something went wrong during image creation but the error cannot be caught here."
                                         Write-Host "Cleaning up"
