@@ -544,12 +544,12 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             if ($(Get-AzsPlatformImage -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed" }) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the Azure Stack POC Configurator, however, it's in a failed state"
                 Write-Host "Cleaning up the image from the PIR"
-                (Get-AzsPlatformImage -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed" } | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                (Get-AzsPlatformImage -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed" } | Remove-AzsPlatformImage -Verbose -ErrorAction Stop
             }
             elseif ($(Get-AzsPlatformImage -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled" }) {
                 Write-Host "There appears to be at least 1 suitable $($azpkg.sku) VM image within your Platform Image Repository which we will use for the Azure Stack POC Configurator, however, it's in a canceled state"
                 Write-Host "Cleaning up the image from the PIR"
-                (Get-AzsPlatformImage -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled" } | Remove-AzsPlatformImage -Force -Verbose -ErrorAction Stop
+                (Get-AzsPlatformImage -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Canceled" } | Remove-AzsPlatformImage -Verbose -ErrorAction Stop
             }
             Write-Host "There are no failed or canceled images in the PIR, so moving on to checking for a valid, successful image"
             if ($(Get-AzsPlatformImage -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Succeeded" }) {
