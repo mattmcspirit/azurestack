@@ -76,7 +76,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
             Write-Host "Logging into Azure Stack"
             Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+            Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
             Get-AzsGalleryItem | Where-Object { $_.Name -like "*AzureStackPOC*" } | Remove-AzsGalleryItem -Force -ErrorAction SilentlyContinue
         }
         Write-Host "Clearing previous Azure/Azure Stack logins"
@@ -88,7 +88,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         Write-Host "Logging into Azure Stack"
         Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
         $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-        $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+        Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
         # Set Storage Variables
         Write-Host "Setting storage variables for resource group, storage account and container"
         $azsImagesRGName = "azurestack-adminimages"

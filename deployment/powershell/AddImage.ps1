@@ -538,7 +538,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             ### Log back into Azure Stack to check for existing images and push new ones if required ###
             Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+            Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
             Write-Host "Checking to see if the image is present in your Azure Stack Platform Image Repository"
             Write-Host "We first want to check if there is a failed or canceled upload from a previous attempt"
             if ($(Get-AzsPlatformImage -ErrorAction SilentlyContinue) | Where-Object { ($_.Id -like "*$($azpkg.sku)/*") -and $_.ProvisioningState -eq "Failed" }) {
@@ -864,7 +864,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             Write-Host "Upload Attempt: $uploadVhdAttempt"
                             Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
                             $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-                            $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+                            Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
                             #Add-AzureRmVhd -Destination $imageURI -ResourceGroupName $azsImagesRGName -LocalFilePath $serverVHD.FullName -OverWrite -Verbose -ErrorAction Stop
                             ################## AzCopy Testing ##############################################
                             $serverVHDDirectory = ($serverVHD).DirectoryName
