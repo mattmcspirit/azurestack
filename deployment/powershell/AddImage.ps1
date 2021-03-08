@@ -752,20 +752,21 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                             while (($imageCreationSuccess -eq $false) -and ($imageRetries++ -lt 3)) {
                                 try {
                                     Write-Host "Starting image creation process. Creation attempt: $imageRetries"
-                                    Convert-Wim2VHD -SourcePath $ISOpath -Path "$imageRootPath\images\$image\$($blobname)" -Size $windowsVhdSize -Package $target -Feature "NetFx3" -DiskLayout BIOS -force -Index $index -Verbose
-                                    <#
+                                    $scratchPath = "$imageRootPath\Scratch\$image"
+                                    New-Item -ItemType Directory -Path "$scratchPath" -Force | Out-Null
+                                    #Convert-Wim2VHD -SourcePath $ISOpath -Path "$imageRootPath\images\$image\$($blobname)" -Size $windowsVhdSize -Package $target -Feature "NetFx3" -DiskLayout BIOS -force -Index $index -Verbose
+                                    
                                     if ($image -eq "ServerCore$($v)") {
-                                        <#
                                         .\Convert-WindowsServerCoreImage.ps1 -SourcePath $ISOpath -SizeBytes $windowsVhdSize -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
-                                            -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
-                                        Convert-Wim2VHD -SourcePath $ISOpath -Path "$imageRootPath\images\$image\$($blobname)" -Size $windowsVhdSize -Package $target -Feature "NetFx3" -DiskLayout BIOS -force -Index $index -Verbose
+                                            -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -WorkingDirectory $scratchPath -Passthru -Verbose
+                                        #Convert-Wim2VHD -SourcePath $ISOpath -Path "$imageRootPath\images\$image\$($blobname)" -Size $windowsVhdSize -Package $target -Feature "NetFx3" -DiskLayout BIOS -force -Index $index -Verbose
                                     }
                                     elseif ($image -eq "ServerFull$($v)") {
                                         .\Convert-WindowsServerFullImage.ps1 -SourcePath $ISOpath -SizeBytes $windowsVhdSize -Edition "$edition" -VHDPath "$imageRootPath\images\$image\$($blobname)" `
-                                            -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -Passthru -Verbose
-                                        Convert-Wim2VHD -SourcePath $ISOpath -Path "$imageRootPath\images\$image\$($blobname)" -Size $windowsVhdSize -Package $target -Feature "NetFx3" -DiskLayout BIOS -force -Index $index -Verbose  
+                                            -VHDFormat VHD -VHDType Fixed -VHDPartitionStyle MBR -Feature "NetFx3" -Package $target -WorkingDirectory $scratchPath -Passthru -Verbose
+                                        #Convert-Wim2VHD -SourcePath $ISOpath -Path "$imageRootPath\images\$image\$($blobname)" -Size $windowsVhdSize -Package $target -Feature "NetFx3" -DiskLayout BIOS -force -Index $index -Verbose  
                                     }
-                                    #>
+                                    
                                     if (!$(Get-ChildItem -Path "$imageRootPath\images\$image\$blobName" -ErrorAction SilentlyContinue)) {
                                         Write-Host "Something went wrong during image creation but the error cannot be caught here."
                                         Write-Host "Cleaning up"
@@ -779,8 +780,10 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                         $mountPath = "$azsPath\images\$image\Mount"
                                         New-Item -ItemType Directory -Path "$mountPath" -Force | Out-Null
                                         Write-Host "Mounting the VHD"
-                                        Mount-WindowsImage -ImagePath "$imageRootPath\images\$image\$blobName" -Index 1 `
-                                            -Path "$mountPath" -Verbose -LogPath "$imageRootPath\images\$image\$($image)Dism.log"
+                                        $scratchPath = "$imageRootPath\Scratch\$image"
+                                        New-Item -ItemType Directory -Path "$scratchPath" -Force | Out-Null
+                                        Mount-WindowsImage -ImagePath "$imageRootPath\images\$image\$blobName" -ScratchDirectory $scratchPath `
+                                            -Index 1 -Path "$mountPath" -Verbose -LogPath "$imageRootPath\images\$image\$($image)Dism.log"
                                         Write-Host "Adding the Update packages"
                                         try {
                                             Add-WindowsPackage -Path "$mountPath" -PackagePath "$imageRootPath\images\$image\CU" `
