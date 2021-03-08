@@ -189,7 +189,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
                     }
                     elseif ($buildVersion -eq "14393") {
-                        $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -Skip 1 | Select-Object -First 1)
+                        $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*January*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
                     }
                     $cumulativekbID = "KB" + ((($cumulativekbID -split "KB", 2)[1]) -split "\s", 2)[0]
 
