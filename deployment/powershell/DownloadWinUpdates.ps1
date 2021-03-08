@@ -148,13 +148,15 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     $KBs = @()
 
                     ### Firstly, check for build 14393, and if so, download the Servicing Stack Update or other MSUs will fail to apply.
+                    # Hardcoding because of a Feb CU bug
                     Write-Host "Checking build number to determine Servicing Stack Updates"
                     if ($buildVersion -eq "14393") {
                         $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
                         $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
                         $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
                         $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
-                        $ssuKB = "KB" + ($feed.link).Split('/')[4]
+                        $ssuKB = "KB4576750"
+                        #$ssuKB = "KB" + ($feed.link).Split('/')[4]
                         $microCodeFeed = $rssFeed.rss.channel.item | Where-Object { $_.description -like "*microcode updates from Intel*version 1607*" }
                         $microCodeFeed = ($microCodeFeed | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
                         $microCodeKB = "KB" + ($microCodeFeed.link).Split('/')[4]
