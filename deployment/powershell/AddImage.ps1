@@ -786,7 +786,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                             -Index 1 -Path "$mountPath" -Verbose -LogPath "$imageRootPath\images\$image\$($image)Dism.log"
                                         Write-Host "Adding the Update packages"
                                         try {
-                                            Add-WindowsPackage -Path "$mountPath" -PackagePath "$imageRootPath\images\$image\CU" `
+                                            Add-WindowsPackage -Path "$mountPath" -PackagePath "$imageRootPath\images\$image\CU" -ScratchDirectory $scratchPath `
                                                 -Verbose -LogPath "$imageRootPath\images\$image\$($image)Dism.log" -ErrorAction SilentlyContinue
                                         }
                                         catch {
@@ -840,7 +840,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                         }
 
                                         Write-Host "Saving the image"
-                                        Dismount-WindowsImage -Path "$mountPath" -Save `
+                                        Dismount-WindowsImage -Path "$mountPath" -ScratchDirectory $scratchPath -Save `
                                             -Verbose -LogPath "$imageRootPath\images\$image\$($image)Dism.log"
                                         $imageCreationSuccess = $true
                                     }
