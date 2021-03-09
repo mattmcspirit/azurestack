@@ -335,7 +335,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             # Check which image is being deployed
             if ($image -eq "ServerCore2016") {
                 $sku = "2016-Datacenter-Server-Core"
-                $index = 3
+                #$index = 3
                 $edition = 'Windows Server 2016 SERVERDATACENTERCORE'
                 $onlinePackage = "*microsoft.windowsserver2016-datacenter-server-core-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016DatacenterServerCore-ARM.1.0.0"
@@ -349,7 +349,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             }
             elseif ($image -eq "ServerFull2016") {
                 $sku = "2016-Datacenter"
-                $index = 4
+                #$index = 4
                 $edition = 'Windows Server 2016 SERVERDATACENTER'
                 $onlinePackage = "*microsoft.windowsserver2016-datacenter-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2016Datacenter-ARM.1.0.0"
@@ -363,7 +363,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             }
             if ($image -eq "ServerCore2019") {
                 $sku = "2019-Datacenter-Core"
-                $index = 3
+                #$index = 3
                 $edition = 'Windows Server 2019 SERVERDATACENTERCORE'
                 $onlinePackage = "*microsoft.windowsserver2019-datacenter-core-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019DatacenterServerCore-ARM.1.0.0"
@@ -377,7 +377,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             }
             elseif ($image -eq "ServerFull2019") {
                 $sku = "2019-Datacenter"
-                $index = 4
+                #$index = 4
                 $edition = 'Windows Server 2019 SERVERDATACENTER'
                 $onlinePackage = "*microsoft.windowsserver2019-datacenter-payg*"
                 $offlinePackage = "Microsoft.WindowsServer2019Datacenter-ARM.1.0.0"
