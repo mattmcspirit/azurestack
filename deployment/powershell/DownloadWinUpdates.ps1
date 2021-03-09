@@ -155,8 +155,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
                         $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
                         $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
-                        $ssuKB = "KB4576750"
-                        #$ssuKB = "KB" + ($feed.link).Split('/')[4]
+                        #$ssuKB = "KB4576750"
+                        $ssuKB = "KB" + ($feed.link).Split('/')[4]
                         $microCodeFeed = $rssFeed.rss.channel.item | Where-Object { $_.description -like "*microcode updates from Intel*version 1607*" }
                         $microCodeFeed = ($microCodeFeed | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
                         $microCodeKB = "KB" + ($microCodeFeed.link).Split('/')[4]
@@ -166,8 +166,8 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
                         $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
                         $feed = ($feed | Where-Object { $_.title -like "*1809*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
-                        $ssuKB = "KB4598480"
-                        #$ssuKB = "KB" + ($feed.link).Split('/')[4]
+                        #$ssuKB = "KB4598480"
+                        $ssuKB = "KB" + ($feed.link).Split('/')[4]
                         $microCodeFeed = $rssFeed.rss.channel.item | Where-Object { $_.description -like "*microcode updates from Intel*version 1809*" }
                         $microCodeFeed = ($microCodeFeed | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
                         $microCodeKB = "KB" + ($microCodeFeed.link).Split('/')[4]
@@ -188,12 +188,16 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     $cumulativekbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
 
                     # There is a bug applying the latest CU for 2016 - working around this until it's fixed
+
+                    $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*January*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
+                    <#
                     if ($buildVersion -eq "17763") {
                         $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*January*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
                     }
                     elseif ($buildVersion -eq "14393") {
                         $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*January*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
                     }
+                    #>
                     $cumulativekbID = "KB" + ((($cumulativekbID -split "KB", 2)[1]) -split "\s", 2)[0]
 
                     if (!$cumulativekbID) {
