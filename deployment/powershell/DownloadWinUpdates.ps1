@@ -186,18 +186,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     # Find the KB Article Number for the latest Windows Server Cumulative Update
                     Write-Host "Accessing $StartKB to retrieve the list of updates."
                     $cumulativekbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
-
-                    # There is a bug applying the latest CU for 2016 - working around this until it's fixed
-
-                    $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*January*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
-                    <#
-                    if ($buildVersion -eq "17763") {
-                        $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*January*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
-                    }
-                    elseif ($buildVersion -eq "14393") {
-                        $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*January*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
-                    }
-                    #>
+                    $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
                     $cumulativekbID = "KB" + ((($cumulativekbID -split "KB", 2)[1]) -split "\s", 2)[0]
 
                     if (!$cumulativekbID) {
