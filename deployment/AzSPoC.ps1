@@ -2063,7 +2063,7 @@ try {
                 Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
                 Install-Module -Name kbupdate -Force -ErrorAction Stop
-                Install-Module -Name WindowsImageTools -Force -ErrorAction Stop
+                #Install-Module -Name WindowsImageTools -Force -ErrorAction Stop
             }
             elseif ($deploymentMode -ne "Online") {
                 $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
@@ -2085,7 +2085,7 @@ try {
                 Install-Module AzureStack -Repository $RepoName -RequiredVersion 2.0.2-preview -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
                 Install-Module Az -Repository $RepoName -RequiredVersion 0.10.0-preview -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
                 Install-Module -Name kbupdate -Force -ErrorAction Stop -Repository $RepoName -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
-                Install-Module -Name WindowsImageTools -Force -ErrorAction Stop -Repository $RepoName -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
+                #Install-Module -Name WindowsImageTools -Force -ErrorAction Stop -Repository $RepoName -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
             }
             StageComplete -progressStage $progressStage
         }
@@ -2486,14 +2486,17 @@ try {
                     $asdkHostName = ($env:computername).ToLower()
                     $azsRegName = "azsreg-$asdkHostName-$runTime"
                     $billingModel = "Development"
+                    $regRg = "azurestack"
                 }
                 else {
                     $randomGuid = ((New-Guid).ToString()).Substring(0, 6)
                     $azsRegName = "azsreg-$randomGuid-$runTime"
                     $billingModel = "PayAsYouUse"
+                    $regRg = "azurestack"
                 }
+                
                 Set-AzsRegistration -PrivilegedEndpointCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip `
-                -RegistrationName "$azsRegName" -BillingModel $billingModel -UsageReportingEnabled:$true -ErrorAction Stop
+                -RegistrationName "$azsRegName" -BillingModel $billingModel -ResourceGroupName $regRg -ErrorAction Stop
                 # Create Cleanup Doc - First Create File
                 $CleanUpRegPS1Path = "$downloadPath\AzSRegCleanUp.ps1"
                 Remove-Item -Path $CleanUpRegPS1Path -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
@@ -2519,6 +2522,13 @@ try {
                 StageComplete -progressStage $progressStage
             }
             catch {
+                Write-Host "Registration failed - attempting cleanup in Azure"
+                Connect-AzAccount -Environment $azureEnvironment -SubscriptionId $azureRegSubId -Tenant $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+                Write-Host "Remove resource lock"
+                $lockId = (Get-AzResourceLock -ResourceGroupName $regRg -ResourceName $azsRegName -ResourceType "Microsoft.Azurestack/registrations" -ErrorAction SilentlyContinue).lockid
+                Remove-AzResourceLock -LockId $lockId -Force -ErrorAction SilentlyContinue -Verbose
+                Write-Host "Removing the resource record"
+                Get-AzResource -Name $azsRegName -ErrorAction SilentlyContinue | Remove-AzResource -Force -ErrorAction SilentlyContinue
                 StageFailed -progressStage $progressStage
                 Set-Location $ScriptLocation
                 return
@@ -2961,7 +2971,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     }
     JobLauncher -jobName $jobName -jobToExecute $AddDBRPImage -Verbose
     
-    <### ADD DB RPS - JOB SETUP ###################################################################################################################################
+    ## ADD DB RPS - JOB SETUP ###################################################################################################################################
     ##############################################################################################################################################################
 
     $jobName = "AddMySQLRP"
@@ -3086,8 +3096,6 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddSQLHosting -Verbose
-
-    #>
 
     ### APP SERVICE - JOB SETUP ##################################################################################################################################
     ##############################################################################################################################################################
@@ -3767,14 +3775,20 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             if ($([System.IO.Directory]::Exists("C:\ClusterStorage\SU1_Volume"))) {
                 Write-Host "This is a Windows Server 2019 ASDK host - setting csvPath to C:\ClusterStorage\SU1_Volume\images"
                 $csvPath = "C:\ClusterStorage\SU1_Volume\images"
+                $scratch = "C:\ClusterStorage\SU1_Volume\Scratch"
             }
             elseif ($([System.IO.Directory]::Exists("C:\ClusterStorage\Volume1"))) {
                 Write-Host "This is a Windows Server 2016 ASDK host - setting csvPath to C:\ClusterStorage\Volume1\images"
                 $csvPath = "C:\ClusterStorage\Volume1\images"
+                $scratch = "C:\ClusterStorage\Volume1\Scratch"
             }
             if ($([System.IO.Directory]::Exists("$csvPath"))) {
                 Remove-Item -Path "$csvPath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Item "$csvPath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            }
+            if ($([System.IO.Directory]::Exists("$scratch"))) {
+                Remove-Item -Path "$scratch\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Item "$scratch" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
             }
             if ($(Get-ChildItem -Directory -Path "$downloadPath\*" | Where-Object { $_.Name -like "20*iso" } -ErrorAction SilentlyContinue)) {
                 Get-ChildItem -Directory -Path "$downloadPath\*" | Where-Object { $_.Name -like "20*iso" } -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
