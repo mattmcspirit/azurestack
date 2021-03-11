@@ -317,7 +317,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $old1 = '$AzPshInstallFolder = "SqlMySqlPsh"'
                 if ($dbrp -eq "SQLServer") {
                     $new1 = '$AzPshInstallFolder = "SQLServerPsh"'
-                }                
+                }
                 elseif ($dbrp -eq "MySQL") {
                     $new1 = '$AzPshInstallFolder = "MySQLPsh"'
                 }
