@@ -20,7 +20,7 @@ sudo echo "127.0.0.1  $HOSTNAME" >> /etc/hosts
 MSSQL_PID='evaluation'
 
 # Install SQL Server Agent (recommended)
-SQL_INSTALL_AGENT='y'
+# SQL_INSTALL_AGENT='y'
 
 # Install SQL Server Full Text Search (optional)
 # SQL_INSTALL_FULLTEXT='y'
@@ -76,18 +76,18 @@ echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bashrc
 source ~/.bashrc
 
 # Optional SQL Server Agent installation:
-if [ ! -z $SQL_INSTALL_AGENT ]
-then
-  echo Installing SQL Server Agent...
-  sudo apt-get install -y mssql-server-agent
-fi
+#if [ ! -z $SQL_INSTALL_AGENT ]
+#then
+#  echo Installing SQL Server Agent...
+#  sudo apt-get install -y mssql-server-agent
+#fi
 
 # Optional SQL Server Full Text Search installation:
-if [ ! -z $SQL_INSTALL_FULLTEXT ]
-then
-    echo Installing SQL Server Full-Text Search...
-    sudo apt-get install -y mssql-server-fts
-fi
+#if [ ! -z $SQL_INSTALL_FULLTEXT ]
+#then
+#    echo Installing SQL Server Full-Text Search...
+#    sudo apt-get install -y mssql-server-fts
+#fi
 
 # Optional example of post-installation configuration.
 # Trace flags 1204 and 1222 are for deadlock tracing.

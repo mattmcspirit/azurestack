@@ -31,7 +31,7 @@ export DEBIAN_FRONTEND=noninteractive
 # Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
 wget ${STORAGE_URI}{libaio1,libhtml-tagset-perl,liburi-perl,libhtml-parser-perl,liblwp-mediatypes-perl,libcgi-pm-perl,libfcgi-perl,\
 libcgi-fast-perl,libtimedate-perl,libio-html-perl,libhtml-template-perl,libencode-locale-perl,libhttp-date-perl,libhttp-message-perl,\
-libevent-core-2.0-5,mysql-common,mysql-client-core-5.7,mysql-client-5.7,mysql-server-core-5.7,mysql-server-5.7}.deb
+libevent-core-2.0-5,mysql-common,mysql-client-core-5.7,mysql-client-5.7,mysql-client,mysql-server-core-5.7,mysql-server-5.7,mysql-server}.deb
 
 # Install the files
 dpkg -i libaio1.deb
@@ -73,6 +73,10 @@ sleep 3
 dpkg -i mysql-server-core-5.7.deb
 sleep 3
 dpkg -i mysql-server-5.7.deb
+sleep 3
+dpkg -i mysql-client.deb
+sleep 3
+dpkg -i mysql-server.deb
 sleep 3
 
 

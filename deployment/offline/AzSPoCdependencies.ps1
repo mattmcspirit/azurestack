@@ -71,7 +71,7 @@ function Write-CustomVerbose {
     param
     (
         [parameter(Mandatory = $true)]
-        [string]$Message = ''
+        [string]$Message
     )
     begin { }
     process {
@@ -442,7 +442,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         ### The MySQL script would usually install MySQL via apt-get, however in an offline mode, this isn't possible, hence
         ### we download them here, and upload them to local Azure Stack storage as part of the Azure Stack POC Configurator
 
-        ### MySQL 5.7 ### (Simplified - correct as of 3/25/2020)
+        ### MySQL 5.7 ### (Simplified - correct as of 3/11/2021)
         $mysqlURLs = @()
         $mysqlURLs.Clear()
         $mysqlURLs = "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/libaio1_0.3.110-2_amd64.deb", 
@@ -460,11 +460,13 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhttp-date-perl/libhttp-date-perl_6.02-1_all.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhttp-message-perl/libhttp-message-perl_6.11-1_all.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/main/libe/libevent/libevent-core-2.0-5_2.0.21-stable-2ubuntu0.16.04.1_amd64.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-common_5.7.32-0ubuntu0.16.04.1_all.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-core-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-core-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb"
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-common_5.7.33-0ubuntu0.16.04.1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-core-5.7_5.7.33-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-5.7_5.7.33-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-core-5.7_5.7.33-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-5.7_5.7.33-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client_5.7.33-0ubuntu0.16.04.1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server_5.7.33-0ubuntu0.16.04.1_all.deb"
 
         foreach ($url in $mysqlURLs) {
             $row = $table.NewRow(); $row.Uri = "$url"
@@ -473,21 +475,23 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
             $row.filename = "$filename"; $row.path = "$binaryPath"; $row.productName = "MySQL $productname dependency"; $Table.Rows.Add($row)
         }
 
-        ### MySQL 8 ### (Simplified - correct as of 3/25/2020)
+        ### MySQL 8 ### (Simplified - correct as of 3/11/2021)
         $mysql8URLs = @()
         $mysql8URLs.Clear()
         $mysql8URLs = "https://dev.mysql.com/get/mysql-apt-config_0.8.16-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/libaio1_0.3.110-2_amd64.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/libmecab2_0.996-1.2ubuntu1_amd64.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/mecab-utils_0.996-1.2ubuntu1_amd64.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/mecab-ipadic_2.7.0-20070801+main-1_all.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/mecab-ipadic-utf8_2.7.0-20070801+main-1_all.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-common_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client-core_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-client_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-server-core_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-server_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-server_8.0.19-1ubuntu16.04_amd64.deb"
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-common_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client-core_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client-plugins_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-client_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-server-core_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-server_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-server_8.0.23-1ubuntu16.04_amd64.deb"
         
         foreach ($url in $mysql8URLs) {
             $row = $table.NewRow(); $row.Uri = "$url"
@@ -532,40 +536,59 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row.filename = "mssql-libcabi.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcabi dependency"; $Table.Rows.Add($row)
 
         # SQL Server 2017 Offline Dependency #4
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/gdbserver/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*gdbserver_7*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-gdbserver.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 gdbserver dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #5
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/gdb/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*gdb_7*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-gdb.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 gdb dependency"; $Table.Rows.Add($row)
 
-        # SQL Server 2017 Offline Dependency #5
+        # SQL Server 2017 Offline Dependency #6
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libsss-nss-idmap0/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libsss-nss-idmap0*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libsss.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsss dependency"; $Table.Rows.Add($row)
 
-        # SQL Server 2017 Offline Dependency #6
+        # SQL Server 2017 Offline Dependency #7
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libbabeltrace1/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libbabeltrace1_1.3*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libbabeltrace1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace1 dependency"; $Table.Rows.Add($row)
 
-        # SQL Server 2017 Offline Dependency #7
+        # SQL Server 2017 Offline Dependency #8
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libbabeltrace-ctf1/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libbabeltrace-ctf1*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libbabeltrace-ctf1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace-ctf1 dependency"; $Table.Rows.Add($row)
 
-        # SQL Server 2017 Offline Dependency #8
+        # SQL Server 2017 Offline Dependency #9
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libcurl3/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libcurl3_7.4*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libcurl3.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcurl3 dependency"; $Table.Rows.Add($row)
 
-        # SQL Server 2017 Offline Dependency #9
+        # SQL Server 2017 Offline Dependency #10
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libsasl2-modules-gssapi-mit/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libsasl2-modules-gssapi-mit*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libsasl2.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsasl2 dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #11
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libcc1-0/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libcc1-0*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libcc1-0.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcc1-0 dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #12
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libc6-dbg/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libc6-dbg*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libc6-dbg.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libc6-dbg dependency"; $Table.Rows.Add($row)
+                
 
         # Add MySQL Hosting Server Template
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/MySQLHosting/azuredeploy.json"
@@ -598,7 +621,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/win32-x64-user-stable"
         $row.filename = "vscode.exe"; $row.path = "$hostAppsPath"; $row.productName = "VScode Exe"; $Table.Rows.Add($row)
         # Putty Package
-        $row = $table.NewRow(); $row.Uri = "https://the.earth.li/~sgtatham/putty/0.72/w64/putty-64bit-0.72-installer.msi"
+        $row = $table.NewRow(); $row.Uri = "https://the.earth.li/~sgtatham/putty/0.74/w64/putty-64bit-0.74-installer.msi"
         $row.filename = "putty.msi"; $row.path = "$hostAppsPath"; $row.productName = "Putty MSI"; $Table.Rows.Add($row)
         # WinSCP Package
         $WebResponse = Invoke-WebRequest "https://chocolatey.org/packages/winscp.install" -UseBasicParsing
@@ -606,8 +629,11 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "WinSCP.zip"; $row.path = "$hostAppsPath"; $row.productName = "WinSCP Zip"; $Table.Rows.Add($row)
         # Chrome Package
-        $row = $table.NewRow(); $row.Uri = "http://dl.google.com/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
-        $row.filename = "googlechrome.msi"; $row.path = "$hostAppsPath"; $row.productName = "Chrome MSI"; $Table.Rows.Add($row)
+        #$row = $table.NewRow(); $row.Uri = "http://dl.google.com/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
+        #$row.filename = "googlechrome.msi"; $row.path = "$hostAppsPath"; $row.productName = "Chrome MSI"; $Table.Rows.Add($row)
+        # Edge Package
+        $row = $table.NewRow(); $row.Uri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
+        $row.filename = "microsoftedge.msi"; $row.path = "$hostAppsPath"; $row.productName = "Edge MSI"; $Table.Rows.Add($row)
         # WinDirStat Package
         $row = $table.NewRow(); $row.Uri = "https://windirstat.mirror.wearetriple.com/wds_current_setup.exe"
         $row.filename = "windirstat.exe"; $row.path = "$hostAppsPath"; $row.productName = "WinDirStat Exe"; $Table.Rows.Add($row)
