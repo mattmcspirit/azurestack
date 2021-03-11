@@ -629,8 +629,8 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "WinSCP.zip"; $row.path = "$hostAppsPath"; $row.productName = "WinSCP Zip"; $Table.Rows.Add($row)
         # Chrome Package
-        #$row = $table.NewRow(); $row.Uri = "http://dl.google.com/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
-        #$row.filename = "googlechrome.msi"; $row.path = "$hostAppsPath"; $row.productName = "Chrome MSI"; $Table.Rows.Add($row)
+        $row = $table.NewRow(); $row.Uri = "http://dl.google.com/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
+        $row.filename = "googlechrome.msi"; $row.path = "$hostAppsPath"; $row.productName = "Chrome MSI"; $Table.Rows.Add($row)
         # Edge Package
         $row = $table.NewRow(); $row.Uri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
         $row.filename = "microsoftedge.msi"; $row.path = "$hostAppsPath"; $row.productName = "Edge MSI"; $Table.Rows.Add($row)
