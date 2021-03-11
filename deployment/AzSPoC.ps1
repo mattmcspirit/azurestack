@@ -3378,7 +3378,8 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 try {
                     if ($deploymentMode -eq "Online") {
-                        # Install useful ASDK Host Apps via Chocolatey
+                        Set-ExecutionPolicy Bypass -Scope Process -Force
+                        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
                         Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
                         # Enable Choco Global Confirmation
                         Write-CustomVerbose -Message "Enabling global confirmation to streamline installs"
@@ -3397,12 +3398,22 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                         # WinSCP
                         Write-CustomVerbose -Message "Installing WinSCP with Chocolatey"
                         choco install winscp.install
-                        #Edge Insider Beta
+                        #Edge Insider
                         Write-CustomVerbose -Message "Installing Microsoft Edge"
                         choco install microsoft-edge
+                        <#
+                        $edgeUri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
+                        $edgeMSIPath = "$azsPath\microsoftedge.msi"
+                        if (![System.IO.File]::Exists($edgeMSIPath)) {
+                            DownloadWithRetry -downloadURI $edgeUri -downloadLocation $edgeMSIPath -retries 10
+                        }
+                        Set-Location $azsPath
+                        HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe" -appName "Microsoft Edge" `
+                            -arguments '/i microsoftedge.msi /qn /l*v "microsoftedge.log"' -fileName "microsoftedge.msi" -appType "MSI"
+                        #>
                         # Chrome
-                        #Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
-                        #choco install googlechrome
+                        Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
+                        choco install googlechrome
                         # WinDirStat
                         Write-CustomVerbose -Message "Installing WinDirStat with Chocolatey"
                         choco install windirstat
@@ -3443,9 +3454,9 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                         # WinSCP
                         HostAppInstaller -localInstallPath "$env:ProgramFiles\WinSCP\WinSCP.exe" -appName WinSCP `
                             -arguments '/SP /VERYSILENT /SUPPRESSMSGBOXES /LOG="WinSCP.log" /NOCANCEL /NORESTART' -fileName "WinSCP.exe" -appType "EXE"
-                        <# Chrome
+                        Chrome
                         HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe" -appName "Google Chrome" `
-                            -arguments '/i googlechrome.msi /qn /l*v "googlechrome.log"' -fileName "googlechrome.msi" -appType "MSI" #>
+                            -arguments '/i googlechrome.msi /qn /l*v "googlechrome.log"' -fileName "googlechrome.msi" -appType "MSI"
                         # Edge
                         HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe" -appName "Microsoft Edge" `
                             -arguments '/i microsoftedge.msi /qn /l*v "microsoftedge.log"' -fileName "microsoftedge.msi" -appType "MSI"
