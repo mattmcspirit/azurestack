@@ -154,23 +154,31 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
                         $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
                         $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
-                        $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+                        $feed = ($feed | Where-Object { $_.title -like "*1607*2021*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
                         #$ssuKB = "KB4576750"
-                        $ssuKB = "KB" + ($feed.link).Split('/')[4]
+                        # RSS feed layout changed, no longer displayed KB in previous way
+                        #$ssuKB = "KB" + ($feed.link).Split('/')[4]
+                        $ssuKB = "KB" + (($feed.link).Split('kb')[2]).Split('-')[0]
                         $microCodeFeed = $rssFeed.rss.channel.item | Where-Object { $_.description -like "*microcode updates from Intel*version 1607*" }
                         $microCodeFeed = ($microCodeFeed | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
-                        $microCodeKB = "KB" + ($microCodeFeed.link).Split('/')[4]
+                        # RSS feed layout changed, no longer displayed KB in previous way
+                        #$microCodeKB = "KB" + ($microCodeFeed.link).Split('/')[4]
+                        $microCodeKB = "KB" + (($microCodeFeed.link).Split('kb')[2]).Split('-')[0]
                     }
                     elseif ($buildVersion -eq "17763") {
                         $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
                         $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
                         $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
-                        $feed = ($feed | Where-Object { $_.title -like "*1809*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+                        $feed = ($feed | Where-Object { $_.title -like "*1809*2021*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
                         #$ssuKB = "KB4598480"
-                        $ssuKB = "KB" + ($feed.link).Split('/')[4]
+                        # RSS feed layout changed, no longer displayed KB in previous way
+                        #$ssuKB = "KB" + ($feed.link).Split('/')[4]
+                        $ssuKB = "KB" + (($feed.link).Split('kb')[2]).Split('-')[0]
                         $microCodeFeed = $rssFeed.rss.channel.item | Where-Object { $_.description -like "*microcode updates from Intel*version 1809*" }
                         $microCodeFeed = ($microCodeFeed | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
-                        $microCodeKB = "KB" + ($microCodeFeed.link).Split('/')[4]
+                        # RSS feed layout changed, no longer displayed KB in previous way
+                        #$microCodeKB = "KB" + ($microCodeFeed.link).Split('/')[4]
+                        $microCodeKB = "KB" + (($microCodeFeed.link).Split('kb')[2]).Split('-')[0]
                     }
 
                     $KBs += "$ssuKB"
@@ -178,9 +186,10 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
 
                     Write-Host "Getting info for removal of Adobe Flash Player"
                     $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
-                    $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Adobe Flash Player*" }
+                    $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Removal*Adobe Flash Player*" }
                     $feed = ($feed | Select-Object -Property Link | Sort-Object link -Descending) | Select-Object -First 1
-                    $flashKB = "KB" + ($feed.link).Split('/')[4]
+                    #$flashKB = "KB" + ($feed.link).Split('/')[4]
+                    $flashKB = "KB" + (($feed.link).Split('kb')[2]).Split('-')[0]
                     $KBs += $flashKB
 
                     # Find the KB Article Number for the latest Windows Server Cumulative Update
