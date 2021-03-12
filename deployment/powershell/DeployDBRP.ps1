@@ -436,7 +436,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
                             Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
                         }
-                        Write-CustomVerbose -Message "Creating a new PS Session to install the PS Modules without restarting a session"
+                        Write-Host "Creating a new PS Session to install the PS Modules without restarting a session"
                         $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                         Invoke-Command -Session $installPsSession -ArgumentList $RepoName, $AzureRmVer, $AzPshInstallFolder -ScriptBlock {
                             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -498,7 +498,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     else {
                         # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
                         if ($deploymentMode -ne "Online") {
-                            Write-CustomVerbose -Message "Creating a new PS Session to install the PS Modules without restarting a session"
+                            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                            $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
+                            $RepoName = "AzSPoCRepo"
+                            if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
+                                Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+                            }
+                            Write-Host "Creating a new PS Session to install the PS Modules without restarting a session"
                             $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                             Invoke-Command -Session $installPsSession -ArgumentList $RepoName, $AzureRmVer, $AzPshInstallFolder -ScriptBlock {
                                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
