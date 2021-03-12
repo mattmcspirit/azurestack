@@ -105,6 +105,7 @@ if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
     $publisher = "Microsoft"
     $offer = "AddOnRP"
     $sku = "WindowsServer"
+    $AzureRmVer = "2.5.0"
 }
 else {
     $dbRpVersion = "Old"
@@ -112,6 +113,7 @@ else {
     $publisher = "MicrosoftWindowsServer"
     $offer = "windowsserver"
     $sku = "2016-Datacenter-Server-Core"
+    $AzureRmVer = "2.3.0"
 }
 
 #Test for waiting for DBRP deployment to start until all WS images have finished
@@ -231,7 +233,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
                 # For an extra safety net, add an extra delay to ensure the image is fully ready in the PIR, otherwise it seems to cause a failure.
                 Write-Host "Delaying for a further 4 minutes to account for random failure with MySQL/SQL RP to detect platform image immediately after upload"
-                Start-Sleep -Seconds 240
+                #Start-Sleep -Seconds 240
 
                 # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
                 if ($serialMode -eq $true) {
@@ -392,6 +394,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                             Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
                             # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
+                            Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                            Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
                             $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                             Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment -ScriptBlock {
                                 Set-Location $Using:finalDbPath
@@ -408,6 +412,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         else {
                             # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
                             $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                            Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                            Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
                             Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
                                 Set-Location $Using:finalDbPath
                                 .\DeployMySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
@@ -424,11 +430,39 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
+                        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                        $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
+                        $RepoName = "AzSPoCRepo"
+                        if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
+                            Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
+                        }
+                        Write-CustomVerbose -Message "Creating a new PS Session to install the PS Modules without restarting a session"
+                        $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                        Invoke-Command -Session $installPsSession -ArgumentList $RepoName, $AzureRmVer, $AzPshInstallFolder -ScriptBlock {
+                            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                            $ProgressPreference = "SilentlyContinue"
+                            Save-Module -Name AzureRM -RequiredVersion $Using:AzureRmVer -Repository $Using:RepoName -Path "$Env:ProgramFiles\$Using:AzPshInstallFolder"
+                        }
+                        Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                        Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
                         # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
+                        Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                        Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
                         $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
-                        Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment -ScriptBlock {
+                        Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment, $AzPshInstallFolder -ScriptBlock {
                             Set-Location $Using:finalDbPath
-                            Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue -Verbose
+                            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                            $AzPshInstallLocation = "$Env:ProgramFiles\$Using:AzPshInstallFolder"
+                            Write-Host "Loading Azure RM modules from location: $AzPshInstallLocation"
+                            Import-Module $AzPshInstallLocation\AzureRm.Profile -Scope Global -Verbose
+                            Import-Module $AzPshInstallLocation\AzureRm.Resources -Scope Global -Verbose
+                            Import-Module $AzPshInstallLocation\Azure.Storage -Scope Global -Verbose
+                            # A bug in the older version tries to load the Azure.Storage dependency always from the global location, ignoring that error
+                            Import-Module $AzPshInstallLocation\AzureRm.Storage -Scope Global -ErrorAction SilentlyContinue 2>&1 -Verbose | Out-Null
+                            Import-Module $AzPshInstallLocation\AzureRm.Keyvault -Scope Global -Verbose
+                            Import-Module $AzPshInstallLocation\AzureRm.Compute -Scope Global -Verbose
+                            Import-Module $AzPshInstallLocation\AzureRm.Network -Scope Global -Verbose
+                            Import-Module $AzPshInstallLocation\AzureRm.Dns -Scope Global -Verbose
                             .\DeployMySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
                                 -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureCertPwd -DependencyFilesLocalPath $Using:dependencyFilePath `
                                 -AzureEnvironment $Using:azureEnvironment -AcceptLicense
@@ -446,6 +480,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
                         # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
+                        Remove-PSSession -Name SQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                        Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
                         $SQLsession = New-PSSession -Name SQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                         Invoke-Command -Session $SQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $dependencyFilePath, $secureCertPwd, $azureEnvironment -ScriptBlock {
                             Set-Location $Using:finalDbPath
@@ -455,18 +491,42 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         }
                         Remove-PSSession -Name SQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                         Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
-                        
                         <# .\DeploySQLProvider.ps1 -AzCredential $azsCreds -VMLocalCredential $vmLocalAdminCreds -CloudAdminCredential $pepAdminCreds `
                             -PrivilegedEndpoint $ERCSip -DependencyFilesLocalPath $dependencyFilePath -DefaultSSLCertificatePassword $secureCertPwd `
                             -AzureEnvironment $azureEnvironment #>
                     }
                     else {
                         # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
+                        if ($deploymentMode -ne "Online") {
+                            Write-CustomVerbose -Message "Creating a new PS Session to install the PS Modules without restarting a session"
+                            $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                            Invoke-Command -Session $installPsSession -ArgumentList $RepoName, $AzureRmVer, $AzPshInstallFolder -ScriptBlock {
+                                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                                $ProgressPreference = "SilentlyContinue"
+                                Save-Module -Name AzureRM -RequiredVersion $Using:AzureRmVer -Repository $Using:RepoName -Path "$Env:ProgramFiles\$Using:AzPshInstallFolder"
+                            }
+                            Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                            Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
+                        }
+                        Remove-PSSession -Name SQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                        Remove-Variable -Name SQLsession -Force -ErrorAction SilentlyContinue -Verbose
                         $SQLsession = New-PSSession -Name SQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                         Invoke-Command -Session $SQLsession -ArgumentList $deploymentMode, $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
                             Set-Location $Using:finalDbPath
                             if ($Using:deploymentMode -ne "Online") {
                                 Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue -Verbose
+                                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                                $AzPshInstallLocation = "$Env:ProgramFiles\$Using:AzPshInstallFolder"
+                                Write-Host "Loading Azure RM modules from location: $AzPshInstallLocation"
+                                Import-Module $AzPshInstallLocation\AzureRm.Profile -Scope Global -Verbose
+                                Import-Module $AzPshInstallLocation\AzureRm.Resources -Scope Global -Verbose
+                                Import-Module $AzPshInstallLocation\Azure.Storage -Scope Global -Verbose
+                                # A bug in the older version tries to load the Azure.Storage dependency always from the global location, ignoring that error
+                                Import-Module $AzPshInstallLocation\AzureRm.Storage -Scope Global -ErrorAction SilentlyContinue 2>&1 -Verbose | Out-Null
+                                Import-Module $AzPshInstallLocation\AzureRm.Keyvault -Scope Global -Verbose
+                                Import-Module $AzPshInstallLocation\AzureRm.Compute -Scope Global -Verbose
+                                Import-Module $AzPshInstallLocation\AzureRm.Network -Scope Global -Verbose
+                                Import-Module $AzPshInstallLocation\AzureRm.Dns -Scope Global -Verbose
                             }
                             .\DeploySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
                                 -PrivilegedEndpoint $Using:ERCSip -DefaultSSLCertificatePassword $Using:secureCertPwd `
