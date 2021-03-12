@@ -304,7 +304,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     if (-not [System.IO.File]::Exists("$azsPath\databases\$($dbrp).exe")) {
                         throw "Missing Exe file in extracted dependencies folder. Please ensure this exists at $azsPath\databases\$($dbrp).exe - Exiting process"
                     }
+                    if ($([System.IO.Directory]::Exists("$azsPath\databases\$dbrpPath"))) {
+                        Remove-Item -Path "$azsPath\databases\$dbrpPath" -Recurse -Force | Out-Null
+                    }
                 }
+
                 if (!$([System.IO.Directory]::Exists("$azsPath\databases\$dbrpPath"))) {
                     New-Item -Path "$azsPath\databases\$dbrpPath" -ItemType Directory -Force | Out-Null
                 }
@@ -319,9 +323,17 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $getCommonModule = (Get-ChildItem -Path "$azsPath\databases\$dbrpPath\Prerequisites\Common" -Recurse -Include "Common.psm1" -ErrorAction Stop).FullName
                 $old1 = '$AzPshInstallFolder = "SqlMySqlPsh"'
                 if ($dbrp -eq "SQLServer") {
+                    $AzPshInstallFolder = "SQLServerPsh"
+                    if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\$AzPshInstallFolder"))) {
+                        New-Item -Path "$Env:ProgramFiles\$AzPshInstallFolder" -ItemType Directory -Force | Out-Null
+                    }
                     $new1 = '$AzPshInstallFolder = "SQLServerPsh"'
                 }
                 elseif ($dbrp -eq "MySQL") {
+                    $AzPshInstallFolder = "MySQLPsh"
+                    if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\$AzPshInstallFolder"))) {
+                        New-Item -Path "$Env:ProgramFiles\$AzPshInstallFolder" -ItemType Directory -Force | Out-Null
+                    }
                     $new1 = '$AzPshInstallFolder = "MySQLPsh"'
                 }
                 $pattern1 = [RegEx]::Escape($old1)
