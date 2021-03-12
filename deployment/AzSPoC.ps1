@@ -648,7 +648,7 @@ try {
         Write-CustomVerbose -Message "Connection to GitHub: $gitHubNetTest"
         Write-CustomVerbose -Message "Connection to Ubuntu's Image Repo: $ubuntuNetTest"
         Write-CustomVerbose -Message "Connection to Chocolatey: $chocolateyNetTest"
-
+        
         if ($azureNetTest -and $gitHubNetTest -and $ubuntuNetTest -and $catalogNetTest -and $microsoftNetTest -and $chocolateyNetTest) {
             Write-CustomVerbose -Message "All internet connectivity tests passed"
             $validOnlineInstall = $true
@@ -2066,6 +2066,7 @@ try {
                 #Install-Module -Name WindowsImageTools -Force -ErrorAction Stop
             }
             elseif ($deploymentMode -ne "Online") {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                 $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
                 $RepoName = "AzSPoCRepo"
                 if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
@@ -2081,19 +2082,26 @@ try {
                 Write-CustomVerbose -Message "Creating a new PS Session to install the PS Modules without restarting a session"
                 $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                 Invoke-Command -Session $installPsSession -ArgumentList $RepoName -ScriptBlock {
+                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                     $ProgressPreference = "SilentlyContinue"
-                    Write-Host "Installing Az.Account Module"
-                    Install-Module Az.Accounts -Repository $Using:RepoName -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
-                    Write-Host "Installing Az Modules"
-                    Install-Module Az -Repository $Using:RepoName -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
-                    Write-Host "Installing Azure Stack module"
-                    Install-Module AzureStack -Repository $Using:RepoName -RequiredVersion 2.0.2-preview -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose          
+                    Write-Host "Installing Az.Accounts Module"
+                    Install-Module Az.Accounts -Repository $Using:RepoName -AllowPrerelease -Scope AllUsers -Verbose
                 }
                 Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
-                Install-Module -Name kbupdate -Force -ErrorAction Stop -Repository $RepoName -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
-                #Install-Module -Name WindowsImageTools -Force -ErrorAction Stop -Repository $RepoName -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
-            }
+                # Create a second PS Session to finish the install
+                $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                Invoke-Command -Session $installPsSession -ArgumentList $RepoName -ScriptBlock {
+                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                    $ProgressPreference = "SilentlyContinue"
+                    Write-Host "Installing Azure Stack module"
+                    Install-Module AzureStack -Repository $Using:RepoName -RequiredVersion 2.0.2-preview -AllowPrerelease -Scope AllUsers -Verbose
+                    Write-Host "Installing Az Modules"
+                    Install-Module Az -Repository $Using:RepoName -RequiredVersion 0.10.0-preview -AllowPrerelease -Scope AllUsers -Verbose
+                }
+                Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
+                }
             StageComplete -progressStage $progressStage
         }
         catch {
