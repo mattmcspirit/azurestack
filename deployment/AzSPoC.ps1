@@ -2078,12 +2078,19 @@ try {
                 Remove-Module -Name PowerShellGet -Force -Verbose
                 Write-CustomVerbose -Message "Unloading PackageManagement"
                 Remove-Module -Name PackageManagement -Force -Verbose
-                Write-CustomVerbose -Message "Importing PowerShellGet"
-                Import-Module -Name PowerShellGet -MinimumVersion 2.2.3 -Force
-                Write-CustomVerbose -Message "Importing PackageManagement"
-                Import-Module -Name PackageManagement -MinimumVersion 1.4.7 -ErrorAction Stop
-                Install-Module AzureStack -Repository $RepoName -RequiredVersion 2.0.2-preview -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
-                Install-Module Az -Repository $RepoName -RequiredVersion 0.10.0-preview -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
+                Write-CustomVerbose -Message "Creating a new PS Session to install the PS Modules without restarting a session"
+                $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                Invoke-Command -Session $installPsSession -ArgumentList $RepoName -ScriptBlock {
+                    $ProgressPreference = "SilentlyContinue"
+                    Write-Host "Installing Az.Account Module"
+                    Install-Module Az.Accounts -Repository $Using:RepoName -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
+                    Write-Host "Installing Az Modules"
+                    Install-Module Az -Repository $Using:RepoName -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose
+                    Write-Host "Installing Azure Stack module"
+                    Install-Module AzureStack -Repository $Using:RepoName -RequiredVersion 2.0.2-preview -AllowPrerelease -Scope AllUsers -Force -ErrorAction Stop -Verbose          
+                }
+                Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
                 Install-Module -Name kbupdate -Force -ErrorAction Stop -Repository $RepoName -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
                 #Install-Module -Name WindowsImageTools -Force -ErrorAction Stop -Repository $RepoName -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
             }
