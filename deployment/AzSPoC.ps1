@@ -2268,7 +2268,10 @@ try {
     # Once logins have been successfully tested, increment run counter to track usage
     # This is used to understand how many times the AzSPoC.ps1 script has been run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    try { Invoke-WebRequest "http://bit.ly/asdkcounter" -UseBasicParsing -DisableKeepAlive | Out-Null } catch { $_.Exception.Response.StatusCode.Value__ }
+    
+    if ($deploymentMode -ne "Offline") {
+        try { Invoke-WebRequest "http://bit.ly/asdkcounter" -UseBasicParsing -DisableKeepAlive | Out-Null } catch { $_.Exception.Response.StatusCode.Value__ }
+    }
 
     ### DOWNLOAD TOOLS #####################################################################################################################################
     ########################################################################################################################################################
