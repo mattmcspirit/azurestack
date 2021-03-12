@@ -432,7 +432,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp11470"
         $row.filename = "SQLServerOld.exe"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
         # SQL RP (New)
-        $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp11931"
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/azshsqlrp11931"
         $row.filename = "SQLServerNew.exe"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
         # MySQL 5.7 Install Script
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MySQL_Offline.sh"
