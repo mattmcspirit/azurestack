@@ -373,14 +373,17 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/AzSPoC.ps1"
         $row.filename = "AzSPoC.ps1"; $row.path = "$downloadPath"; $row.productName = "Azure Stack POC Configurator Script"; $Table.Rows.Add($row)
         # SqlLocalDB MSI
-        $row = $table.NewRow(); $row.Uri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
+        $row = $table.NewRow(); $row.Uri = "https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi"
         $row.filename = "SqlLocalDB.msi"; $row.path = "$sqlLocalDBPath"; $row.productName = "SqlLocalDB"; $Table.Rows.Add($row)
+        # VC Redist
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/vs/16/release/VC_redist.x64.exe"
+        $row.filename = "VC_redist.x64.exe"; $row.path = "$sqlLocalDBPath"; $row.productName = "VC_redist"; $Table.Rows.Add($row)
         # AZCopy MSI
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/azcopyforazurestack20171109"
         $row.filename = "AzCopy.msi"; $row.path = "$azCopyPath"; $row.productName = "AzCopy"; $Table.Rows.Add($row)
         # Azure Stack Tools
-        $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
-        $row.filename = "Master.zip"; $row.path = "$azsPath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
+        $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/az.zip"
+        $row.filename = "az.zip"; $row.path = "$azsPath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
         # Ubuntu Server 16.04 Image
         $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release-20210224/ubuntu-16.04-server-cloudimg-amd64-azure.vhd.tar.gz"
         $row.filename = "UbuntuServer16.04.20210224.tar.gz"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS TAR GZ file"; $Table.Rows.Add($row)
