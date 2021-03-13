@@ -49,13 +49,13 @@ dpkg -i mecab-ipadic-utf8_8_.deb
 sleep 3
 dpkg -i mysql-common_8_.deb
 sleep 3
+dpkg -i mysql-community-client-plugins_8_.deb
+sleep 3
 dpkg -i mysql-community-client-core_8_.deb
 sleep 3
 dpkg -i mysql-community-client_8_.deb
-sleep 3
+sleep 3_
 dpkg -i mysql-client_8_.deb
-sleep 3
-dpkg -i mysql-community-client-plugins_8.deb
 sleep 3
 dpkg -i mysql-community-server-core_8_.deb
 sleep 3
