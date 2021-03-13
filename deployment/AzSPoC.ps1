@@ -3472,7 +3472,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                         # WinSCP
                         HostAppInstaller -localInstallPath "$env:ProgramFiles\WinSCP\WinSCP.exe" -appName WinSCP `
                             -arguments '/SP /VERYSILENT /SUPPRESSMSGBOXES /LOG="WinSCP.log" /NOCANCEL /NORESTART' -fileName "WinSCP.exe" -appType "EXE"
-                        Chrome
+                        # Chrome
                         HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe" -appName "Google Chrome" `
                             -arguments '/i googlechrome.msi /qn /l*v "googlechrome.log"' -fileName "googlechrome.msi" -appType "MSI"
                         # Edge
