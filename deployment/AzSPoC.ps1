@@ -862,7 +862,12 @@ try {
 
     Write-CustomVerbose -Message "Selected identity provider is $authenticationType"
     if ($authenticationType.ToString() -like "AzureAd") {
-        Write-CustomVerbose -Message "Selected AAD Tenant is $azureDirectoryTenantName"
+        if ($azureDirectoryTenantName) {
+            Write-CustomVerbose -Message "Selected AAD Tenant is $azureDirectoryTenantName"
+        }
+        else {
+            throw "No Azure AD tenant name was provided, please provide the -azureDirectoryTenantName when running the script"
+        }
     }
 
     ### VALIDATE CREDS ##########################################################################################################################################
