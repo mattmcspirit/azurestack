@@ -215,7 +215,6 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     $appServiceSession = New-PSSession -Name appServiceSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                     Invoke-Command -Session $appServiceSession -ArgumentList $AppServicePath, $azureDirectoryTenantName, $azsCreds, $customDomainSuffix, `
                         $secureVMpwd, $downloadPath, $certificateFilePath -ScriptBlock {
-
                         $AzureRMVersion = "2.5.0"
                         $AzPshInstallFolder = "AppSvcPsh"
                         $AzPshInstallLocation = "$Env:ProgramFiles\$AzPshInstallFolder"
