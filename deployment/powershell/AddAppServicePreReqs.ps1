@@ -385,7 +385,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     Write-Host "Azure AD Permissions have been previously granted successfully"
                 }
             }
-
+            
             # Sideload the Custom Script Extension if the user is not registering
             # Check there's not a gallery item already uploaded to storage
             # Log back into Azure Stack
@@ -528,6 +528,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                 }
             }
+            
             # Update the AzSPoC database with successful completion
             $progressStage = $progressName
             StageComplete -progressStage $progressStage
