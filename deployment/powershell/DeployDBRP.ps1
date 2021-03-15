@@ -172,7 +172,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 # Get Azure Stack location
                 $azsLocation = (Get-AzLocation).DisplayName
                 # Perform a cleanup of the failed deployment - RG, Files
-                Write-Host "Checking for a previously failed deployemnt and cleaning up."
+                Write-Host "Checking for a previously failed deployment and cleaning up."
                 $rgName = "system.$azslocation.$($rp)adapter"
                 if (Get-AzResourceGroup -Name "$rgName" -Location $azsLocation -ErrorAction SilentlyContinue) {
                     Remove-AzResourceGroup -Name $rgName -Force -ErrorAction Stop -Verbose
@@ -391,9 +391,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 
                 Write-Host "Starting deployment of $dbrp Resource Provider"
                 if ($dbrp -eq "MySQL") {
-                    if ($deploymentMode -eq "Online") {
+                    if ($deploymentMode -ne "Offline") {
                         if ($multinode -eq $true) {
                             $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
+                            if ($deploymentMode -eq "PartialOnline") {
+                                $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
+                                Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
+                            }
                             $dbCert = Get-ChildItem -Path "$certPath\*" -Recurse -Include "_.dbadapter*.pfx" -ErrorAction Stop | ForEach-Object { $_.FullName }
                             Copy-Item $dbCert -Destination $dependencyFilePath -Force -Verbose
                             # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
@@ -413,6 +417,11 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                                 -AzureEnvironment $azureEnvironment -AcceptLicense #>
                         }
                         else {
+                            if ($deploymentMode -eq "PartialOnline") {
+                                $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
+                                $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
+                                Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
+                            }
                             # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
                             $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                             Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
@@ -429,7 +438,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                                 -PrivilegedEndpoint $ERCSip -DefaultSSLCertificatePassword $secureCertPwd -AzureEnvironment $azureEnvironment -AcceptLicense #>
                         }
                     }
-                    elseif ($deploymentMode -ne "Online") {
+                    elseif ($deploymentMode -eq "Offline") {
                         $dependencyFilePath = New-Item -ItemType Directory -Path "$azsPath\databases\$dbrppath\Dependencies" -Force | ForEach-Object { $_.FullName }
                         $MySQLMSI = Get-ChildItem -Path "$azsPath\databases\*" -Include "*connector*.msi" -ErrorAction Stop | ForEach-Object { $_.FullName }
                         Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
@@ -500,7 +509,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                     else {
                         # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
-                        if ($deploymentMode -ne "Online") {
+                        if ($deploymentMode -eq "Offline") {
                             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                             $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
                             $RepoName = "AzSPoCRepo"
@@ -512,6 +521,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             Invoke-Command -Session $installPsSession -ArgumentList $RepoName, $AzureRmVer, $AzPshInstallFolder -ScriptBlock {
                                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                                 $ProgressPreference = "SilentlyContinue"
+                                Write-Host "Testing for import of AzureRm.Profile module"
                                 Import-Module $AzPshInstallLocation\AzureRm.Profile -Scope Global -Verbose -ErrorAction SilentlyContinue
                                 $modCheck = Get-Module -Name AzureRM.Profile
                                 if (!$modCheck) {
@@ -527,7 +537,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                         $SQLsession = New-PSSession -Name SQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                         Invoke-Command -Session $SQLsession -ArgumentList $deploymentMode, $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
                             Set-Location $Using:finalDbPath
-                            if ($Using:deploymentMode -ne "Online") {
+                            if ($Using:deploymentMode -eq "Offline") {
                                 Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue -Verbose
                                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                                 $AzPshInstallLocation = "$Env:ProgramFiles\$Using:AzPshInstallFolder"

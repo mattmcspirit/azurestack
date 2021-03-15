@@ -820,7 +820,7 @@ try {
     }
 
     # Validate Github branch exists - usually reserved for testing purposes
-    if ($deploymentMode -eq "Online") {
+    if ($deploymentMode -ne "Offline") {
         try {
             $urlToTest = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/README.md"
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -1626,7 +1626,7 @@ try {
     ### INSTALL SQL SERVER POWERSHELL ###########################################################################################################################
     #############################################################################################################################################################
 
-    if ($deploymentMode -eq "Online") {
+    if ($deploymentMode -ne "Offline") {
         # Install SQL Server Module from Online PSrepository
         Register-PsRepository -Default -Verbose:$false -ErrorAction SilentlyContinue
         Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted -Verbose:$false -ErrorAction SilentlyContinue
@@ -1634,7 +1634,7 @@ try {
             Install-Module SqlServer -Force -Confirm:$false -AllowClobber -Verbose -ErrorAction Stop
         }
     }
-    elseif (($deploymentMode -ne "Online")) {
+    elseif (($deploymentMode -eq "Offline")) {
         $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
         $RepoName = "AzSPoCRepo"
         if (!(Get-InstalledModule -Name SqlServer -ErrorAction SilentlyContinue -Verbose)) {
@@ -1908,15 +1908,15 @@ try {
             $scriptArray = "AddAppServicePreReqs.ps1", "AddDBHosting.ps1", "AddDBRPImage.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", `
                 "DeployAppService.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadAppService.ps1", "DownloadWinUpdates.ps1", "GetJobStatus.ps1", "UploadScripts.ps1"
 
-            if ($deploymentMode -eq "Online") {
-                # If this is an online deployment, pull down the PowerShell scripts from GitHub
+            if ($deploymentMode -ne "Offline") {
+                # If this is an online/Partial Online deployment, pull down the PowerShell scripts from GitHub
                 foreach ($script in $scriptArray) {
                     $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/powershell"
                     $scriptDownloadPath = "$scriptPath\$script"
                     DownloadWithRetry -downloadURI "$scriptBaseURI/$script" -downloadLocation $scriptDownloadPath -retries 10
                 }
             }
-            elseif ($deploymentMode -ne "Online") {
+            elseif ($deploymentMode -eq "Offline") {
                 # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
                 $SourceLocation = "$downloadPath\AzSFiles\PowerShell\Scripts"
                 Copy-Item -Path "$SourceLocation\*" -Destination "$scriptPath" -Include "*.ps1" -Verbose -ErrorAction Stop
@@ -2029,8 +2029,8 @@ try {
             Get-Module -Name Azure* -ListAvailable | Uninstall-Module -Force -Verbose -ErrorAction SilentlyContinue
             Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -Verbose -ErrorAction SilentlyContinue
             Get-Module -Name Az.* -ListAvailable | Uninstall-Module -Force -Verbose -ErrorAction SilentlyContinue
-            if ($deploymentMode -eq "Online") {
-                # If this is an online deployment, pull down the PowerShell modules from the Internet
+            if ($deploymentMode -ne "Offline") {
+                # If this is an online/partial online deployment, pull down the PowerShell modules from the Internet
                 Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
                 Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
                 Register-PsRepository -Default
@@ -2070,7 +2070,7 @@ try {
                 Install-Module -Name kbupdate -Force -ErrorAction Stop
                 #Install-Module -Name WindowsImageTools -Force -ErrorAction Stop
             }
-            elseif ($deploymentMode -ne "Online") {
+            elseif ($deploymentMode -eq "Offline") {
                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                 $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
                 $RepoName = "AzSPoCRepo"
