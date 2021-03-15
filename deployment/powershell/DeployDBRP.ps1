@@ -99,13 +99,16 @@ if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
         $publisher = "MicrosoftWindowsServer"
         $offer = "windowsserver"
         $sku = "2016-Datacenter-Server-Core"
+        $AzureRmVer = "2.3.0"
     }
-    $dbRpVersion = "New"
-    $imageProgressCheck = "AddDBRPImage"
-    $publisher = "Microsoft"
-    $offer = "AddOnRP"
-    $sku = "WindowsServer"
-    $AzureRmVer = "2.5.0"
+    else {
+        $dbRpVersion = "New"
+        $imageProgressCheck = "AddDBRPImage"
+        $publisher = "Microsoft"
+        $offer = "AddOnRP"
+        $sku = "WindowsServer"
+        $AzureRmVer = "2.5.0"
+    }
 }
 else {
     $dbRpVersion = "Old"
