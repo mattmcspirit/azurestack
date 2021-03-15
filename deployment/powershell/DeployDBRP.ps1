@@ -119,9 +119,6 @@ else {
     $AzureRmVer = "2.3.0"
 }
 
-#Test for waiting for DBRP deployment to start until all WS images have finished
-#imageProgressCheck = "ServerFull2016Image"
-
 ### SET LOG LOCATION ###
 $logDate = Get-Date -Format FileDate
 New-Item -ItemType Directory -Path "$ScriptLocation\Logs\$logDate\$logFolder" -Force | Out-Null
