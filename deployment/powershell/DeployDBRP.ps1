@@ -509,7 +509,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             Invoke-Command -Session $installPsSession -ArgumentList $RepoName, $AzureRmVer, $AzPshInstallFolder -ScriptBlock {
                                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                                 $ProgressPreference = "SilentlyContinue"
-                                Save-Module -Name AzureRM -RequiredVersion $Using:AzureRmVer -Repository $Using:RepoName -Path "$Env:ProgramFiles\$Using:AzPshInstallFolder"
+                                $modCheck = Get-Module -Name AzureRM
+                                if (!$modCheck) {
+                                    Save-Module -Name AzureRM -RequiredVersion $Using:AzureRmVer -Repository $Using:RepoName -Path "$Env:ProgramFiles\$Using:AzPshInstallFolder"
+                                }
                             }
                             Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                             Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
@@ -567,6 +570,8 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             catch {
                 Write-Host "Attempt #$rpAttempt failed with the following error: $_.Exception.Message"
                 Write-Host "This will be retried a maximum of 3 times"
+                Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
                 Set-Location $ScriptLocation
             }
         }
