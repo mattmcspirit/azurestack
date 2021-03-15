@@ -219,6 +219,9 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                         $AzureRMVersion = "2.5.0"
                         $AzPshInstallFolder = "AppSvcPsh"
                         $AzPshInstallLocation = "$Env:ProgramFiles\$AzPshInstallFolder"
+                        if (!$([System.IO.Directory]::Exists("$AzPshInstallLocation"))) {
+                            New-Item -Path "$AzPshInstallLocation" -ItemType Directory -Force | Out-Null
+                        }
                         $isModuleInstalled = Test-Path -Path $AzPshInstallLocation\AzureRm -PathType Container
                         $isCorrectVersion = Test-Path -Path $AzPshInstallLocation\AzureRm\$AzureRMVersion -PathType Container
                         if ($isModuleInstalled -and $isCorrectVersion) {
@@ -233,7 +236,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                             elseif ($Using:deploymentMode -eq "PartialOnline") {
                                 # Grab Modules from repo path
                                 $RepoName = "AzSPoCRepo"
-                                Write-Host "Installing the AzureRM modules from the regsitered repo $RepoName to the location $AzPshInstallLocation"
+                                Write-Host "Installing the AzureRM modules from the registered repo $RepoName to the location $AzPshInstallLocation"
                                 Save-Module -Name AzureRM -RequiredVersion $AzureRMVersion -Repository $RepoName -Path $AzPshInstallLocation
                                 Write-Host "Successfully installed the AzureRM PS Modules for App Service."
                             }
