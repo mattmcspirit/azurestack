@@ -65,10 +65,55 @@ if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
             Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
             Clear-AzContext -Scope CurrentUser -Force
             Disable-AzContextAutosave -Scope CurrentUser
+
+            <# Need to check on both MySQL and SQL RP deployment to see if they have completed, failed, or skipped
+            # If skipped, proceed.
+            # If both have completed, proceed.
+            # If either have failed, throw a fail
+
+            # MySQL Check
+            Write-Host "Checking on the status of the database RP installs, which seem to have issues with certain VM extensions"
+            Write-Host "Therefore, we are installing the VM Extensions after the DB RPs"
+            $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
+            while ($mySQLProgressCheck -ne "Complete") {
+                if ($mySQLProgressCheck -eq "Skipped") {
+                    Write-Host "MySQLRP installation skipped, proceeding on to check the SQLRP installation"
+                    BREAK
+                }
+                else {
+                    Write-Host "The MySQLRP stage of the process has not yet completed. This should complete first before we add extensions. Checking again in 30 seconds"
+                    Start-Sleep -Seconds 30
+                    $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
+                    if ($mySQLProgressCheck -eq "Failed") {
+                        throw "MySQLRP deployment seems to have failed, so failing the VM extension stage until that is complete or skipped."
+                    }
+                }
+            }
+
+            # SQL Server RP Check
+            Write-Host "MySQL check complete. Checking the SQL RP progress"
+            $SQLProgressCheck = CheckProgress -progressStage "SQLServerRP"
+            while ($SQLProgressCheck -ne "Complete") {
+                if ($SQLProgressCheck -eq "Skipped") {
+                    Write-Host "SQLServerRP installation skipped, proceeding on to install the VM Extensions"
+                    BREAK
+                }
+                else {
+                    Write-Host "The SQLServerRP stage of the process has not yet completed. This should complete first before we add extensions. Checking again in 30 seconds"
+                    Start-Sleep -Seconds 30
+                    $SQLProgressCheck = CheckProgress -progressStage "SQLServerRP"
+                    if ($SQLProgressCheck -eq "Failed") {
+                        throw "SQLServerRP deployment seems to have failed, so failing the VM extension stage until that is complete or skipped."
+                    }
+                }
+            }
+            #>
+
             # Currently an infinite loop bug exists in Azs.AzureBridge.Admin 0.1.1 - this section fixes it by editing the Get-TaskResult.ps1 file
             if (!(Get-Module -Name Azs.AzureBridge.Admin)) {
                 Import-Module Azs.AzureBridge.Admin -Force
             }
+            <#
             if ((((Get-Module -Name Azs.AzureBridge*).Version).ToString()) -eq "0.1.1") {
                 $taskResult = (Get-ChildItem -Path "$((Get-Module -Name Azs.AzureBridge*).ModuleBase)" -Recurse -Include "Get-TaskResult.ps1" -ErrorAction Stop).FullName
                 foreach ($task in $taskResult) {
@@ -88,7 +133,7 @@ if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
                         }
                     }
                 }
-            }
+            } #>
             Write-Host "Logging into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
             Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop

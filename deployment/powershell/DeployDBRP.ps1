@@ -93,13 +93,13 @@ elseif ($dbrp -eq "SQLServer") {
 }
 
 if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
-    <#if (($dbrp -eq "SQLServer") -and ($authenticationType -eq "ADFS")) {
+    if (($dbrp -eq "SQLServer") -and ($authenticationType -eq "ADFS")) {
         $dbRpVersion = "Old"
         $imageProgressCheck = "ServerCore2016Image"
         $publisher = "MicrosoftWindowsServer"
         $offer = "windowsserver"
         $sku = "2016-Datacenter-Server-Core"
-    } #>
+    }
     $dbRpVersion = "New"
     $imageProgressCheck = "AddDBRPImage"
     $publisher = "Microsoft"
@@ -509,8 +509,10 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                             Invoke-Command -Session $installPsSession -ArgumentList $RepoName, $AzureRmVer, $AzPshInstallFolder -ScriptBlock {
                                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                                 $ProgressPreference = "SilentlyContinue"
-                                $modCheck = Get-Module -Name AzureRM
+                                Import-Module $AzPshInstallLocation\AzureRm.Profile -Scope Global -Verbose -ErrorAction SilentlyContinue
+                                $modCheck = Get-Module -Name AzureRM.Profile
                                 if (!$modCheck) {
+                                    Write-Host "Module doesn't seem to exist, installing from the repo"
                                     Save-Module -Name AzureRM -RequiredVersion $Using:AzureRmVer -Repository $Using:RepoName -Path "$Env:ProgramFiles\$Using:AzPshInstallFolder"
                                 }
                             }
