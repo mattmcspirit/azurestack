@@ -233,7 +233,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
                 # For an extra safety net, add an extra delay to ensure the image is fully ready in the PIR, otherwise it seems to cause a failure.
                 Write-Host "Delaying for a further 4 minutes to account for random failure with MySQL/SQL RP to detect platform image immediately after upload"
-                #Start-Sleep -Seconds 240
+                Start-Sleep -Seconds 240
 
                 # Need to confirm that both deployments don't operate at exactly the same time, or there may be a conflict with creating DNS records at the end of the RP deployment
                 if ($serialMode -eq $true) {
