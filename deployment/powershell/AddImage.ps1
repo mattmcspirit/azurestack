@@ -682,10 +682,10 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                                 $UbuntuServerTarDirectory = (Get-ChildItem -Path "$imageRootPath\images\$image\$($azpkg.offer)$($azpkg.vhdVersion).tar").DirectoryName
                                 $session = New-PSSession -Name ExtractTar -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                                 Invoke-Command -Session $session -ArgumentList $deploymentMode, $azsPath, $UbuntuServerTar, $UbuntuServerTarDirectory, $imageRootPath, $blobName -ScriptBlock {
-                                    if ($Using:deploymentMode -eq "Online") {
+                                    if ($Using:deploymentMode -ne "Offline") {
                                         Install-Module -Name 7Zip4PowerShell -Verbose -Force
                                     }
-                                    elseif ($Using:deploymentMode -ne "Online") {
+                                    elseif ($Using:deploymentMode -eq "Offline") {
                                         $SourceLocation = "$Using:azsPath\PowerShell"
                                         $RepoName = "AzSPoCRepo"
                                         if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
