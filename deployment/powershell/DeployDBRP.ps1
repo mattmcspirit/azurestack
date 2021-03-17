@@ -432,9 +432,9 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                                 Copy-Item $MySQLMSI -Destination $dependencyFilePath -Force -Verbose
                             }
                             # Need to deploy in a fresh PSSession due to needing fresh PowerShell modules
-                            $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                             Remove-PSSession -Name mySQLsession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                             Remove-Variable -Name mySQLsession -Force -ErrorAction SilentlyContinue -Verbose
+                            $mySQLsession = New-PSSession -Name mySQLsession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
                             Invoke-Command -Session $mySQLsession -ArgumentList $finalDbPath, $azsCreds, $vmLocalAdminCreds, $pepAdminCreds, $ERCSip, $secureCertPwd, $azureEnvironment -ScriptBlock {
                                 Set-Location $Using:finalDbPath
                                 .\DeployMySQLProvider.ps1 -AzCredential $Using:azsCreds -VMLocalCredential $Using:vmLocalAdminCreds -CloudAdminCredential $Using:pepAdminCreds `
