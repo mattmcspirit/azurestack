@@ -302,6 +302,7 @@ if ($ISOPath2019) {
 ########################################################################################################################################################
 
 Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
+Install-Module -Name PowerShellGet -Force -AllowClobber
 Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
 Register-PsRepository -Default
 Get-PSRepository -Name "PSGallery"
