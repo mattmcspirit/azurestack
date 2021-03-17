@@ -95,7 +95,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $appServiceExeDownloadLocation = "$azsPath\appservice\appservice.exe"
                 DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
             }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+            elseif (($deploymentMode -ne "Online")) {
                 if (-not [System.IO.File]::Exists("$azsPath\appservice\appservicehelper.zip")) {
                     throw "Missing appservice.zip file in extracted app service dependencies folder. Please ensure this exists at $azsPath\appservice\appservicehelper.zip - Exiting process"
                 }

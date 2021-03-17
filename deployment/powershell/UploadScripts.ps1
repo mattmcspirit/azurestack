@@ -66,7 +66,7 @@ $progressCheck = CheckProgress -progressStage $progressStage
 if ($progressCheck -eq "Complete") {
     Write-Host "Azure Stack POC Configurator Stage: $progressStage previously completed successfully"
 }
-elseif ((($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) -and (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed"))) {
+elseif (($deploymentMode -eq "Offline") -and (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed"))) {
     try {
         if ($progressCheck -eq "Failed") {
             # Update the AzSPoC database back to incomplete status if previously failed

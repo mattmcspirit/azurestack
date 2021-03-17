@@ -227,18 +227,9 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                             Write-Host "AzureRM PS Modules for App Service version $AzureRMVersion found at $AzPshInstallLocation"
                         }
                         else {
-                            if ($Using:deploymentMode -eq "Online") {
-                                Write-Host "Installing the AzureRM PS Modules for App Service install at the location $AzPshInstallLocation."
-                                Save-Module -Name AzureRM -Path $AzPshInstallLocation -RequiredVersion $AzureRMVersion -Force
-                                Write-Host "Successfully installed the AzureRM PS Modules for App Service."
-                            }
-                            elseif ($Using:deploymentMode -eq "PartialOnline") {
-                                # Grab Modules from repo path
-                                $RepoName = "AzSPoCRepo"
-                                Write-Host "Installing the AzureRM modules from the registered repo $RepoName to the location $AzPshInstallLocation"
-                                Save-Module -Name AzureRM -RequiredVersion $AzureRMVersion -Repository $RepoName -Path $AzPshInstallLocation
-                                Write-Host "Successfully installed the AzureRM PS Modules for App Service."
-                            }
+                            Write-Host "Installing the AzureRM PS Modules for App Service install at the location $AzPshInstallLocation."
+                            Save-Module -Name AzureRM -Path $AzPshInstallLocation -RequiredVersion $AzureRMVersion -Force
+                            Write-Host "Successfully installed the AzureRM PS Modules for App Service."
                         }
                         # Import PS Modules
                         Import-Module $AzPshInstallLocation\AzureRm.Profile -Scope Global

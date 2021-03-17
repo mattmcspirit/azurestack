@@ -212,7 +212,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 }
             }
             # Need to check if the UploadScripts stage has finished (for an partial/offline deployment)
-            if (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+            if ($deploymentMode -eq "Offline") {
                 $uploadScriptsJobCheck = CheckProgress -progressStage "UploadScripts"
                 while ($uploadScriptsJobCheck -ne "Complete") {
                     Write-Host "The UploadScripts stage of the process has not yet completed. Checking again in 20 seconds"
@@ -294,7 +294,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             # Dynamically retrieve the mainTemplate.json URI from the Azure Stack Gallery to determine deployment base URI
-            if ($deploymentMode -eq "Online") {
+            if ($deploymentMode -ne "Offline") {
                 if ($vmType -eq "AppServiceFS") {
                     Write-Host "Downloading the template required for the File Server"
                     $mainTemplateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/FileServer/azuredeploy.json"
@@ -312,7 +312,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/"
                 }
             }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+            elseif ($deploymentMode -eq "Offline") {
                 Write-Host "Clearing previous Azure/Azure Stack logins"
                 Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
                 Clear-AzContext -Scope CurrentUser -Force

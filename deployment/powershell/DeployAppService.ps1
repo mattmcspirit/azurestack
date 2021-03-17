@@ -248,7 +248,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 $appServiceJsonDownloadLocation = "$AppServicePath\AppSvcPre.json"
                 DownloadWithRetry -downloadURI "$appServiceJsonURI" -downloadLocation "$appServiceJsonDownloadLocation" -retries 10
             }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+            elseif ($deploymentMode -ne "Online") {
                 if ([System.IO.File]::Exists("$azsPath\appservice\AppSvcPre.json")) {
                     Write-Host "Located AppSvcPre.json file"
                 }
@@ -343,7 +343,7 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             if ($deploymentMode -eq "Online") {
                 Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log `"$appServiceLogPath`" Deploy UserName=$($azsCreds.UserName) Password=$appServiceInstallPwd ParamFile=`"$AppServicePath\AppSvcPost.json`"" -PassThru
             }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+            elseif ($deploymentMode -ne "Online") {
                 Start-Process -FilePath .\AppService.exe -ArgumentList "/quiet /log `"$appServiceLogPath`" Deploy OfflineInstallationPackageFile=`"$AppServicePath\appserviceoffline.zip`" UserName=$($azsCreds.UserName) Password=$appServiceInstallPwd ParamFile=`"$AppServicePath\AppSvcPost.json`"" -PassThru
             }
 

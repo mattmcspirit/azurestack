@@ -395,7 +395,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 $offlinePackage = "Canonical.UbuntuServer1604LTS-ARM.1.0.0"
                 $publisher = "Canonical"
                 $offer = "UbuntuServer"
-                if (($registerAzS -eq $false) -or (($registerAzS -eq $true) -and ($deploymentMode -ne "Online"))) {
+                if (($registerAzS -eq $false) -or (($registerAzS -eq $true) -and ($deploymentMode -eq "Online"))) {
                     $date = Get-Date -Format FileDate
                     # Temporarily hard coding to newest known working version
                     #$vhdVersion = "16.04.$date"
@@ -417,7 +417,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
             $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
             Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
             $azsLocation = (Get-AzLocation).DisplayName
-            if (($registerAzS -eq $true) -and ($deploymentMode -eq "Online")) {
+            if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
                 #if ($image -notlike "*2019") {
                 if ($image) {
                     # Logout to clean up
@@ -949,7 +949,7 @@ elseif ((!$skip2019Images) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Didn't find this package: $azpkgPackageName"
                 Write-Host "Will need to side load it in to the gallery"
 
-                if (($registerAzS -eq $true) -and ($deploymentMode -eq "Online")) {
+                if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
                     <#
                     if ($image -like "*2019") {
                         $azpkgPackageURL = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/WindowsServer/$package.azpkg"

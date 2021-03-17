@@ -93,13 +93,13 @@ elseif ($dbrp -eq "SQLServer") {
 }
 
 if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
-    if (($dbrp -eq "SQLServer") -and ($authenticationType -eq "ADFS")) {
+    if ($dbrp -eq "SQLServer") {
         $dbRpVersion = "Old"
         $imageProgressCheck = "ServerCore2016Image"
         $publisher = "MicrosoftWindowsServer"
         $offer = "windowsserver"
         $sku = "2016-Datacenter-Server-Core"
-        $AzureRmVer = "2.3.0"
+        $AzureRmVer = "2.5.0"
     }
     else {
         $dbRpVersion = "New"
@@ -116,7 +116,7 @@ else {
     $publisher = "MicrosoftWindowsServer"
     $offer = "windowsserver"
     $sku = "2016-Datacenter-Server-Core"
-    $AzureRmVer = "2.3.0"
+    $AzureRmVer = "2.5.0"
 }
 
 ### SET LOG LOCATION ###
@@ -338,13 +338,25 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                     }
                     $new1 = '$AzPshInstallFolder = "MySQLPsh"'
                 }
+                $old2 = '$AzureRMVersion = "2.3.0"'
+                $new2 = '$AzureRMVersion = "2.5.0"'
                 $pattern1 = [RegEx]::Escape($old1)
                 $pattern2 = [RegEx]::Escape($new1)
+                $pattern3 = [RegEx]::Escape($old2)
+                $pattern4 = [RegEx]::Escape($new2)
                 if (!((Get-Content $getCommonModule) | Select-String $pattern2)) {
                     if ((Get-Content $getCommonModule) | Select-String $pattern1) {
                         Write-Host "Known issues with Azure PowerShell and DB RPs - editing Common.psm1"
                         Write-Host "Editing Azure PowerShell Module Path"
                         (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern1, $new1 } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
+                        Write-Host "Editing completed."
+                    }
+                }
+                if (!((Get-Content $getCommonModule) | Select-String $pattern4)) {
+                    if ((Get-Content $getCommonModule) | Select-String $pattern3) {
+                        Write-Host "Known issues with Azure PowerShell and DB RPs - editing Common.psm1"
+                        Write-Host "Editing Azure RM Version"
+                        (Get-Content $getCommonModule) | ForEach-Object { $_ -replace $pattern3, $new2 } -Verbose -ErrorAction Stop | Set-Content $getCommonModule -Verbose -ErrorAction Stop
                         Write-Host "Editing completed."
                     }
                 }

@@ -185,7 +185,7 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             if ($deploymentMode -eq "Online") {
                 $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/$hostingPath/azuredeploy.json"
             }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+            elseif ($deploymentMode -ne "Online") {
                 $templateURI = Get-ChildItem -Path "$azsPath\templates" -Recurse -Include "$hostingTemplate" | ForEach-Object { $_.FullName }
             }
             if ($dbHost -eq "MySQL") {

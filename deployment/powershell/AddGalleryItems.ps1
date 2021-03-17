@@ -153,7 +153,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 }  
             }
             # If this isn't an online deployment, use the extracted zip file, and upload to a storage account
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+            elseif ($deploymentMode -ne "Online") {
                 Write-Host "Uploading $azpkgPackageName to a storage account before it's side-loaded into the gallery"
                 $azpkgPackageURL = AddOfflineAZPKG -azpkgPackageName $azpkgPackageName -azCopyLogPath $azCopyLogPath -Verbose
             }
