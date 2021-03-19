@@ -3401,7 +3401,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 try {
                     if ($deploymentMode -eq "Online") {
-                        Set-ExecutionPolicy Bypass -Scope Process -Force
+                        Set-ExecutionPolicy Bypass -Force -ErrorAction SilentlyContinue
                         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
                         Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
                         # Enable Choco Global Confirmation
