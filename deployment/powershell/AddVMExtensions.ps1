@@ -62,19 +62,58 @@ if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
             }
 
             Write-Host "Clearing previous Azure/Azure Stack logins"
-            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
-            Disable-AzureRMContextAutosave -Scope CurrentUser
+            Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+            Clear-AzContext -Scope CurrentUser -Force
+            Disable-AzContextAutosave -Scope CurrentUser
 
-            <#Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
-            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
-            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
+            <# Need to check on both MySQL and SQL RP deployment to see if they have completed, failed, or skipped
+            # If skipped, proceed.
+            # If both have completed, proceed.
+            # If either have failed, throw a fail
+
+            # MySQL Check
+            Write-Host "Checking on the status of the database RP installs, which seem to have issues with certain VM extensions"
+            Write-Host "Therefore, we are installing the VM Extensions after the DB RPs"
+            $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
+            while ($mySQLProgressCheck -ne "Complete") {
+                if ($mySQLProgressCheck -eq "Skipped") {
+                    Write-Host "MySQLRP installation skipped, proceeding on to check the SQLRP installation"
+                    BREAK
+                }
+                else {
+                    Write-Host "The MySQLRP stage of the process has not yet completed. This should complete first before we add extensions. Checking again in 30 seconds"
+                    Start-Sleep -Seconds 30
+                    $mySQLProgressCheck = CheckProgress -progressStage "MySQLRP"
+                    if ($mySQLProgressCheck -eq "Failed") {
+                        throw "MySQLRP deployment seems to have failed, so failing the VM extension stage until that is complete or skipped."
+                    }
+                }
+            }
+
+            # SQL Server RP Check
+            Write-Host "MySQL check complete. Checking the SQL RP progress"
+            $SQLProgressCheck = CheckProgress -progressStage "SQLServerRP"
+            while ($SQLProgressCheck -ne "Complete") {
+                if ($SQLProgressCheck -eq "Skipped") {
+                    Write-Host "SQLServerRP installation skipped, proceeding on to install the VM Extensions"
+                    BREAK
+                }
+                else {
+                    Write-Host "The SQLServerRP stage of the process has not yet completed. This should complete first before we add extensions. Checking again in 30 seconds"
+                    Start-Sleep -Seconds 30
+                    $SQLProgressCheck = CheckProgress -progressStage "SQLServerRP"
+                    if ($SQLProgressCheck -eq "Failed") {
+                        throw "SQLServerRP deployment seems to have failed, so failing the VM extension stage until that is complete or skipped."
+                    }
+                }
+            }
             #>
 
             # Currently an infinite loop bug exists in Azs.AzureBridge.Admin 0.1.1 - this section fixes it by editing the Get-TaskResult.ps1 file
             if (!(Get-Module -Name Azs.AzureBridge.Admin)) {
                 Import-Module Azs.AzureBridge.Admin -Force
             }
+            <#
             if ((((Get-Module -Name Azs.AzureBridge*).Version).ToString()) -eq "0.1.1") {
                 $taskResult = (Get-ChildItem -Path "$((Get-Module -Name Azs.AzureBridge*).ModuleBase)" -Recurse -Include "Get-TaskResult.ps1" -ErrorAction Stop).FullName
                 foreach ($task in $taskResult) {
@@ -94,32 +133,37 @@ if (($registerAzS -eq $true) -and ($deploymentMode -ne "Offline")) {
                         }
                     }
                 }
-            }
+            } #>
             Write-Host "Logging into Azure Stack"
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRmEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
             $activationName = "default"
             $activationRG = "azurestack-activation"
             Write-Host "Checking if Azure Stack is activated and successfully registered"
             if ($(Get-AzsAzureBridgeActivation -Name $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
                 Write-Host "Adding Microsoft VM Extensions from the from the Azure Stack Marketplace"
-                $getExtensions = ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*") }).Name) -replace "default/", ""
-                foreach ($extension in $getExtensions) {
+                $getExtensions = (Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*") }).DisplayName | Sort-Object -Descending -Unique
+                $newExtensionList = @()
+                foreach ($ext in $getExtensions) {
+                    $newExtensionList += ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.DisplayName -like "*$ext*") }).Name) -replace "default/", "" | Sort-Object -Descending | Select-Object -First 1
+                }
+                #$getExtensions = ((Get-AzsAzureBridgeProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*") }).Name) -replace "default/", ""
+                foreach ($extension in $newExtensionList) {
                     while (!$(Get-AzsAzureBridgeDownloadedProduct -Name $extension -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose)) {
                         Write-Host "Didn't find $extension in your gallery. Downloading from the Azure Stack Marketplace"
-                        Invoke-AzsAzureBridgeProductDownload -ActivationName $activationName -Name $extension -ResourceGroupName $activationRG -Force -Confirm:$false -Verbose
-                        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-                        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-                        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+                        Invoke-AzsAzureBridgeProductDownload -ActivationName $activationName -Name $extension -ResourceGroupName $activationRG -Confirm:$false -Verbose
+                        Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                        $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                        Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
                     }
                 }
                 $getDownloads = (Get-AzsAzureBridgeDownloadedProduct -ActivationName $activationName -ResourceGroupName $activationRG -ErrorAction SilentlyContinue -Verbose | Where-Object { ($_.ProductKind -eq "virtualMachineExtension") -and ($_.Name -like "*microsoft*") })
                 Write-Host "Your Azure Stack gallery now has the following Microsoft VM Extensions for enhancing your deployments:`r`n"
                 foreach ($download in $getDownloads) {
-                    Write-Host "$($download.DisplayName) | Version: $($download.ProductProperties.Version)"
+                    Write-Host "$($download.DisplayName) | Version: $($download.ProductProperties)"
                 }
                 # Update the AzSPoC database with successful completion
                 StageComplete -progressStage $progressStage

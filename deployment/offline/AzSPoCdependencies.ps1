@@ -6,7 +6,7 @@
 
 .VERSION
 
-    2002  Latest version, to align with current Azure Stack POC Configurator version.
+    2008.1  Latest version, to align with current Azure Stack POC Configurator version.
 
 .AUTHOR
 
@@ -71,7 +71,7 @@ function Write-CustomVerbose {
     param
     (
         [parameter(Mandatory = $true)]
-        [string]$Message = ''
+        [string]$Message
     )
     begin { }
     process {
@@ -298,12 +298,11 @@ if ($ISOPath2019) {
     }
 }
 
-
-
 ### Configure PowerShell ###############################################################################################################################
 ########################################################################################################################################################
 
 Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
+Install-Module -Name PowerShellGet -Force -AllowClobber
 Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
 Register-PsRepository -Default
 Get-PSRepository -Name "PSGallery"
@@ -375,21 +374,20 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/AzSPoC.ps1"
         $row.filename = "AzSPoC.ps1"; $row.path = "$downloadPath"; $row.productName = "Azure Stack POC Configurator Script"; $Table.Rows.Add($row)
         # SqlLocalDB MSI
-        $row = $table.NewRow(); $row.Uri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
+        $row = $table.NewRow(); $row.Uri = "https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi"
         $row.filename = "SqlLocalDB.msi"; $row.path = "$sqlLocalDBPath"; $row.productName = "SqlLocalDB"; $Table.Rows.Add($row)
+        # VC Redist
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/vs/16/release/VC_redist.x64.exe"
+        $row.filename = "VC_redist.x64.exe"; $row.path = "$sqlLocalDBPath"; $row.productName = "VC_redist"; $Table.Rows.Add($row)
         # AZCopy MSI
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/azcopyforazurestack20171109"
         $row.filename = "AzCopy.msi"; $row.path = "$azCopyPath"; $row.productName = "AzCopy"; $Table.Rows.Add($row)
         # Azure Stack Tools
-        $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
-        $row.filename = "Master.zip"; $row.path = "$azsPath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
-        # Ubuntu Server 16.04 ZIP
-        #$row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-        #hard coding to a known working VHD
-        #$row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/16.04/release-20190628/ubuntu-16.04-server-cloudimg-amd64-disk1.vhd.zip"
-        #$row.filename = "UbuntuServer1.0.0.zip"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS zip file"; $Table.Rows.Add($row)
-        $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release-20200318/ubuntu-16.04-server-cloudimg-amd64-azure.vhd.tar.gz"
-        $row.filename = "UbuntuServer16.04.20200318.tar.gz"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS TAR GZ file"; $Table.Rows.Add($row)
+        $row = $table.NewRow(); $row.Uri = "https://github.com/Azure/AzureStack-Tools/archive/az.zip"
+        $row.filename = "az.zip"; $row.path = "$azsPath"; $row.productName = "Azure Stack Tools"; $Table.Rows.Add($row)
+        # Ubuntu Server 16.04 Image
+        $row = $table.NewRow(); $row.Uri = "https://cloud-images.ubuntu.com/releases/xenial/release-20210224/ubuntu-16.04-server-cloudimg-amd64-azure.vhd.tar.gz"
+        $row.filename = "UbuntuServer16.04.20210224.tar.gz"; $row.path = "$ubuntuPath"; $row.productName = "Ubuntu Server 16.04 LTS TAR GZ file"; $Table.Rows.Add($row)
         # Ubuntu Server AZPKG
         $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/Ubuntu/Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"
         $row.filename = "Canonical.UbuntuServer1604LTS-ARM.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "Ubuntu Server Marketplace Package"; $Table.Rows.Add($row)
@@ -422,15 +420,21 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         # SQL AZPKG
         $row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/packages/MSSQL/AzureStackPOC.MSSQL.1.0.0.azpkg"
         $row.filename = "AzureStackPOC.MSSQL.1.0.0.azpkg"; $row.path = "$packagePath"; $row.productName = "SQL Server Marketplace Package"; $Table.Rows.Add($row)
-        # MySQL RP
+        # MySQL RP (Old)
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestackmysqlrp11470"
-        $row.filename = "MySQL.zip"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files"; $Table.Rows.Add($row)
+        $row.filename = "MySQLOld.exe"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files"; $Table.Rows.Add($row)
+        # MySQL RP (New)
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/azshmysqlrp11931"
+        $row.filename = "MySQLNew.exe"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files"; $Table.Rows.Add($row)
         # MySQL RP Helper MSI
         $row = $table.NewRow(); $row.Uri = "https://dev.mysql.com/get/Download/sConnector-Net/mysql-connector-net-6.10.5.msi"
         $row.filename = "mysql-connector-net-6.10.5.msi"; $row.path = "$dbPath"; $row.productName = "MySQL Resource Provider Files Offline Connector"; $Table.Rows.Add($row)
-        # SQL RP
+        # SQL RP (Old)
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/azurestacksqlrp11470"
-        $row.filename = "SQLServer.zip"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
+        $row.filename = "SQLServerOld.exe"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
+        # SQL RP (New)
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/azshsqlrp11931"
+        $row.filename = "SQLServerNew.exe"; $row.path = "$dbPath"; $row.productName = "SQL Server Resource Provider Files"; $Table.Rows.Add($row)
         # MySQL 5.7 Install Script
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/scripts/install_MySQL_Offline.sh"
         $row.filename = "install_MySQL.sh"; $row.path = "$scriptPath"; $row.productName = "MySQL install script"; $Table.Rows.Add($row)
@@ -442,7 +446,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         ### The MySQL script would usually install MySQL via apt-get, however in an offline mode, this isn't possible, hence
         ### we download them here, and upload them to local Azure Stack storage as part of the Azure Stack POC Configurator
 
-        ### MySQL 5.7 ### (Simplified - correct as of 3/25/2020)
+        ### MySQL 5.7 ### (Simplified - correct as of 3/11/2021)
         $mysqlURLs = @()
         $mysqlURLs.Clear()
         $mysqlURLs = "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/libaio1_0.3.110-2_amd64.deb", 
@@ -460,14 +464,13 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhttp-date-perl/libhttp-date-perl_6.02-1_all.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/main/libh/libhttp-message-perl/libhttp-message-perl_6.11-1_all.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/main/libe/libevent/libevent-core-2.0-5_2.0.21-stable-2ubuntu0.16.04.1_amd64.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-common_5.7.32-0ubuntu0.16.04.1_all.deb",
-     
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-core-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-core-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb",
-        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-5.7_5.7.32-0ubuntu0.16.04.1_amd64.deb"
-
-            
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-common_5.7.33-0ubuntu0.16.04.1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-core-5.7_5.7.33-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client-5.7_5.7.33-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-core-5.7_5.7.33-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server-5.7_5.7.33-0ubuntu0.16.04.1_amd64.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-client_5.7.33-0ubuntu0.16.04.1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/m/mysql-5.7/mysql-server_5.7.33-0ubuntu0.16.04.1_all.deb"
 
         foreach ($url in $mysqlURLs) {
             $row = $table.NewRow(); $row.Uri = "$url"
@@ -476,21 +479,23 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
             $row.filename = "$filename"; $row.path = "$binaryPath"; $row.productName = "MySQL $productname dependency"; $Table.Rows.Add($row)
         }
 
-        ### MySQL 8 ### (Simplified - correct as of 3/25/2020)
+        ### MySQL 8 ### (Simplified - correct as of 3/11/2021)
         $mysql8URLs = @()
         $mysql8URLs.Clear()
-        $mysql8URLs = "https://dev.mysql.com/get/mysql-apt-config_0.8.15-1_all.deb",
+        $mysql8URLs = "https://dev.mysql.com/get/mysql-apt-config_0.8.16-1_all.deb",
+        "http://mirrors.edge.kernel.org/ubuntu/pool/main/liba/libaio/libaio1_0.3.110-2_amd64.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/libmecab2_0.996-1.2ubuntu1_amd64.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab/mecab-utils_0.996-1.2ubuntu1_amd64.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/mecab-ipadic_2.7.0-20070801+main-1_all.deb",
         "http://mirrors.edge.kernel.org/ubuntu/pool/universe/m/mecab-ipadic/mecab-ipadic-utf8_2.7.0-20070801+main-1_all.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-common_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client-core_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-client_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-server-core_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-server_8.0.19-1ubuntu16.04_amd64.deb",
-        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-server_8.0.19-1ubuntu16.04_amd64.deb"
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-common_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client-core_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-client-plugins_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-client_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-server-core_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-community-server_8.0.23-1ubuntu16.04_amd64.deb",
+        "http://repo.mysql.com/apt/ubuntu/pool/mysql-8.0/m/mysql-community/mysql-server_8.0.23-1ubuntu16.04_amd64.deb"
         
         foreach ($url in $mysql8URLs) {
             $row = $table.NewRow(); $row.Uri = "$url"
@@ -535,40 +540,59 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row.filename = "mssql-libcabi.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcabi dependency"; $Table.Rows.Add($row)
 
         # SQL Server 2017 Offline Dependency #4
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/gdbserver/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*gdbserver_7*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-gdbserver.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 gdbserver dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #5
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/gdb/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*gdb_7*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-gdb.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 gdb dependency"; $Table.Rows.Add($row)
 
-        # SQL Server 2017 Offline Dependency #5
+        # SQL Server 2017 Offline Dependency #6
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libsss-nss-idmap0/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libsss-nss-idmap0*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libsss.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsss dependency"; $Table.Rows.Add($row)
 
-        # SQL Server 2017 Offline Dependency #6
+        # SQL Server 2017 Offline Dependency #7
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libbabeltrace1/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libbabeltrace1_1.3*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libbabeltrace1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace1 dependency"; $Table.Rows.Add($row)
 
-        # SQL Server 2017 Offline Dependency #7
+        # SQL Server 2017 Offline Dependency #8
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libbabeltrace-ctf1/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libbabeltrace-ctf1*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libbabeltrace-ctf1.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libbabeltrace-ctf1 dependency"; $Table.Rows.Add($row)
 
-        # SQL Server 2017 Offline Dependency #8
+        # SQL Server 2017 Offline Dependency #9
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libcurl3/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libcurl3_7.4*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libcurl3.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcurl3 dependency"; $Table.Rows.Add($row)
 
-        # SQL Server 2017 Offline Dependency #9
+        # SQL Server 2017 Offline Dependency #10
         $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libsasl2-modules-gssapi-mit/download" -UseBasicParsing
         $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libsasl2-modules-gssapi-mit*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
         $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
         $row.filename = "mssql-libsasl2.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libsasl2 dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #11
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libcc1-0/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libcc1-0*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libcc1-0.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libcc1-0 dependency"; $Table.Rows.Add($row)
+
+        # SQL Server 2017 Offline Dependency #12
+        $WebResponse = Invoke-WebRequest "https://packages.ubuntu.com/xenial/amd64/libc6-dbg/download" -UseBasicParsing
+        $downloadFileURL = $($WebResponse.Links | Select-Object href | Where-Object { ($_.href -like "*libc6-dbg*amd64.deb") } | Sort-Object | Select-Object -First 1).href.ToString()
+        $row = $table.NewRow(); $row.Uri = "$downloadFileURL"
+        $row.filename = "mssql-libc6-dbg.deb"; $row.path = "$binaryPath"; $row.productName = "SQL Server 2017 libc6-dbg dependency"; $Table.Rows.Add($row)
+                
 
         # Add MySQL Hosting Server Template
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/MySQLHosting/azuredeploy.json"
@@ -584,11 +608,10 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row.filename = "ConfigureFileServer.ps1"; $row.path = "$scriptPath"; $row.productName = "File Server script for deployment"; $Table.Rows.Add($row)
         # App Service Helper Scripts
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmashelpers"
-        #$row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/appservice/appservicehelper1.4.zip"
         $row.filename = "appservicehelper.zip"; $row.path = "$appServicePath"; $row.productName = "App Service Resource Provider Helper files"; $Table.Rows.Add($row)
         # App Service Installer
-        $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmasinstaller"
-        #$row = $table.NewRow(); $row.Uri = "https://github.com/mattmcspirit/azurestack/raw/$branch/deployment/appservice/appservice1.4.exe"
+        $row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvcupdateq3installer"
+        #$row = $table.NewRow(); $row.Uri = "https://aka.ms/appsvconmasinstaller"
         $row.filename = "appservice.exe"; $row.path = "$appServicePath"; $row.productName = "App Service installer"; $Table.Rows.Add($row)
         # App Service PreDeployment JSON
         $row = $table.NewRow(); $row.Uri = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/appservice/AppServiceDeploymentSettings.json"
@@ -602,7 +625,7 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         $row = $table.NewRow(); $row.Uri = "https://aka.ms/win32-x64-user-stable"
         $row.filename = "vscode.exe"; $row.path = "$hostAppsPath"; $row.productName = "VScode Exe"; $Table.Rows.Add($row)
         # Putty Package
-        $row = $table.NewRow(); $row.Uri = "https://the.earth.li/~sgtatham/putty/0.72/w64/putty-64bit-0.72-installer.msi"
+        $row = $table.NewRow(); $row.Uri = "https://the.earth.li/~sgtatham/putty/0.74/w64/putty-64bit-0.74-installer.msi"
         $row.filename = "putty.msi"; $row.path = "$hostAppsPath"; $row.productName = "Putty MSI"; $Table.Rows.Add($row)
         # WinSCP Package
         $WebResponse = Invoke-WebRequest "https://chocolatey.org/packages/winscp.install" -UseBasicParsing
@@ -612,6 +635,9 @@ While (($tableSuccess -eq $false) -and ($tableRetries -le 10)) {
         # Chrome Package
         $row = $table.NewRow(); $row.Uri = "http://dl.google.com/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
         $row.filename = "googlechrome.msi"; $row.path = "$hostAppsPath"; $row.productName = "Chrome MSI"; $Table.Rows.Add($row)
+        # Edge Package
+        $row = $table.NewRow(); $row.Uri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
+        $row.filename = "microsoftedge.msi"; $row.path = "$hostAppsPath"; $row.productName = "Edge MSI"; $Table.Rows.Add($row)
         # WinDirStat Package
         $row = $table.NewRow(); $row.Uri = "https://windirstat.mirror.wearetriple.com/wds_current_setup.exe"
         $row.filename = "windirstat.exe"; $row.path = "$hostAppsPath"; $row.productName = "WinDirStat Exe"; $Table.Rows.Add($row)
@@ -728,12 +754,12 @@ else {
 
 $scriptStep = "POWERSHELL"
 try {
-    Write-CustomVerbose -Message "Downloading PowerShell Modules for AzureRM, Azure Stack and SQL Server" -ErrorAction Stop
-    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath -Force -RequiredVersion 2.5.0 | Out-Null
+    Write-CustomVerbose -Message "Downloading PowerShell Modules for AzureRM, Az Azure Stack and SQL Server" -ErrorAction Stop
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name PowerShellGet -Path $psPath -Force -RequiredVersion 2.2.3 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name Az -Path $psPath -Force -RequiredVersion 0.10.0-preview | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath -Force -RequiredVersion 2.0.2-preview | Out-Null
     #Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath -Force -RequiredVersion 2.3.0 | Out-Null
-    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureStack -Path $psPath -Force -RequiredVersion 1.8.0 | Out-Null
-    #Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name Azure.Storage -Path $psPath -Force -RequiredVersion 4.5.0 | Out-Null
-    #Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRm.Storage -Path $psPath -Force -RequiredVersion 5.0.4 | Out-Null
+    Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name AzureRM -Path $psPath -Force -RequiredVersion 2.5.0 | Out-Null
     Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name SQLServer -Path $psPath -Force | Out-Null
     Save-Package -ProviderName NuGet -Source https://www.powershellgallery.com/api/v2 -Name 7Zip4PowerShell -Path $psPath -Force | Out-Null
 }
@@ -752,7 +778,7 @@ try {
     $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/powershell"
     $scriptArray = @()
     $scriptArray.Clear()
-    $scriptArray = "AddAppServicePreReqs.ps1", "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", `
+    $scriptArray = "AddAppServicePreReqs.ps1", "AddDBHosting.ps1", "AddDBRPImage.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", `
         "DeployAppService.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadAppService.ps1", "DownloadWinUpdates.ps1", "GetJobStatus.ps1", "UploadScripts.ps1"
     foreach ($script in $scriptArray) {
         $scriptDownloadPath = "$psScriptPath\$script"
@@ -837,10 +863,12 @@ try {
         $buildVersion = (dism.exe /Get-WimInfo /WimFile:$wimPath /index:1 | Select-String "Version ").ToString().Split(".")[2].Trim()
         Dismount-DiskImage -ImagePath $ISOPath
         Write-Host "You're missing at least one of the Windows Server $v Datacenter images, so we'll first download the latest Cumulative Update."
-                        
+        
         # Define parameters
+        Write-Host "Defining StartKB"
         if ($v -eq "2019") {
             $StartKB = 'https://support.microsoft.com/en-us/help/4464619'
+            $netKB = 'https://support.microsoft.com/en-us/help/4466961'
         }
         else {
             $StartKB = 'https://support.microsoft.com/en-us/help/4000825'
@@ -856,33 +884,48 @@ try {
             $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
             $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
             $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
-            $feed = ($feed | Where-Object { $_.title -like "*1607*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
-            $ssuKB = "KB" + ($feed.link).Split('/')[4]
-            $microCodeKB = "KB4091664"
+            $feed = ($feed | Where-Object { $_.title -like "*1607*2021*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+            #$ssuKB = "KB4576750"
+            # RSS feed layout changed, no longer displayed KB in previous way
+            #$ssuKB = "KB" + ($feed.link).Split('/')[4]
+            $ssuKB = "KB" + (($feed.link).Split('kb')[2]).Split('-')[0]
+            $microCodeFeed = $rssFeed.rss.channel.item | Where-Object { $_.description -like "*microcode updates from Intel*version 1607*" }
+            $microCodeFeed = ($microCodeFeed | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+            # RSS feed layout changed, no longer displayed KB in previous way
+            #$microCodeKB = "KB" + ($microCodeFeed.link).Split('/')[4]
+            $microCodeKB = "KB" + (($microCodeFeed.link).Split('kb')[2]).Split('-')[0]
         }
         elseif ($buildVersion -eq "17763") {
             $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
             $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
             $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
-            $feed = ($feed | Where-Object { $_.title -like "*1809*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
-            $ssuKB = "KB" + ($feed.link).Split('/')[4]
-            $microCodeKB = "KB4465065"
+            $feed = ($feed | Where-Object { $_.title -like "*1809*2021*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+            #$ssuKB = "KB4598480"
+            # RSS feed layout changed, no longer displayed KB in previous way
+            #$ssuKB = "KB" + ($feed.link).Split('/')[4]
+            $ssuKB = "KB" + (($feed.link).Split('kb')[2]).Split('-')[0]
+            $microCodeFeed = $rssFeed.rss.channel.item | Where-Object { $_.description -like "*microcode updates from Intel*version 1809*" }
+            $microCodeFeed = ($microCodeFeed | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
+            # RSS feed layout changed, no longer displayed KB in previous way
+            #$microCodeKB = "KB" + ($microCodeFeed.link).Split('/')[4]
+            $microCodeKB = "KB" + (($microCodeFeed.link).Split('kb')[2]).Split('-')[0]
         }
 
         $KBs += "$ssuKB"
         $KBs += "$microCodeKB"
 
-        Write-Host "Getting info for latest Adobe Flash Security Update"
+        Write-Host "Getting info for removal of Adobe Flash Player"
         $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
-        $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Security Update for Adobe Flash Player*" }
+        $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Removal*Adobe Flash Player*" }
         $feed = ($feed | Select-Object -Property Link | Sort-Object link -Descending) | Select-Object -First 1
-        $flashKB = "KB" + ($feed.link).Split('/')[4]
+        #$flashKB = "KB" + ($feed.link).Split('/')[4]
+        $flashKB = "KB" + (($feed.link).Split('kb')[2]).Split('-')[0]
         $KBs += $flashKB
 
         # Find the KB Article Number for the latest Windows Server Cumulative Update
         Write-Host "Accessing $StartKB to retrieve the list of updates."
         $cumulativekbID = (Invoke-WebRequest -Uri $StartKB -UseBasicParsing).RawContent -split "`n"
-        $cumulativekbID = ($cumulativekbID | Where-Object { $_ -like "*heading*$buildVersion*" } | Select-Object -First 1)
+        $cumulativekbID = ($cumulativekbID | Where-Object { ($_ -like "*a class=*$buildVersion*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
         $cumulativekbID = "KB" + ((($cumulativekbID -split "KB", 2)[1]) -split "\s", 2)[0]
 
         if (!$cumulativekbID) {
@@ -891,47 +934,20 @@ try {
         else {
             $KBs += "$cumulativekbID"
         }
-    
+
         if ($v -eq "2019") {
-            # Bypass Internet Explorer Setup Popup
-            $keyPath = 'Registry::HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Main'
-            if (!(Test-Path $keyPath)) { New-Item $keyPath -Force }
-            Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1
 
-            ## .NET CU Download ####
-            # Find the KB Article Number for the latest .NET on Windows Server 2019 (Build 17763) Cumulative Update
-            Write-Host "This is a Windows Server 2019 image, so we will download the latest .NET update for the image"
-            Write-Host "Creating COM Object"
-            $ie = New-Object -ComObject "InternetExplorer.Application" -Verbose -ErrorAction Stop
-            Write-Host "Setting IE to silent"
-            $ie.silent = $true
-            Write-Host "Navigating to https://support.microsoft.com/en-us/help/4466961"
-            $ie.Navigate("https://support.microsoft.com/en-us/help/4466961")
-            Write-Host "Waiting for IE to be ready..."
-            while ($ie.ReadyState -ne 4) { start-sleep -m 100 }
-            Write-Host "Getting KB ID"
-            $NETkbID = ($ie.Document.getElementsByTagName('A') | Where-Object { $_.textContent -like "*KB*" }).innerHTML | Select-Object -First 1
-            Write-Host "Splitting KB ID"
-            $NETkbID = ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
-            Write-Host "KB ID for the latest .NET update for the image is KB$NETkbID"
-            while (!$null -eq $ie) {
-                Write-Host "Releasing ComObject"
-                [System.Runtime.Interopservices.Marshal]::FinalReleaseComObject($ie)
-                Write-Host "Removing IE Variable"
-                Remove-Variable ie -ErrorAction Stop
-            }
-            # Get ID for the corresponding Cumulative Update
-            Write-Host "Found latest .NET Framework update: KB$NETkbID"
-            $kbObj = Invoke-WebRequest -Uri "http://www.catalog.update.microsoft.com/Search.aspx?q=KB$NETkbID" -UseBasicParsing
-            $Available_kbIDs = $kbObj.InputFields | Where-Object { $_.Type -eq 'Button' -and $_.Value -eq 'Download' } | Select-Object -ExpandProperty ID
-            #$Available_kbIDs | Out-String | Write-Host
-            $NETkbIDs = $kbObj.Links | Where-Object ID -match '_link' | Where-Object outerHTML -match $SearchString | ForEach-Object { $_.Id.Replace('_link', '') } | Where-Object { $_ -in $Available_kbIDs }
+            # Find the KB Article Number for the latest Cumulative Update for .NET Framework
+            Write-Host "Accessing $netKB to retrieve the list of updates."
+            $NETkbID = (Invoke-WebRequest -Uri $netKB -UseBasicParsing).RawContent -split "`n"
+            $NETkbID = ($NETkbID | Where-Object { ($_ -like "*a class=*Cumulative Update for .NET Framework*") -and ($_ -notlike "*a class=*preview*") } | Select-Object -First 1)
+            $NETkbID = "KB" + ((($NETkbID -split "KB", 2)[1]) -split "\s", 2)[0]
 
-            if (!$NETkbIDs) {
+            if (!$NETkbID) {
                 Write-Host "No Windows Update KB found - this is an error. Your Windows Server images will not have the latest .NET update"
             }
             else {
-                $KBs += "$NETkbIDs"
+                $KBs += "$NETkbID"
             }
         }
 

@@ -68,9 +68,9 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             Write-Host "Clearing previous Azure/Azure Stack logins"
-            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
-            Disable-AzureRMContextAutosave -Scope CurrentUser
+            Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+            Clear-AzContext -Scope CurrentUser -Force
+            Disable-AzContextAutosave -Scope CurrentUser
 
             if ($deploymentMode -eq "Online") {
                 if (!$([System.IO.Directory]::Exists("$azsPath\appservice"))) {
@@ -88,21 +88,14 @@ elseif (($skipAppService -eq $false) -and ($progressCheck -ne "Complete")) {
                 Write-Host "Downloading App Service files"
                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                 $appServiceHelperURI = "https://aka.ms/appsvconmashelpers"
-                #$appServiceHelperURI = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/appservice/appservicehelper1.4.zip"
                 $appServiceHelperDownloadLocation = "$azsPath\appservice\appservicehelper.zip"
                 DownloadWithRetry -downloadURI "$appServiceHelperURI" -downloadLocation "$appServiceHelperDownloadLocation" -retries 10
-                $appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
-                #$appServiceExeURI = "https://github.com/mattmcspirit/azurestack/raw/master/deployment/appservice/appservice1.4.exe"
+                $appServiceExeURI = "https://aka.ms/appsvcupdateq3installer"
+                #$appServiceExeURI = "https://aka.ms/appsvconmasinstaller"
                 $appServiceExeDownloadLocation = "$azsPath\appservice\appservice.exe"
                 DownloadWithRetry -downloadURI "$appServiceExeURI" -downloadLocation "$appServiceExeDownloadLocation" -retries 10
-                # Temporary download of 1.5 until silent deployment is fixed
-                #Write-Host "Downloading App Service Upgrade file"
-                #$appService15ExeURI = "https://aka.ms/appsvconmasinstaller"
-                #$DesktopPath = [Environment]::GetFolderPath("Desktop")
-                #$appService15ExeDownloadLocation = "$DesktopPath\UpgradeAppService.exe"
-                #DownloadWithRetry -downloadURI "$appService15ExeURI" -downloadLocation "$appService15ExeDownloadLocation" -retries 10
             }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+            elseif (($deploymentMode -ne "Online")) {
                 if (-not [System.IO.File]::Exists("$azsPath\appservice\appservicehelper.zip")) {
                     throw "Missing appservice.zip file in extracted app service dependencies folder. Please ensure this exists at $azsPath\appservice\appservicehelper.zip - Exiting process"
                 }

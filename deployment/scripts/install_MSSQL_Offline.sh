@@ -38,7 +38,7 @@ echo Downloading SQL Server dependencies...
 export DEBIAN_FRONTEND=noninteractive
 
 # Download the dependencies and binaries from a local Azure Stack Storage Account (use HTTP, not HTTPS)
-wget ${STORAGE_URI}mssql-{libjemalloc,libc,libcabi,gdb,libsss,libbabeltrace1,libbabeltrace-ctf1,libcurl3,libsasl2,server}.deb
+wget ${STORAGE_URI}mssql-{libjemalloc,libc,libcc1-0,libc6-dbg,libcabi,gdb,gdbserver,libsss,libbabeltrace1,libbabeltrace-ctf1,libcurl3,libsasl2,server}.deb
 
 echo Installing SQL Server dependencies...
 dpkg -i mssql-libjemalloc.deb
@@ -49,11 +49,17 @@ dpkg -i mssql-libcabi.deb
 sleep 3
 dpkg -i mssql-libc.deb
 sleep 3
+dpkg -i mssql-libcc1-0.deb
+sleep 3
+dpkg -i mssql-libc6-dbg.deb
+sleep 3
 dpkg -i mssql-libbabeltrace1.deb
 sleep 3
 dpkg -i mssql-libbabeltrace-ctf1.deb
 sleep 3
 dpkg -i mssql-gdb.deb
+sleep 3
+dpkg -i mssql-gdbserver.deb
 sleep 3
 dpkg -i mssql-libcurl3.deb
 sleep 3

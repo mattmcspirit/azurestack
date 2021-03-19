@@ -5,21 +5,24 @@
     The purpose of this script is to automate as much as possible post deployment tasks for an Azure Stack POC for both an ASDK and MultiNode deployment.
     This includes:
     * Validates all input parameters
+    * Checks ASDK host memory for enough resources
     * Installs Azure Stack PowerShell and AzureRM modules
     * Ensures password for VMs meets complexity required for App Service installation
     * Updated password expiration (180 days)
     * Disable Windows Update on all infrastructures VMs and ASDK host (To avoid the temptation to apply the patches...)
     * Tools installation (Azure Stack Tools)
-    * Registration of the Azure Stack POC system to Azure (Optional - enables Marketplace Syndication)
-    * Windows Server 2016 Datacenter Evaluation/MSDN/VL (Full + Core) images added to the Platform Image Repository
-    * Windows Server 2019 Datacenter Evaluation/MSDN/VL (Full + Core) images added to the Platform Image Repository (Optional)
+    * Registration of the ASDK to Azure (Optional - enables Marketplace Syndication)
+    * Windows Server 2016 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository
+    * Windows Server 2019 Datacenter Evaluation (Full + Core) images added to the Platform Image Repository (Optional)
+    * All Windows Server images are patched with latest SSU and CUs automatically
     * Ubuntu Server 16.04-LTS image added to the Platform Image Repository
     * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
     * Gallery item created for MySQL 5.7, 8.0 and SQL Server 2017 (all on Ubuntu Server 16.04 LTS)
-    * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered Azure Stack systems)
+    * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs)
+    * Automates adding of Microsoft AzureStack Add-on RP Windows Server image from Marketplace (for registered ASDKs)
     * MySQL Resource Provider installation
     * SQL Server Resource Provider installation
-    * Deployment of a MySQL 5.7 hosting server on Ubuntu Server 16.04 LTS
+    * Deployment of a MySQL 8.0 hosting server on Ubuntu Server 16.04 LTS
     * Deployment of a SQL Server 2017 hosting server on Ubuntu Server 16.04 LTS
     * Adding SQL Server & MySQL hosting servers to Resource Providers including SKU/Quotas
     * App Service prerequisites installation (SQL Server PowerShell, SQL Server DB VM and Standalone File Server)
@@ -38,8 +41,16 @@
     * Progress Tracking and rerun reliability with AzSPoC database hosted on SqlLocalDB (2017)
     * Stores script output in a AzSPoCOutput.txt, for future reference
     * Supports usage in offline/disconnected environments
+    * New -serialMode which excecutes VM deployments in serial, rather than parallel - better for older hardware
+    * Now supports ASDKs that have been depoyed with a custom domain suffix, e.g. https://portal.west.contoso.lab
 
 .VERSION
+    2008.1  Major PS Update - Support for Az Modules
+            Updated to support MySQL/SQL 1.1.93.1 release
+            Updated to support 2008 App Service Q3 release
+            Windows Updates fixes
+            Updated SqlLocalDB (2019)
+            Added support for new DB RP Image
     2008    PSH, Windows Images
             AdminPlanOffer with updated New-AzsStorageQuota section
     2002.1  AVMA fix
@@ -291,9 +302,9 @@ param (
 )
 
 try {
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Force -Confirm:$false
     ### SET LOCATION ###
     $ScriptLocation = Get-Location
-
     $Global:VerbosePreference = "Continue"
     $Global:ErrorActionPreference = 'Stop'
     $Global:ProgressPreference = 'SilentlyContinue'
@@ -308,7 +319,7 @@ try {
                 Write-Host "Downloading: $downloadURI"
                 $download = Measure-Command { (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation) }
                 Write-Host ("Download took $($download.Minutes) minutes $($download.Seconds) seconds at an average speed of {0:N2} Mbit/sec" `
-                    -f ((10 / (Measure-Command { (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation) }).TotalSeconds) * 8))
+                        -f ((10 / (Measure-Command { (New-Object System.Net.WebClient).DownloadFile($downloadURI, $downloadLocation) }).TotalSeconds) * 8))
                 break
             }
             catch {
@@ -350,23 +361,23 @@ try {
         $azpkgFileName = Get-ChildItem -Path "$azsPath\packages" -Recurse -Include *$azpkgPackageName*.azpkg | ForEach-Object { $_.Name }
                                 
         # Check there's not a gallery item already uploaded to storage
-        if ($(Get-AzureStorageBlob -Container $azsImagesContainerName -Blob $azpkgFileName -Context $azsStorageAccount.Context -ErrorAction SilentlyContinue)) {
+        if ($(Get-AzStorageBlob -Container $azsImagesContainerName -Blob $azpkgFileName -Context $azsStorageAccount.Context -ErrorAction SilentlyContinue)) {
             Write-Verbose -Message "You already have an upload of $azpkgFileName within your Storage Account. No need to re-upload."
-            Write-Verbose -Message "Gallery path = $((Get-AzureStorageBlob -Container $azsImagesContainerName -Blob $azpkgFileName -Context $azsStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
+            Write-Verbose -Message "Gallery path = $((Get-AzStorageBlob -Container $azsImagesContainerName -Blob $azpkgFileName -Context $azsStorageAccount.Context -ErrorAction SilentlyContinue).ICloudBlob.StorageUri.PrimaryUri.AbsoluteUri)"
         }
         else {
             $uploadAzpkgAttempt = 1
-            while (!$(Get-AzureStorageBlob -Container $azsImagesContainerName -Blob $azpkgFileName -Context $azsStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
+            while (!$(Get-AzStorageBlob -Container $azsImagesContainerName -Blob $azpkgFileName -Context $azsStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadAzpkgAttempt -le 3)) {
                 try {
                     # Log back into Azure Stack to ensure login hasn't timed out
                     Write-Verbose -Message "No existing gallery item found. Upload Attempt: $uploadAzpkgAttempt"
-                    Login-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-                    #Set-AzureStorageBlobContent -File "$azpkgFullPath" -Container $azsImagesContainerName -Blob "$azpkgFileName" -Context $azsStorageAccount.Context -ErrorAction Stop | Out-Null
+                    Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $TenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                    #Set-AzStorageBlobContent -File "$azpkgFullPath" -Container $azsImagesContainerName -Blob "$azpkgFileName" -Context $azsStorageAccount.Context -ErrorAction Stop | Out-Null
                     ################## AzCopy Testing ##############################################
                     $containerDestination = '{0}{1}' -f $azsStorageAccount.PrimaryEndpoints.Blob, $azsImagesContainerName
                     $azCopyPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\AzCopy\AzCopy.exe"
                     $azpkgDirectory = "$azsPath\packages"
-                    $storageAccountKey = (Get-AzureRmStorageAccountKey -ResourceGroupName $azsImagesRGName -Name $azsImagesStorageAccountName).Value[0]
+                    $storageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $azsImagesRGName -Name $azsImagesStorageAccountName).Value[0]
                     $azCopyCmd = [string]::Format("""{0}"" /source:""{1}"" /dest:""{2}"" /destkey:""{3}"" /Pattern:""{4}"" /Y /V:""{5}"" /Z:""{6}""", $azCopyPath, $azpkgDirectory, $containerDestination, $storageAccountKey, $azpkgFileName, $azCopyLogPath, $journalPath)
                     Write-Host "Executing the following command:`n'n$azCopyCmd"
                     $result = cmd /c $azCopyCmd
@@ -535,6 +546,12 @@ try {
                 $appExists = $true
             }
         }
+        elseif ($fileName -eq "VC_redist.x64.exe") {
+            if (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64' -ErrorAction SilentlyContinue) {
+                Write-Host "$appName already appears to be installed based on the registry key: $LocalInstallPath. No need to reinstall"
+                $appExists = $true
+            }
+        }
         else {
             if ([System.IO.File]::Exists("$localInstallPath")) {
                 Write-Host "$appName already appears to be available here: $LocalInstallPath. No need to reinstall"
@@ -631,7 +648,7 @@ try {
         Write-CustomVerbose -Message "Connection to GitHub: $gitHubNetTest"
         Write-CustomVerbose -Message "Connection to Ubuntu's Image Repo: $ubuntuNetTest"
         Write-CustomVerbose -Message "Connection to Chocolatey: $chocolateyNetTest"
-
+        
         if ($azureNetTest -and $gitHubNetTest -and $ubuntuNetTest -and $catalogNetTest -and $microsoftNetTest -and $chocolateyNetTest) {
             Write-CustomVerbose -Message "All internet connectivity tests passed"
             $validOnlineInstall = $true
@@ -803,7 +820,7 @@ try {
     }
 
     # Validate Github branch exists - usually reserved for testing purposes
-    if ($deploymentMode -eq "Online") {
+    if ($deploymentMode -ne "Offline") {
         try {
             $urlToTest = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/README.md"
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -845,7 +862,12 @@ try {
 
     Write-CustomVerbose -Message "Selected identity provider is $authenticationType"
     if ($authenticationType.ToString() -like "AzureAd") {
-        Write-CustomVerbose -Message "Selected AAD Tenant is $azureDirectoryTenantName"
+        if ($azureDirectoryTenantName) {
+            Write-CustomVerbose -Message "Selected AAD Tenant is $azureDirectoryTenantName"
+        }
+        else {
+            throw "No Azure AD tenant name was provided, please provide the -azureDirectoryTenantName when running the script"
+        }
     }
 
     ### VALIDATE CREDS ##########################################################################################################################################
@@ -1549,15 +1571,24 @@ try {
     }
 
     # If there isn't already a copy of the MSI locally, pull it down
-    $sqlLocalDBUri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
+    # $sqlLocalDBUri = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi"
+    # 2019 Version
+    $sqlLocalDBUri = "https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi"
     $sqlLocalDBMSIPath = "$sqlLocalDBpath\SqlLocalDB.msi"
     if (![System.IO.File]::Exists($sqlLocalDBMSIPath)) {
         DownloadWithRetry -downloadURI $sqlLocalDBUri -downloadLocation $sqlLocalDBMSIPath -retries 10
     }
 
+    $vcRedistUri = "https://aka.ms/vs/16/release/VC_redist.x64.exe"
+    $vcRedistPath = "$sqlLocalDBpath\VC_redist.x64.exe"
+    if (![System.IO.File]::Exists($vcRedistPath)) {
+        DownloadWithRetry -downloadURI $vcRedistUri -downloadLocation $vcRedistPath -retries 10
+    }
+
     ### INSTALL SQLLOCALDB ######################################################################################################################################
     #############################################################################################################################################################
 
+    <#
     # Install SqlLocalDB from MSI
     $sqlLocalInstallPath = "C:\Program Files\Microsoft SQL Server\140\Tools\Binn\"
     HostAppInstaller -localInstallPath "$sqlLocalInstallPath\SqlLocalDB.exe" -appName SqlLocalDB `
@@ -1569,11 +1600,33 @@ try {
     if (!($testEnvPath -contains "C:\Program Files\Microsoft SQL Server\140\Tools\Binn\")) {
         $Env:path = $env:path + ";C:\Program Files\Microsoft SQL Server\140\Tools\Binn\"
     }
+    #>
+
+    Set-Location $sqlLocalDBpath
+
+    # Install Microsoft Visual C++ 2015-2019 Redistributable (x64) as a dependency for SQL
+    HostAppInstaller -localInstallPath 'HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64' -appName VCredistX64 `
+        -arguments "/install /quiet /norestart /log `"$sqlLocalDBpath\VCredistX64.txt`"" `
+        -fileName "VC_redist.x64.exe" -appType "EXE"
+
+    Set-Location $ScriptLocation
+
+    # Install SqlLocalDB from MSI
+    $sqlLocalInstallPath = "C:\Program Files\Microsoft SQL Server\150\Tools\Binn\"
+    HostAppInstaller -localInstallPath "$sqlLocalInstallPath\SqlLocalDB.exe" -appName SqlLocalDB `
+        -arguments "/i `"$sqlLocalDBpath\SqlLocalDB.msi`" /qn IACCEPTSQLLOCALDBLICENSETERMS=YES /norestart /l*v `"$sqlLocalDBpath\SqlLocalDB.log`"" `
+        -fileName "SqlLocalDB.msi" -appType "MSI"
+    
+    # Add SqlLocalDB to $env:Path
+    $testEnvPath = $Env:path
+    if (!($testEnvPath -contains "C:\Program Files\Microsoft SQL Server\150\Tools\Binn\")) {
+        $Env:path = $env:path + ";C:\Program Files\Microsoft SQL Server\150\Tools\Binn\"
+    }
 
     ### INSTALL SQL SERVER POWERSHELL ###########################################################################################################################
     #############################################################################################################################################################
 
-    if ($deploymentMode -eq "Online") {
+    if ($deploymentMode -ne "Offline") {
         # Install SQL Server Module from Online PSrepository
         Register-PsRepository -Default -Verbose:$false -ErrorAction SilentlyContinue
         Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted -Verbose:$false -ErrorAction SilentlyContinue
@@ -1581,7 +1634,7 @@ try {
             Install-Module SqlServer -Force -Confirm:$false -AllowClobber -Verbose -ErrorAction Stop
         }
     }
-    elseif (($deploymentMode -ne "Online")) {
+    elseif (($deploymentMode -eq "Offline")) {
         $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
         $RepoName = "AzSPoCRepo"
         if (!(Get-InstalledModule -Name SqlServer -ErrorAction SilentlyContinue -Verbose)) {
@@ -1659,6 +1712,7 @@ try {
             MySQL80GalleryItem   = "Incomplete";
             SQLServerGalleryItem = "Incomplete";
             AddVMExtensions      = "Incomplete";
+            AddDBRPImage         = "Incomplete";
             MySQLRP              = "Incomplete";
             SQLServerRP          = "Incomplete";
             MySQLSKUQuota        = "Incomplete";
@@ -1851,18 +1905,18 @@ try {
             }
             $scriptArray = @()
             $scriptArray.Clear()
-            $scriptArray = "AddAppServicePreReqs.ps1", "AddDBHosting.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", `
+            $scriptArray = "AddAppServicePreReqs.ps1", "AddDBHosting.ps1", "AddDBRPImage.ps1", "AddDBSkuQuota.ps1", "AddGalleryItems.ps1", "AddImage.ps1", "AddVMExtensions.ps1", `
                 "DeployAppService.ps1", "DeployDBRP.ps1", "DeployVM.ps1", "DownloadAppService.ps1", "DownloadWinUpdates.ps1", "GetJobStatus.ps1", "UploadScripts.ps1"
 
-            if ($deploymentMode -eq "Online") {
-                # If this is an online deployment, pull down the PowerShell scripts from GitHub
+            if ($deploymentMode -ne "Offline") {
+                # If this is an online/Partial Online deployment, pull down the PowerShell scripts from GitHub
                 foreach ($script in $scriptArray) {
                     $scriptBaseURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/powershell"
                     $scriptDownloadPath = "$scriptPath\$script"
                     DownloadWithRetry -downloadURI "$scriptBaseURI/$script" -downloadLocation $scriptDownloadPath -retries 10
                 }
             }
-            elseif ($deploymentMode -ne "Online") {
+            elseif ($deploymentMode -eq "Offline") {
                 # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
                 $SourceLocation = "$downloadPath\AzSFiles\PowerShell\Scripts"
                 Copy-Item -Path "$SourceLocation\*" -Destination "$scriptPath" -Include "*.ps1" -Verbose -ErrorAction Stop
@@ -1894,7 +1948,7 @@ try {
             Write-CustomVerbose -Message "Checking for a previous installation of PowerShell. If found, to ensure full compatibility with the AzSPoC, this will be cleaned up...please wait..."
             $cleanupRequired = $false
             try {
-                $psRmProfle = Get-AzureRmProfile -ErrorAction Ignore | Where-Object { ($_.ProfileName -eq "2019-03-01-hybrid") -or ($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile") }
+                $psRmProfle = Get-AzProfile -ErrorAction Ignore | Where-Object { ($_.ProfileName -eq "2019-03-01-hybrid") -or ($_.ProfileName -eq "2018-03-01-hybrid") -or ($_.ProfileName -eq "2017-03-09-profile") }
             }
             catch [System.Management.Automation.CommandNotFoundException] {
                 $error.Clear()
@@ -1902,7 +1956,7 @@ try {
             if ($psRmProfle) {
                 $cleanupRequired = $true
             }
-            $psAzureModuleCheck = Get-Module -Name Azure* -ListAvailable | Where-Object {$_.Name -ne "AzureStackInstallerCommon"}
+            $psAzureModuleCheck = Get-Module -Name Azure* -ListAvailable | Where-Object { $_.Name -ne "AzureStackInstallerCommon" }
             $psAzsModuleCheck = Get-Module -Name Azs.* -ListAvailable
             if (($psAzureModuleCheck) -or ($psAzsModuleCheck) ) {
                 $cleanupRequired = $true
@@ -1912,29 +1966,31 @@ try {
                 Write-CustomVerbose -Message "A previous installation of PowerShell has been detected. To ensure full compatibility with the AzSPoC, this will be cleaned up"
                 Write-CustomVerbose -Message "Cleaning...."
                 try {
-                    if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2019-03-01-hybrid") })) {
-                        Uninstall-AzureRmProfile -Profile '2019-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
+                    if ($(Get-AzProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2019-03-01-hybrid") })) {
+                        Uninstall-AzProfile -Profile '2019-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
                     }
-                    if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2018-03-01-hybrid") })) {
-                        Uninstall-AzureRmProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
+                    if ($(Get-AzProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2018-03-01-hybrid") })) {
+                        Uninstall-AzProfile -Profile '2018-03-01-hybrid' -Force -ErrorAction SilentlyContinue | Out-Null
                     }
-                    if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2017-03-09-profile") })) {
-                        Uninstall-AzureRmProfile -Profile '2017-03-09-profile' -Force -ErrorAction SilentlyContinue | Out-Null
+                    if ($(Get-AzProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "2017-03-09-profile") })) {
+                        Uninstall-AzProfile -Profile '2017-03-09-profile' -Force -ErrorAction SilentlyContinue | Out-Null
                     }
-                    if ($(Get-AzureRmProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "latest") })) {
-                        Uninstall-AzureRmProfile -Profile 'latest' -Force -ErrorAction SilentlyContinue | Out-Null
+                    if ($(Get-AzProfile -ErrorAction SilentlyContinue | Where-Object { ($_.ProfileName -eq "latest") })) {
+                        Uninstall-AzProfile -Profile 'latest' -Force -ErrorAction SilentlyContinue | Out-Null
                     }
                 }
                 catch [System.Management.Automation.CommandNotFoundException] {
                     $error.Clear()
                 }
-                Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
                 Get-Module -Name Azure* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
+                Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
+                Get-Module -Name Az.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue -Verbose
                 if (!(Get-PSRepository -ErrorAction SilentlyContinue | Where-Object { ($_.Name -eq "$psRepositoryName") -and ($_.InstallationPolicy -eq "$psRepositoryInstallPolicy") -and ($_.SourceLocation -eq "$psRepositorySourceLocation") })) {
                     Get-PSRepository | Where-Object { ($_.Name -ne "$psRepositoryName") -and ($_.InstallationPolicy -ne "$psRepositoryInstallPolicy") -and ($_.SourceLocation -ne "$psRepositorySourceLocation") } | Unregister-PSRepository -ErrorAction SilentlyContinue
                 }
                 Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azure* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
                 Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Azs* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+                Get-ChildItem -Path $Env:ProgramFiles\WindowsPowerShell\Modules\Az* -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
             }
             else {
                 Write-CustomVerbose -Message "No existing PowerShell installation detected - proceeding without cleanup."
@@ -1966,54 +2022,91 @@ try {
 
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
-            Import-Module -Name PowerShellGet -ErrorAction Stop
-            Import-Module -Name PackageManagement -ErrorAction Stop
             Write-CustomVerbose -Message "Uninstalling previously existing Azure Stack modules"
             Uninstall-Module AzureRM.AzureStackAdmin -Force -ErrorAction SilentlyContinue
             Uninstall-Module AzureRM.AzureStackStorage -Force -ErrorAction SilentlyContinue
             Uninstall-Module -Name AzureStack -Force -ErrorAction SilentlyContinue
-            Get-Module Azs.* -ListAvailable | Uninstall-Module -Force -ErrorAction SilentlyContinue
-            if ($deploymentMode -eq "Online") {
-                # If this is an online deployment, pull down the PowerShell modules from the Internet
+            Get-Module -Name Azure* -ListAvailable | Uninstall-Module -Force -Verbose -ErrorAction SilentlyContinue
+            Get-Module -Name Azs.* -ListAvailable | Uninstall-Module -Force -Verbose -ErrorAction SilentlyContinue
+            Get-Module -Name Az.* -ListAvailable | Uninstall-Module -Force -Verbose -ErrorAction SilentlyContinue
+            if ($deploymentMode -ne "Offline") {
+                # If this is an online/partial online deployment, pull down the PowerShell modules from the Internet
                 Write-CustomVerbose -Message "Configuring the PSGallery Repo for Azure Stack PowerShell Modules"
                 Unregister-PSRepository -Name PSGallery -ErrorAction SilentlyContinue
                 Register-PsRepository -Default
                 Get-PSRepository -Name "PSGallery"
                 Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
                 Get-PSRepository -Name "PSGallery"
-                # For 1910 and later
-                Install-Module -Name AzureRM.BootStrapper
-                Use-AzureRmProfile -Profile 2019-03-01-hybrid -Force
-                Install-Module -Name AzureStack -RequiredVersion 1.8.2 -Force -ErrorAction Stop
-                #Install-Module AzureRM -RequiredVersion 2.5.0 -Force -ErrorAction Stop 
-                # Install the Azure.Storage module version 4.5.0
-                #Install-Module -Name Azure.Storage -RequiredVersion 4.5.0 -Force -AllowClobber -Verbose
-                # Install the AzureRm.Storage module version 5.0.4
-                #Install-Module -Name AzureRM.Storage -RequiredVersion 5.0.4 -Force -AllowClobber -Verbose
-                # Remove incompatible storage module installed by AzureRM.Storage
-                #Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
-                #Install the kbupdate module
+
+                # Need to update PS Get
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                Write-CustomVerbose -Message "Unloading PowerShellGet"
+                Remove-Module -Name PowerShellGet -Force -Verbose
+                Write-CustomVerbose -Message "Unloading PackageManagement"
+                Remove-Module -Name PackageManagement -Force -Verbose
+                Write-CustomVerbose -Message "Installing New PowerShellGet"
+                Install-Module -Name PowerShellGet -MinimumVersion 2.2.3 -Force -AllowClobber
+                Write-CustomVerbose -Message "Unloading PowerShellGet"
+                Remove-Module -Name PowerShellGet -Force -Verbose
+                Write-CustomVerbose -Message "Unloading PackageManagement"
+                Remove-Module -Name PackageManagement -Force -Verbose
+                #Write-CustomVerbose -Message "Importing PowerShellGet"
+                #Import-Module -Name PowerShellGet -MinimumVersion 2.2.3 -Force
+                #Write-CustomVerbose -Message "Importing PackageManagement"
+                #Import-Module -Name PackageManagement -MinimumVersion 1.4.7 -ErrorAction Stop
+                Write-CustomVerbose -Message "Creating a new PS Session to install the PS Modules without restarting a session"
+                $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                Invoke-Command -Session $installPsSession -ScriptBlock {
+                    $ProgressPreference = "SilentlyContinue"
+                    Write-Host "Installing Az.Bootstrapper Module"
+                    Install-Module -Name Az.BootStrapper -Force -AllowPrerelease -Verbose
+                    Write-Host "Installing Az.Profile to load all requires modules"
+                    Install-AzProfile -Profile 2019-03-01-hybrid -Force
+                    Write-Host "Installing Azure Stack module"
+                    Install-Module -Name AzureStack -RequiredVersion 2.0.2-preview -AllowPrerelease -ErrorAction Stop -Verbose
+                }
+                Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
                 Install-Module -Name kbupdate -Force -ErrorAction Stop
+                #Install-Module -Name WindowsImageTools -Force -ErrorAction Stop
             }
-            elseif ($deploymentMode -ne "Online") {
+            elseif ($deploymentMode -eq "Offline") {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                 $SourceLocation = "$downloadPath\AzSFiles\PowerShell"
                 $RepoName = "AzSPoCRepo"
                 if (!(Get-PSRepository -Name $RepoName -ErrorAction SilentlyContinue)) {
                     Register-PSRepository -Name $RepoName -SourceLocation $SourceLocation -InstallationPolicy Trusted
                 }
                 # If this is a PartialOnline or Offline deployment, pull from the extracted zip file
-                Install-Module AzureStack -Repository $RepoName -Force -ErrorAction Stop -Verbose
-                Install-Module AzureRM -Repository $RepoName -RequiredVersion 2.5.0 -Force -ErrorAction Stop -Verbose
-                <# Required for PS Session DBRP Deployment
-                if (!$([System.IO.Directory]::Exists("$Env:ProgramFiles\SqlMySqlPsh"))) {
-                    New-Item -Path "$Env:ProgramFiles\SqlMySqlPsh" -ItemType Directory -Force | Out-Null
+                Install-Module -Name PowerShellGet -Repository $RepoName -MinimumVersion 2.2.3 -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
+                Install-Module -Name PackageManagement -Repository $RepoName -MinimumVersion 1.4.7 -Scope AllUsers -Force -ErrorAction Stop -Verbose -AllowClobber
+                Write-CustomVerbose -Message "Unloading PowerShellGet"
+                Remove-Module -Name PowerShellGet -Force -Verbose
+                Write-CustomVerbose -Message "Unloading PackageManagement"
+                Remove-Module -Name PackageManagement -Force -Verbose
+                Write-CustomVerbose -Message "Creating a new PS Session to install the PS Modules without restarting a session"
+                $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                Invoke-Command -Session $installPsSession -ArgumentList $RepoName -ScriptBlock {
+                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                    $ProgressPreference = "SilentlyContinue"
+                    Write-Host "Installing Az.Accounts Module"
+                    Install-Module Az.Accounts -Repository $Using:RepoName -AllowPrerelease -Scope AllUsers -Verbose
                 }
-                Save-Module -Name AzureRM -RequiredVersion 2.3.0 -Repository $RepoName -Path "$Env:ProgramFiles\SqlMySqlPsh" -Force -ErrorAction Stop
-                #>
-                #Install-Module Azure.Storage -Repository $RepoName -RequiredVersion 4.5.0 -Force -AllowClobber -ErrorAction Stop -Verbose
-                #Install-Module AzureRM.Storage -Repository $RepoName -RequiredVersion 5.0.4 -Force -AllowClobber -ErrorAction Stop -Verbose
-                #Uninstall-Module Azure.Storage -RequiredVersion 4.6.1 -Force -Verbose
-            }
+                Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
+                # Create a second PS Session to finish the install
+                $installPsSession = New-PSSession -Name installPsSession -ComputerName $env:COMPUTERNAME -EnableNetworkAccess
+                Invoke-Command -Session $installPsSession -ArgumentList $RepoName -ScriptBlock {
+                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                    $ProgressPreference = "SilentlyContinue"
+                    Write-Host "Installing Azure Stack module"
+                    Install-Module AzureStack -Repository $Using:RepoName -RequiredVersion 2.0.2-preview -AllowPrerelease -Scope AllUsers -Verbose
+                    Write-Host "Installing Az Modules"
+                    Install-Module Az -Repository $Using:RepoName -RequiredVersion 0.10.0-preview -AllowPrerelease -Scope AllUsers -Verbose
+                }
+                Remove-PSSession -Name installPsSession -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Variable -Name installPsSession -Force -ErrorAction SilentlyContinue -Verbose
+                }
             StageComplete -progressStage $progressStage
         }
         catch {
@@ -2030,31 +2123,31 @@ try {
     #############################################################################################################################################################
 
     $scriptStep = "TEST LOGINS"
-    # Register an AzureRM environment that targets your administrative Azure Stack instance
+    # Register an Azure environment that targets your administrative Azure Stack instance
     Write-CustomVerbose -Message "Azure Stack POC Configurator will now test all logins"
     $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
-    $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
+    Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
+    $ADauth = (Get-AzEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
 
     if ($authenticationType.ToString() -like "AzureAd") {
         try {
             ### TEST AZURE LOGIN - Login to Azure Cloud
             Write-CustomVerbose -Message "Testing Azure login with Azure Active Directory`r"
             $tenantId = (Invoke-RestMethod -Verbose:$false "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-            Add-AzureRmAccount -EnvironmentName $azureEnvironment -TenantId $tenantId -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            Connect-AzAccount -Environment $azureEnvironment -Tenant $tenantId -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
             Write-CustomVerbose -Message "Current Azure Subscription information:"
-            Get-AzureRmContext | Format-Table -AutoSize
+            Get-AzContext | Format-Table -AutoSize
             Start-Sleep -Seconds 5
 
             ### TEST AZURE STACK LOGIN - Login to Azure Stack
             Write-CustomVerbose -Message "Testing Azure Stack login with Azure Active Directory"
             Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
+            Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
             Write-CustomVerbose -Message "Current Azure Stack Subscription information:"
-            Get-AzureRmContext | Format-Table -AutoSize
+            Get-AzContext | Format-Table -AutoSize
             Start-Sleep -Seconds 5
         }
         catch {
@@ -2080,12 +2173,12 @@ try {
             Write-CustomVerbose -Message "Getting Tenant ID for Login to Azure Stack"
             $tenantId = (invoke-restmethod -Verbose:$false "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
             Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop -Verbose:$false | Out-Null
+            Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
             Write-CustomVerbose -Message "Current Azure Stack Subscription information:"
-            Get-AzureRmContext | Format-Table -AutoSize
+            Get-AzContext | Format-Table -AutoSize
         }
         catch {
             Write-CustomVerbose -Message "$_.Exception.Message" -ErrorAction Stop
@@ -2097,10 +2190,10 @@ try {
         try {
             ### OPTIONAL - TEST AZURE REGISTRATION CREDS
             Write-CustomVerbose -Message "Testing Azure login for registration with Azure Active Directory"
-            Add-AzureRmAccount -EnvironmentName $azureEnvironment -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop -Verbose:$false | Out-Null
-            $azureRegTenantID = (Get-AzureRmSubscription -SubscriptionId $azureRegSubId -Verbose:$false).TenantId
+            Connect-AzAccount -Environment $azureEnvironment -SubscriptionId $azureRegSubId -Credential $azureRegCreds -ErrorAction Stop -Verbose:$false | Out-Null
+            $azureRegTenantID = (Get-AzSubscription -SubscriptionId $azureRegSubId -Verbose:$false).TenantId
             Write-CustomVerbose -Message "Selected Azure Subscription used for registration info:"
-            Get-AzureRmContext | Format-Table -AutoSize
+            Get-AzContext | Format-Table -AutoSize
             Write-CustomVerbose -Message "TenantID for this registration subscription is: $azureRegTenantID"
             Start-Sleep -Seconds 5
         }
@@ -2170,9 +2263,9 @@ try {
     ### CLEAN LOGINS #######################################################################################################################################
     ########################################################################################################################################################
 
-    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-    Clear-AzureRmContext -Scope CurrentUser -Force
-    Disable-AzureRMContextAutosave -Scope CurrentUser
+    Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+    Clear-AzContext -Scope CurrentUser -Force
+    Disable-AzContextAutosave -Scope CurrentUser
 
     ### Run Counter #############################################################################################################################################
     #############################################################################################################################################################
@@ -2180,7 +2273,10 @@ try {
     # Once logins have been successfully tested, increment run counter to track usage
     # This is used to understand how many times the AzSPoC.ps1 script has been run
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    try { Invoke-WebRequest "http://bit.ly/asdkcounter" -UseBasicParsing -DisableKeepAlive | Out-Null } catch { $_.Exception.Response.StatusCode.Value__ }
+    
+    if ($deploymentMode -ne "Offline") {
+        try { Invoke-WebRequest "http://bit.ly/asdkcounter" -UseBasicParsing -DisableKeepAlive | Out-Null } catch { $_.Exception.Response.StatusCode.Value__ }
+    }
 
     ### DOWNLOAD TOOLS #####################################################################################################################################
     ########################################################################################################################################################
@@ -2195,15 +2291,15 @@ try {
             ### DOWNLOAD & EXTRACT TOOLS ###
             if ($deploymentMode -eq "Online") {
                 # Download the tools archive using a function incase the download fails or is interrupted.
-                $toolsURI = "https://github.com/Azure/AzureStack-Tools/archive/master.zip"
-                $toolsDownloadLocation = "$azsPath\master.zip"
+                $toolsURI = "https://github.com/Azure/AzureStack-Tools/archive/az.zip"
+                $toolsDownloadLocation = "$azsPath\az.zip"
                 Write-CustomVerbose -Message "Downloading Azure Stack Tools to ensure you have the latest versions. This may take a few minutes, depending on your connection speed."
                 Write-CustomVerbose -Message "The download will be stored in $azsPath."
                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
                 DownloadWithRetry -downloadURI "$toolsURI" -downloadLocation "$toolsDownloadLocation" -retries 10
             }
             elseif ($deploymentMode -ne "Online") {
-                $toolsDownloadLocation = "$azsPath\master.zip"
+                $toolsDownloadLocation = "$azsPath\az.zip"
             }
             # Expand the downloaded files
             Write-CustomVerbose -Message "Expanding Archive"
@@ -2226,10 +2322,10 @@ try {
 
     # Change to the tools directory
     Write-CustomVerbose -Message "Changing Directory"
-    $modulePath = "C:\AzureStack-Tools-master"
+    $modulePath = "C:\AzureStack-Tools-az"
     Get-ChildItem -Path "$modulePath\*" -Recurse | Unblock-File -Verbose
     Set-Location $modulePath
-    Disable-AzureRmDataCollection -WarningAction SilentlyContinue
+    Disable-AzDataCollection -WarningAction SilentlyContinue
 
     ### CHECK CERTS FOR MULTINODE ##########################################################################################################################
     ########################################################################################################################################################
@@ -2392,20 +2488,20 @@ try {
                 Write-CustomVerbose -Message "Starting Azure Stack registration to Azure"
                 # Add the Azure cloud subscription environment name. Supported environment names are AzureCloud or, if using a China Azure Subscription, AzureChinaCloud.
                 $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-                Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-                $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
+                Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+                $ADauth = (Get-AzEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
                 if ($authenticationType.ToString() -like "AzureAD") {
                     $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
                 }
                 elseif ($authenticationType.ToString() -like "ADFS") {
                     $tenantId = (invoke-restmethod -Verbose:$false "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
                 }
-                Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
-                $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-                $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-                Add-AzureRmAccount -EnvironmentName $azureEnvironment -SubscriptionId $azureRegSubId -TenantId $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+                Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
+                $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+                Connect-AzAccount -Environment $azureEnvironment -SubscriptionId $azureRegSubId -Tenant $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
                 # Register the Azure Stack resource provider in your Azure subscription
-                Register-AzureRmResourceProvider -ProviderNamespace Microsoft.AzureStack
+                Register-AzResourceProvider -ProviderNamespace Microsoft.AzureStack
                 # Import the registration module that was downloaded with the GitHub tools
                 Import-Module $modulePath\Registration\RegisterWithAzure.psm1 -Force -Verbose
                 #Register Azure Stack
@@ -2413,13 +2509,17 @@ try {
                     $asdkHostName = ($env:computername).ToLower()
                     $azsRegName = "azsreg-$asdkHostName-$runTime"
                     $billingModel = "Development"
+                    $regRg = "azurestack"
                 }
                 else {
                     $randomGuid = ((New-Guid).ToString()).Substring(0, 6)
                     $azsRegName = "azsreg-$randomGuid-$runTime"
                     $billingModel = "PayAsYouUse"
+                    $regRg = "azurestack"
                 }
-                Set-AzsRegistration -PrivilegedEndpointCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip -RegistrationName "$azsRegName" -BillingModel $billingModel -ErrorAction Stop
+                
+                Set-AzsRegistration -PrivilegedEndpointCredential $pepAdminCreds -PrivilegedEndpoint $ERCSip `
+                -RegistrationName "$azsRegName" -BillingModel $billingModel -ResourceGroupName $regRg -ErrorAction Stop
                 # Create Cleanup Doc - First Create File
                 $CleanUpRegPS1Path = "$downloadPath\AzSRegCleanUp.ps1"
                 Remove-Item -Path $CleanUpRegPS1Path -Confirm:$false -Force -ErrorAction SilentlyContinue -Verbose
@@ -2435,7 +2535,7 @@ try {
                 $azureUsername = $azureRegCreds.Username
                 Write-Output "`$azureRegCreds = Get-Credential -UserName `"$azureUsername`" -Message `"Enter the credentials you used to register this Azure Stack POC for username:$azureUsername.`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 Write-Output "`$azureRegSubId = `"$azureRegSubId`"" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
-                Write-Output "`$azureRegSub = Add-AzureRmAccount -EnvironmentName `"$azureEnvironment`" -SubscriptionId `"$azureRegSubId`" -Credential `$azureRegCreds" -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
+                Write-Output "`$azureRegSub = Connect-AzAccount -Environment `"$azureEnvironment`" -SubscriptionId `"$azureRegSubId`" -Credential `$azureRegCreds" -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 # Get Azure Stack POC Privileged Endpoint Creds
                 Write-Output "`n# Get Azure Stack POC Privileged Endpoint Creds" -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
                 Write-Output '$pepAdminCreds = Get-Credential -UserName "$azsInternalDomain\cloudadmin" -Message "Enter the credentials to access the privileged endpoint."' -Verbose -ErrorAction Stop | Out-File -FilePath "$CleanUpRegPS1Path" -Force -Verbose -Append
@@ -2445,6 +2545,13 @@ try {
                 StageComplete -progressStage $progressStage
             }
             catch {
+                Write-Host "Registration failed - attempting cleanup in Azure"
+                Connect-AzAccount -Environment $azureEnvironment -SubscriptionId $azureRegSubId -Tenant $azureRegTenantID -Credential $azureRegCreds -ErrorAction Stop | Out-Null
+                Write-Host "Remove resource lock"
+                $lockId = (Get-AzResourceLock -ResourceGroupName $regRg -ResourceName $azsRegName -ResourceType "Microsoft.Azurestack/registrations" -ErrorAction SilentlyContinue).lockid
+                Remove-AzResourceLock -LockId $lockId -Force -ErrorAction SilentlyContinue -Verbose
+                Write-Host "Removing the resource record"
+                Get-AzResource -Name $azsRegName -ErrorAction SilentlyContinue | Remove-AzResource -Force -ErrorAction SilentlyContinue
                 StageFailed -progressStage $progressStage
                 Set-Location $ScriptLocation
                 return
@@ -2466,34 +2573,34 @@ try {
 
     $scriptStep = "CONNECTING"
     $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-    $ADauth = (Get-AzureRmEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
+    $ADauth = (Get-AzEnvironment -Name "AzureStackAdmin").ActiveDirectoryAuthority.TrimEnd('/')
     # Add GraphEndpointResourceId value for Azure AD or ADFS and obtain Tenant ID, then login to Azure Stack
     if ($authenticationType.ToString() -like "AzureAd") {
         # Clear old Azure login
         Write-CustomVerbose -Message "Azure Active Directory selected by Administrator"
         Write-CustomVerbose -Message "Logging into the Default Provider Subscription with your Azure Stack Administrator Account used with Azure Active Directory"
         $tenantId = (Invoke-RestMethod "$($ADauth)/$($azureDirectoryTenantName)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
-        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
-        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+        Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+        Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
+        $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+        $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
     }
     elseif ($authenticationType.ToString() -like "ADFS") {
         # Clear old Azure login
         Write-CustomVerbose -Message "Active Directory Federation Services selected by Administrator"
         $tenantId = (Invoke-RestMethod "$($ADauth)/.well-known/openid-configuration").issuer.TrimEnd('/').Split('/')[-1]
         Write-CustomVerbose -Message "Logging in with your Azure Stack Administrator Account used with ADFS"
-        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
-        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+        Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+        Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Subscription "Default Provider Subscription" -Credential $azsCreds -ErrorAction Stop
+        $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+        $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
     }
     else {
         Write-CustomVerbose -Message ("No valid authentication types specified - please use AzureAd or ADFS")  -ErrorAction Stop
     }
 
     # Get Azure Stack location
-    $azsLocation = (Get-AzureRmLocation).DisplayName
+    $azsLocation = (Get-AzLocation).DisplayName
 
     ### SCRIPT CHECK #############################################################################################################################################
     ##############################################################################################################################################################
@@ -2539,20 +2646,20 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         try {
             Write-Host "Creating a plan and private offer in the tenant space, for deploying RP resources such as database hosts"
             # Configure a simple base plan and offer for IaaS for specific use by the admin for storing RP related resources
-            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
+            Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+            Clear-AzContext -Scope CurrentUser -Force
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
 
             # Default quotas, plan, and offer
             $PlanName = "admin-rp-plan"
             $OfferName = "admin-rp-offer"
             $RGName = "azurestack-adminplanoffer"
             # Get Azure Stack location
-            $azsLocation = (Get-AzureRmLocation).DisplayName
+            $azsLocation = (Get-AzLocation).DisplayName
 
             $computeParams = $null
             $computeParams = @{
@@ -2604,28 +2711,17 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             if ($(Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
                 $quotaIDs += (Get-AzsComputeQuota -Name ($computeParams.Name) -Location $azsLocation).ID
             }
-            #NOT working with 1.8.2 --> Workaround for -ErrorAction issue
-            <# while (!$(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
+            while (!$(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose)) {
                 New-AzsStorageQuota @storageParams -ErrorAction Stop -Verbose
             }
-            #>
-            #Workaround for -ErrorAction issue with 1.8.1
-            try {
-                Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction SilentlyContinue -Verbose
-            }
-            catch {
-                $error.Clear()
-                New-AzsStorageQuota @storageParams -ErrorAction Stop -Verbose
-            }
-            
             if ($(Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation -ErrorAction Stop -Verbose)) {
                 $quotaIDs += (Get-AzsStorageQuota -Name ($storageParams.Name) -Location $azsLocation).ID
             }
             $quotaIDs += (Get-AzsKeyVaultQuota @kvParams -ErrorAction Stop -Verbose).ID
 
             # Create the Plan and Private Offer
-            if (-not (Get-AzureRmResourceGroup -Name $RGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
-                New-AzureRmResourceGroup -Name $RGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+            if (-not (Get-AzResourceGroup -Name $RGName -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                New-AzResourceGroup -Name $RGName -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
             }
             
             $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
@@ -2634,8 +2730,8 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             # Create a new subscription for that offer, for the currently logged in user
             # 1 subscription will be for the DB hosts and one will be for the App Service
             if ((!$skipMySQL) -or (!$skipMSSQL)) {
-                $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
-                $subUserName = (Get-AzureRmContext).Account.Id
+                $Offer = Get-AzsAdminManagedOffer | Where-Object name -eq "admin-rp-offer"
+                $subUserName = (Get-AzContext).Account.Id
                 if (!(Get-AzsUserSubscription -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*ADMIN DB HOSTS' } )) {
                     Write-Host "Creating the *ADMIN DB HOSTS subscription for deployment of database resources"
                     New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN DB HOSTS'
@@ -2644,37 +2740,27 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             
             # Create a subscription in the tenant space for storing scripts and artifacts
             if (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
-                $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
-                $subUserName = (Get-AzureRmContext).Account.Id
+                $Offer = Get-AzsAdminManagedOffer | Where-Object name -eq "admin-rp-offer"
+                $subUserName = (Get-AzContext).Account.Id
                 if (!(Get-AzsUserSubscription -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*ADMIN OFFLINE SCRIPTS' } )) {
                     Write-Host "Creating the *ADMIN OFFLINE SCRIPTS subscription for deployment of offline resources"
                     New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN OFFLINE SCRIPTS'
                 }
             }
 
-            # No longer required as App Service backend should be deployed into Default Provider Sub (even for Production)
-            <#if (!$skipAppService) {
-                $Offer = Get-AzsManagedOffer | Where-Object name -eq "admin-rp-offer"
-                $subUserName = (Get-AzureRmContext).Account.Id
-                if (!(Get-AzsUserSubscription -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*ADMIN APPSVC BACKEND' } )) {
-                    Write-Host "Creating the *ADMIN APPSVC BACKEND subscription for deployment of app service resources"
-                    New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName '*ADMIN APPSVC BACKEND'
-                }
-            }#>
-
             # Log the user out of the "AzureStackAdmin" environment
-            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
+            Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+            Clear-AzContext -Scope CurrentUser -Force
 
             # Log the user into the "AzureStackUser" environment
-            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "https://management.$customDomainSuffix"
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            Add-AzEnvironment -Name "AzureStackUser" -ARMEndpoint "https://management.$customDomainSuffix"
+            Connect-AzAccount -Environment "AzureStackUser" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
 
             # Register all the RPs for that user
-            foreach ($s in (Get-AzureRmSubscription)) {
-                Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
+            foreach ($s in (Get-AzSubscription)) {
+                Set-AzContext -Subscription $s.SubscriptionId | Out-Null
                 Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
-                Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
+                Get-AzResourceProvider -ListAvailable | Register-AzResourceProvider
             }
             StageComplete -progressStage $progressStage
         }
@@ -2894,7 +2980,21 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     }
     JobLauncher -jobName $jobName -jobToExecute $AddVMExtensions -Verbose
 
-    ### ADD DB RPS - JOB SETUP ###################################################################################################################################
+    ### ADD DBRP IMAGE - JOB SETUP ############################################################################################################################
+    ##############################################################################################################################################################
+
+    $jobName = "AddDBRPImage"
+    $AddDBRPImage = {
+        Start-Job -Name AddDBRPImage -InitializationScript $export_functions -ArgumentList $deploymentMode, $tenantID, $customDomainSuffix, $azsCreds, $ScriptLocation, $registerAzS, `
+            $sqlServerInstance, $databaseName, $tableName, $skipMySQL, $skipMSSQL, -ScriptBlock {
+            Set-Location $Using:ScriptLocation; .\Scripts\AddDBRPImage.ps1 -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID -customDomainSuffix $Using:customDomainSuffix -azsCreds $Using:azsCreds `
+                -ScriptLocation $Using:ScriptLocation -registerAzS $Using:registerAzS -sqlServerInstance $Using:sqlServerInstance -databaseName $Using:databaseName `
+                -tableName $Using:tableName -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL
+        } -Verbose -ErrorAction Stop
+    }
+    JobLauncher -jobName $jobName -jobToExecute $AddDBRPImage -Verbose
+    
+    ## ADD DB RPS - JOB SETUP ###################################################################################################################################
     ##############################################################################################################################################################
 
     $jobName = "AddMySQLRP"
@@ -2905,7 +3005,8 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "MySQL" -ERCSip $Using:ERCSip -pepAdminCreds $Using:pepAdminCreds `
                 -certPath $Using:certPath -secureCertPwd $Using:secureCertPwd -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
-                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode -azureEnvironment $Using:azureEnvironment
+                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode -azureEnvironment $Using:azureEnvironment `
+                -registerAzS $Using:registerAzS
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddMySQLRP -Verbose
@@ -2918,7 +3019,8 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             Set-Location $Using:ScriptLocation; .\Scripts\DeployDBRP.ps1 -AzSPath $Using:azsPath -customDomainSuffix $Using:customDomainSuffix -deploymentMode $Using:deploymentMode -tenantID $Using:TenantID `
                 -azsCreds $Using:azsCreds -ScriptLocation $Using:ScriptLocation -dbrp "SQLServer" -ERCSip $Using:ERCSip -pepAdminCreds $Using:pepAdminCreds `
                 -certPath $Using:certPath -secureCertPwd $Using:secureCertPwd -skipMySQL $Using:skipMySQL -skipMSSQL $Using:skipMSSQL -secureVMpwd $Using:secureVMpwd -sqlServerInstance $Using:sqlServerInstance `
-                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode -azureEnvironment $Using:azureEnvironment
+                -databaseName $Using:databaseName -tableName $Using:tableName -serialMode $Using:serialMode -multiNode $Using:multiNode -azureEnvironment $Using:azureEnvironment `
+                -registerAzS $Using:registerAzS
         } -Verbose -ErrorAction Stop
     }
     JobLauncher -jobName $jobName -jobToExecute $AddSQLServerRP -Verbose
@@ -3099,23 +3201,23 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     #### REGISTER NEW RESOURCE PROVIDERS #########################################################################################################################
     ##############################################################################################################################################################
 
-    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-    Clear-AzureRmContext -Scope CurrentUser -Force
+    Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+    Clear-AzContext -Scope CurrentUser -Force
     $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-    Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-    Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-    $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-    $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+    Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+    Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+    $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+    $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
     $progressStage = "RegisterNewRPs"
     $progressCheck = CheckProgress -progressStage $progressStage
     $scriptStep = $progressStage.ToUpper()
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             # Register resource providers
-            foreach ($s in (Get-AzureRmSubscription)) {
-                Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
+            foreach ($s in (Get-AzSubscription)) {
+                Set-AzContext -Subscription $s.SubscriptionId | Out-Null
                 Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
-                Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
+                Get-AzResourceProvider -ListAvailable | Register-AzResourceProvider
             }
             StageComplete -progressStage $progressStage
         }
@@ -3138,13 +3240,13 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             # Configure a simple base plan and offer for IaaS
-            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
+            Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+            Clear-AzContext -Scope CurrentUser -Force
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
             $subID = $azureContext.Subscription.Id
 
             # Default quotas, plan, and offer
@@ -3233,29 +3335,40 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                 $quotaIDs += $appServiceQuotaId
             }
             # Create the Plan and Offer
-            New-AzureRmResourceGroup -Name $RGName -Location $azsLocation -Force -Confirm:$false
-            $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
-            New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Private -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation -Confirm:$false
-            Set-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation -Confirm:$false
+            New-AzResourceGroup -Name $RGName -Location $azsLocation -Force -Confirm:$false
 
+            if (!$(Get-AzsPlan -Name $PlanName -ResourceGroupName $RGName -ErrorAction SilentlyContinue)) {
+                $plan = New-AzsPlan -Name $PlanName -DisplayName $PlanName -Location $azsLocation -ResourceGroupName $RGName -QuotaIds $QuotaIDs
+            }
+            else {
+                $plan = Get-AzsPlan -Name $PlanName -ResourceGroupName $RGName -ErrorAction SilentlyContinue
+            }
+
+            if (!$(Get-AzsManagedOffer -Name $OfferName -ResourceGroupName $RGName -ErrorAction SilentlyContinue)) {
+                New-AzsOffer -Name $OfferName -DisplayName $OfferName -State Public -BasePlanIds $plan.Id -ResourceGroupName $RGName -Location $azsLocation -Confirm:$false
+                $Offer = Get-AzsAdminManagedOffer | Where-Object name -eq $OfferName
+            }
+            else {
+                $Offer = Get-AzsAdminManagedOffer | Where-Object name -eq $OfferName
+            }
+            
             # Create a new subscription for that offer, for the currently logged in user
-            $Offer = Get-AzsManagedOffer | Where-Object name -eq "BaseOffer"
-            $subUserName = (Get-AzureRmContext).Account.Id
+            $subUserName = (Get-AzContext).Account.Id
             New-AzsUserSubscription -Owner $subUserName -OfferId $Offer.Id -DisplayName "AzS PoC Subscription"
 
             # Log the user out of the "AzureStackAdmin" environment
-            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
+            Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+            Clear-AzContext -Scope CurrentUser -Force
 
             # Log the user into the "AzureStackUser" environment
-            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "https://management.$customDomainSuffix"
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            Add-AzEnvironment -Name "AzureStackUser" -ARMEndpoint "https://management.$customDomainSuffix"
+            Connect-AzAccount -Environment "AzureStackUser" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
 
             # Register all the RPs for that user
-            foreach ($s in (Get-AzureRmSubscription)) {
-                Select-AzureRmSubscription -SubscriptionId $s.SubscriptionId | Out-Null
+            foreach ($s in (Get-AzSubscription)) {
+                Set-AzContext -Subscription $s.SubscriptionId | Out-Null
                 Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
-                Get-AzureRmResourceProvider -ListAvailable | Register-AzureRmResourceProvider
+                Get-AzResourceProvider -ListAvailable | Register-AzResourceProvider
             }
             StageComplete -progressStage $progressStage
         }
@@ -3288,7 +3401,8 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                 try {
                     if ($deploymentMode -eq "Online") {
-                        # Install useful ASDK Host Apps via Chocolatey
+                        Set-ExecutionPolicy Bypass -Force -ErrorAction SilentlyContinue
+                        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
                         Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
                         # Enable Choco Global Confirmation
                         Write-CustomVerbose -Message "Enabling global confirmation to streamline installs"
@@ -3307,12 +3421,22 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                         # WinSCP
                         Write-CustomVerbose -Message "Installing WinSCP with Chocolatey"
                         choco install winscp.install
-                        #Edge Insider Beta
+                        #Edge Insider
                         Write-CustomVerbose -Message "Installing Microsoft Edge"
                         choco install microsoft-edge
+                        <#
+                        $edgeUri = "http://go.microsoft.com/fwlink/?LinkID=2093437"
+                        $edgeMSIPath = "$azsPath\microsoftedge.msi"
+                        if (![System.IO.File]::Exists($edgeMSIPath)) {
+                            DownloadWithRetry -downloadURI $edgeUri -downloadLocation $edgeMSIPath -retries 10
+                        }
+                        Set-Location $azsPath
+                        HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe" -appName "Microsoft Edge" `
+                            -arguments '/i microsoftedge.msi /qn /l*v "microsoftedge.log"' -fileName "microsoftedge.msi" -appType "MSI"
+                        #>
                         # Chrome
-                        #Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
-                        #choco install googlechrome
+                        Write-CustomVerbose -Message "Installing Chrome with Chocolatey"
+                        choco install googlechrome
                         # WinDirStat
                         Write-CustomVerbose -Message "Installing WinDirStat with Chocolatey"
                         choco install windirstat
@@ -3356,6 +3480,9 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                         # Chrome
                         HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe" -appName "Google Chrome" `
                             -arguments '/i googlechrome.msi /qn /l*v "googlechrome.log"' -fileName "googlechrome.msi" -appType "MSI"
+                        # Edge
+                        HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe" -appName "Microsoft Edge" `
+                            -arguments '/i microsoftedge.msi /qn /l*v "microsoftedge.log"' -fileName "microsoftedge.msi" -appType "MSI"
                         # WinDirStat
                         HostAppInstaller -localInstallPath "${Env:ProgramFiles(x86)}\WinDirStat\WinDirStat.exe" -appName WinDirStat `
                             -arguments '/S /VERYSILENT /SUPPRESSMSGBOXES /LOG="WinDirStat.log" /NOCANCEL /NORESTART' `
@@ -3430,16 +3557,16 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
                                 $itemName = $item.Name
                                 $itemFullPath = $item.FullName
                                 $uploadItemAttempt = 1
-                                while (!$(Get-AzureStorageBlob -Container $azsOfflineContainerName -Blob $itemName -Context $azsOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
+                                while (!$(Get-AzStorageBlob -Container $azsOfflineContainerName -Blob $itemName -Context $azsOfflineStorageAccount.Context -ErrorAction SilentlyContinue) -and ($uploadItemAttempt -le 3)) {
                                     try {
                                         # Log back into Azure Stack to ensure login hasn't timed out
                                         Write-CustomVerbose -Message "$itemName not found. Upload Attempt: $uploadItemAttempt"
                                         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-                                        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-                                        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-                                        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-                                        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-                                        Set-AzureStorageBlobContent -File "$itemFullPath" -Container $azsOfflineContainerName -Blob $itemName -Context $azsOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
+                                        Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+                                        Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+                                        $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+                                        $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+                                        Set-AzStorageBlobContent -File "$itemFullPath" -Container $azsOfflineContainerName -Blob $itemName -Context $azsOfflineStorageAccount.Context -ErrorAction Stop | Out-Null
                                     }
                                     catch {
                                         Write-CustomVerbose -Message "Upload failed."
@@ -3489,8 +3616,8 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     }
         
     Write-Host "Clearing previous Azure/Azure Stack logins"
-    Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-    Clear-AzureRmContext -Scope CurrentUser -Force
+    Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+    Clear-AzContext -Scope CurrentUser -Force
 
     #### GENERATE OUTPUT #########################################################################################################################################
     ##############################################################################################################################################################
@@ -3532,43 +3659,43 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         Write-Output "`r`nSQL & MySQL Resource Provider Information:" >> $txtPath
 
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+        Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
         $ArmEndpoint = "https://management.$customDomainSuffix"
-        Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+        Add-AzEnvironment -Name "AzureStackUser" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
 
         if (!$skipMySQL) {
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            Connect-AzAccount -Environment "AzureStackUser" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             Write-Host "Selecting the *ADMIN DB HOSTS subscription"
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+            $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
             $subID = $azureContext.Subscription.Id
             Write-Host "Current subscription ID is: $subID"
             Write-Output "MySQL Resource Provider VM Credentials = mysqlrpadmin | $VMpwd" >> $txtPath
             $dbrg = "azurestack-dbhosting"
-            $mySqlFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
+            $mySqlFqdn = (Get-AzPublicIpAddress -Name "mysql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
             Write-Output "MySQL Database Hosting VM FQDN: $mySqlFqdn" >> $txtPath
             Write-Output "MySQL Database Hosting VM Credentials = mysqladmin | $VMpwd" >> $txtPath
         }
         if (!$skipMSSQL) {
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            Connect-AzAccount -Environment "AzureStackUser" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             Write-Host "Selecting the *ADMIN DB HOSTS subscription"
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+            $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
             $subID = $azureContext.Subscription.Id
             Write-Host "Current subscription ID is: $subID"
             Write-Output "SQL Server Resource Provider VM Credentials = sqlrpadmin | $VMpwd" >> $txtPath
             $dbrg = "azurestack-dbhosting"
-            $sqlFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
+            $sqlFqdn = (Get-AzPublicIpAddress -Name "sql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
             Write-Output "SQL Server Database Hosting VM FQDN: $sqlFqdn" >> $txtPath
             Write-Output "SQL Server Database Hosting VM Credentials = sqladmin | $VMpwd" >> $txtPath
         }
         if (!$skipAppService) {
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+            Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
             Write-Host "Getting File Server and SQL App Server FQDN"
-            $fileServerFqdn = (Get-AzureRmPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
-            $sqlAppServerFqdn = (Get-AzureRmPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
+            $fileServerFqdn = (Get-AzPublicIpAddress -Name "fileserver_ip" -ResourceGroupName "appservice-fileshare").DnsSettings.Fqdn
+            $sqlAppServerFqdn = (Get-AzPublicIpAddress -Name "sqlapp_ip" -ResourceGroupName "appservice-sql").DnsSettings.Fqdn
             $identityApplicationID = Get-Content -Path "$downloadPath\ApplicationIDBackup.txt" -ErrorAction SilentlyContinue
             $AppServicePath = "$azsPath\appservice"
             Write-Output "`r`nApp Service Resource Provider Information:" >> $txtPath
@@ -3685,14 +3812,20 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
             if ($([System.IO.Directory]::Exists("C:\ClusterStorage\SU1_Volume"))) {
                 Write-Host "This is a Windows Server 2019 ASDK host - setting csvPath to C:\ClusterStorage\SU1_Volume\images"
                 $csvPath = "C:\ClusterStorage\SU1_Volume\images"
+                $scratch = "C:\ClusterStorage\SU1_Volume\Scratch"
             }
             elseif ($([System.IO.Directory]::Exists("C:\ClusterStorage\Volume1"))) {
                 Write-Host "This is a Windows Server 2016 ASDK host - setting csvPath to C:\ClusterStorage\Volume1\images"
                 $csvPath = "C:\ClusterStorage\Volume1\images"
+                $scratch = "C:\ClusterStorage\Volume1\Scratch"
             }
             if ($([System.IO.Directory]::Exists("$csvPath"))) {
                 Remove-Item -Path "$csvPath\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
                 Remove-Item "$csvPath" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+            }
+            if ($([System.IO.Directory]::Exists("$scratch"))) {
+                Remove-Item -Path "$scratch\*" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
+                Remove-Item "$scratch" -Force -Recurse -Confirm:$false -ErrorAction SilentlyContinue -Verbose
             }
             if ($(Get-ChildItem -Directory -Path "$downloadPath\*" | Where-Object { $_.Name -like "20*iso" } -ErrorAction SilentlyContinue)) {
                 Get-ChildItem -Directory -Path "$downloadPath\*" | Where-Object { $_.Name -like "20*iso" } -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -3701,12 +3834,12 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
         }
         Write-CustomVerbose -Message "Cleaning up Resource Group used for Image Upload"
         $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-        Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-        Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-        $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-        $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
+        Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+        Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+        $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+        $azureContext = Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
         $azsImagesRGName = "azurestack-adminimages"
-        Get-AzureRmResourceGroup -Name $azsImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzureRmResourceGroup -Force -ErrorAction SilentlyContinue
+        Get-AzResourceGroup -Name $azsImagesRGName -Location $azsLocation -ErrorAction SilentlyContinue | Remove-AzResourceGroup -Force -ErrorAction SilentlyContinue
 
         # Create desktop icons
         $shortcut_name = "Azure Stack Admin Portal" 

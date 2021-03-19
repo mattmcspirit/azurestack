@@ -5,6 +5,19 @@ Version History
 -----------
 Here you'll find information on key changes, bug fixes and improvements made by version.
 
+### What's new in version 2008.1?
+* Major PS Update - Support for Az Modules
+* Updated to support MySQL/SQL 1.1.93.1 release
+* Updated to support 2008 App Service Q3 release
+* Windows Updates fixes
+* Updated SqlLocalDB (2019)
+* Added support for new DB RP Image
+
+### What's new in version 2008?
+* PowerShell fixes
+* Windows Images fixes
+* AdminPlanOffer with updated New-AzsStorageQuota section
+
 ### What's new in version 2002.1?
 * AVMA fix
 * Database Timeout RP fix

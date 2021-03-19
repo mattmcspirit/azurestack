@@ -102,14 +102,9 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             Write-Host "Clearing previous Azure/Azure Stack logins"
-            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
-            Disable-AzureRMContextAutosave -Scope CurrentUser
-
-            <#Write-Host "Importing Azure.Storage and AzureRM.Storage modules"
-            Import-Module -Name Azure.Storage -RequiredVersion 4.5.0
-            Import-Module -Name AzureRM.Storage -RequiredVersion 5.0.4
-            #>
+            Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+            Clear-AzContext -Scope CurrentUser -Force
+            Disable-AzContextAutosave -Scope CurrentUser
 
             # Need to ensure this stage doesn't start before the database SKU has been added
             $dbSkuJobCheck = $progressCheck = CheckProgress -progressStage "$($dbHost)SKUQuota"
@@ -133,16 +128,14 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
             Write-Host "Logging into Azure Stack into the user space to get the FQDN of the Hosting Server"
             $ArmEndpoint = "https://management.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackUser" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Add-AzEnvironment -Name "AzureStackUser" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
             $ArmEndpoint = "https://adminmanagement.$customDomainSuffix"
-            Add-AzureRMEnvironment -Name "AzureStackAdmin" -ArmEndpoint "$ArmEndpoint" -ErrorAction Stop
-            Add-AzureRmAccount -EnvironmentName "AzureStackUser" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            Add-AzEnvironment -Name "AzureStackAdmin" -ARMEndpoint "$ArmEndpoint" -ErrorAction Stop
+            Connect-AzAccount -Environment "AzureStackUser" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
             Write-Host "Selecting the *ADMIN DB HOSTS subscription"
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
-            Set-AzureRMContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq '*ADMIN DB HOSTS' }
+            Set-AzContext -Subscription $sub.SubscriptionId -NAME $sub.Name -Force | Out-Null
             $subID = $sub.SubscriptionId
-            #$azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            #$subID = $azureContext.Subscription.Id
             Write-Host "Current subscription ID is: $subID"
             
             Write-Host "Setting up Database Variables"
@@ -151,13 +144,13 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
                 $hostingJobCheck = "MySQLDBVM"
                 $hostingPath = "MySQLHosting"
                 $hostingTemplate = "mySqlHostingTemplate.json"
-                $dbFqdn = (Get-AzureRmPublicIpAddress -Name "mysql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
+                $dbFqdn = (Get-AzPublicIpAddress -Name "mysql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
             }
             elseif ($dbHost -eq "SQLServer") {
                 $hostingJobCheck = "SQLServerDBVM"
                 $hostingPath = "SQLHosting"
                 $hostingTemplate = "sqlHostingTemplate.json"
-                $dbFqdn = (Get-AzureRmPublicIpAddress -Name "sql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
+                $dbFqdn = (Get-AzPublicIpAddress -Name "sql_ip" -ResourceGroupName $dbrg).DnsSettings.Fqdn
             }
             # Need to ensure this stage doesn't start before the Ubuntu Server images have been put into the PIR
             $addHostingJobCheck = CheckProgress -progressStage "$hostingJobCheck"
@@ -171,19 +164,20 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             }
 
             Write-Host "Clearing previous Azure/Azure Stack logins"
-            Get-AzureRmContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzureRmAccount | Out-Null
-            Clear-AzureRmContext -Scope CurrentUser -Force
+            Get-AzContext -ListAvailable | Where-Object { $_.Environment -like "Azure*" } | Remove-AzContext -Force | Out-Null
+            Clear-AzContext -Scope CurrentUser -Force
 
             Write-Host "Logging into Azure Stack into the admin space to complete the process"
-            Add-AzureRmAccount -EnvironmentName "AzureStackAdmin" -TenantId $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
-            $sub = Get-AzureRmSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
-            $azureContext = Get-AzureRmSubscription -SubscriptionID $sub.SubscriptionId | Select-AzureRmSubscription
-            $azsLocation = (Get-AzureRmLocation).DisplayName
+            Connect-AzAccount -Environment "AzureStackAdmin" -Tenant $tenantID -Credential $azsCreds -ErrorAction Stop | Out-Null
+            $sub = Get-AzSubscription | Where-Object { $_.Name -eq "Default Provider Subscription" }
+            Get-AzSubscription -SubscriptionID $sub.SubscriptionId | Set-AzContext
+            # Get Azure Stack location
+            $azsLocation = (Get-AzLocation).DisplayName
             $adminDbRg = "azurestack-admindbhosting"
 
             # Create the RG to hold the assets in the admin space
-            if (-not (Get-AzureRmResourceGroup -Name $adminDbRg -Location $azsLocation -ErrorAction SilentlyContinue)) {
-                New-AzureRmResourceGroup -Name $adminDbRg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
+            if (-not (Get-AzResourceGroup -Name $adminDbRg -Location $azsLocation -ErrorAction SilentlyContinue)) {
+                New-AzResourceGroup -Name $adminDbRg -Location $azsLocation -Force -Confirm:$false -ErrorAction Stop
             }
 
             # Add host server to MySQL RP
@@ -191,16 +185,16 @@ elseif (($skipRP -eq $false) -and ($progressCheck -ne "Complete")) {
             if ($deploymentMode -eq "Online") {
                 $templateURI = "https://raw.githubusercontent.com/mattmcspirit/azurestack/$branch/deployment/templates/$hostingPath/azuredeploy.json"
             }
-            elseif (($deploymentMode -eq "PartialOnline") -or ($deploymentMode -eq "Offline")) {
+            elseif ($deploymentMode -ne "Online") {
                 $templateURI = Get-ChildItem -Path "$azsPath\templates" -Recurse -Include "$hostingTemplate" | ForEach-Object { $_.FullName }
             }
             if ($dbHost -eq "MySQL") {
-                New-AzureRmResourceGroupDeployment -Name AddMySQLHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `
+                New-AzResourceGroupDeployment -Name AddMySQLHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `
                     -username "root" -password $secureVMpwd -hostingServerName $dbFqdn -totalSpaceMB 20480 `
                     -skuName "MySQL80" -Mode Incremental -Verbose -ErrorAction Stop
             }
             elseif ($dbHost -eq "SQLServer") {
-                New-AzureRmResourceGroupDeployment -Name AddSQLServerHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `
+                New-AzResourceGroupDeployment -Name AddSQLServerHostingServer -ResourceGroupName $adminDbRg -TemplateUri $templateURI `
                     -hostingServerName $dbFqdn -hostingServerSQLLoginName "sa" -hostingServerSQLLoginPassword $secureVMpwd -totalSpaceMB 20480 `
                     -skuName "MSSQL2017" -Mode Incremental -Verbose -ErrorAction Stop
             }

@@ -1,13 +1,14 @@
-Azure Stack POC Configurator 2008.0
+Azure Stack POC Configurator 2008.1
 ==============
 
 Version Compatibility
 -----------
 The current version of the AzSPoC.ps1 script has been **tested with the following versions**:
 * ASDK build **1.2008.0.59 (2008)**
-* Azure Stack PowerShell Module **1.8.2**
+* Azure Stack PowerShell Module **2.0.2-preview**
+* Az PowerShell Module **0.10.0-preview**
 
-**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 2008, Azure Stack PowerShell 1.8.2. and AzureRM PowerShell 2.5.0.
+**IMPORTANT** - this version of the AzSPoC.ps1 script has been tested with ASDK build 2008.0.59, Azure Stack PowerShell 2.0.2-preview. and Az PowerShell 0.10.0-preview.
 
 Description
 -----------
@@ -30,6 +31,7 @@ This includes:
 * Corresponding gallery items created in the Marketplace for the Windows Server and Ubuntu Server images
 * Gallery item created for MySQL 5.7, 8.0 and SQL Server 2017 (all on Ubuntu Server 16.04 LTS)
 * Automates adding of Microsoft VM Extensions to Gallery from Marketplace (for registered ASDKs)
+* Automates adding of Microsoft AzureStack Add-on RP Windows Server image from Marketplace (for registered ASDKs)
 * MySQL Resource Provider installation
 * SQL Server Resource Provider installation
 * Deployment of a MySQL 8.0 hosting server on Ubuntu Server 16.04 LTS
@@ -121,8 +123,8 @@ With the script downloaded successfully, you can move on to running the script. 
 **General Guidance**
 * For the **-azureDirectoryTenantName**, You can use your "domain.onmicrosoft.com" tenant name, or if you are using a custom domain name in Azure AD, such as contoso.com, you can also use that.
 * For the **-downloadPath**, ensure the folder exists, and you have enough space to hold up to **3GB** of files for an *Online* installation and up to **20GB** for an *Offline* installation (providing the ZIP file). **This should be a path that is local to your ASDK host, NOT a mapped drive, NOT a USB drive, NOT on the Cluster Shared Volume - known issues exist with mapped drives, USB and CSV and mounting VHDs at this time**
-* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time**
-* **-ISOPath2019** is optional, and should point to the Windows Server 2019 Evaluation media that you can download from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images**
+* **-ISOPath** should point to the Windows Server 2016 Evaluation media that you downloaded with your ASDK files, or that is available on the Microsoft Eval Center. This should be version 1607. **Do NOT use Windows Server 2019 or any of the semi-annual releases as these are not supported by the database and App Service resource providers at this time**
+* **-ISOPath2019** is optional, and should point to the Windows Server 2019 Evaluation media that you can download from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019. This should be version 1809. **Note - this will not be used for deployment of any Resource Providers such as the Database RPs, or the App Service - these will still use the 2016 images**
 * **-asdkHostPwd** is the password you used when deploying your ASDK (for ASDK deployments only)
 * **-VMpwd** is the password assigned to all VMs created by the script. **Important** - App Service installation requires a strong password, at least 12 characters long, with at least 3 of the following options: 1 upper case, lower case, 1 number, 1 special character.
 * **-azureAdUsername** and **-azureAdPwd** are the *Service Administrator* credentials you used when you deployed your Azure Stack system (in Azure AD connected mode)

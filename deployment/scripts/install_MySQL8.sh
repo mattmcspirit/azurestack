@@ -20,7 +20,7 @@ ufw allow 22
 ufw allow 3306
 
 # Prep for Install of MySQL 8.0
-wget https://dev.mysql.com/get/mysql-apt-config_0.8.15-1_all.deb
+wget https://dev.mysql.com/get/mysql-apt-config_0.8.16-1_all.deb
 export DEBIAN_FRONTEND=noninteractive
 echo "mysql-community-server mysql-community-server/root-pass password root" | sudo debconf-set-selections
 echo "mysql-community-server mysql-community-server/re-root-pass password root" | sudo debconf-set-selections
