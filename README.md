@@ -206,6 +206,7 @@ This script can take many hours to finish, depending on your hardware and downlo
 * If you wish to upload Windows Server 2019 images for testing, please use the 17763 build, which is the Windows Server 2019 RTM and can be downloaded from here: https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019
 * Do not use a mapped drive for your -downloadPath on your ASDK host. There are known issues which are yet to be resolved. Please use a local drive.
 * If you are running the script on a large number of ASDK Hosts simultaneously, and start them at the same time, you may find that certain steps fail. One example is the ASDK Host Customization step, which downloads certain components from the internet. If all of your ASDK Hosts are using the same Public IP (visible to the internet), you may receive errors such as "The remote server returned an error: (429) Too Many Requests" - if this happens, wait a few mins, then restart the script.
+* If registration fails with a "The registration token is malformed" error message, please follow the guidance in this GitHub issue https://github.com/Azure/AzureStack-Tools/issues/597 and once edited, re-run the AzSPoC Configurator.
 
 ### Troubleshooting & Improvements
 This script, and the packages have been developed, and tested, to the best of my ability.  I'm not a PowerShell guru, nor a specialist in Linux scripting, thus, if you do encounter issues, [let me know through GitHub](<../../issues>) and I'll do my best to resolve them.
