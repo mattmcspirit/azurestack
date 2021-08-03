@@ -64,6 +64,10 @@ If you are regularly performing **POCs** on Azure Stack Multi-Node systems (aka 
 
 If you're interested, you should **[read more about the multinode deployment option here.](</deployment/multinode/README.md>)** 
 
+New in 2102 onwards - SQL & MySQL RP Deprecated on ASDK
+-----------
+As of ASDK 2102, the MySQL and SQL Server RPs will no longer be supported on the ASDK. The AzSPoC project has been updated to **skip** the deployment of the Database RPs on the ASDK system.
+
 Important Considerations
 ------------
 Firstly, **you must have already deployed the ASDK**. Secondly, for an **Azure AD deployment of the ASDK** (or if you want use AzSPoC.ps1 with an ADFS deployment of the ASDK, but **register** it to Azure), to run the AzSPoC.ps1 script, you need to be using a true **organizational account**, such as admin@contoso.onmicrosoft.com or admin@contoso.com, and this account should have global admin credentials for the specified Azure AD directory. Even if you have a non-organizational account, such as an outlook.com account, that has the right level of privilege in Azure AD, the AzSPoC.ps1 script **uses a -Credential switch for non-interactive login, which doesn’t work with non-organizational accounts**. You will receive an error.
