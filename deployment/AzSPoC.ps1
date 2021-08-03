@@ -1295,6 +1295,12 @@ try {
     # $azureRegCreds | Combined credentials, used for Azure AD authentication to register the Azure Stack POC System if NOT using same Azure AD Creds as deployment
     # $pepAdminCreds | Used for ADFS login (azurestackadmin not used) and also MySQL/SQL RP deployment
 
+    if ($multinode -eq $false) {
+        Write-Host "The MySQL and SQL Server RPs are no longer supported on the ASDK - setting these as skipped."
+        $skipMSSQL = $true
+        $skipMySQL = $true
+    }
+
     ### ADFS VALIDATION #########################################################################################################################################
     #############################################################################################################################################################
 
