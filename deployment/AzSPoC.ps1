@@ -3220,7 +3220,7 @@ C:\AzSPoC\AzSPoC.ps1, you should find the Scripts folder located at C:\AzSPoC\Sc
     if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
         try {
             # Register resource providers
-            foreach ($s in (Get-AzSubscription | ?{$_.State -eq "Enabled"})) {
+            foreach ($s in (Get-AzSubscription | Where-Object {$_.State -eq "Enabled"})) {
                 Set-AzContext -Subscription $s.SubscriptionId | Out-Null
                 Write-Progress $($s.SubscriptionId + " : " + $s.SubscriptionName)
                 Get-AzResourceProvider -ListAvailable | Register-AzResourceProvider
