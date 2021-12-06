@@ -151,7 +151,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                     # Hardcoding because of a Feb CU bug
                     Write-Host "Checking build number to determine Servicing Stack Updates"
                     if ($buildVersion -eq "14393") {
-                        $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
+                        $rss = "https://support.microsoft.com/en-us/feed/rss/c3a1be8a-50db-47b7-d5eb-259debc3abcc"
                         $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
                         $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
                         $feed = ($feed | Where-Object { $_.title -like "*1607*2021*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
@@ -166,7 +166,7 @@ if (($progressCheck -eq "Incomplete") -or ($progressCheck -eq "Failed")) {
                         $microCodeKB = "KB" + (($microCodeFeed.link).Split('kb')[2]).Split('-')[0]
                     }
                     elseif ($buildVersion -eq "17763") {
-                        $rss = "https://support.microsoft.com/app/content/api/content/feeds/sap/en-us/6ae59d69-36fc-8e4d-23dd-631d98bf74a9/rss"
+                        $rss = "https://support.microsoft.com/en-us/feed/rss/eb958e25-cff9-2d06-53ca-f656481bb31f"
                         $rssFeed = [xml](New-Object System.Net.WebClient).DownloadString($rss)
                         $feed = $rssFeed.rss.channel.item | Where-Object { $_.title -like "*Servicing Stack Update*Windows 10*" }
                         $feed = ($feed | Where-Object { $_.title -like "*1809*2021*" } | Select-Object -Property Link | Sort-Object link) | Select-Object -Last 1
